@@ -1,12 +1,12 @@
 {
   "name": "@nexus-media/frontend",
   "version": "1.0.0",
-  "homepage": "https://github.com/linyuan0213/nas-tools",
-  "bugs": "https://github.com/linyuan0213/nas-tools/issues",
+  "homepage": "https://github.com/linyuan0213/nexus-media",
+  "bugs": "https://github.com/linyuan0213/nexus-media/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/linyuan0213/nas-tools.git",
-    "directory": "web/frontend/apps/nas-tools"
+    "url": "git+https://github.com/linyuan0213/nexus-media.git",
+    "directory": "web/frontend/apps/nexus-media"
   },
   "license": "MIT",
   "author": {

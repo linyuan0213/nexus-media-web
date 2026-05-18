@@ -35,7 +35,7 @@ interface RemoveTask {
   downloader: string;
   downloader_name: string;
   downloader_type: string;
-  onlynastool: number;
+  only_nexus_media: number;
   samedata: number;
   action: number;
   config: {
@@ -148,7 +148,7 @@ function handleAdd() {
     interval: 60,
     enabled: 0,
     samedata: 0,
-    onlynastool: 1,
+    only_nexus_media: 1,
   };
   tagInput.value = '';
   qbStateInput.value = '';
@@ -221,7 +221,7 @@ async function handleSave() {
       interval: Number(d.interval),
       enabled: d.enabled,
       samedata: d.samedata,
-      onlynastool: d.onlynastool,
+      only_nexus_media: d.only_nexus_media,
       ratio: Number(editingConfig.value.ratio) || 0,
       seeding_time: Number(editingConfig.value.seeding_time) || 0,
       upload_avs: Number(editingConfig.value.upload_avs) || 0,
@@ -428,7 +428,7 @@ onMounted(fetchData);
               <div class="detail-item">
                 <div class="detail-label">隔离</div>
                 <div class="detail-value">
-                  <NTag v-if="task.onlynastool" size="tiny">隔离</NTag>
+                  <NTag v-if="task.only_nexus_media" size="tiny">隔离</NTag>
                   <span v-else class="detail-muted">否</span>
                 </div>
               </div>
@@ -643,7 +643,7 @@ onMounted(fetchData);
           </NFormItem>
           <NFormItem label="隔离">
             <NSelect
-              v-model:value="editing.onlynastool"
+              v-model:value="editing.only_nexus_media"
               :options="[
                 { label: '是', value: 1 },
                 { label: '否', value: 0 },

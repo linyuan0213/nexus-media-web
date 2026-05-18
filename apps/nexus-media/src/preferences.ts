@@ -28,7 +28,7 @@ export const overridesPreferences = defineOverridesPreferences({
   },
   copyright: {
     companyName: 'Nexus Media',
-    companySiteLink: 'https://github.com/linyuan/nas-tools',
+    companySiteLink: 'https://github.com/linyuan0213/nexus-media',
     date: '2026',
     enable: true,
     icp: '',

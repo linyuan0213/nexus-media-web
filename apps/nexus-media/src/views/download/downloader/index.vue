@@ -38,7 +38,7 @@ interface DownloaderItem {
   enabled: number;
   config: Record<string, any>;
   transfer?: number;
-  only_nastool?: number;
+  only_nexus_media?: number;
   match_path?: number;
   rmt_mode?: string;
   rmt_mode_name?: string;
@@ -140,7 +140,7 @@ function handleAdd() {
     type: 'qbittorrent',
     enabled: 1,
     transfer: 0,
-    only_nastool: 0,
+    only_nexus_media: 0,
     match_path: 0,
     rmt_mode: 'link',
   };
@@ -172,7 +172,7 @@ async function handleSave() {
     type: editingType.value,
     enabled: data.enabled,
     transfer: data.transfer,
-    only_nastool: data.only_nastool,
+    only_nexus_media: data.only_nexus_media,
     match_path: data.match_path,
     rmt_mode: data.rmt_mode,
     config: JSON.stringify(editingConfig.value),
@@ -375,7 +375,7 @@ onMounted(fetchData);
                 {{ item.rmt_mode_name || item.rmt_mode }}
               </div>
               <div
-                v-if="item.only_nastool === 1"
+                v-if="item.only_nexus_media === 1"
                 class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium"
                 style="background: hsl(var(--warning) / 0.2); color: hsl(var(--warning))"
               >
@@ -616,7 +616,7 @@ onMounted(fetchData);
                   </NTooltip>
                 </template>
                 <NSelect
-                  v-model:value="editingDownloader.only_nastool"
+                  v-model:value="editingDownloader.only_nexus_media"
                   :options="[
                     { label: '是', value: 1 },
                     { label: '否', value: 0 },

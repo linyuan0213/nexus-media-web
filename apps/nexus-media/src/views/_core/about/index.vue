@@ -92,7 +92,7 @@ onMounted(fetchSystemInfo);
                 <NButton
                   size="tiny"
                   tag="a"
-                  href="https://github.com/linyuan0213/nas-tools"
+                  href="https://github.com/linyuan0213/nexus-media"
                   target="_blank"
                 >
                   <template #icon>
@@ -103,7 +103,7 @@ onMounted(fetchSystemInfo);
                 <NButton
                   size="tiny"
                   tag="a"
-                  href="https://github.com/linyuan0213/nas-tools/blob/main/README.md"
+                  href="https://github.com/linyuan0213/nexus-media/blob/main/README.md"
                   target="_blank"
                 >
                   <template #icon>
