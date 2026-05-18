@@ -29,10 +29,17 @@ const tabsValue = defineModel<string>('modelValue');
     <div class="flex h-full w-full">
       <Card class="w-1/6 flex-none">
         <div class="mt-4 flex h-40 flex-col items-center justify-center gap-4">
-          <VbenAvatar
-            :src="userInfo?.avatar ?? preferences.app.defaultAvatar"
-            class="size-20"
-          />
+          <div class="profile-avatar-wrapper">
+            <VbenAvatar
+              :src="userInfo?.avatar ?? preferences.app.defaultAvatar"
+              class="size-20"
+            />
+            <label class="profile-avatar-upload">
+              <slot name="avatar-upload">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+              </slot>
+            </label>
+          </div>
           <span class="text-lg font-semibold">
             {{ userInfo?.realName ?? '' }}
           </span>
@@ -60,3 +67,31 @@ const tabsValue = defineModel<string>('modelValue');
     </div>
   </Page>
 </template>
+
+<style scoped>
+.profile-avatar-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.profile-avatar-upload {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: hsl(var(--card));
+  border: 2px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  transition: all 0.15s ease;
+}
+.profile-avatar-upload:hover {
+  background: hsl(var(--accent));
+  transform: scale(1.1);
+}
+</style>
