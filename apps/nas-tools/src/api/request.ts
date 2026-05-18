@@ -1,5 +1,5 @@
 /**
- * NAS-Tools 前端请求封装
+ * Nexus Media 前端请求封装
  * 对接 FastAPI 后端，使用 JWT Access Token + Refresh Token 机制
  */
 import type { RequestClientOptions } from '@vben/request';

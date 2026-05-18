@@ -1,5 +1,5 @@
 {
-  "name": "@nas-tools/monorepo",
+  "name": "@nexus-media/monorepo",
   "version": "1.0.0",
   "private": true,
   "keywords": [
@@ -28,7 +28,7 @@
     "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 turbo build",
     "build:analyze": "turbo build:analyze",
     "build:docker": "./scripts/deploy/build-local-docker-image.sh",
-    "build:nas-tools": "pnpm run build --filter=@nas-tools/frontend",
+    "build:frontend": "pnpm run build --filter=@nexus-media/frontend",
     "build:naive": "pnpm run build --filter=@vben/web-naive",
     "changeset": "pnpm exec changeset",
     "check": "pnpm run check:circular && pnpm run check:dep && pnpm run check:type && pnpm check:cspell",

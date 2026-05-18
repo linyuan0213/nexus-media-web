@@ -23,7 +23,7 @@ export namespace AuthApi {
 }
 
 /**
- * 登录（NAS-Tools FastAPI 后端）
+ * 登录（Nexus Media FastAPI 后端）
  */
 export async function loginApi(data: AuthApi.LoginParams) {
   const formData = new URLSearchParams();

@@ -239,7 +239,7 @@ function labelWithHelp(label: string, helpText: string) {
         </NFormItem>
         <NFormItem path="brushtask_savepath">
           <template #label>
-            <component :is="() => labelWithHelp('保存目录', '为该刷新任务设置独立的保存目录，将会覆盖下载器中的目录设置，如果下载器为Qbittorrent还需要在NAStool下载器设置中关闭种子自动管理功能')" />
+            <component :is="() => labelWithHelp('保存目录', '为该刷新任务设置独立的保存目录，将会覆盖下载器中的目录设置，如果下载器为Qbittorrent还需要在Nexus Media下载器设置中关闭种子自动管理功能')" />
           </template>
           <NInput v-model:value="form.brushtask_savepath" placeholder="留空使用下载器设置" />
         </NFormItem>

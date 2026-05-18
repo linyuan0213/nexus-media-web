@@ -32,7 +32,7 @@ export const useAuthStore = defineStore('auth', () => {
       loginLoading.value = true;
       const loginResult = await loginApi(params as any);
 
-      // NAS-Tools FastAPI 后端返回格式（经 interceptor 提取 data 后）: { access_token, refresh_token, expires_in }
+      // Nexus Media FastAPI 后端返回格式（经 interceptor 提取 data 后）: { access_token, refresh_token, expires_in }
       const accessToken = loginResult?.access_token;
 
       if (accessToken) {

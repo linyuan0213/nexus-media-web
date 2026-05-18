@@ -611,7 +611,7 @@ onMounted(fetchData);
                       <IconifyIcon icon="lucide:circle-help" class="inline size-3.5 cursor-help" style="color: hsl(var(--muted-foreground))" />
                     </template>
                     <div class="max-w-xs text-xs">
-                      启用后只有含NASTOOL标签的下载任务才会被自动转移和显示，关闭则下载软件中所有的任务都会转移和显示
+                      启用后只有含Nexus Media标签的下载任务才会被自动转移和显示，关闭则下载软件中所有的任务都会转移和显示
                     </div>
                   </NTooltip>
                 </template>
@@ -713,7 +713,7 @@ onMounted(fetchData);
                   v-model:value="dir.container_path"
                   class="flex-1"
                   size="small"
-                  placeholder="NAStool访问目录"
+                  placeholder="Nexus Media访问目录"
                 />
               </div>
             </div>

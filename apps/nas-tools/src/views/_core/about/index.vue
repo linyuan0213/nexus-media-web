@@ -60,7 +60,7 @@ onMounted(fetchSystemInfo);
 
 <template>
   <div class="p-4">
-    <PageHeader title="关于项目" subtitle="NAS-Tools 媒体自动化工具" />
+    <PageHeader title="关于项目" subtitle="Nexus Media 媒体自动化工具" />
 
     <NSpin :show="loading" class="mt-4">
       <NSpace vertical size="large">
