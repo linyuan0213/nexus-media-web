@@ -1,0 +1,150 @@
+/**
+ * 站点管理 API
+ * 对应后端: /api/site/*
+ */
+import { requestClient } from '#/api/request';
+
+export namespace SiteApi {
+  export interface SiteItem {
+    id: number;
+    name: string;
+    url?: string;
+    signurl?: string;
+    cookie?: string;
+    rssurl?: string;
+    pri?: number;
+    status?: number;
+    public?: boolean;
+    rss_enable?: boolean;
+    brush_enable?: boolean;
+    statistic_enable?: boolean;
+    parse?: boolean;
+    unread_msg_notify?: boolean;
+    chrome?: boolean;
+    proxy?: boolean;
+    signin_status?: string;
+    traffic?: string;
+    note?: string;
+    include?: string;
+    rule?: string;
+  }
+
+  export interface SiteStatisticsItem {
+    site_name: string;
+    user_level?: string;
+    upload: string;
+    download: string;
+    ratio: string;
+    seeding_size: string;
+    seeding_count: number;
+    bonus: string;
+    message_count?: number;
+  }
+
+  export interface SiteResourceItem {
+    id: string;
+    site_name: string;
+    title: string;
+    size?: string;
+    seeders?: number;
+    leechers?: number;
+    date?: string;
+    category?: string;
+    enclosure?: string;
+    pageurl?: string;
+  }
+
+  export interface SiteHistoryItem {
+    date: string;
+    upload: number;
+    download: number;
+    bonus?: number;
+  }
+
+  export interface SiteHistoryDataset {
+    dataset: [string, number, number][];
+  }
+}
+
+/** 获取站点列表 */
+export async function getSitesApi(filter?: { rss?: boolean; brush?: boolean; statistic?: boolean; basic?: boolean }) {
+  return requestClient.post<SiteApi.SiteItem[]>('/api/site/sites', filter || {});
+}
+
+/** 获取站点详情 */
+export async function getSiteApi(id: number | string) {
+  return requestClient.post<{ site: SiteApi.SiteItem; site_free?: boolean; site_2xfree?: boolean; site_hr?: boolean }>('/api/site/sites/detail', { id });
+}
+
+/** 添加/更新站点 */
+export async function saveSiteApi(data: Record<string, any>) {
+  return requestClient.post('/api/site/sites/update', {
+    site_id: data.id != null ? String(data.id) : undefined,
+    site_name: data.name,
+    site_pri: data.pri != null ? String(data.pri) : undefined,
+    site_rssurl: data.rssurl,
+    site_signurl: data.signurl,
+    site_cookie: data.cookie,
+    site_note: data.note,
+    site_include: data.include,
+  });
+}
+
+/** 删除站点 */
+export async function deleteSiteApi(id: number) {
+  return requestClient.post('/api/site/sites/delete', { id: String(id) });
+}
+
+/** 测试站点连通性 */
+export async function testSiteApi(id: number) {
+  return requestClient.post('/api/site/sites/test', { id: String(id) });
+}
+
+/** 执行签到 */
+export async function signinSiteApi(id?: number) {
+  return requestClient.post('/api/site/sites/signin', { id: id != null ? String(id) : undefined });
+}
+
+/** 获取站点统计 */
+export async function getSiteStatisticsApi(params?: { sites?: string[]; sort_by?: string; sort_on?: string }) {
+  return requestClient.post<SiteApi.SiteStatisticsItem[]>('/api/site/sites/statistics', {
+    sites: params?.sites,
+    sort_by: params?.sort_by,
+    sort_on: params?.sort_on,
+  });
+}
+
+/** 获取站点资源 */
+export async function getSiteResourcesApi(params: { id?: string; page?: number; keyword?: string }) {
+  return requestClient.post<{ list: SiteApi.SiteResourceItem[]; total?: number }>('/api/site/sites/resources', params);
+}
+
+/** 获取站点历史 */
+export async function getSiteHistoryApi(params: { days: number; end_day?: string }) {
+  return requestClient.post<SiteApi.SiteHistoryDataset>('/api/site/sites/history', params);
+}
+
+/** 获取站点活动 */
+export async function getSiteActivityApi(name: string) {
+  return requestClient.post<{ dataset: any[] }>('/api/site/sites/activity', { name });
+}
+
+/** 获取站点每日流量历史（按站点分组） */
+export async function getSiteDailyHistoryApi(params: { days: number; end_day?: string }) {
+  return requestClient.post<{ dates: string[]; series: Array<{ name: string; upload: number[]; download: number[] }> }>('/api/site/sites/statistics/daily', params);
+}
+
+/** 刷新站点数据统计（批量或单站） */
+export async function refreshSiteStatisticsApi(sites?: string[]) {
+  return requestClient.post<{ message: string }>('/api/site/sites/statistics/refresh', { sites });
+}
+
+/** 获取站点做种信息 */
+export async function getSiteSeedingApi(name: string) {
+  return requestClient.post<{ dataset: any[] }>('/api/site/sites/seeding', { name });
+}
+
+/** 获取所有站点图标 */
+export async function getSiteFaviconsApi() {
+  return requestClient.post<Record<string, string>>('/api/site/sites/favicon', {});
+}

@@ -1,0 +1,166 @@
+/**
+ * NAS-Tools Tabler 主题 CSS 变量
+ * 用于对齐旧版 Tabler 视觉风格
+ */
+
+:root {
+  /* 主色 */
+  --tblr-primary: #206bc4;
+  --tblr-primary-rgb: 32, 107, 196;
+  --tblr-primary-light: rgba(32, 107, 196, 0.1);
+
+  /* 状态色 */
+  --tblr-success: #2fb344;
+  --tblr-danger: #d63939;
+  --tblr-warning: #f76707;
+  --tblr-info: #4299e1;
+  --tblr-cyan: #17a2b8;
+  --tblr-teal: #0ca678;
+  --tblr-lime: #74b816;
+  --tblr-orange: #f76707;
+  --tblr-purple: #ae3ec9;
+  --tblr-pink: #d6336c;
+
+  /* 卡片 */
+  --tblr-card-border-radius: calc(var(--radius) - 2px);
+  --tblr-card-border-color: hsl(var(--border));
+  --tblr-card-bg: hsl(var(--card));
+
+  /* 页面 */
+  --tblr-page-header-bg: hsl(var(--background));
+  --tblr-body-bg: hsl(var(--background-deep));
+
+  /* 文本 */
+  --tblr-text-muted: hsl(var(--muted-foreground));
+  --tblr-text-heading: hsl(var(--card-foreground));
+
+  /* 阴影 */
+  --tblr-box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --tblr-box-shadow-card: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+/* Tabler 风格卡片 */
+.tbl-card {
+  background-color: var(--tblr-card-bg);
+  border: 1px solid var(--tblr-card-border-color);
+  border-radius: var(--tblr-card-border-radius);
+  box-shadow: var(--tblr-box-shadow-card);
+}
+
+.tbl-card-hover:hover {
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
+/* 页面标题栏 */
+.page-header {
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.page-header-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--tblr-text-heading);
+}
+
+.page-header-subtitle {
+  color: var(--tblr-text-muted);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+/* 媒体卡片网格 */
+.grid-media-card {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+/* 信息卡片网格 */
+.grid-info-card {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+/* 普通卡片网格 */
+.grid-normal-card {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1rem;
+  text-align: center;
+}
+
+.empty-state-icon {
+  color: var(--tblr-text-muted);
+  margin-bottom: 1rem;
+}
+
+.empty-state-title {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--tblr-text-heading);
+  margin-bottom: 0.5rem;
+}
+
+.empty-state-subtitle {
+  color: var(--tblr-text-muted);
+  font-size: 0.875rem;
+}
+
+/* 进度条 */
+.progress-bar-tblr {
+  height: 0.375rem;
+  background-color: rgba(32, 107, 196, 0.1);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progress-bar-tblr-fill {
+  height: 100%;
+  background-color: var(--tblr-primary);
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+/* 模态框模糊背景 */
+.modal-blur {
+  backdrop-filter: blur(4px);
+}
+
+/* 状态点 */
+.status-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+}
+
+.status-dot--success {
+  background-color: var(--tblr-success);
+}
+
+.status-dot--warning {
+  background-color: var(--tblr-warning);
+}
+
+.status-dot--error {
+  background-color: var(--tblr-danger);
+}
+
+.status-dot--default {
+  background-color: #9ca3af;
+}

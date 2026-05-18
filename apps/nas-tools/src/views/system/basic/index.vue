@@ -1,0 +1,853 @@
+<script lang="ts" setup>
+import { ref, onMounted } from 'vue';
+import {
+  NButton,
+  NCard,
+  NForm,
+  NFormItem,
+  NInput,
+  NSpace,
+  NSpin,
+  NSwitch,
+  NGrid,
+  NGridItem,
+  NSelect,
+  NModal,
+  NTabs,
+  NTabPane,
+  NCheckbox,
+  useMessage,
+} from 'naive-ui';
+import { IconifyIcon } from '@vben/icons';
+
+import {
+  getAllSystemConfigApi,
+  updateConfigApi,
+  setSystemConfigApi,
+  listAgentModelsApi,
+} from '#/api';
+import PageHeader from '#/components/page/PageHeader.vue';
+
+const message = useMessage();
+const loading = ref(false);
+const saving = ref<string | null>(null);
+const loadingModels = ref(false);
+const modelOptions = ref<string[]>([]);
+
+// 配置数据
+const config = ref<Record<string, any>>({});
+const tmdbDomains = ref<string[]>(['api.themoviedb.org', 'api.tmdb.org']);
+
+// Provider 预设 API URL
+const providerUrlPresets: Record<string, string> = {
+  deepseek: 'https://api.deepseek.com',
+  openai: 'https://api.openai.com/v1',
+  moonshot: 'https://api.moonshot.cn/v1',
+  qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  wenxin: 'https://qianfan.baidubce.com/v2',
+  glm: 'https://open.bigmodel.cn/api/paas/v4',
+  anthropic: 'https://api.anthropic.com/v1',
+  gemini: '', // Gemini 使用 SDK，不需要填 URL
+  azure: '',  // Azure URL 需要自定义
+  ollama: 'http://localhost:11434/v1',
+  custom: '',
+};
+
+// 刮削模态框
+const scraperModal = ref(false);
+const scraperConfig = ref({
+  scraper_nfo: {
+    movie: { basic: true, credits: false, credits_chinese: false },
+    tv: { basic: true, credits: false, credits_chinese: false, season_basic: false, episode_basic: false, episode_credits: false },
+  },
+  scraper_pic: {
+    movie: { poster: true, backdrop: false, background: false, logo: false, disc: false, banner: false, thumb: false },
+    tv: { poster: true, backdrop: false, background: false, logo: false, clearart: false, banner: false, thumb: false, season_poster: false, season_banner: false, season_thumb: false, episode_thumb: false, episode_thumb_ffmpeg: false },
+  },
+});
+
+// 自定义脚本模态框
+const scriptModal = ref(false);
+const customScript = ref({ css: '', javascript: '' });
+
+async function fetchData() {
+  loading.value = true;
+  try {
+    const res = await getAllSystemConfigApi();
+    config.value = res || {};
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function saveSection(sectionKey: string, data: Record<string, any>) {
+  saving.value = sectionKey;
+  try {
+    await updateConfigApi(data);
+    message.success('保存成功');
+  } catch (e) {
+    message.error('保存失败');
+  } finally {
+    saving.value = null;
+  }
+}
+
+async function fetchModels() {
+  const provider = currentProviderName();
+  const apiUrl = getProviderConfig('api_url');
+  const apiKey = getProviderConfig('api_key');
+  if (!apiUrl || !apiKey) {
+    message.warning('请先填写 API URL 和 API Key');
+    return;
+  }
+  loadingModels.value = true;
+  try {
+    const res = await listAgentModelsApi({ provider_name: provider, api_url: apiUrl, api_key: apiKey });
+    // requestClient 可能自动解包 data，需要兼容两种格式
+    const models = Array.isArray(res) ? res : (res?.data || []);
+    if (models.length > 0) {
+      modelOptions.value = models;
+      if (!getProviderConfig('model')) {
+        setProviderConfig('model', models[0]);
+      }
+      message.success(`获取到 ${models.length} 个模型`);
+    } else {
+      modelOptions.value = [];
+      message.error('获取模型列表为空');
+    }
+  } catch (e) {
+    modelOptions.value = [];
+    message.error('获取模型列表失败');
+  } finally {
+    loadingModels.value = false;
+  }
+}
+
+function saveSystem() {
+  const data: Record<string, any> = {};
+  const fields = [    'app.web_port',
+    'app.ssl_cert', 'app.ssl_key', 'app.proxies', 'app.domain',
+    'app.user_agent', 'app.enable_image_proxy'];
+  fields.forEach((f) => {
+    const v = config.value[f];
+    if (v !== undefined && v !== '') data[f] = v;
+  });
+  saveSection('system', data);
+}
+
+function saveLog() {
+  const data: Record<string, any> = {};
+  ['log.type', 'log.path', 'log.server', 'log.level'].forEach((f) => {
+    const v = config.value[f];
+    if (v !== undefined && v !== '') data[f] = v;
+  });
+  saveSection('log', data);
+}
+
+function saveMedia() {
+  const data: Record<string, any> = {};
+  const fields = ['app.rmt_tmdbkey', 'app.tmdb_domain', 'app.rmt_match_mode',
+    'media.tmdb_language', 'app.tmdb_image_url', 'media.category',
+    'pt.download_order', 'media.default_rmt_mode', 'media.min_filesize',
+    'media.media_default_path', 'media.ignored_paths', 'media.ignored_files',
+    'media.movie_name_format', 'media.tv_name_format',
+    'media.filesize_cover', 'media.nfo_poster', 'media.episode_mapping_enabled'];
+  fields.forEach((f) => {
+    const v = config.value[f];
+    if (v !== undefined && v !== '') data[f] = v;
+  });
+  saveSection('media', data);
+}
+
+const providerOptions = [
+  { label: 'OpenAI / DeepSeek 兼容', value: 'openai' },
+  { label: 'Ollama (本地)', value: 'ollama' },
+  { label: 'Gemini', value: 'gemini' },
+];
+
+function currentProviderName(): string {
+  return config.value['agent.default_provider'] || 'openai';
+}
+
+function providerConfigKey(field: string): string {
+  return `agent.providers.${currentProviderName()}.${field}`;
+}
+
+function getProviderConfig(field: string): string {
+  return config.value[providerConfigKey(field)] || '';
+}
+
+function setProviderConfig(field: string, value: string) {
+  config.value[providerConfigKey(field)] = value;
+}
+
+function saveAi() {
+  const data: Record<string, any> = {};
+  const fields = [
+    'agent.enabled',
+    'agent.default_provider',
+    'agent.media_recognizer_enabled',
+    'agent.batch_size',
+  ];
+  fields.forEach((f) => {
+    const v = config.value[f];
+    if (v !== undefined && v !== '') data[f] = v;
+  });
+  // 动态保存当前 provider 配置
+  const provider = currentProviderName();
+  ['api_url', 'api_key', 'model'].forEach((field) => {
+    const v = config.value[`agent.providers.${provider}.${field}`];
+    if (v !== undefined && v !== '') data[`agent.providers.${provider}.${field}`] = v;
+  });
+  saveSection('ai', data);
+}
+
+function saveService() {
+  const data: Record<string, any> = {};
+  const fields = ['pt.pt_check_interval', 'pt.search_rss_interval', 'media.mediasync_interval',
+    'pt.ptrefresh_date_cron', 'pt.search_auto', 'pt.search_no_result_rss'];
+  fields.forEach((f) => {
+    const v = config.value[f];
+    if (v !== undefined && v !== '') data[f] = v;
+  });
+  saveSection('service', data);
+}
+
+function saveSecurity() {
+  const data: Record<string, any> = {};
+  const fields = ['security.media_server_webhook_allow_ip.ipv4', 'security.media_server_webhook_allow_ip.ipv6',
+    'security.telegram_webhook_allow_ip.ipv4', 'security.telegram_webhook_allow_ip.ipv6',
+    'security.synology_webhook_allow_ip.ipv4', 'security.synology_webhook_allow_ip.ipv6',
+    'security.api_key', 'security.check_apikey'];
+  fields.forEach((f) => {
+    const v = config.value[f];
+    if (v !== undefined && v !== '') data[f] = v;
+  });
+  saveSection('security', data);
+}
+
+function saveLaboratory() {
+  const data: Record<string, any> = {};
+  const fields = ['laboratory.search_keyword', 'laboratory.search_tmdbweb',
+    'laboratory.tmdb_cache_expire', 'laboratory.use_douban_titles', 'laboratory.search_multi_language',
+    'laboratory.show_more_sites', 'laboratory.ocr_server_host', 'laboratory.chrome_server_host'];
+  fields.forEach((f) => {
+    const v = config.value[f];
+    if (v !== undefined && v !== '') data[f] = v;
+  });
+  saveSection('laboratory', data);
+}
+
+async function saveScraper() {
+  await setSystemConfigApi('UserScraperConf', JSON.stringify(scraperConfig.value));
+  scraperModal.value = false;
+  message.success('刮削设置已保存');
+}
+
+async function saveUserScript() {
+  // await saveUserScriptApi(customScript.value);
+  scriptModal.value = false;
+  message.success('自定义脚本已保存');
+}
+
+onMounted(fetchData);
+</script>
+
+<template>
+  <div class="p-4">
+    <PageHeader title="基础设置" />
+
+    <NSpin :show="loading">
+      <NGrid :cols="1" :x-gap="16" :y-gap="16" responsive="screen">
+        <!-- 系统 -->
+        <NGridItem>
+          <NCard id="basic_system" size="small">
+            <template #header>
+              <div class="flex items-center gap-2">
+                <IconifyIcon icon="lucide:monitor" class="w-4 h-4" />
+                <span class="font-semibold">系统</span>
+              </div>
+            </template>
+            <NForm label-placement="left" :label-width="160">
+              <NGrid cols="1 s:1 m:2 l:2" :x-gap="16" responsive="screen">
+                <NGridItem span="1">
+                  <NFormItem label="WEB服务端口">
+                    <NInput v-model:value="config['app.web_port']" placeholder="3000" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="HTTPS证书文件路径">
+                    <NInput v-model:value="config['app.ssl_cert']" placeholder="pem格式证书路径" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="HTTPS证书密钥文件路径">
+                    <NInput v-model:value="config['app.ssl_key']" placeholder="密钥文件路径" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="代理服务器">
+                    <NInput v-model:value="config['app.proxies']" placeholder="127.0.0.1:7890" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="外网访问地址">
+                    <NInput v-model:value="config['app.domain']" placeholder="http://IP:PORT" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1 s:1 m:2 l:2">
+                  <NFormItem label="User-Agent">
+                    <NInput v-model:value="config['app.user_agent']" placeholder="Mozilla/5.0 ..." />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="启用图片代理">
+                    <NSwitch v-model:value="config['app.enable_image_proxy']" :checked-value="1" :unchecked-value="0" />
+                  </NFormItem>
+                </NGridItem>
+              </NGrid>
+            </NForm>
+            <template #footer>
+              <div class="flex justify-end">
+                <NButton type="primary" size="small" :loading="saving === 'system'" @click="saveSystem">
+                  保存
+                </NButton>
+              </div>
+            </template>
+          </NCard>
+        </NGridItem>
+
+        <!-- 日志 -->
+        <NGridItem>
+          <NCard id="basic_log" size="small">
+            <template #header>
+              <div class="flex items-center gap-2">
+                <IconifyIcon icon="lucide:log-in" class="w-4 h-4" />
+                <span class="font-semibold">日志</span>
+              </div>
+            </template>
+            <NForm label-placement="left" :label-width="160">
+              <NGrid cols="1 s:1 m:2 l:2" :x-gap="16" responsive="screen">
+                <NGridItem span="1">
+                  <NFormItem label="日志输出类型">
+                    <NSelect v-model:value="config['log.type']" :options="[
+                      { label: '控制台', value: 'console' },
+                      { label: '文件', value: 'file' },
+                      { label: '日志中心', value: 'server' },
+                    ]" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="日志文件路径">
+                    <NInput v-model:value="config['log.path']" placeholder="/config/logs" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="日志中心地址">
+                    <NInput v-model:value="config['log.server']" placeholder="127.0.0.1:514" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="日志级别">
+                    <NSelect v-model:value="config['log.level']" :options="[
+                      { label: 'INFO', value: 'info' },
+                      { label: 'DEBUG', value: 'debug' },
+                      { label: 'ERROR', value: 'error' },
+                    ]" />
+                  </NFormItem>
+                </NGridItem>
+              </NGrid>
+            </NForm>
+            <template #footer>
+              <div class="flex justify-end">
+                <NButton type="primary" size="small" :loading="saving === 'log'" @click="saveLog">
+                  保存
+                </NButton>
+              </div>
+            </template>
+          </NCard>
+        </NGridItem>
+
+        <!-- 媒体 -->
+        <NGridItem>
+          <NCard id="basic_media" size="small">
+            <template #header>
+              <div class="flex items-center gap-2">
+                <IconifyIcon icon="lucide:database" class="w-4 h-4" />
+                <span class="font-semibold">媒体</span>
+              </div>
+            </template>
+            <NForm label-placement="left" :label-width="160">
+              <NGrid cols="1 s:1 m:2 l:2" :x-gap="16" responsive="screen">
+                <NGridItem span="1">
+                  <NFormItem label="TMDB API Key">
+                    <NInput v-model:value="config['app.rmt_tmdbkey']" placeholder="必填" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="TMDB API Url">
+                    <NSelect v-model:value="config['app.tmdb_domain']" :options="tmdbDomains.map(d => ({ label: d, value: d }))" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="TMDB匹配模式">
+                    <NSelect v-model:value="config['app.rmt_match_mode']" :options="[
+                      { label: '正常模式', value: 'normal' },
+                      { label: '严格模式', value: 'strict' },
+                    ]" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="TMDB语言">
+                    <NSelect v-model:value="config['media.tmdb_language']" :options="[
+                      { label: '中文', value: 'zh' },
+                      { label: 'English', value: 'en' },
+                    ]" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="TMDB图片代理">
+                    <NInput v-model:value="config['app.tmdb_image_url']" placeholder="https://image.tmdb.org" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="二级分类策略">
+                    <NInput v-model:value="config['media.category']" placeholder="留空不启用" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="下载优先规则">
+                    <NSelect v-model:value="config['pt.download_order']" :options="[
+                      { label: '默认', value: '' },
+                      { label: '站点优先', value: 'site' },
+                      { label: '做种数优先', value: 'seeder' },
+                    ]" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="默认文件转移方式">
+                    <NSelect v-model:value="config['media.default_rmt_mode']" :options="[
+                      { label: '硬链接', value: 'link' },
+                      { label: '移动', value: 'move' },
+                      { label: '复制', value: 'copy' },
+                    ]" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="转移最小文件大小(MB)">
+                    <NInput v-model:value="config['media.min_filesize']" placeholder="200" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="文件管理默认路径">
+                    <NInput v-model:value="config['media.media_default_path']" placeholder="/" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="文件路径转移忽略词">
+                    <NInput v-model:value="config['media.ignored_paths']" placeholder="支持正则，使用;分隔" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="文件名转移忽略词">
+                    <NInput v-model:value="config['media.ignored_files']" placeholder="支持正则，使用;分隔" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1 s:1 m:2 l:2">
+                  <NFormItem label="电影重命名格式">
+                    <NInput v-model:value="config['media.movie_name_format']" placeholder="{title} ({year})/{title}-{part} ({year}) - {videoFormat}" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1 s:1 m:2 l:2">
+                  <NFormItem label="电视剧重命名格式">
+                    <NInput v-model:value="config['media.tv_name_format']" placeholder="{title} ({year})/Season {season}/{title}-{part} - {season_episode} - 第 {episode} 集" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="高质量文件覆盖">
+                    <NSwitch v-model:value="config['media.filesize_cover']" :checked-value="1" :unchecked-value="0" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="刮削元数据及图片">
+                    <NSwitch v-model:value="config['media.nfo_poster']" :checked-value="1" :unchecked-value="0" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="启用集数映射">
+                    <NSwitch v-model:value="config['media.episode_mapping_enabled']" />
+                  </NFormItem>
+                </NGridItem>
+              </NGrid>
+            </NForm>
+            <template #footer>
+              <div class="flex justify-between items-center">
+                <NButton size="small" @click="scraperModal = true">
+                  <template #icon>
+                    <IconifyIcon icon="lucide:image" class="w-4 h-4" />
+                  </template>
+                  刮削设置
+                </NButton>
+                <NButton type="primary" size="small" :loading="saving === 'media'" @click="saveMedia">
+                  保存
+                </NButton>
+              </div>
+            </template>
+          </NCard>
+        </NGridItem>
+
+        <!-- Agent 设置 -->
+        <NGridItem>
+          <NCard id="basic_ai" size="small">
+            <template #header>
+              <div class="flex items-center gap-2">
+                <IconifyIcon icon="lucide:cpu" class="w-4 h-4" />
+                <span class="font-semibold">Agent 设置</span>
+              </div>
+            </template>
+            <NForm label-placement="left" :label-width="180">
+              <NGrid cols="1 s:1 m:2 l:3" :x-gap="16" responsive="screen">
+                <NGridItem span="1">
+                  <NFormItem label="启用 Agent">
+                    <NSwitch v-model:value="config['agent.enabled']" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="媒体识别增强">
+                    <NSwitch v-model:value="config['agent.media_recognizer_enabled']" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="默认 Provider">
+                    <NSelect
+                      v-model:value="config['agent.default_provider']"
+                      :options="[
+                        { label: 'DeepSeek', value: 'deepseek' },
+                        { label: 'OpenAI', value: 'openai' },
+                        { label: 'Moonshot / Kimi', value: 'moonshot' },
+                        { label: '通义千问 (Alibaba)', value: 'qwen' },
+                        { label: '文心一言 (Baidu)', value: 'wenxin' },
+                        { label: '智谱 GLM', value: 'glm' },
+                        { label: 'Claude / Anthropic', value: 'anthropic' },
+                        { label: 'Gemini (Google)', value: 'gemini' },
+                        { label: 'Azure OpenAI', value: 'azure' },
+                        { label: 'Ollama (本地)', value: 'ollama' },
+                        { label: '自定义', value: 'custom' },
+                      ]"
+                      placeholder="选择 Provider"
+                      @update:value="(v: string) => {
+                        const preset = providerUrlPresets[v];
+                        if (preset && !getProviderConfig('api_url')) {
+                          setProviderConfig('api_url', preset);
+                        }
+                      }"
+                    />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="API URL">
+                    <NInput :value="getProviderConfig('api_url')" @update:value="v => setProviderConfig('api_url', v)" :placeholder="providerUrlPresets[currentProviderName()] || 'https://api.example.com/v1'" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="API Key">
+                    <NInput :value="getProviderConfig('api_key')" @update:value="v => setProviderConfig('api_key', v)" placeholder="sk-xxx" type="password" show-password-on="click" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="Model">
+                    <div class="flex gap-2">
+                      <NSelect
+                        :value="getProviderConfig('model')"
+                        @update:value="v => setProviderConfig('model', v)"
+                        :options="modelOptions.map(m => ({ label: m, value: m }))"
+                        :placeholder="currentProviderName() === 'ollama' ? 'llama3.2' : 'deepseek-chat'"
+                        filterable
+                        clearable
+                        class="flex-1"
+                      />
+                      <NButton
+                        size="small"
+                        :loading="loadingModels"
+                        @click="fetchModels"
+                        title="刷新模型列表"
+                      >
+                        <template #icon>
+                          <IconifyIcon icon="lucide:refresh-cw" class="w-4 h-4" />
+                        </template>
+                      </NButton>
+                    </div>
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="批量识别大小">
+                    <NInput v-model:value="config['agent.batch_size']" placeholder="100" />
+                  </NFormItem>
+                </NGridItem>
+              </NGrid>
+            </NForm>
+            <template #footer>
+              <div class="flex justify-end">
+                <NButton type="primary" size="small" :loading="saving === 'ai'" @click="saveAi">
+                  保存
+                </NButton>
+              </div>
+            </template>
+          </NCard>
+        </NGridItem>
+
+        <!-- 服务 -->
+        <NGridItem>
+          <NCard id="basic_service" size="small">
+            <template #header>
+              <div class="flex items-center gap-2">
+                <IconifyIcon icon="lucide:settings" class="w-4 h-4" />
+                <span class="font-semibold">服务</span>
+              </div>
+            </template>
+            <NForm label-placement="left" :label-width="160">
+              <NGrid cols="1 s:1 m:2 l:2" :x-gap="16" responsive="screen">
+                <NGridItem span="1">
+                  <NFormItem label="订阅RSS周期(秒)">
+                    <NInput v-model:value="config['pt.pt_check_interval']" placeholder="留空关闭RSS订阅" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="订阅搜索周期(小时)">
+                    <NInput v-model:value="config['pt.search_rss_interval']" placeholder="留空关闭订阅定时搜索" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="媒体库同步周期(小时)">
+                    <NInput v-model:value="config['media.mediasync_interval']" placeholder="留空关闭媒体库同步" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="站点数据刷新时间">
+                    <NInput v-model:value="config['pt.ptrefresh_date_cron']" placeholder="留空关闭自动刷新" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="远程搜索自动择优下载">
+                    <NSwitch v-model:value="config['pt.search_auto']" :checked-value="1" :unchecked-value="0" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="远程下载不完整自动订阅">
+                    <NSwitch v-model:value="config['pt.search_no_result_rss']" :checked-value="1" :unchecked-value="0" />
+                  </NFormItem>
+                </NGridItem>
+              </NGrid>
+            </NForm>
+            <template #footer>
+              <div class="flex justify-end">
+                <NButton type="primary" size="small" :loading="saving === 'service'" @click="saveService">
+                  保存
+                </NButton>
+              </div>
+            </template>
+          </NCard>
+        </NGridItem>
+
+        <!-- 安全 -->
+        <NGridItem>
+          <NCard id="security" size="small">
+            <template #header>
+              <div class="flex items-center gap-2">
+                <IconifyIcon icon="lucide:shield" class="w-4 h-4" />
+                <span class="font-semibold">安全</span>
+              </div>
+            </template>
+            <NForm label-placement="left" :label-width="200">
+              <NGrid cols="1 s:1 m:2 l:2" :x-gap="16" responsive="screen">
+                <NGridItem span="1">
+                  <NFormItem label="媒体服务器Webhook源地址 IPv4">
+                    <NInput v-model:value="config['security.media_server_webhook_allow_ip.ipv4']" placeholder="允许的IPv4 CIDR" />
+                  </NFormItem>
+                  <NFormItem label="媒体服务器Webhook源地址 IPv6">
+                    <NInput v-model:value="config['security.media_server_webhook_allow_ip.ipv6']" placeholder="允许的IPv6 CIDR" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="Telegram源地址 IPv4">
+                    <NInput v-model:value="config['security.telegram_webhook_allow_ip.ipv4']" placeholder="允许的IPv4 CIDR" />
+                  </NFormItem>
+                  <NFormItem label="Telegram源地址 IPv6">
+                    <NInput v-model:value="config['security.telegram_webhook_allow_ip.ipv6']" placeholder="允许的IPv6 CIDR" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="Synology Chat源地址 IPv4">
+                    <NInput v-model:value="config['security.synology_webhook_allow_ip.ipv4']" placeholder="允许的IPv4 CIDR" />
+                  </NFormItem>
+                  <NFormItem label="Synology Chat源地址 IPv6">
+                    <NInput v-model:value="config['security.synology_webhook_allow_ip.ipv6']" placeholder="允许的IPv6 CIDR" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="API密钥">
+                    <NInput v-model:value="config['security.api_key']" placeholder="用于外部调用" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1 s:1 m:2 l:2">
+                  <NFormItem label="验证外部请求的API密钥">
+                    <NSwitch v-model:value="config['security.check_apikey']" :checked-value="1" :unchecked-value="0" />
+                  </NFormItem>
+                </NGridItem>
+              </NGrid>
+            </NForm>
+            <template #footer>
+              <div class="flex justify-end">
+                <NButton type="primary" size="small" :loading="saving === 'security'" @click="saveSecurity">
+                  保存
+                </NButton>
+              </div>
+            </template>
+          </NCard>
+        </NGridItem>
+
+        <!-- 实验室 -->
+        <NGridItem>
+          <NCard id="laboratory" size="small">
+            <template #header>
+              <div class="flex items-center gap-2">
+                <IconifyIcon icon="lucide:flask-conical" class="w-4 h-4" />
+                <span class="font-semibold">实验室</span>
+              </div>
+            </template>
+            <NForm label-placement="left" :label-width="200">
+              <NGrid cols="1 s:1 m:2 l:3" :x-gap="16" responsive="screen">
+                <NGridItem span="1">
+                  <NFormItem label="辅助识别">
+                    <NSwitch v-model:value="config['laboratory.search_keyword']" :checked-value="1" :unchecked-value="0" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="WEB增强识别">
+                    <NSwitch v-model:value="config['laboratory.search_tmdbweb']" :checked-value="1" :unchecked-value="0" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="TMDB缓存过期策略">
+                    <NSwitch v-model:value="config['laboratory.tmdb_cache_expire']" :checked-value="1" :unchecked-value="0" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="默认搜索豆瓣资源">
+                    <NSwitch v-model:value="config['laboratory.use_douban_titles']" :checked-value="1" :unchecked-value="0" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="多语言搜索">
+                    <NSwitch v-model:value="config['laboratory.search_multi_language']" :checked-value="1" :unchecked-value="0" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="展示更多站点">
+                    <NSwitch v-model:value="config['laboratory.show_more_sites']" :checked-value="1" :unchecked-value="0" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="验证码识别服务器">
+                    <NInput v-model:value="config['laboratory.ocr_server_host']" placeholder="http://127.0.0.1:9300" />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
+                  <NFormItem label="网页自动化服务器">
+                    <NInput v-model:value="config['laboratory.chrome_server_host']" placeholder="http://127.0.0.1:9850" />
+                  </NFormItem>
+                </NGridItem>
+              </NGrid>
+            </NForm>
+            <template #footer>
+              <div class="flex justify-end">
+                <NButton type="primary" size="small" :loading="saving === 'laboratory'" @click="saveLaboratory">
+                  保存
+                </NButton>
+              </div>
+            </template>
+          </NCard>
+        </NGridItem>
+      </NGrid>
+    </NSpin>
+
+    <!-- 刮削设置模态框 -->
+    <NModal v-model:show="scraperModal" title="刮削设置" preset="card" class="w-[800px]">
+      <NTabs type="line">
+        <NTabPane name="nfo" tab="元数据">
+          <div class="space-y-4">
+            <div>
+              <div class="font-medium mb-2">电影</div>
+              <NSpace>
+                <NCheckbox v-model:checked="scraperConfig.scraper_nfo.movie.basic">基础信息</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_nfo.movie.credits">演职人员</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_nfo.movie.credits_chinese">演职人员中文</NCheckbox>
+              </NSpace>
+            </div>
+            <div>
+              <div class="font-medium mb-2">电视剧</div>
+              <NSpace>
+                <NCheckbox v-model:checked="scraperConfig.scraper_nfo.tv.basic">基础信息</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_nfo.tv.credits">演职人员</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_nfo.tv.credits_chinese">演职人员中文</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_nfo.tv.season_basic">季-基础信息</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_nfo.tv.episode_basic">集-基础信息</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_nfo.tv.episode_credits">集-演职人员</NCheckbox>
+              </NSpace>
+            </div>
+          </div>
+        </NTabPane>
+        <NTabPane name="pic" tab="图片">
+          <div class="space-y-4">
+            <div>
+              <div class="font-medium mb-2">电影图片</div>
+              <NSpace>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.movie.poster">poster</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.movie.backdrop">fanart</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.movie.background">background</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.movie.logo">logo</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.movie.disc">disc</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.movie.banner">banner</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.movie.thumb">thumb</NCheckbox>
+              </NSpace>
+            </div>
+            <div>
+              <div class="font-medium mb-2">电视剧图片</div>
+              <NSpace>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.tv.poster">poster</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.tv.backdrop">fanart</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.tv.background">background</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.tv.logo">logo</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.tv.clearart">clearart</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.tv.banner">banner</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.tv.thumb">thumb</NCheckbox>
+              </NSpace>
+            </div>
+            <div>
+              <div class="font-medium mb-2">电视剧-季图片</div>
+              <NSpace>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.tv.season_poster">poster</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.tv.season_banner">banner</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.tv.season_thumb">thumb</NCheckbox>
+              </NSpace>
+            </div>
+            <div>
+              <div class="font-medium mb-2">电视剧-集图片</div>
+              <NSpace>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.tv.episode_thumb">thumb</NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.tv.episode_thumb_ffmpeg">thumb-ffmpeg</NCheckbox>
+              </NSpace>
+            </div>
+          </div>
+        </NTabPane>
+      </NTabs>
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="scraperModal = false">取消</NButton>
+          <NButton type="primary" @click="saveScraper">保存</NButton>
+        </NSpace>
+      </template>
+    </NModal>
+
+  </div>
+</template>

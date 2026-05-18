@@ -1,0 +1,86 @@
+<script lang="ts" setup>
+import { ref, onMounted } from 'vue';
+
+import {
+  NButton,
+  NCard,
+  NDataTable,
+  NEmpty,
+  NSpace,
+  NSpin,
+  NTag,
+} from 'naive-ui';
+
+import { deleteUserRssApi, getUserRssApi } from '#/api';
+import { useRssStore } from '#/store';
+
+const rssStore = useRssStore();
+const loading = ref(false);
+
+const columns = [
+  { title: '名称', key: 'name', ellipsis: { tooltip: true } },
+  { title: '地址', key: 'address', ellipsis: { tooltip: true } },
+  { title: '解析器', key: 'parser', width: 120 },
+  {
+    title: '状态',
+    key: 'status',
+    width: 100,
+    render(row: any) {
+      return h(NTag, { type: row.status === 1 ? 'success' : 'error' }, {
+        default: () => (row.status === 1 ? '启用' : '停用'),
+      });
+    },
+  },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 150,
+    render(row: any) {
+      return h(NSpace, {}, {
+        default: () => [
+          h(NButton, { size: 'small', type: 'error', onClick: () => handleDelete(row.id) }, { default: () => '删除' }),
+        ],
+      });
+    },
+  },
+];
+
+async function fetchData() {
+  loading.value = true;
+  try {
+    const res = await getUserRssApi();
+    rssStore.setUserRss(res as any);
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function handleDelete(id: number) {
+  await deleteUserRssApi(id);
+  await fetchData();
+}
+
+onMounted(fetchData);
+</script>
+
+<script lang="ts">
+import { h } from 'vue';
+</script>
+
+<template>
+  <div class="p-4">
+    <NCard title="自定义 RSS">
+      <NSpin :show="loading">
+        <NDataTable
+          v-if="rssStore.userRss.length > 0"
+          :columns="columns"
+          :data="rssStore.userRss"
+          :bordered="false"
+          :single-line="false"
+          remote
+        />
+        <NEmpty v-else description="暂无自定义 RSS" />
+      </NSpin>
+    </NCard>
+  </div>
+</template>

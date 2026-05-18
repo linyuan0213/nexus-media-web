@@ -1,0 +1,88 @@
+{
+  "auth": {
+    "login": "登录",
+    "register": "注册",
+    "codeLogin": "验证码登录",
+    "qrcodeLogin": "二维码登录",
+    "forgetPassword": "忘记密码",
+    "profile": "个人中心"
+  },
+  "dashboard": {
+    "title": "概览",
+    "analytics": "分析页",
+    "workspace": "工作台"
+  },
+  "media": {
+    "title": "媒体库",
+    "search": "媒体搜索",
+    "library": "媒体库管理",
+    "discovery": "发现页"
+  },
+  "download": {
+    "title": "下载管理",
+    "downloading": "正在下载",
+    "history": "下载历史",
+    "downloader": "下载器设置"
+  },
+  "site": {
+    "title": "站点管理",
+    "list": "站点列表",
+    "statistics": "站点统计",
+    "signin": "签到管理"
+  },
+  "rss": {
+    "title": "RSS 订阅",
+    "movie": "电影订阅",
+    "tv": "剧集订阅",
+    "user": "自定义 RSS",
+    "history": "订阅历史"
+  },
+  "scheduler": {
+    "title": "定时任务",
+    "jobs": "任务列表"
+  },
+  "brush": {
+    "title": "刷流任务"
+  },
+  "sync": {
+    "title": "目录同步"
+  },
+  "filter": {
+    "title": "过滤规则",
+    "rule": "规则配置"
+  },
+  "words": {
+    "title": "识别词管理"
+  },
+  "plugin": {
+    "title": "插件中心",
+    "market": "插件市场",
+    "installed": "已安装插件"
+  },
+  "service": {
+    "title": "服务管理",
+    "indexer": "索引器",
+    "mediaserver": "媒体服务器",
+    "notification": "消息通知"
+  },
+  "system": {
+    "title": "系统设置",
+    "basic": "基础设置",
+    "security": "安全设置",
+    "backup": "备份恢复",
+    "logs": "系统日志",
+    "users": "用户管理"
+  },
+  "rename": {
+    "title": "整理重命名",
+    "history": "识别历史",
+    "mediafile": "文件管理",
+    "unidentification": "未识别列表"
+  },
+  "about": {
+    "title": "关于",
+    "version": "版本信息",
+    "changelog": "更新日志",
+    "license": "许可证"
+  }
+}

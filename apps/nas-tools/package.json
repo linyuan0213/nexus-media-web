@@ -1,0 +1,48 @@
+{
+  "name": "@nas-tools/frontend",
+  "version": "1.0.0",
+  "homepage": "https://github.com/linyuan0213/nas-tools",
+  "bugs": "https://github.com/linyuan0213/nas-tools/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/linyuan0213/nas-tools.git",
+    "directory": "web/frontend/apps/nas-tools"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "linyuan",
+    "email": "linyuan213@gmail.com"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "pnpm vite build --mode production",
+    "build:analyze": "pnpm vite build --mode analyze",
+    "dev": "pnpm vite --mode development",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit --skipLibCheck"
+  },
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "dependencies": {
+    "@vben/access": "workspace:*",
+    "@vben/common-ui": "workspace:*",
+    "@vben/constants": "workspace:*",
+    "@vben/hooks": "workspace:*",
+    "@vben/icons": "workspace:*",
+    "@vben/layouts": "workspace:*",
+    "@vben/locales": "workspace:*",
+    "@vben/plugins": "workspace:*",
+    "@vben/preferences": "workspace:*",
+    "@vben/request": "workspace:*",
+    "@vben/stores": "workspace:*",
+    "@vben/styles": "workspace:*",
+    "@vben/types": "workspace:*",
+    "@vben/utils": "workspace:*",
+    "@vueuse/core": "catalog:",
+    "naive-ui": "catalog:",
+    "pinia": "catalog:",
+    "vue": "catalog:",
+    "vue-router": "catalog:"
+  }
+}

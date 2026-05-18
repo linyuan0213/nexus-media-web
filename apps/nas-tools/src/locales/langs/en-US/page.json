@@ -1,0 +1,82 @@
+{
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "codeLogin": "Code Login",
+    "qrcodeLogin": "Qr Code Login",
+    "forgetPassword": "Forget Password",
+    "profile": "Profile"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "analytics": "Analytics",
+    "workspace": "Workspace"
+  },
+  "media": {
+    "title": "Media",
+    "search": "Media Search",
+    "library": "Media Library",
+    "discovery": "Discovery"
+  },
+  "download": {
+    "title": "Download",
+    "downloading": "Downloading",
+    "history": "Download History",
+    "downloader": "Downloader Settings"
+  },
+  "site": {
+    "title": "Site",
+    "list": "Site List",
+    "statistics": "Site Statistics",
+    "signin": "Signin Management"
+  },
+  "rss": {
+    "title": "RSS",
+    "movie": "Movie RSS",
+    "tv": "TV RSS",
+    "user": "Custom RSS",
+    "history": "RSS History"
+  },
+  "scheduler": {
+    "title": "Scheduler",
+    "jobs": "Job List"
+  },
+  "brush": {
+    "title": "Brush Task"
+  },
+  "sync": {
+    "title": "Sync"
+  },
+  "filter": {
+    "title": "Filter",
+    "rule": "Rule Config"
+  },
+  "words": {
+    "title": "Words"
+  },
+  "plugin": {
+    "title": "Plugin",
+    "market": "Plugin Market",
+    "installed": "Installed Plugins"
+  },
+  "service": {
+    "title": "Service",
+    "indexer": "Indexer",
+    "mediaserver": "Media Server",
+    "notification": "Notification"
+  },
+  "system": {
+    "title": "System",
+    "basic": "Basic Settings",
+    "security": "Security Settings",
+    "backup": "Backup & Restore",
+    "logs": "System Logs",
+    "users": "User Management"
+  },
+  "rename": {
+    "title": "Rename",
+    "history": "History",
+    "mediafile": "Media Files",
+    "unidentification": "Unidentified"
+  }
+}
