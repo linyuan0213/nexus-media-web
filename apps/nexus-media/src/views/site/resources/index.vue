@@ -12,6 +12,7 @@ import {
   NSelect,
   NForm,
   NFormItem,
+  NTooltip,
   useNotification,
 } from 'naive-ui';
 
@@ -35,7 +36,7 @@ interface ResourceItem {
   seeders?: number;
   leechers?: number;
   pubdate?: string;
-  labels?: string[];
+  labels?: string | string[];
   enclosure?: string;
   page_url?: string;
   uploadvolumefactor?: number;
@@ -53,6 +54,7 @@ const pageSize = ref(20);
 const total = ref(0);
 const favicons = ref<Record<string, string>>({});
 const faviconLoadFailed = ref<Record<string, boolean>>({});
+const viewMode = ref<'grid' | 'list'>('grid');
 
 // 下载弹窗
 const downloadModalVisible = ref(false);
@@ -262,34 +264,13 @@ function parseLabels(labels?: string | string[]): string[] {
 
 function getLabelClass(label: string): string {
   const lower = label.toLowerCase();
-  // 字幕/语言类 → 绿色
-  if (/国语|中字|粤语|双语|中英|英文|简繁|繁体|简体|字幕|sub/.test(lower)) {
-    return 'resource-tag-lang';
-  }
-  // 禁止类 → 红色
-  if (/禁转|禁止|禁|exclusive/.test(lower)) {
-    return 'resource-tag-danger';
-  }
-  // 官方/官组 → 主色
-  if (/官组|官方|官|official/.test(lower)) {
-    return 'resource-tag-primary';
-  }
-  // 画质/视频编码 → 橙色
-  if (/hdr|sdr|杜比视界|dolby.vision|画质|4k|2160p|1080p|720p|hevc|x264|x265|avc|vp9/.test(lower)) {
-    return 'resource-tag-warning';
-  }
-  // 音频/音效 → 蓝色
-  if (/杜比|dobly|atmos|truehd|dts|flac|aac|ac3|eac3|mp3|opus|audio/.test(lower)) {
-    return 'resource-tag-info';
-  }
-  // 来源/压制 → 紫色
-  if (/web-dl|blu-ray|bdrip|brrip|dvdrip|hdtv|tvrip|转制|压制|remux|webrip/.test(lower)) {
-    return 'resource-tag-accent';
-  }
-  // 版本/完整性 → 青色
-  if (/去广告|纯净版|完整版|未删减|导演剪辑|加长版|uncut|unrated/.test(lower)) {
-    return 'resource-tag-cyan';
-  }
+  if (/国语|中字|粤语|双语|中英|英文|简繁|繁体|简体|字幕|sub/.test(lower)) return 'resource-tag-lang';
+  if (/禁转|禁止|禁|exclusive/.test(lower)) return 'resource-tag-danger';
+  if (/官组|官方|官|official/.test(lower)) return 'resource-tag-primary';
+  if (/hdr|sdr|杜比视界|dolby.vision|画质|4k|2160p|1080p|720p|hevc|x264|x265|avc|vp9/.test(lower)) return 'resource-tag-warning';
+  if (/杜比|dobly|atmos|truehd|dts|flac|aac|ac3|eac3|mp3|opus|audio/.test(lower)) return 'resource-tag-info';
+  if (/web-dl|blu-ray|bdrip|brrip|dvdrip|hdtv|tvrip|转制|压制|remux|webrip/.test(lower)) return 'resource-tag-accent';
+  if (/去广告|纯净版|完整版|未删减|导演剪辑|加长版|uncut|unrated/.test(lower)) return 'resource-tag-cyan';
   return 'resource-tag-default';
 }
 
@@ -383,24 +364,41 @@ onMounted(() => {
 
     <!-- 资源列表视图 -->
     <template v-else>
-      <PageHeader :title="`${selectedSite.name} - 资源列表`">
-        <template #actions>
-          <NSpace>
-            <NButton size="small" @click="backToSites">
-              <template #icon>
-                <IconifyIcon icon="lucide:arrow-left" class="h-4 w-4" />
-              </template>
-              返回
-            </NButton>
-            <NButton size="small" @click="() => fetchData()">
-              <template #icon>
-                <IconifyIcon icon="lucide:refresh-cw" class="h-4 w-4" />
-              </template>
-              刷新
-            </NButton>
-          </NSpace>
-        </template>
-      </PageHeader>
+      <div class="header-row">
+        <h1 class="page-title">{{ selectedSite.name }} - 资源列表</h1>
+        <div class="toolbar-actions">
+          <NButton size="small" @click="backToSites">
+            <template #icon>
+              <IconifyIcon icon="lucide:arrow-left" class="h-4 w-4" />
+            </template>
+            返回
+          </NButton>
+          <NButton size="small" @click="() => fetchData()">
+            <template #icon>
+              <IconifyIcon icon="lucide:refresh-cw" class="h-4 w-4" />
+            </template>
+            刷新
+          </NButton>
+          <NButton
+            text
+            :type="viewMode === 'grid' ? 'primary' : 'default'"
+            @click="viewMode = 'grid'"
+          >
+            <template #icon>
+              <IconifyIcon icon="lucide:layout-grid" class="h-4 w-4" />
+            </template>
+          </NButton>
+          <NButton
+            text
+            :type="viewMode === 'list' ? 'primary' : 'default'"
+            @click="viewMode = 'list'"
+          >
+            <template #icon>
+              <IconifyIcon icon="lucide:list" class="h-4 w-4" />
+            </template>
+          </NButton>
+        </div>
+      </div>
 
       <!-- 搜索栏 -->
       <div class="search-bar">
@@ -434,94 +432,179 @@ onMounted(() => {
       </div>
 
       <NSpin :show="loading">
-        <div v-if="resources.length > 0" class="resource-grid">
-          <NCard
-            v-for="(item, index) in resources"
-            :key="`${item.indexer}-${item.title}-${index}`"
-            size="small"
-            class="resource-card"
-          >
-            <!-- 标题行 -->
-            <div class="resource-header">
-              <div class="resource-title-row">
-                <span
-                  v-if="getFreeTag(item)"
-                  class="resource-free-inline"
+        <template v-if="resources.length > 0">
+          <!-- Grid View -->
+          <div v-if="viewMode === 'grid'" class="resource-grid">
+            <NCard
+              v-for="(item, index) in resources"
+              :key="`${item.indexer}-${item.title}-${index}`"
+              size="small"
+              class="resource-card"
+            >
+              <!-- 标题行 -->
+              <div class="resource-header">
+                <div class="resource-title-row">
+                  <span
+                    v-if="getFreeTag(item)"
+                    class="resource-free-inline"
+                  >
+                    {{ getFreeTag(item)!.label }}
+                  </span>
+                  <NTooltip :show-arrow="false">
+                    <template #trigger>
+                      <div class="resource-title">{{ item.title }}</div>
+                    </template>
+                    {{ item.title }}
+                  </NTooltip>
+                </div>
+                <div class="resource-badges">
+                  <span
+                    v-for="label in parseLabels(item.labels)"
+                    :key="label"
+                    class="resource-tag"
+                    :class="getLabelClass(label)"
+                  >{{ label }}</span>
+                </div>
+              </div>
+
+              <!-- 副标题 -->
+              <div v-if="item.description" class="resource-description">
+                <IconifyIcon icon="lucide:quote" class="h-3 w-3 shrink-0" />
+                <span>{{ item.description }}</span>
+              </div>
+
+              <!-- 信息行 -->
+              <div class="resource-meta">
+                <div class="meta-group">
+                  <span class="meta-icon">
+                    <IconifyIcon icon="lucide:hard-drive" class="h-3.5 w-3.5" />
+                  </span>
+                  <span class="meta-value">{{ formatSize(item.size) }}</span>
+                </div>
+                <div class="meta-group">
+                  <span class="meta-icon seeders">
+                    <IconifyIcon icon="lucide:arrow-up" class="h-3.5 w-3.5" />
+                  </span>
+                  <span class="meta-value seeders">{{ item.seeders || 0 }}</span>
+                </div>
+                <div class="meta-group">
+                  <span class="meta-icon leechers">
+                    <IconifyIcon icon="lucide:arrow-down" class="h-3.5 w-3.5" />
+                  </span>
+                  <span class="meta-value leechers">{{ item.leechers || 0 }}</span>
+                </div>
+                <div v-if="item.pubdate" class="meta-group">
+                  <span class="meta-icon">
+                    <IconifyIcon icon="lucide:clock" class="h-3.5 w-3.5" />
+                  </span>
+                  <span class="meta-value">{{ formatDate(item.pubdate) }}</span>
+                </div>
+              </div>
+
+              <!-- 操作行 -->
+              <div class="resource-actions">
+                <NButton
+                  size="small"
+                  type="primary"
+                  ghost
+                  @click="openDownloadModal(item)"
                 >
-                  {{ getFreeTag(item)!.label }}
-                </span>
-                <div class="resource-title" :title="item.title">{{ item.title }}</div>
+                  <template #icon>
+                    <IconifyIcon icon="lucide:download" class="h-4 w-4" />
+                  </template>
+                  下载
+                </NButton>
+                <NButton
+                  v-if="item.page_url"
+                  size="small"
+                  @click="handleOpenUrl(item.page_url)"
+                >
+                  <template #icon>
+                    <IconifyIcon icon="lucide:external-link" class="h-4 w-4" />
+                  </template>
+                  详情
+                </NButton>
               </div>
-              <div class="resource-badges">
-                <span
-                  v-for="label in parseLabels(item.labels)"
-                  :key="label"
-                  class="resource-tag"
-                  :class="getLabelClass(label)"
-                >{{ label }}</span>
+            </NCard>
+          </div>
+
+          <!-- List View -->
+          <div v-else class="resource-list">
+            <div
+              v-for="(item, index) in resources"
+              :key="`${item.indexer}-${item.title}-${index}`"
+              class="resource-list-item"
+            >
+              <div class="resource-list-main">
+                <div class="resource-list-header">
+                  <span
+                    v-if="getFreeTag(item)"
+                    class="resource-free-inline"
+                  >
+                    {{ getFreeTag(item)!.label }}
+                  </span>
+                  <NTooltip :show-arrow="false">
+                    <template #trigger>
+                      <div class="resource-list-title">{{ item.title }}</div>
+                    </template>
+                    {{ item.title }}
+                  </NTooltip>
+                </div>
+                <div class="resource-list-badges">
+                  <span
+                    v-for="label in parseLabels(item.labels)"
+                    :key="label"
+                    class="resource-tag"
+                    :class="getLabelClass(label)"
+                  >{{ label }}</span>
+                </div>
               </div>
-            </div>
 
-            <!-- 副标题 -->
-            <div v-if="item.description" class="resource-description">
-              <IconifyIcon icon="lucide:quote" class="h-3 w-3 shrink-0" />
-              <span>{{ item.description }}</span>
-            </div>
-
-            <!-- 信息行 -->
-            <div class="resource-meta">
-              <div class="meta-group">
-                <span class="meta-icon">
+              <div class="resource-list-meta">
+                <span class="meta-group">
                   <IconifyIcon icon="lucide:hard-drive" class="h-3.5 w-3.5" />
+                  <span class="meta-value">{{ formatSize(item.size) }}</span>
                 </span>
-                <span class="meta-value">{{ formatSize(item.size) }}</span>
-              </div>
-              <div class="meta-group">
-                <span class="meta-icon seeders">
-                  <IconifyIcon icon="lucide:arrow-up" class="h-3.5 w-3.5" />
+                <span class="meta-group">
+                  <IconifyIcon icon="lucide:arrow-up" class="h-3.5 w-3.5 seeders" />
+                  <span class="meta-value seeders">{{ item.seeders || 0 }}</span>
                 </span>
-                <span class="meta-value seeders">{{ item.seeders || 0 }}</span>
-              </div>
-              <div class="meta-group">
-                <span class="meta-icon leechers">
-                  <IconifyIcon icon="lucide:arrow-down" class="h-3.5 w-3.5" />
+                <span class="meta-group">
+                  <IconifyIcon icon="lucide:arrow-down" class="h-3.5 w-3.5 leechers" />
+                  <span class="meta-value leechers">{{ item.leechers || 0 }}</span>
                 </span>
-                <span class="meta-value leechers">{{ item.leechers || 0 }}</span>
-              </div>
-              <div v-if="item.pubdate" class="meta-group">
-                <span class="meta-icon">
+                <span v-if="item.pubdate" class="meta-group">
                   <IconifyIcon icon="lucide:clock" class="h-3.5 w-3.5" />
+                  <span class="meta-value">{{ formatDate(item.pubdate) }}</span>
                 </span>
-                <span class="meta-value">{{ formatDate(item.pubdate) }}</span>
+              </div>
+
+              <div class="resource-list-actions">
+                <NButton
+                  size="tiny"
+                  type="primary"
+                  ghost
+                  @click="openDownloadModal(item)"
+                >
+                  <template #icon>
+                    <IconifyIcon icon="lucide:download" class="h-3.5 w-3.5" />
+                  </template>
+                  <span class="hidden sm:inline">下载</span>
+                </NButton>
+                <NButton
+                  v-if="item.page_url"
+                  size="tiny"
+                  @click="handleOpenUrl(item.page_url)"
+                >
+                  <template #icon>
+                    <IconifyIcon icon="lucide:external-link" class="h-3.5 w-3.5" />
+                  </template>
+                  <span class="hidden sm:inline">详情</span>
+                </NButton>
               </div>
             </div>
-
-            <!-- 操作行 -->
-            <div class="resource-actions">
-              <NButton
-                size="small"
-                type="primary"
-                ghost
-                @click="openDownloadModal(item)"
-              >
-                <template #icon>
-                  <IconifyIcon icon="lucide:download" class="h-4 w-4" />
-                </template>
-                下载
-              </NButton>
-              <NButton
-                v-if="item.page_url"
-                size="small"
-                @click="handleOpenUrl(item.page_url)"
-              >
-                <template #icon>
-                  <IconifyIcon icon="lucide:external-link" class="h-4 w-4" />
-                </template>
-                详情
-              </NButton>
-            </div>
-          </NCard>
-        </div>
+          </div>
+        </template>
 
         <EmptyState
           v-else-if="!loading"
@@ -675,7 +758,31 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-/* ===== 资源列表样式 ===== */
+/* ===== Header Row ===== */
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.page-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  line-height: 1.4;
+  margin: 0;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* ===== 搜索栏 ===== */
 .search-bar {
   margin-bottom: 1rem;
   padding: 0.75rem;
@@ -711,6 +818,7 @@ onMounted(() => {
   font-weight: 600;
 }
 
+/* ===== Grid View ===== */
 .resource-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -731,7 +839,6 @@ onMounted(() => {
   padding: 1rem;
 }
 
-/* 标题行 */
 .resource-header {
   margin-bottom: 0.75rem;
 }
@@ -819,7 +926,6 @@ onMounted(() => {
   margin-top: 0.15rem;
 }
 
-/* 副标题 */
 .resource-description {
   display: flex;
   align-items: flex-start;
@@ -839,7 +945,6 @@ onMounted(() => {
   min-width: 0;
 }
 
-/* 信息行 */
 .resource-meta {
   display: flex;
   align-items: center;
@@ -885,7 +990,6 @@ onMounted(() => {
   color: hsl(var(--warning));
 }
 
-/* 操作行 */
 .resource-actions {
   display: flex;
   align-items: center;
@@ -893,6 +997,86 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
+/* ===== List View ===== */
+.resource-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.resource-list-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  transition: box-shadow 0.2s;
+  overflow: hidden;
+}
+
+.resource-list-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.resource-list-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.resource-list-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.resource-list-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: hsl(var(--card-foreground));
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.resource-list-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.resource-list-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.resource-list-meta .meta-group {
+  font-size: 0.8125rem;
+  color: hsl(var(--muted-foreground));
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.resource-list-meta .meta-value {
+  font-size: 0.8125rem;
+  color: hsl(var(--card-foreground));
+  font-weight: 500;
+}
+
+.resource-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-shrink: 0;
+}
+
+/* ===== Pagination ===== */
 .pagination-bar {
   margin-top: 1.25rem;
   padding-top: 1rem;
@@ -901,10 +1085,17 @@ onMounted(() => {
   justify-content: center;
 }
 
-/* 移动端适配 */
-@media (max-width: 640px) {
+/* ===== Mobile ===== */
+@media (max-width: 768px) {
   .site-grid {
     grid-template-columns: 1fr;
+  }
+
+  .header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
   }
 
   .search-row {
@@ -922,6 +1113,21 @@ onMounted(() => {
 
   .resource-meta {
     gap: 0.5rem;
+  }
+
+  .resource-list-item {
+    flex-wrap: wrap;
+    padding: 0.625rem;
+  }
+
+  .resource-list-meta {
+    width: 100%;
+    order: 3;
+    margin-top: 0.25rem;
+  }
+
+  .resource-list-actions {
+    order: 2;
   }
 }
 </style>

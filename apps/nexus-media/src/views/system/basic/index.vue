@@ -25,6 +25,8 @@ import {
   updateConfigApi,
   setSystemConfigApi,
   listAgentModelsApi,
+  getSiteConfigVersionApi,
+  updateSiteConfigApi,
 } from '#/api';
 import PageHeader from '#/components/page/PageHeader.vue';
 
@@ -250,12 +252,72 @@ async function saveUserScript() {
   message.success('自定义脚本已保存');
 }
 
-onMounted(fetchData);
+// 站点配置更新
+const siteConfigVersion = ref({ local: '', remote: '', needs_update: false });
+const updatingSiteConfig = ref(false);
+
+async function fetchSiteConfigVersion() {
+  try {
+    const res = await getSiteConfigVersionApi();
+    siteConfigVersion.value = res || { local: '', remote: '', needs_update: false };
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+async function handleUpdateSiteConfig() {
+  updatingSiteConfig.value = true;
+  try {
+    const res = await updateSiteConfigApi();
+    message.success(res?.message || '更新完成');
+    await fetchSiteConfigVersion();
+  } catch (e: any) {
+    message.error(e?.message || '更新失败');
+  } finally {
+    updatingSiteConfig.value = false;
+  }
+}
+
+onMounted(() => {
+  fetchData();
+  fetchSiteConfigVersion();
+});
 </script>
 
 <template>
   <div class="p-4">
     <PageHeader title="基础设置" />
+
+    <NCard size="small" class="mb-4">
+      <template #header>
+        <div class="flex items-center gap-2">
+          <IconifyIcon icon="lucide:globe" class="w-4 h-4" />
+          <span class="font-semibold">站点配置</span>
+        </div>
+      </template>
+      <div class="flex items-center justify-between">
+        <div class="text-sm" style="color: hsl(var(--muted-foreground))">
+          <span v-if="siteConfigVersion.local">当前版本: {{ siteConfigVersion.local }}</span>
+          <span v-if="siteConfigVersion.remote && siteConfigVersion.remote !== 'unknown'"
+            >，远程版本: {{ siteConfigVersion.remote }}</span
+          >
+          <span v-if="siteConfigVersion.needs_update" class="ml-1" style="color: hsl(var(--warning))"
+            >（有新版本）</span
+          >
+        </div>
+        <NButton
+          size="small"
+          :loading="updatingSiteConfig"
+          :type="siteConfigVersion.needs_update ? 'primary' : 'default'"
+          @click="handleUpdateSiteConfig"
+        >
+          <template #icon>
+            <IconifyIcon icon="lucide:refresh-cw" class="w-4 h-4" />
+          </template>
+          {{ siteConfigVersion.needs_update ? '更新站点配置' : '检查更新' }}
+        </NButton>
+      </div>
+    </NCard>
 
     <NSpin :show="loading">
       <NGrid :cols="1" :x-gap="16" :y-gap="16" responsive="screen">

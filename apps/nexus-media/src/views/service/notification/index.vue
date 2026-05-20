@@ -44,8 +44,7 @@ interface MessageClient {
 
 interface ChannelConf {
   name: string;
-  img_url?: string;
-  color?: string;
+  icon_url?: string;
   search_type?: string;
   max_length?: number;
   config: Record<string, any>;
@@ -64,6 +63,10 @@ const editingConfig = ref<Record<string, any>>({});
 const editingSwitchs = ref<string[]>([]);
 const editingTemplateMap = ref<Record<string, { title: string; text: string }>>({});
 const defaultTemplates = ref<Record<string, { title: string; text: string }>>({});
+function channelIcon(type?: string): string {
+  return type ? `/static/img/message/${type}.png` : '';
+}
+
 const testLoading = ref(false);
 const deleteConfirmShow = ref(false);
 
@@ -358,10 +361,16 @@ onMounted(fetchData);
           @click="handleEdit(item)"
         >
           <div class="flex items-start gap-3">
-            <div
-              class="w-12 h-12 rounded-xl bg-cover bg-center flex-shrink-0 border"
-              :style="{ backgroundImage: `url(${channels[item.type]?.img_url})`, backgroundColor: channels[item.type]?.color }"
-            />
+            <div class="relative w-12 h-12 rounded-xl flex-shrink-0 border overflow-hidden">
+              <img
+                :src="channels[item.type]?.icon_url || channelIcon(item.type)"
+                class="absolute inset-0 z-10 w-full h-full object-contain"
+                @error="($event.target as HTMLElement).style.display='none'"
+              />
+              <div class="w-full h-full flex items-center justify-center bg-muted">
+                <IconifyIcon icon="lucide:message-square" class="size-5 text-muted-foreground" />
+              </div>
+            </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2">
                 <span
@@ -454,10 +463,16 @@ onMounted(fetchData);
               :class="editingType === key ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-200 hover:border-blue-300'"
               @click="editingType = key"
             >
-              <div
-                class="w-10 h-10 rounded-lg bg-cover bg-center border"
-                :style="{ backgroundImage: `url(${conf.img_url})`, backgroundColor: conf.color }"
-              />
+              <div class="relative w-10 h-10 rounded-lg border overflow-hidden">
+                <img
+                  :src="conf.icon_url || channelIcon(key)"
+                  class="absolute inset-0 z-10 w-full h-full object-contain"
+                  @error="($event.target as HTMLElement).style.display='none'"
+                />
+                <div class="w-full h-full flex items-center justify-center bg-muted">
+                  <IconifyIcon icon="lucide:message-square" class="size-4 text-muted-foreground" />
+                </div>
+              </div>
               <span class="text-xs font-medium">{{ conf.name }}</span>
             </div>
           </div>

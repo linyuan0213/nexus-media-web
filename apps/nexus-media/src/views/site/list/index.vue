@@ -599,27 +599,32 @@ onMounted(fetchSites);
 <style scoped>
 .type-tab-group {
   display: inline-flex;
-  border-radius: 0.5rem;
-  border: 1px solid hsl(var(--border));
-  overflow: hidden;
+  background-color: hsl(var(--muted) / 0.4);
+  border-radius: 0.625rem;
+  padding: 0.25rem;
+  gap: 0.125rem;
 }
 
 .type-tab-btn {
-  padding: 0.5rem 1rem;
+  padding: 0.375rem 1rem;
   font-size: 0.875rem;
   font-weight: 500;
-  transition: all 0.2s;
-  background-color: hsl(var(--card));
-  color: hsl(var(--card-foreground));
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  background-color: transparent;
+  color: hsl(var(--muted-foreground));
+  border: none;
+  cursor: pointer;
 }
 
 .type-tab-btn:hover {
-  background-color: hsl(var(--accent));
+  color: hsl(var(--foreground));
 }
 
 .type-tab-active {
-  background-color: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
+  background-color: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 /* 站点卡片网格 */

@@ -20,10 +20,13 @@ import PageHeader from '#/components/page/PageHeader.vue';
 
 interface IndexerConf {
   name: string;
-  img_url?: string;
-  background?: string;
+  icon_url?: string;
   test_command?: string;
   config?: Record<string, any>;
+}
+
+function indexerIcon(type: string): string {
+  return `/static/img/indexer/${type}.png`;
 }
 
 const message = useMessage();
@@ -52,15 +55,7 @@ async function fetchData() {
     const res: any = await getIndexersConfigApi();
     const data = res.data ?? res;
     if (data.indexer_conf) {
-      const conf = data.indexer_conf;
-      // 修复静态资源路径：移除 ./ 和 ../ 前缀
-      for (const key of Object.keys(conf)) {
-        const item = conf[key];
-        if (item.img_url) {
-          item.img_url = item.img_url.replace(/^\.\.?\//, '/');
-        }
-      }
-      indexers.value = conf;
+      indexers.value = data.indexer_conf;
     }
     if (data.indexers) {
       builtinIndexers.value = data.indexers;
@@ -199,22 +194,6 @@ onMounted(fetchData);
 
     <NSpin :show="loading">
       <div class="grid-normal-card">
-        <!-- 内建索引器 -->
-        <NCard size="small" class="cursor-pointer hover:shadow-lg transition-all" @click="openModal('builtin')">
-          <div class="text-center">
-            <div class="w-16 h-16 mx-auto rounded-full bg-cover bg-center mb-3"
-                 style="background-image: url('/static/img/indexer/indexer.jpg'); background-color: hsl(var(--primary));" />
-            <div class="font-medium">内建索引器</div>
-            <div class="text-sm mt-1" style="color: hsl(var(--muted-foreground))">
-              <span v-if="searchIndexer === 'builtin'" class="inline-flex items-center gap-1">
-                <span class="w-2 h-2 rounded-full" style="background-color: hsl(var(--success))" />
-                正在使用
-              </span>
-            </div>
-          </div>
-        </NCard>
-
-        <!-- 外部索引器 -->
         <NCard
           v-for="item in indexerList"
           :key="item.type"
@@ -223,8 +202,16 @@ onMounted(fetchData);
           @click="openModal(item.type)"
         >
           <div class="text-center">
-            <div class="w-16 h-16 mx-auto rounded-full bg-cover bg-center mb-3"
-                 :style="{ backgroundImage: `url(${item.img_url})`, backgroundColor: item.background }" />
+            <div class="relative w-16 h-16 mx-auto rounded-full mb-3 overflow-hidden">
+              <img
+                :src="item.icon_url || indexerIcon(item.type)"
+                class="absolute inset-0 z-10 w-full h-full object-contain"
+                @error="($event.target as HTMLElement).style.display='none'"
+              />
+              <div class="w-full h-full flex items-center justify-center bg-muted">
+                <IconifyIcon icon="lucide:search" class="size-6 text-muted-foreground" />
+              </div>
+            </div>
             <div class="font-medium">{{ item.name }}</div>
             <div class="text-sm mt-1" style="color: hsl(var(--muted-foreground))">
               <span v-if="searchIndexer === item.type" class="inline-flex items-center gap-1">

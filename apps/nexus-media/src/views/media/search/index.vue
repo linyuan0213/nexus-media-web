@@ -134,6 +134,16 @@ const searchProgress = ref(0);
 const searchProgressText = ref('');
 let progressTimer: ReturnType<typeof setInterval> | null = null;
 
+const filterExpanded = ref<Record<string, boolean>>({});
+
+function toggleFilterPanel(key: string) {
+  filterExpanded.value[key] = !filterExpanded.value[key];
+}
+
+function activeFilterCount(item: SearchResultWithFilter): number {
+  return Object.values(item.activeFilters).reduce((sum, arr) => sum + arr.length, 0);
+}
+
 // 高级搜索模态框
 const advancedModalVisible = ref(false);
 const advancedForm = ref({
@@ -167,7 +177,7 @@ async function pollSearchProgress() {
         await loadSearchResults();
       }
     }
-  } catch {}
+  } catch { }
 }
 
 function startProgressPoll() {
@@ -321,13 +331,6 @@ function hasFilters(item: SearchResultWithFilter) {
     f.releasegroup.length > 0 ||
     f.free.length > 0 ||
     (f.video && f.video.length > 0);
-}
-
-function getFreeBadgeBorderClass(upload: number, download: number) {
-  if (download === 0) return '';
-  if (download < 1) return '';
-  if (upload < 1) return '';
-  return '';
 }
 
 function getFreeBadgeStyle(upload: number, download: number) {
@@ -488,7 +491,7 @@ async function loadDownloadDirs(val: string) {
     if (dirsRes && Array.isArray(dirsRes) && dirsRes.length) {
       downloadDirs.value = [{ label: '自动', value: '' }, ...dirsRes.map((d: string) => ({ label: d, value: d }))];
     }
-  } catch {}
+  } catch { }
 }
 
 async function onDownloadSettingChange(val: string | null) {
@@ -520,7 +523,7 @@ async function confirmDownload() {
   <div class="p-4">
     <PageHeader title="资源搜索">
       <template #actions>
-        <div v-if="resultCount > 0" class="text-sm text-gray-500">
+        <div v-if="resultCount > 0" style="font-size: 0.875rem; color: hsl(var(--muted-foreground));">
           共搜索到 {{ resultCount }} 条记录
         </div>
       </template>
@@ -529,18 +532,9 @@ async function confirmDownload() {
     <!-- 搜索框 -->
     <NCard class="mb-4" size="small">
       <NSpace align="center" wrap>
-        <NInput
-          v-model:value="keyword"
-          placeholder="输入电影/剧集名称"
-          clearable
-          style="width: 300px"
-          @keydown="handleKeydown"
-        />
-        <NSelect
-          v-model:value="searchtype"
-          :options="typeOptions"
-          style="width: 140px"
-        />
+        <NInput v-model:value="keyword" placeholder="输入电影/剧集名称" clearable style="width: 300px"
+          @keydown="handleKeydown" />
+        <NSelect v-model:value="searchtype" :options="typeOptions" style="width: 140px" />
         <NButton type="primary" :loading="loading && displayMode === 'media'" @click="handleSearch">
           搜索
         </NButton>
@@ -552,41 +546,34 @@ async function confirmDownload() {
 
     <!-- 普通搜索：媒体词条结果 -->
     <NSpin v-if="displayMode === 'media'" :show="loading">
-      <div v-if="mediaResults.length > 0" class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));">
-        <div
-          v-for="media in mediaResults"
-          :key="media.id"
+      <div v-if="mediaResults.length > 0" class="grid gap-4"
+        style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));">
+        <div v-for="media in mediaResults" :key="media.id"
           class="cursor-pointer relative rounded-lg overflow-hidden shadow-sm hover:shadow-md transition"
-          @click="handleMediaSearch(media)"
-        >
-          <div style="aspect-ratio: 2/3;" class="bg-gray-100 dark:bg-gray-800">
-            <img
-              :src="getImgUrl(media.image || media.poster)"
-              class="w-full h-full object-cover"
-              alt=""
-              @error="(e: any) => { e.target.src = '/static/img/no-image.png'; }"
-            />
+          @click="handleMediaSearch(media)">
+          <div style="aspect-ratio: 2/3; background: hsl(var(--muted));">
+            <img :src="getImgUrl(media.image || media.poster)" class="w-full h-full object-cover" alt=""
+              @error="(e: any) => { e.target.src = '/static/img/no-image.png'; }" />
           </div>
-          <span
-            v-if="media.media_type || media.type"
+          <span v-if="media.media_type || media.type"
             class="absolute top-1.5 left-1.5 text-white text-[10px] px-1.5 py-0.5 rounded"
-            :class="(media.media_type || media.type) === '电影' ? 'bg-lime-500' : 'bg-blue-500'"
-          >
+            :class="(media.media_type || media.type) === '电影' ? 'bg-[hsl(var(--success))]' : 'bg-[hsl(var(--info))]'">
             {{ media.media_type || media.type }}
           </span>
-          <span
-            v-if="media.vote && media.vote !== '0.0' && media.vote !== '0'"
-            class="absolute top-1.5 right-1.5 text-white text-[10px] px-1.5 py-0.5 rounded bg-purple-500"
-          >
+          <span v-if="media.vote && media.vote !== '0.0' && media.vote !== '0'"
+            style="position: absolute; top: 0.375rem; right: 0.375rem; font-size: 10px; padding: 0.125rem 0.375rem; border-radius: 0.25rem; background: hsl(var(--warning)); color: hsl(var(--warning-foreground));">
             {{ media.vote }}
           </span>
-          <div class="absolute bottom-0 left-0 right-0 p-2 text-white" style="background: linear-gradient(transparent, rgba(0,0,0,0.75));">
+          <div class="absolute bottom-0 left-0 right-0 p-2 text-white"
+            style="background: linear-gradient(transparent, rgba(0,0,0,0.75));">
             <div class="text-sm font-bold truncate">{{ media.title }}</div>
             <div class="flex items-center gap-2 text-xs mt-0.5">
               <span v-if="media.year">{{ media.year }}</span>
             </div>
           </div>
-          <div class="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200" style="background: rgba(0,0,0,0.5);">
+          <div
+            class="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200"
+            style="background: rgba(0,0,0,0.5);">
             <NButton size="small" type="primary" round>搜索资源</NButton>
           </div>
         </div>
@@ -601,13 +588,8 @@ async function confirmDownload() {
         <NSpin show>
           <div class="text-center">
             <div class="text-lg mb-2">正在搜索「{{ keyword }}」</div>
-            <NProgress
-              type="line"
-              :percentage="searchProgress"
-              processing
-              class="max-w-md mx-auto"
-            />
-            <div class="text-sm text-gray-500 mt-2">
+            <NProgress type="line" :percentage="searchProgress" processing class="max-w-md mx-auto" />
+            <div style="font-size: 0.875rem; color: hsl(var(--muted-foreground)); margin-top: 0.5rem;">
               {{ searchProgressText || '请稍候，正在检索资源...' }}
             </div>
           </div>
@@ -616,303 +598,181 @@ async function confirmDownload() {
 
       <!-- 搜索结果 -->
       <NSpin :show="loading && results.length > 0">
-        <div v-if="results.length > 0" class="space-y-6">
-        <div
-          v-for="item in results"
-          :key="item.key"
-          class="bg-transparent border-0"
-        >
-          <div class="flex gap-4">
-            <!-- 左侧海报和筛选 -->
-            <div class="hidden md:block w-56 flex-shrink-0">
-              <!-- 海报卡片 -->
-              <div v-if="item.poster" class="rounded-lg overflow-hidden mb-3 shadow-sm relative group cursor-pointer" @click="$router.push({ name: 'MediaDetail', query: { id: item.tmdbid, type: item.type === '电影' ? 'movie' : 'tv' } })">
-                <img
-                  :src="item.poster"
-                  class="w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  style="aspect-ratio: 2/3;"
-                  alt=""
-                />
-                <!-- 左上角类型标签 -->
-                <div v-if="item.type" class="absolute top-2 left-2">
+        <div v-if="results.length > 0" class="result-list">
+          <div v-for="item in results" :key="item.key" class="result-card">
+            <div class="result-hero">
+              <!-- 左侧海报 -->
+              <div v-if="item.poster" class="hero-poster"
+                @click="item.tmdbid && item.tmdbid !== '0' ? $router.push({ name: 'MediaDetail', query: { id: item.tmdbid, type: item.type === '电影' ? 'movie' : 'tv' } }) : null">
+                <img :src="item.poster" alt="" />
+                <div v-if="item.type" class="hero-poster-tag">
                   <NTag :type="getTypeColor(item.type)" size="small" round>{{ item.type }}</NTag>
                 </div>
-                <!-- 右上角收藏 -->
-                <div v-if="item.fav === '2'" class="absolute top-2 right-2">
-                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-xs">✓</span>
-                </div>
-                <!-- 底部信息覆盖层 -->
-                <div class="absolute bottom-0 left-0 right-0 p-2 text-white"
-                  style="background: linear-gradient(transparent, rgba(0,0,0,0.75));">
-                  <div class="text-sm font-bold truncate">{{ item.title }}</div>
-                  <div class="flex items-center gap-2 text-xs mt-0.5">
-                    <span v-if="item.year">{{ item.year }}</span>
-                    <span v-if="item.vote" class="flex items-center gap-0.5">
-                      <span class="text-yellow-400">★</span>{{ item.vote }}
-                    </span>
-                  </div>
-                </div>
-                <!-- 悬浮操作按钮 -->
-                <div class="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                  style="background: rgba(0,0,0,0.45);">
-                  <NButton size="tiny" type="primary" round @click.stop="$router.push({ name: 'MediaDetail', query: { id: item.tmdbid, type: item.type === '电影' ? 'movie' : 'tv' } })">
-                    详情
-                  </NButton>
-                  <NButton size="tiny" type="info" round @click.stop="$router.push({ name: 'MediaSearch', query: { s: item.title } })">
-                    搜索
-                  </NButton>
-                  <NButton v-if="!item.rssid" size="tiny" type="success" round @click.stop="notification.info({content:'订阅功能开发中',duration:1500})">
-                    订阅
-                  </NButton>
+                <div v-if="item.fav === '2'" class="hero-poster-fav">
+                  <IconifyIcon icon="lucide:check" class="size-3" />
                 </div>
               </div>
 
-              <!-- 过滤条件 -->
-              <div v-if="hasFilters(item)" class="space-y-3 text-sm">
-                <div v-if="item.filter.season && item.filter.season.length">
-                  <div class="subheader mb-2">季</div>
-                  <div class="flex flex-wrap gap-1">
-                    <span
-                      v-for="s in item.filter.season"
-                      :key="s"
-                      class="filter-pill"
-                      :class="{ 'filter-pill-active': isFilterActive(item, 'season', s) }"
-                      @click="toggleFilter(item, 'season', s)"
-                    >
-                      {{ s }}
+              <!-- 右侧信息 -->
+              <div class="hero-content">
+                <div class="hero-title-row">
+                  <h2 class="hero-title">
+                    <a v-if="item.tmdbid && item.tmdbid !== '0'"
+                      :href="`https://www.themoviedb.org/${item.type === '电影' ? 'movie' : 'tv'}/${item.tmdbid}`"
+                      target="_blank" class="hero-title-link">{{ item.title }}</a>
+                    <span v-else>{{ item.title }}</span>
+                    <span v-if="item.year" class="hero-year">({{ item.year }})</span>
+                  </h2>
+                  <div class="hero-actions">
+                    <span v-if="item.vote" class="hero-rating">
+                      <IconifyIcon icon="lucide:star" class="size-5" />{{ item.vote }}
                     </span>
+                    <NButton v-if="hasFilters(item)" size="small" quaternary class="filter-trigger"
+                      @click="toggleFilterPanel(item.key)">
+                      <IconifyIcon icon="lucide:filter" class="size-4" />
+                      <span class="hidden sm:inline">筛选</span>
+                      <span v-if="activeFilterCount(item) > 0" class="filter-badge">{{ activeFilterCount(item) }}</span>
+                      <IconifyIcon :icon="filterExpanded[item.key] ? 'lucide:chevron-up' : 'lucide:chevron-down'"
+                        class="size-4" />
+                    </NButton>
                   </div>
                 </div>
-                <div v-if="item.filter.site.length">
-                  <div class="subheader mb-2">站点</div>
-                  <div class="flex flex-wrap gap-1">
-                    <span
-                      v-for="s in item.filter.site"
-                      :key="s"
-                      class="filter-pill"
-                      :class="{ 'filter-pill-active': isFilterActive(item, 'site', s) }"
-                      @click="toggleFilter(item, 'site', s)"
-                    >
-                      {{ s }}
-                    </span>
+                <div class="hero-overview">{{ item.overview || '暂无简介' }}</div>
+
+                <!-- 筛选面板 -->
+                <div v-if="hasFilters(item) && filterExpanded[item.key]" class="filter-panel">
+                  <div class="filter-panel-inner">
+                    <div v-if="item.filter.season && item.filter.season.length" class="filter-row">
+                      <span class="filter-label">季</span>
+                      <div class="filter-tags">
+                        <span v-for="s in item.filter.season" :key="s" class="filter-chip"
+                          :class="{ active: isFilterActive(item, 'season', s) }"
+                          @click="toggleFilter(item, 'season', s)">{{ s }}</span>
+                      </div>
+                    </div>
+                    <div v-if="item.filter.site.length" class="filter-row">
+                      <span class="filter-label">站点</span>
+                      <div class="filter-tags">
+                        <span v-for="s in item.filter.site" :key="s" class="filter-chip"
+                          :class="{ active: isFilterActive(item, 'site', s) }" @click="toggleFilter(item, 'site', s)">{{
+                          s }}</span>
+                      </div>
+                    </div>
+                    <div v-if="item.filter.releasegroup.length" class="filter-row">
+                      <span class="filter-label">制作组</span>
+                      <div class="filter-tags">
+                        <span v-for="g in item.filter.releasegroup" :key="g" class="filter-chip"
+                          :class="{ active: isFilterActive(item, 'releasegroup', g) }"
+                          @click="toggleFilter(item, 'releasegroup', g)">{{ g }}</span>
+                      </div>
+                    </div>
+                    <div v-if="item.filter.free.length" class="filter-row">
+                      <span class="filter-label">促销</span>
+                      <div class="filter-tags">
+                        <span v-for="f in item.filter.free" :key="f.value" class="filter-chip"
+                          :class="{ active: isFilterActive(item, 'free', f.value) }"
+                          @click="toggleFilter(item, 'free', f.value)">{{ f.name }}</span>
+                      </div>
+                    </div>
+                    <div v-if="item.filter.video && item.filter.video.length" class="filter-row">
+                      <span class="filter-label">编码</span>
+                      <div class="filter-tags">
+                        <span v-for="v in item.filter.video" :key="v" class="filter-chip"
+                          :class="{ active: isFilterActive(item, 'video', v) }"
+                          @click="toggleFilter(item, 'video', v)">{{ v }}</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div v-if="item.filter.releasegroup.length">
-                  <div class="subheader mb-2">制作组</div>
-                  <div class="flex flex-wrap gap-1">
-                    <span
-                      v-for="g in item.filter.releasegroup"
-                      :key="g"
-                      class="filter-pill"
-                      :class="{ 'filter-pill-active': isFilterActive(item, 'releasegroup', g) }"
-                      @click="toggleFilter(item, 'releasegroup', g)"
-                    >
-                      {{ g }}
-                    </span>
-                  </div>
-                </div>
-                <div v-if="item.filter.free.length">
-                  <div class="subheader mb-2">促销</div>
-                  <div class="flex flex-wrap gap-1">
-                    <span
-                      v-for="f in item.filter.free"
-                      :key="f.value"
-                      class="filter-pill"
-                      :class="{ 'filter-pill-active': isFilterActive(item, 'free', f.value) }"
-                      @click="toggleFilter(item, 'free', f.value)"
-                    >
-                      {{ f.name }}
-                    </span>
-                  </div>
-                </div>
-                <div v-if="item.filter.video && item.filter.video.length">
-                  <div class="subheader mb-2">视频编码</div>
-                  <div class="flex flex-wrap gap-1">
-                    <span
-                      v-for="v in item.filter.video"
-                      :key="v"
-                      class="filter-pill"
-                      :class="{ 'filter-pill-active': isFilterActive(item, 'video', v) }"
-                      @click="toggleFilter(item, 'video', v)"
-                    >
-                      {{ v }}
-                    </span>
-                  </div>
-                </div>
-                <div class="mt-2">
-                  <NButton size="small" class="w-full" @click="resetFilters(item)">
-                    重置
+                  <NButton size="tiny" text @click="resetFilters(item)">
+                    <IconifyIcon icon="lucide:rotate-ccw" class="size-3" /> 重置
                   </NButton>
                 </div>
               </div>
             </div>
 
-            <!-- 右侧详情和种子列表 -->
-            <div class="flex-1 min-w-0">
-              <!-- 标题 -->
-              <h2 class="text-2xl font-bold mb-1">
-                <a
-                  v-if="item.tmdbid && item.tmdbid !== '0'"
-                  :href="`https://www.themoviedb.org/${item.type === '电影' ? 'movie' : 'tv'}/${item.tmdbid}`"
-                  target="_blank"
-                  class="hover:text-blue-500 transition-colors"
-                >
-                  {{ item.title }}
-                </a>
-                <span v-else>{{ item.title }}</span>
-                <span v-if="item.year" class="text-cyan-500 font-normal">({{ item.year }})</span>
-              </h2>
+            <!-- 种子列表 -->
+            <div class="torrent-section">
+              <div v-for="seTuple in filteredTorrentDict(item)" :key="seTuple[0]" class="season-block">
+                <div v-if="seTuple[0] !== 'MOV'" class="season-name">{{ seTuple[0] }}</div>
 
-              <!-- 简介 -->
-              <div v-if="item.overview" class="text-sm text-gray-500 mb-3 line-clamp-3">
-                {{ item.overview }}
-              </div>
+                <NCollapse :default-expanded-names="['0']">
+                  <NCollapseItem v-for="(group, gKey, gIdx) in seTuple[1]" :key="gKey" :name="String(gIdx)">
+                    <template #header>
+                      <div class="group-header">
+                        <span class="group-badge group-type">{{ group.group_info?.restype || '未知媒介' }}</span>
+                        <span class="group-sep">/</span>
+                        <span class="group-badge group-res">{{ group.group_info?.respix || '未知分辨率' }}</span>
+                        <span class="group-sep">/</span>
+                        <span class="group-count">共 {{ group.group_total }} 个种子</span>
+                      </div>
+                    </template>
 
-              <!-- 种子分组列表（手风琴） -->
-              <div class="mt-2 space-y-2">
-                <div
-                  v-for="seTuple in filteredTorrentDict(item)"
-                  :key="seTuple[0]"
-                >
-                  <!-- 季标题（非 MOV 时显示） -->
-                  <div
-                    v-if="seTuple[0] !== 'MOV'"
-                    class="font-bold text-base mb-2 mt-3 cursor-pointer"
-                  >
-                    {{ seTuple[0] }}
-                  </div>
-
-                  <NCollapse :default-expanded-names="['0']">
-                    <NCollapseItem
-                      v-for="(group, gKey, gIdx) in seTuple[1]"
-                      :key="gKey"
-                      :name="String(gIdx)"
-                    >
-                      <template #header>
-                        <span class="text-red-500 font-medium">{{ group.group_info?.restype || '未知媒介' }}</span>
-                        <span class="mx-1 text-gray-400">/</span>
-                        <span class="text-orange-500 font-medium">{{ group.group_info?.respix || '未知分辨率' }}</span>
-                        <span class="mx-1 text-gray-400">/</span>
-                        <span>共 <strong>{{ group.group_total }}</strong> 个种子</span>
-                      </template>
-
-                      <div class="divide-y" style="border-color: hsl(var(--border))">
-                        <div
-                          v-for="(unique, uKey) in group.group_torrents"
-                          :key="uKey"
-                        >
-                          <div
-                            v-for="torrent in unique.torrent_list"
-                            :key="torrent.id"
-                            class="py-2.5 flex gap-3 items-start px-2 rounded transition-colors hover:bg-[hsl(var(--accent)/0.06)]"
-                          >
-                            <div class="flex-1 min-w-0">
-                              <div class="flex items-start gap-2">
-                                <a
-                                  href="javascript:void(0)"
-                                  class="text-sm font-medium hover:underline line-clamp-2 leading-snug"
-                                  style="color: hsl(var(--primary))"
-                                  @click="openDownloadModal(torrent.id)"
-                                >
-                                  {{ torrent.torrent_name }}
-                                </a>
-                                <span
-                                  v-if="getFreeBadgeText(torrent.uploadvalue, torrent.downloadvalue)"
-                                  :class="['shrink-0 inline-flex items-center text-xs px-1.5 py-px rounded font-medium border', getFreeBadgeBorderClass(torrent.uploadvalue, torrent.downloadvalue)]"
-                                  :style="getFreeBadgeStyle(torrent.uploadvalue, torrent.downloadvalue)"
-                                >
-                                  {{ getFreeBadgeText(torrent.uploadvalue, torrent.downloadvalue) }}
-                                </span>
-                              </div>
-                              <div v-if="torrent.description" class="mt-1.5 flex items-start gap-1.5">
-                                <IconifyIcon icon="lucide:quote" class="h-3 w-3 mt-0.5 shrink-0" style="color: hsl(var(--muted-foreground)/0.5)" />
-                                <span class="text-xs line-clamp-2 leading-relaxed" style="color: hsl(var(--card-foreground)/0.7)">{{ torrent.description }}</span>
-                              </div>
-                              <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
-                                <span class="inline-flex items-center text-xs px-1.5 py-px rounded font-medium" style="background: hsl(var(--primary)/0.12); color: hsl(var(--primary))">{{ torrent.site }}</span>
-                                <span v-if="torrent.video_encode" class="inline-flex items-center text-xs px-1.5 py-px rounded font-medium" style="background: hsl(var(--warning)/0.15); color: hsl(var(--warning))">{{ torrent.video_encode }}</span>
-                                <span v-if="torrent.reseffect" class="inline-flex items-center text-xs px-1.5 py-px rounded font-medium" style="background: hsl(270 60% 50% / 0.15); color: hsl(270 60% 55%)">{{ torrent.reseffect }}</span>
-                                <span v-if="torrent.size" class="inline-flex items-center text-xs px-1.5 py-px rounded font-medium" style="background: hsl(var(--chart-3)/0.15); color: hsl(var(--chart-3))">{{ torrent.size }}</span>
-                                <span v-if="torrent.releasegroup" class="inline-flex items-center text-xs px-1.5 py-px rounded font-medium" style="background: hsl(var(--chart-1)/0.15); color: hsl(var(--chart-1))">{{ torrent.releasegroup }}</span>
-                                <span v-if="torrent.seeders" class="inline-flex items-center text-xs px-1.5 py-px rounded font-medium" style="background: hsl(var(--success)/0.12); color: hsl(var(--success))">
-                                  <IconifyIcon icon="lucide:arrow-up" class="h-3 w-3 mr-0.5" />
-                                  {{ torrent.seeders }}
-                                </span>
-                              </div>
+                    <div class="torrent-items">
+                      <div v-for="(unique, uKey) in group.group_torrents" :key="uKey">
+                        <div v-for="torrent in unique.torrent_list" :key="torrent.id" class="torrent-row">
+                          <div class="torrent-main">
+                            <div class="torrent-header">
+                              <span class="torrent-name" @click="openDownloadModal(torrent.id)">{{ torrent.torrent_name
+                                }}</span>
                             </div>
-
-                            <div class="flex-shrink-0 flex items-center gap-2 pt-0.5">
-                              <a
-                                href="javascript:void(0)"
-                                class="p-1.5 rounded hover:bg-[hsl(var(--accent)/0.1)] transition-colors"
-                                title="下载"
-                                style="color: hsl(var(--muted-foreground))"
-                                @click="openDownloadModal(torrent.id)"
-                              >
-                                <IconifyIcon icon="lucide:download" class="h-4 w-4" />
-                              </a>
-                              <NDropdown
-                                :options="getTorrentDropdownOptions(torrent)"
-                                trigger="click"
-                                @select="(key: string) => handleTorrentDropdown(torrent, key)"
-                              >
-                                <a
-                                  href="javascript:void(0)"
-                                  class="p-1.5 rounded hover:bg-[hsl(var(--accent)/0.1)] transition-colors"
-                                  style="color: hsl(var(--muted-foreground))"
-                                >
-                                  <IconifyIcon icon="lucide:more-horizontal" class="h-4 w-4" />
-                                </a>
-                              </NDropdown>
+                            <div v-if="torrent.description" class="torrent-desc">
+                              <IconifyIcon icon="lucide:quote" class="size-3 shrink-0" />
+                              <span>{{ torrent.description }}</span>
                             </div>
+                            <div class="torrent-tags">
+                              <span v-if="getFreeBadgeText(torrent.uploadvalue, torrent.downloadvalue)"
+                                class="tag tag-free"
+                                :style="getFreeBadgeStyle(torrent.uploadvalue, torrent.downloadvalue)">{{
+                                  getFreeBadgeText(torrent.uploadvalue, torrent.downloadvalue) }}</span>
+                              <span class="tag tag-site">{{ torrent.site }}</span>
+                              <span v-if="torrent.video_encode" class="tag tag-video">{{ torrent.video_encode }}</span>
+                              <span v-if="torrent.reseffect" class="tag tag-effect">{{ torrent.reseffect }}</span>
+                              <span v-if="torrent.size" class="tag tag-size">{{ torrent.size }}</span>
+                              <span v-if="torrent.releasegroup" class="tag tag-group">{{ torrent.releasegroup }}</span>
+                              <span v-if="torrent.seeders" class="tag tag-seeders">
+                                <IconifyIcon icon="lucide:arrow-up" class="size-3" />{{ torrent.seeders }}
+                              </span>
+                            </div>
+                          </div>
+                          <div class="torrent-actions">
+                            <NButton size="tiny" type="primary" @click="openDownloadModal(torrent.id)">
+                              <IconifyIcon icon="lucide:download" class="size-4" />
+                            </NButton>
+                            <NDropdown :options="getTorrentDropdownOptions(torrent)" trigger="click"
+                              @select="(key: string) => handleTorrentDropdown(torrent, key)">
+                              <NButton size="tiny" quaternary circle>
+                                <IconifyIcon icon="lucide:more-vertical" class="size-4" />
+                              </NButton>
+                            </NDropdown>
                           </div>
                         </div>
                       </div>
-                    </NCollapseItem>
-                  </NCollapse>
-                </div>
+                    </div>
+                  </NCollapseItem>
+                </NCollapse>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <NEmpty v-else-if="loading === false && keyword" description="未找到相关媒体" />
-      <EmptyState
-        v-else-if="!loading"
-        title="开始搜索"
-        subtitle="请输入关键词开始搜索电影或剧集"
-      />
-    </NSpin>
+        <NEmpty v-else-if="loading === false && keyword" description="未找到相关媒体" />
+        <EmptyState v-else-if="!loading" title="开始搜索" subtitle="请输入关键词开始搜索电影或剧集" />
+      </NSpin>
     </template>
 
     <!-- 下载模态框 -->
-    <NModal
-      v-model:show="downloadModalVisible"
-      title="添加下载"
-      preset="card"
-      style="width: 420px"
-      :bordered="false"
-      size="huge"
-    >
+    <NModal v-model:show="downloadModalVisible" title="添加下载" preset="card" style="width: 420px" :bordered="false"
+      size="huge">
       <NSpin :show="downloadModalLoading">
         <div class="space-y-4">
           <div>
-            <div class="text-sm text-gray-500 mb-1">下载设置</div>
-            <NSelect
-              v-model:value="selectedDownloadSetting"
-              :options="downloadSettings"
-              placeholder="站点设置"
-              @update:value="onDownloadSettingChange"
-            />
+            <div style="font-size: 0.875rem; color: hsl(var(--muted-foreground)); margin-bottom: 0.25rem;">下载设置</div>
+            <NSelect v-model:value="selectedDownloadSetting" :options="downloadSettings" placeholder="站点设置"
+              @update:value="onDownloadSettingChange" />
           </div>
           <div>
-            <div class="text-sm text-gray-500 mb-1">保存目录</div>
-            <NSelect
-              v-model:value="selectedDownloadDir"
-              :options="downloadDirs"
-              placeholder="自动"
-            />
+            <div style="font-size: 0.875rem; color: hsl(var(--muted-foreground)); margin-bottom: 0.25rem;">保存目录</div>
+            <NSelect v-model:value="selectedDownloadDir" :options="downloadDirs" placeholder="自动" />
           </div>
         </div>
       </NSpin>
@@ -927,13 +787,7 @@ async function confirmDownload() {
     </NModal>
 
     <!-- 高级搜索模态框 -->
-    <NModal
-      v-model:show="advancedModalVisible"
-      title="高级搜索"
-      preset="card"
-      style="width: 420px"
-      :bordered="false"
-    >
+    <NModal v-model:show="advancedModalVisible" title="高级搜索" preset="card" style="width: 420px" :bordered="false">
       <NForm label-placement="left" label-width="60">
         <NFormItem label="名称">
           <NInput v-model:value="advancedForm.name" placeholder="电影/电视剧名称" />
@@ -956,47 +810,461 @@ async function confirmDownload() {
 </template>
 
 <style scoped>
-.subheader {
-  font-size: 0.75rem;
-  color: #6c757d;
-  text-transform: uppercase;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+/* Result Card */
+.result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 }
-.line-clamp-3 {
+
+.result-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+}
+
+/* Hero */
+.result-hero {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.hero-poster {
+  position: relative;
+  width: 180px;
+  flex-shrink: 0;
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 12px 32px hsl(var(--foreground) / 0.12);
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.hero-poster:hover {
+  transform: scale(1.02);
+}
+
+.hero-poster img {
+  width: 100%;
+  aspect-ratio: 2/3;
+  object-fit: cover;
+  display: block;
+}
+
+.hero-poster-tag {
+  position: absolute;
+  top: 0.625rem;
+  left: 0.625rem;
+}
+
+.hero-poster-fav {
+  position: absolute;
+  top: 0.625rem;
+  right: 0.625rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: hsl(var(--success));
+  color: hsl(var(--success-foreground));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.hero-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.hero-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: hsl(var(--card-foreground));
+  line-height: 1.15;
+  margin: 0;
+  letter-spacing: -0.025em;
+}
+
+.hero-title-link {
+  color: hsl(var(--card-foreground));
+  text-decoration: none;
+}
+
+.hero-title-link:hover {
+  color: hsl(var(--primary));
+}
+
+.hero-year {
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  margin-left: 0.5rem;
+  font-size: 1.25rem;
+}
+
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.hero-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: hsl(var(--warning));
+  font-weight: 700;
+  font-size: 1.125rem;
+}
+
+.hero-overview {
+  font-size: 0.9375rem;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.7;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  max-width: 680px;
 }
-.filter-pill {
-  display: inline-block;
-  padding: 0.2rem 0.6rem;
-  font-size: 0.8rem;
-  color: #495057;
-  background: #fff;
-  border: 1px solid #dee2e6;
+
+/* Filter Trigger */
+.filter-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.filter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  border-radius: 9999px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+/* Filter Panel */
+.filter-panel {
+  padding: 0.75rem;
+  background: hsl(var(--muted) / 0.06);
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+}
+
+.filter-panel-inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-label {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.filter-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
   border-radius: 9999px;
   cursor: pointer;
   user-select: none;
   transition: all 0.15s;
 }
-.filter-pill:hover {
-  background: #f8f9fa;
-  border-color: #adb5bd;
+
+.filter-chip:hover {
+  border-color: hsl(var(--primary) / 0.5);
+  color: hsl(var(--primary));
 }
-.filter-pill-active {
-  background: #0d6efd;
-  color: #fff;
-  border-color: #0d6efd;
+
+.filter-chip.active {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-color: hsl(var(--primary));
 }
-.filter-pill-active:hover {
-  background: #0b5ed7;
-  border-color: #0b5ed7;
+
+/* Torrent Section */
+.torrent-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
-.badge {
+
+.season-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.season-name {
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: hsl(var(--card-foreground));
+  margin-bottom: 0.25rem;
+  letter-spacing: -0.01em;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.group-badge {
   display: inline-flex;
   align-items: center;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 0.5rem;
+}
+
+.group-type {
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+}
+
+.group-res {
+  background: hsl(var(--warning) / 0.12);
+  color: hsl(var(--warning));
+}
+
+.group-sep {
+  color: hsl(var(--muted-foreground));
+}
+
+.group-count {
+  font-size: 0.8125rem;
+  color: hsl(var(--muted-foreground));
+  margin-left: auto;
+  font-weight: 500;
+}
+
+/* Torrent Items */
+.torrent-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+}
+
+.torrent-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 0.875rem;
+  background: hsl(var(--muted) / 0.03);
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.torrent-row:hover {
+  background: hsl(var(--accent) / 0.15);
+  border-color: hsl(var(--border));
+}
+
+.torrent-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.torrent-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+}
+
+.torrent-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: hsl(var(--card-foreground));
+  line-height: 1.4;
+  cursor: pointer;
+  word-break: break-word;
+}
+
+.torrent-name:hover {
+  color: hsl(var(--primary));
+}
+
+.free-badge {
+  flex-shrink: 0;
+  font-size: 0.625rem;
+  font-weight: 800;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.375rem;
   white-space: nowrap;
+  margin-top: 0.125rem;
+}
+
+.torrent-desc {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+}
+
+.torrent-desc span {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.torrent-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  font-size: 0.6875rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.375rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tag-site {
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+}
+
+.tag-video {
+  background: hsl(var(--warning) / 0.1);
+  color: hsl(var(--warning));
+}
+
+.tag-effect {
+  background: hsl(var(--info) / 0.1);
+  color: hsl(var(--info));
+}
+
+.tag-size {
+  background: hsl(var(--muted) / 0.3);
+  color: hsl(var(--muted-foreground));
+}
+
+.tag-group {
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.tag-free {
+  background: hsl(var(--success) / 0.12);
+  color: hsl(var(--success));
+}
+
+.tag-seeders {
+  background: hsl(var(--success) / 0.1);
+  color: hsl(var(--success));
+}
+
+.torrent-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  padding-top: 0.125rem;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .result-card {
+    padding: 1rem;
+  }
+
+  .result-hero {
+    gap: 1rem;
+  }
+
+  .hero-poster {
+    width: 120px;
+  }
+
+  .hero-title {
+    font-size: 1.5rem;
+  }
+
+  .torrent-row {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .torrent-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .group-count {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .result-hero {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .hero-poster {
+    width: 160px;
+  }
+
+  .hero-title-row {
+    flex-direction: column;
+    align-items: center;
+  }
 }
 </style>

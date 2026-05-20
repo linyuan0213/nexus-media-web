@@ -130,8 +130,7 @@ export async function getMessageClientConfigApi() {
   return requestClient.post<{
     channels: Record<string, {
       name: string;
-      img_url?: string;
-      color?: string;
+      icon_url?: string;
       search_type?: string;
       max_length?: number;
       config: Record<string, any>;
@@ -221,6 +220,21 @@ export async function saveMediaServerConfigApi(data: Record<string, any>) {
 /** 测试媒体服务器连接 */
 export async function testMediaServerApi(data: Record<string, any>) {
   return requestClient.post('/api/system/mediaservers/test', { data });
+}
+
+/** 获取站点配置版本 */
+export async function getSiteConfigVersionApi() {
+  return requestClient.get<{ local: string; remote: string; needs_update: boolean }>(
+    '/api/system/site-config/version',
+  );
+}
+
+/** 手动更新站点配置 */
+export async function updateSiteConfigApi(force?: boolean) {
+  return requestClient.post<{ success: boolean; message: string; version: string }>(
+    '/api/system/site-config/update',
+    { data: { force: !!force } },
+  );
 }
 
 

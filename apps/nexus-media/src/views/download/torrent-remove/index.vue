@@ -38,19 +38,16 @@ interface RemoveTask {
   only_nexus_media: number;
   samedata: number;
   action: number;
-  config: {
-    ratio: number;
-    seeding_time: number;
-    upload_avs: number;
-    size: number[];
-    tags: string[];
-    savepath_key: string;
-    tracker_key: string;
-    qb_state: string[];
-    qb_category: string[];
-    tr_state: string[];
-    tr_error_key: string;
-  };
+    config: {
+      ratio: number;
+      seeding_time: number;
+      upload_avs: number;
+      size: number[];
+      tags: string[];
+      savepath_key: string;
+      tracker_key: string;
+      filter_status: string[];
+    };
   interval: number;
   enabled: number;
 }
@@ -76,17 +73,12 @@ const editingConfig = ref<RemoveTask['config']>({
   tags: [],
   savepath_key: '',
   tracker_key: '',
-  qb_state: [],
-  qb_category: [],
-  tr_state: [],
-  tr_error_key: '',
+  filter_status: [],
 });
 const editLoading = ref(false);
 
 const tagInput = ref('');
-const qbStateInput = ref('');
-const qbCategoryInput = ref('');
-const trStateInput = ref('');
+const filterStatusInput = ref('');
 const sizeInput = ref('');
 
 const deleteModalShow = ref(false);
@@ -151,9 +143,7 @@ function handleAdd() {
     only_nexus_media: 1,
   };
   tagInput.value = '';
-  qbStateInput.value = '';
-  qbCategoryInput.value = '';
-  trStateInput.value = '';
+  filterStatusInput.value = '';
   sizeInput.value = '';
   editingConfig.value = {
     ratio: 0,
@@ -163,10 +153,7 @@ function handleAdd() {
     tags: [],
     savepath_key: '',
     tracker_key: '',
-    qb_state: [],
-    qb_category: [],
-    tr_state: [],
-    tr_error_key: '',
+    filter_status: [],
   };
   editModalShow.value = true;
 }
@@ -181,15 +168,10 @@ function handleEdit(task: RemoveTask) {
     tags: task.config?.tags || [],
     savepath_key: task.config?.savepath_key || '',
     tracker_key: task.config?.tracker_key || '',
-    qb_state: task.config?.qb_state || [],
-    qb_category: task.config?.qb_category || [],
-    tr_state: task.config?.tr_state || [],
-    tr_error_key: task.config?.tr_error_key || '',
+    filter_status: task.config?.filter_status || [],
   };
   tagInput.value = task.config?.tags?.join(';') || '';
-  qbStateInput.value = task.config?.qb_state?.join(';') || '';
-  qbCategoryInput.value = task.config?.qb_category?.join(';') || '';
-  trStateInput.value = task.config?.tr_state?.join(';') || '';
+  filterStatusInput.value = task.config?.filter_status?.join(';') || '';
   sizeInput.value = task.config?.size?.length === 2 ? `${task.config.size[0]}-${task.config.size[1]}` : '';
   editModalShow.value = true;
 }
@@ -229,15 +211,8 @@ async function handleSave() {
       tags: tagInput.value,
       savepath_key: editingConfig.value.savepath_key || '',
       tracker_key: editingConfig.value.tracker_key || '',
+      filter_status: filterStatusInput.value,
     };
-
-    if (downloaderType === 'qbittorrent') {
-      payload.qb_state = qbStateInput.value;
-      payload.qb_category = qbCategoryInput.value;
-    } else if (downloaderType === 'transmission') {
-      payload.tr_state = trStateInput.value;
-      payload.tr_error_key = editingConfig.value.tr_error_key || '';
-    }
 
     await saveTorrentRemoveTaskApi(payload);
     message.success('保存成功');
@@ -486,59 +461,18 @@ onMounted(fetchData);
                 </div>
               </div>
               <div
-                v-if="task.downloader_type === 'qbittorrent'"
+                v-if="task.config?.filter_status?.length"
                 class="detail-item detail-item-wide"
               >
-                <div class="detail-label">qb分类</div>
+                <div class="detail-label">种子状态</div>
                 <div class="detail-value">
                   <NTag
-                    v-for="cat in task.config?.qb_category"
-                    :key="cat"
-                    size="tiny"
-                    class="mr-1"
-                  >{{ cat }}</NTag>
-                  <span v-if="!task.config?.qb_category?.length" class="detail-muted">-</span>
-                </div>
-              </div>
-              <div
-                v-if="task.downloader_type === 'qbittorrent'"
-                class="detail-item detail-item-wide"
-              >
-                <div class="detail-label">qb状态</div>
-                <div class="detail-value">
-                  <NTag
-                    v-for="st in task.config?.qb_state"
+                    v-for="st in task.config?.filter_status"
                     :key="st"
                     size="tiny"
                     type="info"
                     class="mr-1"
                   >{{ st }}</NTag>
-                  <span v-if="!task.config?.qb_state?.length" class="detail-muted">-</span>
-                </div>
-              </div>
-              <div
-                v-if="task.downloader_type === 'transmission'"
-                class="detail-item detail-item-wide"
-              >
-                <div class="detail-label">tr状态</div>
-                <div class="detail-value">
-                  <NTag
-                    v-for="st in task.config?.tr_state"
-                    :key="st"
-                    size="tiny"
-                    type="info"
-                    class="mr-1"
-                  >{{ st }}</NTag>
-                  <span v-if="!task.config?.tr_state?.length" class="detail-muted">-</span>
-                </div>
-              </div>
-              <div
-                v-if="task.downloader_type === 'transmission' && task.config?.tr_error_key"
-                class="detail-item detail-item-wide"
-              >
-                <div class="detail-label">错误关键词</div>
-                <div class="detail-value">
-                  <NTag size="tiny" type="warning">{{ task.config.tr_error_key }}</NTag>
                 </div>
               </div>
               <div
@@ -697,37 +631,11 @@ onMounted(fetchData);
             />
           </NFormItem>
         </div>
-        <div
-          v-if="getDownloaderType(editing.downloader || '') === 'qbittorrent'"
-          class="grid grid-cols-2 gap-3"
-        >
+        <div class="grid grid-cols-2 gap-3">
           <NFormItem label="种子状态">
             <NInput
-              v-model:value="qbStateInput"
+              v-model:value="filterStatusInput"
               placeholder="多个状态用;分隔"
-            />
-          </NFormItem>
-          <NFormItem label="分类">
-            <NInput
-              v-model:value="qbCategoryInput"
-              placeholder="多个分类用;分隔"
-            />
-          </NFormItem>
-        </div>
-        <div
-          v-if="getDownloaderType(editing.downloader || '') === 'transmission'"
-          class="grid grid-cols-2 gap-3"
-        >
-          <NFormItem label="种子状态">
-            <NInput
-              v-model:value="trStateInput"
-              placeholder="多个状态用;分隔"
-            />
-          </NFormItem>
-          <NFormItem label="错误信息关键词">
-            <NInput
-              v-model:value="editingConfig.tr_error_key"
-              placeholder="支持正则"
             />
           </NFormItem>
         </div>

@@ -1,38 +1,37 @@
-name: 📚 Documentation
-description: Report an issue with Vben Admin Website to help us make it better.
+name: 📚 文档问题
+description: 文档缺失、错误或不清晰
 title: 'Docs: '
-labels: [documentation]
+labels: ['documentation']
+
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to fill out this issue!
+        感谢反馈文档问题！
+
   - type: checkboxes
-    id: documentation_is
+    id: type
     attributes:
-      label: Documentation is
+      label: 问题类型
       options:
-        - label: Missing
-        - label: Outdated
-        - label: Confusing
-        - label: Not sure?
+        - label: 文档缺失
+        - label: 文档内容错误
+        - label: 文档描述不清
+        - label: 其他
+
   - type: textarea
     id: description
     attributes:
-      label: Explain in Detail
-      description: A clear and concise description of your suggestion. If you intend to submit a PR for this issue, tell us in the description. Thanks!
-      placeholder: The description of ... page is not clear. I thought it meant ... but it wasn't.
+      label: 具体问题
+      description: 哪里的文档有问题？
+      placeholder: 描述文档问题和所在位置
     validations:
       required: true
+
   - type: textarea
     id: suggestion
     attributes:
-      label: Your Suggestion for Changes
+      label: 改进建议
+      description: 你认为应该如何改进？
     validations:
       required: true
-  - type: textarea
-    id: reproduction-steps
-    attributes:
-      label: Steps to reproduce
-      description: Please provide any reproduction steps that may need to be described. E.g. if it happens only when running the dev or build script make sure it's clear which one to use.
-      placeholder: Run `pnpm install` followed by `pnpm run docs:dev`

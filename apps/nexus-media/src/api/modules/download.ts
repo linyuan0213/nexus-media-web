@@ -70,10 +70,7 @@ export namespace DownloadApi {
       tags: string[];
       savepath_key: string;
       tracker_key: string;
-      qb_state: string[];
-      qb_category: string[];
-      tr_state: string[];
-      tr_error_key: string;
+      filter_status: string[];
     };
     interval: number;
     enabled: number;
@@ -135,7 +132,7 @@ export async function getDownloadersApi(did?: string) {
 
 /** 获取支持的下载器类型配置 */
 export async function getDownloaderTypesApi() {
-  return requestClient.post<Record<string, { name: string; color?: string; img_url?: string; monitor_enable?: boolean; config: Record<string, any> }>>('/api/download/downloaders/types', {});
+  return requestClient.post<Record<string, { name: string; icon_url?: string; monitor_enable?: boolean; speedlimit_enable?: boolean; config: Record<string, any> }>>('/api/download/downloaders/types', {});
 }
 
 /** 保存下载器配置 */

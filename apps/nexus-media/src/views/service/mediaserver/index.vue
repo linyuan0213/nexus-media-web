@@ -19,9 +19,12 @@ import PageHeader from '#/components/page/PageHeader.vue';
 
 interface MediaServerConf {
   name: string;
-  img_url?: string;
-  background?: string;
+  icon_url?: string;
   config?: Record<string, any>;
+}
+
+function mediaserverIcon(type: string): string {
+  return `/static/img/mediaserver/${type}.png`;
 }
 
 const message = useMessage();
@@ -41,15 +44,7 @@ async function fetchData() {
     const res: any = await getMediaServersConfigApi();
     const data = res.data ?? res;
     if (data.mediaserver_conf) {
-      const conf = data.mediaserver_conf;
-      // 修复静态资源路径
-      for (const key of Object.keys(conf)) {
-        const item = conf[key];
-        if (item.img_url) {
-          item.img_url = item.img_url.replace(/^\.\.?\//, '/');
-        }
-      }
-      servers.value = conf;
+      servers.value = data.mediaserver_conf;
     }
     if (data.servers) {
       for (const [name, srv] of Object.entries(data.servers as Record<string, any>)) {
@@ -134,8 +129,16 @@ onMounted(fetchData);
           @click="openModal(item.type)"
         >
           <div class="text-center">
-            <div class="w-16 h-16 mx-auto rounded-full bg-cover bg-center mb-3"
-                 :style="{ backgroundImage: `url(${item.img_url})`, backgroundColor: item.background }" />
+            <div class="relative w-16 h-16 mx-auto rounded-full mb-3 overflow-hidden">
+              <img
+                :src="item.icon_url || mediaserverIcon(item.type)"
+                class="absolute inset-0 z-10 w-full h-full object-contain"
+                @error="($event.target as HTMLElement).style.display='none'"
+              />
+              <div class="w-full h-full flex items-center justify-center bg-muted">
+                <IconifyIcon icon="lucide:server" class="size-6 text-muted-foreground" />
+              </div>
+            </div>
             <div class="font-medium">{{ item.name }}</div>
             <div class="text-sm text-gray-400 mt-1">
               <span v-if="serverConfigs[item.type]?.enabled" class="inline-flex items-center gap-1">

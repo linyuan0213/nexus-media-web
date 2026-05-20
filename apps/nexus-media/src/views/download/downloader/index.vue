@@ -47,9 +47,9 @@ interface DownloaderItem {
 
 interface DownloaderTypeConf {
   name: string;
-  color?: string;
-  img_url?: string;
+  icon_url?: string;
   monitor_enable?: boolean;
+  speedlimit_enable?: boolean;
   config: Record<string, any>;
 }
 
@@ -77,10 +77,10 @@ const SYNC_MODES = [
   { label: '移动', value: 'move' },
 ];
 
-function logoUrl(url?: string) {
-  if (!url) return '';
-  if (url.startsWith('http')) return url;
-  return url.replace(/^\.\.\//, '/');
+function downloaderIcon(type?: string): string {
+  const conf = typeConf(type);
+  if (conf?.icon_url) return conf.icon_url;
+  return type ? `/static/img/downloader/${type}.png` : '';
 }
 
 function typeConf(type?: string) {
@@ -283,22 +283,23 @@ onMounted(fetchData);
           <div class="flex flex-1 flex-col p-5">
             <!-- 头部：logo + 名称 + 星标 -->
             <div class="mb-3 flex items-start gap-3">
-              <img
-                v-if="typeConf(item.type)?.img_url"
-                :src="logoUrl(typeConf(item.type)?.img_url)"
-                class="h-10 w-10 flex-shrink-0 object-contain"
-                :alt="typeConf(item.type)?.name"
-              />
-              <div
-                v-else
-                class="h-10 w-10 flex-shrink-0 rounded-lg flex items-center justify-center"
-                style="background: hsl(var(--muted))"
-              >
-                <IconifyIcon
-                  icon="lucide:download"
-                  class="size-5"
-                  style="color: hsl(var(--muted-foreground))"
+              <div class="relative h-10 w-10 flex-shrink-0">
+                <img
+                  :src="downloaderIcon(item.type)"
+                  class="absolute inset-0 z-10 h-full w-full object-contain"
+                  :alt="typeConf(item.type)?.name"
+                  @error="($event.target as HTMLElement).style.display='none'"
                 />
+                <div
+                  class="h-full w-full rounded-lg flex items-center justify-center"
+                  style="background: hsl(var(--muted))"
+                >
+                  <IconifyIcon
+                    icon="lucide:download"
+                    class="size-5"
+                    style="color: hsl(var(--muted-foreground))"
+                  />
+                </div>
               </div>
 
               <div class="min-w-0 flex-1">
@@ -488,8 +489,8 @@ onMounted(fetchData);
               @click="editingType = key"
             >
               <img
-                v-if="conf.img_url"
-                :src="logoUrl(conf.img_url)"
+                v-if="downloaderIcon(key)"
+                :src="downloaderIcon(key)"
                 class="h-10 w-10 rounded-lg object-contain"
                 :alt="conf.name"
               />

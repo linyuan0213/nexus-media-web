@@ -585,7 +585,7 @@ importers:
         specifier: 'catalog:'
         version: 3.2.4(typescript@5.9.3)
 
-  apps/nas-tools:
+  apps/nexus-media:
     dependencies:
       '@vben/access':
         specifier: workspace:*

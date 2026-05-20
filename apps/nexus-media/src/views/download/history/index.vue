@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue';
 
-import { NButton, NCard, NEmpty, NSpin, NSpace, NPagination, useMessage } from 'naive-ui';
+import { NButton, NCard, NEmpty, NSpin, NSpace, NPagination, NTooltip, useMessage } from 'naive-ui';
 
 import { IconifyIcon } from '@vben/icons';
 
@@ -16,6 +16,7 @@ const loading = ref(false);
 const currentPage = ref(1);
 const pageSize = ref(30);
 const total = ref(0);
+const viewMode = ref<'grid' | 'list'>('grid');
 
 const history = computed(() => downloadStore.history);
 
@@ -67,80 +68,159 @@ onMounted(() => fetchData(1));
 
 <template>
   <div class="p-4">
-    <PageHeader title="近期下载" subtitle="最近下载的媒体资源">
-      <template #actions>
-        <NSpace>
-          <NButton @click="fetchData(currentPage)">
-            <template #icon>
-              <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
-            </template>
-            刷新
-          </NButton>
-        </NSpace>
-      </template>
-    </PageHeader>
+    <div class="header-row">
+      <h1 class="page-title">近期下载</h1>
+      <div class="toolbar-actions">
+        <NButton @click="fetchData(currentPage)">
+          <template #icon>
+            <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
+          </template>
+          刷新
+        </NButton>
+        <NButton
+          text
+          :type="viewMode === 'grid' ? 'primary' : 'default'"
+          @click="viewMode = 'grid'"
+        >
+          <template #icon>
+            <IconifyIcon icon="lucide:layout-grid" class="size-4" />
+          </template>
+        </NButton>
+        <NButton
+          text
+          :type="viewMode === 'list' ? 'primary' : 'default'"
+          @click="viewMode = 'list'"
+        >
+          <template #icon>
+            <IconifyIcon icon="lucide:list" class="size-4" />
+          </template>
+        </NButton>
+      </div>
+    </div>
 
     <NSpin :show="loading">
-      <div v-if="history.length > 0" class="history-grid">
-        <NCard
-          v-for="item in history"
-          :key="`${item.id}-${item.date}`"
-          size="small"
-          :bordered="false"
-          class="history-card"
-        >
-          <div class="flex gap-3">
-            <div class="history-poster-wrapper">
-              <img
-                v-if="item.image"
-                :src="`/img?url=${item.image}`"
-                class="history-poster rounded"
-                alt=""
-              />
-              <div
-                v-else
-                class="history-poster-placeholder flex items-center justify-center rounded"
-              >
-                <IconifyIcon
-                  icon="lucide:film"
-                  class="size-8"
-                  style="color: hsl(var(--muted-foreground))"
+      <template v-if="history.length > 0">
+        <!-- Grid View -->
+        <div v-if="viewMode === 'grid'" class="history-grid">
+          <NCard
+            v-for="item in history"
+            :key="`${item.id}-${item.date}`"
+            size="small"
+            :bordered="false"
+            class="history-card"
+          >
+            <div class="flex gap-3">
+              <div class="history-poster-wrapper">
+                <img
+                  v-if="item.image"
+                  :src="`/img?url=${item.image}`"
+                  class="history-poster rounded"
+                  alt=""
                 />
+                <div
+                  v-else
+                  class="history-poster-placeholder flex items-center justify-center rounded"
+                >
+                  <IconifyIcon
+                    icon="lucide:film"
+                    class="size-8"
+                    style="color: hsl(var(--muted-foreground))"
+                  />
+                </div>
+              </div>
+              <div class="min-w-0 flex-1">
+                <NTooltip :show-arrow="false">
+                  <template #trigger>
+                    <div class="history-title truncate">{{ item.title }}</div>
+                  </template>
+                  {{ item.title }}
+                </NTooltip>
+                <div class="history-meta">
+                  <span v-if="item.year">{{ item.year }}</span>
+                  <span v-if="item.media_type">{{ item.media_type }}</span>
+                  <span v-if="item.vote">评分 {{ item.vote }}</span>
+                </div>
+                <div v-if="item.overview" class="history-torrent truncate">
+                  {{ item.overview }}
+                </div>
+                <div class="history-footer">
+                  <span v-if="item.site" class="history-site">{{ item.site }}</span>
+                  <NSpace align="center" size="small">
+                    <NButton
+                      v-if="item.enclosure"
+                      size="tiny"
+                      text
+                      @click="copyLink(item.enclosure)"
+                    >
+                      <template #icon>
+                        <IconifyIcon icon="lucide:link" class="size-3.5" />
+                      </template>
+                      复制链接
+                    </NButton>
+                    <span class="history-date">{{ formatDate(item.date) }}</span>
+                  </NSpace>
+                </div>
               </div>
             </div>
-            <div class="min-w-0 flex-1">
-              <div class="history-title truncate">
+          </NCard>
+        </div>
+
+        <!-- List View -->
+        <div v-else class="history-list">
+          <div
+            v-for="item in history"
+            :key="`${item.id}-${item.date}`"
+            class="history-list-item"
+          >
+            <img
+              v-if="item.image"
+              :src="`/img?url=${item.image}`"
+              class="history-list-poster rounded"
+              alt=""
+            />
+            <div
+              v-else
+              class="history-list-poster-placeholder flex items-center justify-center rounded"
+            >
+              <IconifyIcon
+                icon="lucide:film"
+                class="size-5"
+                style="color: hsl(var(--muted-foreground))"
+              />
+            </div>
+
+            <div class="history-list-info">
+              <NTooltip :show-arrow="false">
+                <template #trigger>
+                  <div class="history-list-title truncate">{{ item.title }}</div>
+                </template>
                 {{ item.title }}
-              </div>
-              <div class="history-meta">
+              </NTooltip>
+              <div class="history-list-meta">
                 <span v-if="item.year">{{ item.year }}</span>
                 <span v-if="item.media_type">{{ item.media_type }}</span>
                 <span v-if="item.vote">评分 {{ item.vote }}</span>
-              </div>
-              <div v-if="item.overview" class="history-torrent truncate">
-                {{ item.overview }}
-              </div>
-              <div class="history-footer">
                 <span v-if="item.site" class="history-site">{{ item.site }}</span>
-                <NSpace align="center" size="small">
-                  <NButton
-                    v-if="item.enclosure"
-                    size="tiny"
-                    text
-                    @click="copyLink(item.enclosure)"
-                  >
-                    <template #icon>
-                      <IconifyIcon icon="lucide:link" class="size-3.5" />
-                    </template>
-                    复制链接
-                  </NButton>
-                  <span class="history-date">{{ formatDate(item.date) }}</span>
-                </NSpace>
               </div>
             </div>
+
+            <div class="history-list-actions">
+              <NButton
+                v-if="item.enclosure"
+                size="tiny"
+                text
+                @click="copyLink(item.enclosure)"
+              >
+                <template #icon>
+                  <IconifyIcon icon="lucide:link" class="size-3.5" />
+                </template>
+                <span class="hidden sm:inline">复制链接</span>
+              </NButton>
+              <span class="history-date">{{ formatDate(item.date) }}</span>
+            </div>
           </div>
-        </NCard>
-      </div>
+        </div>
+      </template>
 
       <EmptyState
         v-else-if="!loading"
@@ -169,6 +249,30 @@ onMounted(() => fetchData(1));
 </template>
 
 <style scoped>
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.page-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  line-height: 1.4;
+  margin: 0;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* ===== Grid View ===== */
 .history-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
@@ -179,6 +283,7 @@ onMounted(() => fetchData(1));
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   transition: box-shadow 0.2s;
+  overflow: hidden;
 }
 
 .history-card:hover {
@@ -232,6 +337,73 @@ onMounted(() => fetchData(1));
   margin-top: auto;
 }
 
+/* ===== List View ===== */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.history-list-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  transition: box-shadow 0.2s;
+  overflow: hidden;
+}
+
+.history-list-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.history-list-poster {
+  width: 40px;
+  height: 50px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background-color: hsl(var(--muted));
+}
+
+.history-list-poster-placeholder {
+  width: 40px;
+  height: 50px;
+  flex-shrink: 0;
+  background-color: hsl(var(--muted));
+}
+
+.history-list-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.history-list-title {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: hsl(var(--card-foreground));
+  line-height: 1.4;
+  margin-bottom: 0.25rem;
+}
+
+.history-list-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.history-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* ===== Common ===== */
 .history-site {
   font-size: 0.75rem;
   padding: 0.125rem 0.5rem;
@@ -245,15 +417,32 @@ onMounted(() => fetchData(1));
   color: hsl(var(--muted-foreground));
 }
 
-@media (max-width: 640px) {
+/* ===== Mobile ===== */
+@media (max-width: 768px) {
   .history-grid {
     grid-template-columns: 1fr;
+    gap: 0.5rem;
   }
 
   .history-poster,
   .history-poster-placeholder {
     width: 60px;
     height: 80px;
+  }
+
+  .history-list-item {
+    padding: 0.625rem;
+    gap: 0.5rem;
+  }
+
+  .history-list-poster,
+  .history-list-poster-placeholder {
+    width: 32px;
+    height: 40px;
+  }
+
+  .history-list-title {
+    font-size: 0.875rem;
   }
 }
 </style>
