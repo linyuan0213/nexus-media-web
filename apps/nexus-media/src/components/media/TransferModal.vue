@@ -35,6 +35,9 @@ export interface TransferFormData {
 const props = defineProps<{
   show: boolean;
   path: string;
+  outpath?: string;
+  syncmod?: string;
+  type?: string;
   loading?: boolean;
 }>();
 
@@ -46,7 +49,7 @@ const emit = defineEmits<{
 const form = ref<TransferFormData>({
   path: '',
   outpath: '',
-  syncmod: 'link',
+  syncmod: 'copy',
   type: 'MOV',
 });
 
@@ -56,9 +59,9 @@ watch(
     if (visible) {
       form.value = {
         path: props.path,
-        outpath: '',
-        syncmod: 'link',
-        type: 'MOV',
+        outpath: props.outpath || '',
+        syncmod: props.syncmod || 'copy',
+        type: props.type || 'MOV',
         tmdb: undefined,
         season: undefined,
         min_filesize: undefined,

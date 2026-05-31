@@ -27,6 +27,7 @@ import {
   listAgentModelsApi,
   getSiteConfigVersionApi,
   updateSiteConfigApi,
+  reloadConfigApi,
 } from '#/api';
 import PageHeader from '#/components/page/PageHeader.vue';
 
@@ -255,6 +256,7 @@ async function saveUserScript() {
 // 站点配置更新
 const siteConfigVersion = ref({ local: '', remote: '', needs_update: false });
 const updatingSiteConfig = ref(false);
+const reloadingConfig = ref(false);
 
 async function fetchSiteConfigVersion() {
   try {
@@ -275,6 +277,25 @@ async function handleUpdateSiteConfig() {
     message.error(e?.message || '更新失败');
   } finally {
     updatingSiteConfig.value = false;
+  }
+}
+
+async function handleReloadConfig() {
+  reloadingConfig.value = true;
+  try {
+    const data = await reloadConfigApi();
+    if (data && Object.values(data.steps || {}).every(Boolean)) {
+      message.success(`配置重载成功 (v${data.version})`);
+    } else {
+      const failed = Object.entries(data?.steps || {})
+        .filter(([, ok]) => !ok)
+        .map(([name]) => name);
+      message.warning(`配置重载部分失败: ${failed.join(', ')}`);
+    }
+  } catch (e: any) {
+    message.error(e?.message || '配置重载失败');
+  } finally {
+    reloadingConfig.value = false;
   }
 }
 
@@ -305,17 +326,29 @@ onMounted(() => {
             >（有新版本）</span
           >
         </div>
-        <NButton
-          size="small"
-          :loading="updatingSiteConfig"
-          :type="siteConfigVersion.needs_update ? 'primary' : 'default'"
-          @click="handleUpdateSiteConfig"
-        >
-          <template #icon>
-            <IconifyIcon icon="lucide:refresh-cw" class="w-4 h-4" />
-          </template>
-          {{ siteConfigVersion.needs_update ? '更新站点配置' : '检查更新' }}
-        </NButton>
+        <NSpace>
+          <NButton
+            size="small"
+            :loading="reloadingConfig"
+            @click="handleReloadConfig"
+          >
+            <template #icon>
+              <IconifyIcon icon="lucide:activity" class="w-4 h-4" />
+            </template>
+            重载配置
+          </NButton>
+          <NButton
+            size="small"
+            :loading="updatingSiteConfig"
+            :type="siteConfigVersion.needs_update ? 'primary' : 'default'"
+            @click="handleUpdateSiteConfig"
+          >
+            <template #icon>
+              <IconifyIcon icon="lucide:refresh-cw" class="w-4 h-4" />
+            </template>
+            {{ siteConfigVersion.needs_update ? '更新站点配置' : '检查更新' }}
+          </NButton>
+        </NSpace>
       </div>
     </NCard>
 

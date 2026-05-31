@@ -93,14 +93,13 @@ async function loadRecommends() {
   }
 }
 
+const searching = ref(false);
+
 async function handleSearch() {
-  try {
-    await webSearchApi({
-      search_word: detail.value.title,
-      tmdbid: mediaId.value,
-      media_type: mediaType.value,
-    });
-  } catch {}
+  if (searching.value) return;
+  searching.value = true;
+
+  // 先跳转到搜索页，再后台触发搜索（避免同步阻塞导致页面卡住）
   router.push({
     name: 'MediaSearch',
     query: {
@@ -108,6 +107,19 @@ async function handleSearch() {
       from: 'detail',
     },
   });
+
+  // 后台触发搜索，不阻塞页面跳转
+  try {
+    await webSearchApi({
+      search_word: detail.value.title,
+      tmdbid: mediaId.value,
+      media_type: mediaType.value,
+    });
+  } catch {
+    // 搜索触发失败不影响页面跳转，搜索页会轮询进度
+  } finally {
+    searching.value = false;
+  }
 }
 
 async function handleSubscribe() {
@@ -216,7 +228,7 @@ watch([() => route.query.id, () => route.query.type], () => {
                 </div>
 
                 <div class="flex flex-wrap gap-2">
-                  <NButton type="primary" size="small" @click="handleSearch">
+                  <NButton type="primary" size="small" :loading="searching" @click="handleSearch">
                     <IconifyIcon icon="lucide:search" class="mr-1 size-4" />
                     搜索资源
                   </NButton>

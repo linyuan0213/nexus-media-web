@@ -90,7 +90,7 @@ function startSearchProgressPoll() {
         }
       }
     } catch {}
-  }, 1000);
+  }, 3000);
 }
 
 function stopSearchProgressPoll() {

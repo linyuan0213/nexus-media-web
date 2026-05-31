@@ -27,6 +27,7 @@ import {
 } from '#/api/modules/storage';
 import type { StorageApi } from '#/api/modules/storage';
 import PageHeader from '#/components/page/PageHeader.vue';
+import PathPickerModal from '#/components/media/PathPickerModal.vue';
 
 interface SectionDef {
   key: string;
@@ -78,6 +79,24 @@ const deleteModal = ref({
   sectionLabel: '',
   path: '',
 });
+
+// 路径选择器
+const pathPicker = ref({
+  show: false,
+  title: '选择目录',
+});
+
+function openPathPicker() {
+  pathPicker.value = {
+    show: true,
+    title: '选择目录',
+  };
+}
+
+function handlePathConfirm(path: string, backendId: string) {
+  modal.value.path = path;
+  modal.value.backend = backendId;
+}
 
 async function fetch() {
   loading.value = true;
@@ -320,11 +339,18 @@ onMounted(fetch);
         <NFormItem label="路径" required>
           <NInput
             v-model:value="modal.path"
-            placeholder="/mnt/media/movie"
+            placeholder="/mnt/media/movie（可手动输入或浏览选择）"
             clearable
           >
             <template #prefix>
               <IconifyIcon icon="lucide:folder" class="h-4 w-4 input-icon" />
+            </template>
+            <template #suffix>
+              <NButton size="tiny" text @click="openPathPicker" title="浏览选择目录">
+                <template #icon>
+                  <IconifyIcon icon="lucide:folder-open" class="h-4 w-4" />
+                </template>
+              </NButton>
             </template>
           </NInput>
         </NFormItem>
@@ -356,6 +382,15 @@ onMounted(fetch);
     >
       <div>确定要删除 {{ deleteModal.sectionLabel }} 目录「{{ deleteModal.path }}」吗？</div>
     </NModal>
+
+    <!-- 目录选择器 -->
+    <PathPickerModal
+      v-model:show="pathPicker.show"
+      :title="pathPicker.title"
+      :initial-path="modal.path"
+      :initial-backend-id="modal.backend"
+      @confirm="handlePathConfirm"
+    />
   </div>
 </template>
 

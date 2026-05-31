@@ -59,6 +59,9 @@ const identifyResult = ref<Record<string, any>>({});
 // 转移弹窗
 const transferModalShow = ref(false);
 const transferPath = ref('');
+const transferOutpath = ref('');
+const transferSyncmod = ref('link');
+const transferType = ref('MOV');
 const transferLoading = ref(false);
 
 async function fetchData(page = 1) {
@@ -169,6 +172,17 @@ async function handleIdentify(item: any) {
 
 function handleTransfer(item: any) {
   transferPath.value = item.path;
+  transferOutpath.value = item.to || '';
+  transferSyncmod.value = item.rmt_mode || item.sync_mode || 'link';
+  // 根据路径中的关键字推断类型
+  const pathLower = item.path?.toLowerCase() || '';
+  if (pathLower.includes('movie') || pathLower.includes('电影')) {
+    transferType.value = 'MOV';
+  } else if (pathLower.includes('anime') || pathLower.includes('动漫')) {
+    transferType.value = 'ANI';
+  } else {
+    transferType.value = 'TV';
+  }
   transferModalShow.value = true;
 }
 
@@ -394,6 +408,9 @@ onMounted(() => fetchData(1));
     <TransferModal
       v-model:show="transferModalShow"
       :path="transferPath"
+      :outpath="transferOutpath"
+      :syncmod="transferSyncmod"
+      :type="transferType"
       :loading="transferLoading"
       @submit="submitTransfer"
     />

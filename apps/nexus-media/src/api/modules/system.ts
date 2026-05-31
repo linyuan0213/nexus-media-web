@@ -96,9 +96,22 @@ export async function restartSystemApi() {
   return requestClient.post('/api/system/restart');
 }
 
-/** 获取任务进度 */
+// 进度请求节流：同 type 2000ms 内不重复发请求
+const _progressLocks: Record<string, { promise: Promise<any>; time: number }> = {};
+
+/** 获取任务进度（带同类型节流，2000ms 内不重复发请求） */
 export async function getProgressApi(type: string) {
-  return requestClient.post<{ code: number; data?: { value: number; text: string } }>('/api/system/refresh', { type });
+  const now = Date.now();
+  const lock = _progressLocks[type];
+  if (lock && now - lock.time < 2000) {
+    return lock.promise;
+  }
+  const promise = requestClient.post<{ code: number; data?: { value: number; text: string } }>(
+    '/api/system/refresh',
+    { type },
+  );
+  _progressLocks[type] = { promise, time: now };
+  return promise;
 }
 
 /** 更新系统配置 */
@@ -234,6 +247,14 @@ export async function updateSiteConfigApi(force?: boolean) {
   return requestClient.post<{ success: boolean; message: string; version: string }>(
     '/api/system/site-config/update',
     { data: { force: !!force } },
+  );
+}
+
+/** 手动触发配置重载 */
+export async function reloadConfigApi() {
+  return requestClient.post<{ code: number; data?: { version: number; steps: Record<string, boolean> } }>(
+    '/api/system/config/reload',
+    {},
   );
 }
 

@@ -59,7 +59,7 @@ const manualLoading = ref(false);
 const manualForm = ref({
   logid: 0,
   path: '',
-  syncmod: 'link',
+  syncmod: 'copy',
   type: 'MOV',
   tmdb: undefined as number | undefined,
   season: undefined as number | undefined,
@@ -264,7 +264,7 @@ function openManualModal(item: any) {
   manualForm.value = {
     logid: item.ID,
     path: item.SOURCE_PATH ? `${item.SOURCE_PATH}/${item.SOURCE_FILENAME}` : '',
-    syncmod: item.SYNC_MODE || 'link',
+    syncmod: item.SYNC_MODE || 'copy',
     type: item.TYPE === '电影' ? 'MOV' : item.TYPE === '动漫' ? 'ANI' : 'TV',
     tmdb: item.TMDBID || undefined,
     season: undefined,

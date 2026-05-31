@@ -10,6 +10,7 @@ import {
   NSpace,
   NSpin,
   NSwitch,
+  NTooltip,
   useMessage,
 } from 'naive-ui';
 import { IconifyIcon } from '@vben/icons';
@@ -164,7 +165,18 @@ onMounted(fetchData);
     >
       <NForm label-placement="left" :label-width="140">
         <div v-for="(field, key) in servers[editingType]?.config" :key="key">
-          <NFormItem :label="field.title">
+          <NFormItem>
+            <template #label>
+              <span class="inline-flex items-center">
+                {{ field.title }}
+                <NTooltip v-if="field.tooltip" trigger="hover">
+                  <template #trigger>
+                    <IconifyIcon icon="lucide:help-circle" class="ml-1 size-4 cursor-help" style="color: hsl(var(--muted-foreground))" />
+                  </template>
+                  <div style="max-width: 320px; white-space: pre-wrap;">{{ field.tooltip }}</div>
+                </NTooltip>
+              </span>
+            </template>
             <NSwitch v-if="field.type === 'switch'" v-model:value="editingConfig[field.id]" :checked-value="1" :unchecked-value="0" />
             <NInput v-else v-model:value="editingConfig[field.id]" :placeholder="field.placeholder" :type="field.type === 'password' ? 'password' : 'text'" />
           </NFormItem>

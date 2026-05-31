@@ -4,6 +4,8 @@ import { computed, h, onMounted, ref } from 'vue';
 import {
   NButton,
   NCard,
+  NCollapse,
+  NCollapseItem,
   NDropdown,
   NEmpty,
   NForm,
@@ -48,8 +50,9 @@ const loading = ref(false);
 const currentPath = ref('');
 const currentBackendId = ref('local');
 const dirList = ref<any[]>([]);
-const libraryPaths = ref<Array<{ name: string; path: string; type: string }>>([]);
-const syncSourcePaths = ref<Array<{ name: string; path: string; type: string }>>([]);
+const libraryPaths = ref<Array<{ name: string; path: string; type: string; backend_id?: string }>>([]);
+const syncSourcePaths = ref<Array<{ name: string; path: string; type: string; backend_id?: string }>>([]);
+const syncDestPaths = ref<Array<{ name: string; path: string; type: string; backend_id?: string }>>([]);
 const backends = ref<StorageApi.StorageBackend[]>([]);
 const backendOptions = computed(() => [
   { label: '本地', value: 'local' },
@@ -57,13 +60,113 @@ const backendOptions = computed(() => [
 ]);
 const defaultPath = ref('/');
 const searchKeyword = ref('');
+const collapseExpandedNames = ref<string[]>(['local']);
+
+const allSidebarPaths = computed(() => [
+  ...libraryPaths.value,
+  ...syncSourcePaths.value,
+  ...syncDestPaths.value,
+]);
 
 const rootBoundaries = computed(() => {
-  return [
-    ...libraryPaths.value.map((p) => p.path),
-    ...syncSourcePaths.value.map((p) => p.path),
-  ];
+  return allSidebarPaths.value.map((p) => p.path);
 });
+
+function getBackendLabel(backendId?: string) {
+  if (!backendId || backendId === 'local') return '本地';
+  return backends.value.find((b) => String(b.id) === backendId)?.name || backendId;
+}
+
+function getBackendTagStyle(backendId?: string) {
+  if (!backendId || backendId === 'local') {
+    return { dot: 'hsl(var(--success))', text: 'hsl(var(--success))' };
+  }
+  const colors = [
+    { dot: 'hsl(var(--primary))', text: 'hsl(var(--primary))' },
+    { dot: 'hsl(var(--warning))', text: 'hsl(var(--warning))' },
+    { dot: 'hsl(var(--destructive))', text: 'hsl(var(--destructive))' },
+    { dot: 'hsl(var(--primary))', text: 'hsl(var(--primary))' },
+  ];
+  const idx = parseInt(backendId, 10) % colors.length;
+  return colors[idx] || colors[0];
+}
+
+function getPathTypeLabel(type: string) {
+  const map: Record<string, string> = {
+    movie: '媒体库',
+    tv: '媒体库',
+    anime: '媒体库',
+    sync: '同步源',
+    sync_dest: '同步目标',
+  };
+  return map[type] || type;
+}
+
+// 按后端分组，每组内部再按类型分组
+interface PathItem {
+  name: string;
+  path: string;
+  type: string;
+  backend_id?: string;
+}
+
+interface TypeGroup {
+  label: string;
+  type: string;
+  items: PathItem[];
+}
+
+interface BackendGroup {
+  backendId: string;
+  backendName: string;
+  dotColor: string;
+  textColor: string;
+  sections: TypeGroup[];
+}
+
+const backendGroups = computed<BackendGroup[]>(() => {
+  const byBackend = new Map<string, PathItem[]>();
+  for (const p of allSidebarPaths.value) {
+    const bid = p.backend_id || 'local';
+    if (!byBackend.has(bid)) byBackend.set(bid, []);
+    byBackend.get(bid)!.push(p);
+  }
+  const sortedIds = Array.from(byBackend.keys()).sort((a, b) => {
+    if (a === 'local') return -1;
+    if (b === 'local') return 1;
+    return parseInt(a, 10) - parseInt(b, 10);
+  });
+  return sortedIds.map((id) => {
+    const items = byBackend.get(id)!;
+    const style = getBackendTagStyle(id);
+    const sections: TypeGroup[] = [];
+    const libs = items.filter((i) => ['movie', 'tv', 'anime'].includes(i.type));
+    if (libs.length) sections.push({ label: '媒体库', type: 'lib', items: libs });
+    const srcs = items.filter((i) => i.type === 'sync');
+    if (srcs.length) sections.push({ label: '同步源', type: 'sync', items: srcs });
+    const dsts = items.filter((i) => i.type === 'sync_dest');
+    if (dsts.length) sections.push({ label: '同步目标', type: 'sync_dest', items: dsts });
+    return {
+      backendId: id,
+      backendName: getBackendLabel(id),
+      dotColor: style.dot,
+      textColor: style.text,
+      sections,
+    };
+  });
+});
+
+const expandedBackends = ref<Set<string>>(new Set(['local']));
+
+function toggleBackend(backendId: string) {
+  const next = new Set(expandedBackends.value);
+  if (next.has(backendId)) {
+    next.delete(backendId);
+  } else {
+    next.add(backendId);
+  }
+  expandedBackends.value = next;
+}
 
 const currentRoot = computed(() => {
   if (!currentPath.value) return null;
@@ -170,12 +273,22 @@ async function initLibraryPaths() {
     if (res) {
       libraryPaths.value = res.library_paths || [];
       syncSourcePaths.value = res.sync_source_paths || [];
+      syncDestPaths.value = res.sync_dest_paths || [];
       defaultPath.value = res.default_path || '/';
-      // 默认打开媒体库目录
-      if (defaultPath.value && defaultPath.value !== '/') {
+      // 根据默认路径找到对应的 backend_id
+      const allPaths = [...libraryPaths.value, ...syncSourcePaths.value, ...syncDestPaths.value];
+      const matched = allPaths.find((p) => p.path === defaultPath.value);
+      if (matched?.backend_id) {
+        currentBackendId.value = matched.backend_id;
+      }
+      // 默认打开媒体库目录（优先使用当前 backend 下的路径）
+      const currentBackendPaths = allPaths.filter(
+        (p) => (p.backend_id || 'local') === currentBackendId.value,
+      );
+      if (defaultPath.value && defaultPath.value !== '/' && matched?.backend_id === currentBackendId.value) {
         await fetchDirList(defaultPath.value);
-      } else if (libraryPaths.value.length > 0) {
-        await fetchDirList(libraryPaths.value[0].path);
+      } else if (currentBackendPaths.length > 0) {
+        await fetchDirList(currentBackendPaths[0].path);
       } else {
         await fetchDirList();
       }
@@ -197,10 +310,17 @@ async function fetchDirList(path?: string) {
       currentPath.value = path || '';
     }
   } catch (err: any) {
-    notification.error({
-      content: '加载目录失败',
-      description: err?.message || '',
-    });
+    const msg = err?.message || '';
+    // 路径不存在时静默处理，显示空目录列表
+    if (msg.includes('No such file or directory') || msg.includes('目录不存在') || msg.includes('未找到存储后端')) {
+      dirList.value = [];
+      currentPath.value = path || '';
+    } else {
+      notification.error({
+        content: '加载目录失败',
+        description: msg,
+      });
+    }
   } finally {
     loading.value = false;
   }
@@ -209,11 +329,17 @@ async function fetchDirList(path?: string) {
 function switchBackend(backendId: string) {
   currentBackendId.value = backendId;
   currentPath.value = '';
+  // 加载该 backend 的根目录
   fetchDirList();
 }
 
 function navigateTo(path: string) {
   fetchDirList(path || undefined);
+}
+
+function handleSidebarPathClick(sp: any) {
+  currentBackendId.value = sp.backend_id || 'local';
+  navigateTo(sp.path);
 }
 
 const canGoUp = computed(() => {
@@ -283,6 +409,7 @@ function getLibraryIcon(type: string) {
     tv: 'lucide:tv',
     anime: 'lucide:sparkles',
     sync: 'lucide:refresh-cw',
+    sync_dest: 'lucide:folder-output',
     download: 'lucide:download',
   };
   return map[type] || 'lucide:folder-open';
@@ -290,18 +417,19 @@ function getLibraryIcon(type: string) {
 
 function getLibraryColor(type: string) {
   const map: Record<string, string> = {
-    movie: 'var(--primary)',
-    tv: 'var(--success)',
-    anime: 'var(--warning)',
-    sync: 'var(--primary)',
-    download: 'var(--success)',
+    movie: 'hsl(var(--primary))',
+    tv: 'hsl(var(--success))',
+    anime: 'hsl(var(--warning))',
+    sync: 'hsl(var(--primary))',
+    sync_dest: 'hsl(var(--warning))',
+    download: 'hsl(var(--success))',
   };
-  return map[type] || 'var(--muted-foreground)';
+  return map[type] || 'hsl(var(--muted-foreground))';
 }
 
 async function handleScrap(path: string) {
   try {
-    await scrapMediaPathApi(path);
+    await scrapMediaPathApi(path, currentBackendId.value);
     notification.success({ content: '刮削任务已提交' });
   } catch (err: any) {
     notification.error({ content: '刮削失败', description: err?.message || '' });
@@ -495,7 +623,10 @@ function openDelete(item: any) {
 async function confirmDelete() {
   if (!deletePayload.value) return;
   try {
-    await deleteFilesApi({ files: [deletePayload.value.path] });
+    await deleteFilesApi({
+      files: [deletePayload.value.path],
+      backend_id: currentBackendId.value,
+    });
     notification.success({ content: '删除成功' });
     deleteModalShow.value = false;
     await fetchDirList(currentPath.value || undefined);
@@ -588,80 +719,74 @@ onMounted(() => initLibraryPaths());
     <div class="file-manager-body">
       <!-- 侧边栏 -->
       <div class="sidebar">
-        <!-- 媒体库 -->
-        <div v-if="libraryPaths.length > 0" class="sidebar-section">
-          <div class="sidebar-title">媒体库</div>
-          <div class="sidebar-list">
-            <div
-              v-for="lib in libraryPaths"
-              :key="lib.path"
-              class="sidebar-item"
-              :class="{ active: currentPath === lib.path }"
-              @click="navigateTo(lib.path)"
-            >
-              <div
-                class="sidebar-icon"
-                :style="{ backgroundColor: `hsl(${getLibraryColor(lib.type)} / 0.12)` }"
-              >
-                <IconifyIcon
-                  :icon="getLibraryIcon(lib.type)"
-                  class="size-4"
-                  :style="{ color: `hsl(${getLibraryColor(lib.type)})` }"
+        <NCollapse
+          v-model:expanded-names="collapseExpandedNames"
+          display-directive="show"
+        >
+          <NCollapseItem
+            v-for="group in backendGroups"
+            :key="group.backendId"
+            :name="group.backendId"
+          >
+            <template #header>
+              <div class="sidebar-collapse-header">
+                <span
+                  class="sidebar-backend-dot"
+                  :style="{ backgroundColor: group.dotColor }"
                 />
+                <span
+                  class="sidebar-backend-name"
+                  :style="{ color: group.textColor }"
+                >
+                  {{ group.backendName }}
+                </span>
+                <span class="sidebar-backend-count">
+                  {{ group.sections.reduce((a, s) => a + s.items.length, 0) }}
+                </span>
               </div>
-              <NTooltip trigger="hover">
-                <template #trigger>
-                  <span class="sidebar-label truncate">{{ lib.name }}</span>
-                </template>
-                {{ lib.path }}
-              </NTooltip>
-            </div>
-          </div>
-        </div>
-
-        <!-- 同步源目录 -->
-        <div v-if="syncSourcePaths.length > 0" class="sidebar-section">
-          <div class="sidebar-title">同步源目录</div>
-          <div class="sidebar-list">
-            <div
-              v-for="sp in syncSourcePaths"
-              :key="sp.path"
-              class="sidebar-item"
-              :class="{ active: currentPath === sp.path }"
-              @click="navigateTo(sp.path)"
-            >
-              <div
-                class="sidebar-icon"
-                :style="{ backgroundColor: `hsl(${getLibraryColor(sp.type)} / 0.12)` }"
+            </template>
+            <div class="sidebar-section-inner">
+              <template
+                v-for="(section, sIdx) in group.sections"
+                :key="section.type"
               >
-                <IconifyIcon
-                  :icon="getLibraryIcon(sp.type)"
-                  class="size-4"
-                  :style="{ color: `hsl(${getLibraryColor(sp.type)})` }"
-                />
-              </div>
-              <NTooltip trigger="hover">
-                <template #trigger>
-                  <span class="sidebar-label truncate">{{ sp.name }}</span>
-                </template>
-                {{ sp.path }}
-              </NTooltip>
+                <div v-if="sIdx > 0" class="sidebar-divider" />
+                <div class="sidebar-subtitle">{{ section.label }}</div>
+                <div class="sidebar-list">
+                  <NTooltip
+                    v-for="item in section.items"
+                    :key="item.path"
+                    trigger="hover"
+                    placement="right"
+                  >
+                    <template #trigger>
+                      <div
+                        class="sidebar-item"
+                        :class="{ active: currentPath === item.path }"
+                        @click="handleSidebarPathClick(item)"
+                      >
+                        <div
+                          class="sidebar-icon"
+                          :style="{ backgroundColor: `${getLibraryColor(item.type).replace(')', ' / 0.12)')}` }"
+                        >
+                          <IconifyIcon
+                            :icon="getLibraryIcon(item.type)"
+                            class="size-4"
+                            :style="{ color: getLibraryColor(item.type) }"
+                          />
+                        </div>
+                        <div class="sidebar-info">
+                          <span class="sidebar-label truncate">{{ item.name }}</span>
+                        </div>
+                      </div>
+                    </template>
+                    {{ item.path }}
+                  </NTooltip>
+                </div>
+              </template>
             </div>
-          </div>
-        </div>
-
-        <!-- 快捷操作 -->
-        <div class="sidebar-section">
-          <div class="sidebar-title">快捷操作</div>
-          <div class="sidebar-list">
-            <div class="sidebar-item" @click="navigateTo(defaultPath)">
-              <div class="sidebar-icon" style="background-color: hsl(var(--muted) / 0.5);">
-                <IconifyIcon icon="lucide:home" class="size-4" style="color: hsl(var(--muted-foreground));" />
-              </div>
-              <span class="sidebar-label">默认目录</span>
-            </div>
-          </div>
-        </div>
+          </NCollapseItem>
+        </NCollapse>
       </div>
 
       <!-- 主内容区 -->
@@ -680,6 +805,7 @@ onMounted(() => initLibraryPaths());
             >
               {{ libraryPaths.find(p => p.path === currentRoot)?.name
                  || syncSourcePaths.find(p => p.path === currentRoot)?.name
+                 || syncDestPaths.find(p => p.path === currentRoot)?.name
                  || currentRoot.split('/').pop()
                  || '根目录' }}
             </span>
@@ -989,16 +1115,6 @@ onMounted(() => initLibraryPaths());
   flex-direction: column;
 }
 
-.sidebar-title {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: hsl(var(--muted-foreground));
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 0 0.5rem;
-  margin-bottom: 0.375rem;
-}
-
 .sidebar-list {
   display: flex;
   flex-direction: column;
@@ -1019,7 +1135,10 @@ onMounted(() => initLibraryPaths());
 }
 
 .sidebar-item.active {
-  background-color: hsl(var(--accent));
+  background-color: hsl(var(--accent) / 0.6);
+  border-left: 3px solid hsl(var(--primary));
+  padding-left: calc(0.5rem - 3px);
+  font-weight: 600;
 }
 
 .sidebar-icon {
@@ -1032,9 +1151,67 @@ onMounted(() => initLibraryPaths());
   flex-shrink: 0;
 }
 
+.sidebar-info {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  gap: 0.5rem;
+}
+
 .sidebar-label {
   font-size: 0.875rem;
   color: hsl(var(--card-foreground));
+  flex: 1;
+  min-width: 0;
+}
+
+/* 折叠面板头部 */
+.sidebar-collapse-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sidebar-backend-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sidebar-backend-name {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.sidebar-backend-count {
+  font-size: 0.7rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 9999px;
+  background: hsl(var(--muted) / 0.4);
+  color: hsl(var(--muted-foreground));
+  margin-left: auto;
+}
+
+/* 折叠面板内容 */
+.sidebar-section-inner {
+  padding: 0 0.25rem;
+}
+
+.sidebar-subtitle {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.375rem 0.5rem 0.25rem;
+}
+
+.sidebar-divider {
+  height: 1px;
+  background: hsl(var(--border) / 0.6);
+  margin: 0.5rem 0.25rem;
 }
 
 /* 主内容区 */

@@ -64,6 +64,7 @@ interface GroupItem {
 
 interface FilterState {
   season: string[];
+  episode: string[];
   site: string[];
   releasegroup: string[];
   free: string[];
@@ -83,6 +84,7 @@ interface SearchResult {
   rssid: string | null;
   filter: {
     season?: string[];
+    episode?: string[];
     site: string[];
     releasegroup: string[];
     free: Array<{ name: string; value: string }>;
@@ -184,7 +186,7 @@ function startProgressPoll() {
   stopProgressPoll();
   searchProgress.value = 0;
   searchProgressText.value = '正在处理...';
-  progressTimer = setInterval(pollSearchProgress, 1000);
+  progressTimer = setInterval(pollSearchProgress, 3000);
 }
 
 function stopProgressPoll() {
@@ -268,22 +270,40 @@ async function loadSearchResults() {
     const res: any = await getSearchResultApi();
     const searchData = res?.result || {};
     if (typeof searchData === 'object') {
-      results.value = Object.entries(searchData).map(([, item]: [string, any]) => ({
-        title: item.title,
-        key: item.key,
-        tmdbid: item.tmdbid,
-        type: item.type,
-        year: item.year,
-        vote: item.vote,
-        poster: item.poster,
-        overview: item.overview,
-        fav: item.fav,
-        rssid: item.rssid,
-        filter: item.filter || { site: [], releasegroup: [], free: [] },
-        torrent_dict: item.torrent_dict || [],
-        activeFilters: { season: [], site: [], releasegroup: [], free: [], video: [] },
-      }));
+      results.value = Object.entries(searchData).map(([, item]: [string, any]) => {
+        // 从 torrent_dict 键中提取集数，范围展开为单集（如 "S01 E02-E03" → E02, E03）
+        const episodeSet = new Set<string>();
+        const dict = item.torrent_dict || [];
+        for (const [seKey] of dict) {
+          const m = seKey.match(/E(\d+)(?:-E?(\d+))?$/i);
+          if (!m) continue;
+          const start = parseInt(m[1], 10);
+          const end = m[2] ? parseInt(m[2], 10) : start;
+          for (let e = start; e <= end; e++) {
+            episodeSet.add(`E${String(e).padStart(2, '0')}`);
+          }
+        }
+        const filter = item.filter || { site: [], releasegroup: [], free: [] };
+        return {
+          title: item.title,
+          key: item.key,
+          tmdbid: item.tmdbid,
+          type: item.type,
+          year: item.year,
+          vote: item.vote,
+          poster: item.poster,
+          overview: item.overview,
+          fav: item.fav,
+          rssid: item.rssid,
+          filter: { ...filter, episode: Array.from(episodeSet).sort() },
+          torrent_dict: dict,
+          activeFilters: { season: [], episode: [], site: [], releasegroup: [], free: [], video: [] },
+        };
+      });
       resultCount.value = res?.total || results.value.length;
+      if (results.value.length > 0) {
+        displayMode.value = 'torrent';
+      }
     }
   } finally {
     loading.value = false;
@@ -303,16 +323,21 @@ onMounted(() => {
     keyword.value = s;
     displayMode.value = 'torrent';
     results.value = [];
-    loading.value = true;
-    startProgressPoll();
-    if (from !== 'discovery' && from !== 'detail') {
-      // 非探索页跳转时才触发搜索；探索页已在外部触发过
+    if (from === 'discovery' || from === 'detail') {
+      // 从探索页/详情页跳转时已在外部触发过搜索，直接加载结果
+      loadSearchResults();
+    } else {
+      loading.value = true;
+      startProgressPoll();
       webSearchApi({ search_word: s }).catch((err: any) => {
         loading.value = false;
         stopProgressPoll();
         notification.error({ content: '搜索失败', description: err?.message || '未知错误' });
       });
     }
+  } else {
+    // 无搜索词时加载最近一次搜索结果
+    loadSearchResults();
   }
 });
 
@@ -327,6 +352,7 @@ function getTypeColor(type: string) {
 function hasFilters(item: SearchResultWithFilter) {
   const f = item.filter;
   return (f.season && f.season.length > 0) ||
+    (f.episode && f.episode.length > 0) ||
     f.site.length > 0 ||
     f.releasegroup.length > 0 ||
     f.free.length > 0 ||
@@ -388,7 +414,7 @@ function resetFilters(item: SearchResultWithFilter) {
   const target = results.value[idx]!;
   results.value[idx] = {
     ...target,
-    activeFilters: { season: [], site: [], releasegroup: [], free: [], video: [] },
+    activeFilters: { season: [], episode: [], site: [], releasegroup: [], free: [], video: [] },
   };
 }
 
@@ -407,15 +433,26 @@ function torrentMatchesFreeFilter(torrent: TorrentItem, filterValue: string) {
   );
 }
 
+/** 检查 torrent_dict 的键是否包含指定集数（支持范围如 E02-E03） */
+function episodeKeyMatches(seKey: string, episode: string): boolean {
+  const m = seKey.match(/E(\d+)(?:-E?(\d+))?$/i);
+  if (!m) return false;
+  const target = parseInt(episode.replace(/^E/i, ''), 10);
+  const start = parseInt(m[1], 10);
+  const end = m[2] ? parseInt(m[2], 10) : start;
+  return target >= start && target <= end;
+}
+
 function filteredTorrentDict(item: SearchResultWithFilter): Array<[string, Record<string, GroupItem>]> {
   const af = item.activeFilters;
-  const hasActive = af.season.length || af.site.length || af.releasegroup.length || af.free.length || af.video.length;
+  const hasActive = af.season.length || af.episode.length || af.site.length || af.releasegroup.length || af.free.length || af.video.length;
   if (!hasActive) return item.torrent_dict;
 
   return item.torrent_dict
     .filter(([seKey]) => {
-      if (af.season.length === 0) return true;
-      return af.season.some(s => seKey.includes(s));
+      if (af.season.length && !af.season.some(s => seKey.includes(s))) return false;
+      if (af.episode.length && !af.episode.some(ep => episodeKeyMatches(seKey, ep))) return false;
+      return true;
     })
     .map(([seKey, seDict]): [string, Record<string, GroupItem>] => {
       const filteredGroups: Record<string, GroupItem> = {};
@@ -530,18 +567,38 @@ async function confirmDownload() {
     </PageHeader>
 
     <!-- 搜索框 -->
-    <NCard class="mb-4" size="small">
-      <NSpace align="center" wrap>
-        <NInput v-model:value="keyword" placeholder="输入电影/剧集名称" clearable style="width: 300px"
-          @keydown="handleKeydown" />
-        <NSelect v-model:value="searchtype" :options="typeOptions" style="width: 140px" />
-        <NButton type="primary" :loading="loading && displayMode === 'media'" @click="handleSearch">
+    <NCard class="mb-4" size="small" :bordered="false">
+      <div class="flex items-center gap-3 flex-wrap">
+        <NInput
+          v-model:value="keyword"
+          placeholder="输入电影/剧集名称"
+          clearable
+          class="search-input"
+          @keydown="handleKeydown"
+        >
+          <template #prefix>
+            <IconifyIcon icon="lucide:search" class="size-4" style="color: hsl(var(--muted-foreground));" />
+          </template>
+        </NInput>
+        <NSelect v-model:value="searchtype" :options="typeOptions" class="search-select" />
+        <NButton
+          type="primary"
+          :loading="loading && displayMode === 'media'"
+          class="search-btn"
+          @click="handleSearch"
+        >
+          <template #icon>
+            <IconifyIcon icon="lucide:search" class="size-4" />
+          </template>
           搜索
         </NButton>
-        <NButton @click="advancedModalVisible = true">
+        <NButton quaternary class="advanced-btn" @click="advancedModalVisible = true">
+          <template #icon>
+            <IconifyIcon icon="lucide:sliders-horizontal" class="size-4" />
+          </template>
           高级搜索
         </NButton>
-      </NSpace>
+      </div>
     </NCard>
 
     <!-- 普通搜索：媒体词条结果 -->
@@ -650,6 +707,14 @@ async function confirmDownload() {
                           @click="toggleFilter(item, 'season', s)">{{ s }}</span>
                       </div>
                     </div>
+                    <div v-if="item.filter.episode && item.filter.episode.length" class="filter-row">
+                      <span class="filter-label">集</span>
+                      <div class="filter-tags">
+                        <span v-for="e in item.filter.episode" :key="e" class="filter-chip"
+                          :class="{ active: isFilterActive(item, 'episode', e) }"
+                          @click="toggleFilter(item, 'episode', e)">{{ e }}</span>
+                      </div>
+                    </div>
                     <div v-if="item.filter.site.length" class="filter-row">
                       <span class="filter-label">站点</span>
                       <div class="filter-tags">
@@ -683,9 +748,14 @@ async function confirmDownload() {
                       </div>
                     </div>
                   </div>
-                  <NButton size="tiny" text @click="resetFilters(item)">
-                    <IconifyIcon icon="lucide:rotate-ccw" class="size-3" /> 重置
-                  </NButton>
+                  <div class="filter-actions">
+                    <NButton size="small" secondary type="primary" @click="resetFilters(item)">
+                      <template #icon>
+                        <IconifyIcon icon="lucide:rotate-ccw" />
+                      </template>
+                      重置筛选
+                    </NButton>
+                  </div>
                 </div>
               </div>
             </div>
@@ -712,6 +782,10 @@ async function confirmDownload() {
                         <div v-for="torrent in unique.torrent_list" :key="torrent.id" class="torrent-row">
                           <div class="torrent-main">
                             <div class="torrent-header">
+                              <span v-if="getFreeBadgeText(torrent.uploadvalue, torrent.downloadvalue)"
+                                class="free-badge-inline"
+                                :style="getFreeBadgeStyle(torrent.uploadvalue, torrent.downloadvalue)">{{
+                                  getFreeBadgeText(torrent.uploadvalue, torrent.downloadvalue) }}</span>
                               <span class="torrent-name" @click="openDownloadModal(torrent.id)">{{ torrent.torrent_name
                                 }}</span>
                             </div>
@@ -720,10 +794,6 @@ async function confirmDownload() {
                               <span>{{ torrent.description }}</span>
                             </div>
                             <div class="torrent-tags">
-                              <span v-if="getFreeBadgeText(torrent.uploadvalue, torrent.downloadvalue)"
-                                class="tag tag-free"
-                                :style="getFreeBadgeStyle(torrent.uploadvalue, torrent.downloadvalue)">{{
-                                  getFreeBadgeText(torrent.uploadvalue, torrent.downloadvalue) }}</span>
                               <span class="tag tag-site">{{ torrent.site }}</span>
                               <span v-if="torrent.video_encode" class="tag tag-video">{{ torrent.video_encode }}</span>
                               <span v-if="torrent.reseffect" class="tag tag-effect">{{ torrent.reseffect }}</span>
@@ -827,6 +897,7 @@ async function confirmDownload() {
 /* Hero */
 .result-hero {
   display: flex;
+  align-items: flex-start;
   gap: 1.5rem;
   margin-bottom: 1.25rem;
 }
@@ -835,6 +906,7 @@ async function confirmDownload() {
   position: relative;
   width: 180px;
   flex-shrink: 0;
+  align-self: flex-start;
   border-radius: 1rem;
   overflow: hidden;
   box-shadow: 0 12px 32px hsl(var(--foreground) / 0.12);
@@ -855,8 +927,9 @@ async function confirmDownload() {
 
 .hero-poster-tag {
   position: absolute;
-  top: 0.625rem;
-  left: 0.625rem;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 10;
 }
 
 .hero-poster-fav {
@@ -964,64 +1037,82 @@ async function confirmDownload() {
 
 /* Filter Panel */
 .filter-panel {
-  padding: 0.75rem;
-  background: hsl(var(--muted) / 0.06);
+  padding: 1rem;
+  background: hsl(var(--muted) / 0.04);
   border: 1px solid hsl(var(--border));
-  border-radius: 0.75rem;
+  border-radius: 0.875rem;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.03);
 }
 
 .filter-panel-inner {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.625rem 1.25rem;
-  margin-bottom: 0.5rem;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
 }
 
 .filter-row {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.625rem;
 }
 
 .filter-label {
-  font-size: 0.8125rem;
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  color: hsl(var(--muted-foreground));
+  color: hsl(var(--primary-foreground));
+  background: hsl(var(--primary));
+  border-radius: 0.375rem;
   white-space: nowrap;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
 }
 
 .filter-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
+  gap: 0.5rem;
 }
 
 .filter-chip {
   display: inline-flex;
   align-items: center;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.9375rem;
+  padding: 0.375rem 0.875rem;
+  font-size: 0.875rem;
   font-weight: 500;
   color: hsl(var(--muted-foreground));
-  background: hsl(var(--background));
-  border: 1px solid hsl(var(--border));
-  border-radius: 9999px;
+  background: hsl(var(--muted) / 0.08);
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
   cursor: pointer;
   user-select: none;
   transition: all 0.15s;
 }
 
 .filter-chip:hover {
-  border-color: hsl(var(--primary) / 0.5);
+  background: hsl(var(--accent));
   color: hsl(var(--primary));
+  border-color: hsl(var(--primary) / 0.3);
 }
 
 .filter-chip.active {
   background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
   border-color: hsl(var(--primary));
+  font-weight: 600;
+}
+
+.filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.5rem;
+  border-top: 1px solid hsl(var(--border));
 }
 
 /* Torrent Section */
@@ -1131,7 +1222,7 @@ async function confirmDownload() {
   color: hsl(var(--primary));
 }
 
-.free-badge {
+.free-badge-inline {
   flex-shrink: 0;
   font-size: 0.625rem;
   font-weight: 800;
@@ -1139,6 +1230,7 @@ async function confirmDownload() {
   border-radius: 0.375rem;
   white-space: nowrap;
   margin-top: 0.125rem;
+  line-height: 1.4;
 }
 
 .torrent-desc {
@@ -1246,8 +1338,37 @@ async function confirmDownload() {
     justify-content: flex-end;
   }
 
-  .group-count {
-    margin-left: 0;
+.group-count {
+  margin-left: 0;
+}
+}
+
+/* 搜索区域 */
+.search-input {
+  width: 300px;
+}
+
+.search-select {
+  width: 140px;
+}
+
+.search-btn {
+  gap: 0.25rem;
+}
+
+.advanced-btn {
+  gap: 0.25rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.advanced-btn:hover {
+  color: hsl(var(--primary));
+}
+
+@media (max-width: 640px) {
+  .search-input,
+  .search-select {
+    width: 100%;
   }
 }
 

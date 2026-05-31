@@ -123,6 +123,6 @@ export async function renameFileApi(data: { path: string; name: string }) {
 }
 
 /** 删除文件 */
-export async function deleteFilesApi(data: { files: string[] }) {
+export async function deleteFilesApi(data: { files: string[]; backend_id?: string }) {
   return requestClient.post('/api/sync/files/delete', data);
 }

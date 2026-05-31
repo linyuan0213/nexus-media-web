@@ -101,6 +101,7 @@ function selectSite(site: SiteItem) {
   selectedSite.value = site;
   keyword.value = '';
   currentPage.value = 1;
+  total.value = 0;
   fetchData();
 }
 
@@ -130,8 +131,15 @@ async function fetchData(page = 1) {
       data = [res.data];
     }
     resources.value = data;
-    total.value = data.length || 0;
     currentPage.value = page;
+    // 由于后端无法返回总记录数，使用动态估算：
+    // 如果当前页有数据，total 至少要是 (page * pageSize + 1)，确保分页组件显示下一页
+    if (data.length > 0) {
+      total.value = Math.max(total.value, page * pageSize.value + 1);
+    } else {
+      // 空页，回退 total 到前一页末尾
+      total.value = (page - 1) * pageSize.value;
+    }
   } catch (err: any) {
     notification.error({ content: '获取数据失败', description: err?.message || '' });
   } finally {
@@ -141,6 +149,7 @@ async function fetchData(page = 1) {
 
 function handleSearch() {
   currentPage.value = 1;
+  total.value = 0;
   fetchData(1);
 }
 

@@ -14,12 +14,27 @@ const props = defineProps<Props>();
 const chartRef = ref<EchartsUIType>();
 const { renderEcharts } = useEcharts(chartRef);
 
+function generateColors(count: number): string[] {
+  const colors: string[] = [];
+  const goldenAngle = 137.508;
+  let hue = 0;
+  for (let i = 0; i < count; i++) {
+    hue = (hue + goldenAngle) % 360;
+    colors.push(`hsl(${Math.round(hue)}, 70%, 55%)`);
+  }
+  return colors;
+}
+
 function buildOption() {
   return {
     legend: {
-      bottom: 0,
-      itemGap: 12,
-      left: 'center',
+      itemGap: 8,
+      itemWidth: 10,
+      itemHeight: 10,
+      orient: 'vertical',
+      right: 0,
+      top: 'middle',
+      type: 'scroll',
     },
     series: [
       {
@@ -28,13 +43,8 @@ function buildOption() {
         },
         animationEasing: 'exponentialInOut',
         animationType: 'scale',
-        avoidLabelOverlap: false,
-        color: [
-          'hsl(217, 90%, 58%)',
-          'hsl(340, 85%, 58%)',
-          'hsl(160, 75%, 45%)',
-          'hsl(35, 95%, 55%)',
-        ],
+        avoidLabelOverlap: true,
+        color: generateColors(props.data.length),
         data: props.data,
         emphasis: {
           label: {
@@ -64,7 +74,7 @@ function buildOption() {
         labelLine: {
           show: false,
         },
-        name: '下载器统计',
+        name: '索引器统计',
         radius: ['45%', '72%'],
         type: 'pie',
       },
@@ -86,5 +96,5 @@ watch(() => props.data, () => {
 </script>
 
 <template>
-  <EchartsUI ref="chartRef" class="h-64 w-full" />
+  <EchartsUI ref="chartRef" class="h-80 w-full" />
 </template>

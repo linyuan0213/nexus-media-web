@@ -39,8 +39,15 @@ import {
 } from '#/api/modules/storage';
 import type { StorageApi } from '#/api/modules/storage';
 import PageHeader from '#/components/page/PageHeader.vue';
+import PathPickerModal from '#/components/media/PathPickerModal.vue';
 
 interface SyncTask extends SyncApi.SyncTask {}
+
+interface SyncGroup {
+  source: string;
+  src_backend: string;
+  items: SyncTask[];
+}
 
 const tasks = ref<SyncTask[]>([]);
 const backends = ref<StorageApi.StorageBackend[]>([]);
@@ -49,6 +56,22 @@ const backendOptions = computed(() => [
   ...backends.value.map((b) => ({ label: `${b.name} (${b.type})`, value: String(b.id) })),
 ]);
 const loading = ref(false);
+
+const syncGroups = computed<SyncGroup[]>(() => {
+  const map = new Map<string, SyncTask[]>();
+  for (const t of tasks.value) {
+    const key = t.source || t.from || '';
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(t);
+  }
+  return Array.from(map.entries()).map(([source, items]) => ({
+    source,
+    src_backend: items[0]?.src_backend || items[0]?.src_backend_id || 'local',
+    items,
+  }));
+});
+
+const enabledCount = computed(() => tasks.value.filter((t) => t.enabled).length);
 
 // 抽屉
 const drawer = ref({
@@ -69,7 +92,32 @@ const drawer = ref({
   },
 });
 
-const enabledCount = computed(() => tasks.value.filter((t) => t.enabled).length);
+// 路径选择器
+const pathPicker = ref({
+  show: false,
+  title: '选择目录',
+  targetField: 'source' as 'source' | 'dest' | 'unknown',
+});
+
+function openPathPicker(field: 'source' | 'dest' | 'unknown') {
+  const titles = { source: '选择源目录', dest: '选择目的目录', unknown: '选择未识别目录' };
+  pathPicker.value = {
+    show: true,
+    title: titles[field],
+    targetField: field,
+  };
+}
+
+function handlePathConfirm(path: string, backendId: string) {
+  const field = pathPicker.value.targetField;
+  drawer.value.form[field] = path;
+  // 自动关联后端：源目录对应源后端，目的/未识别目录对应目标后端
+  if (field === 'source') {
+    drawer.value.form.src_backend = backendId;
+  } else if (field === 'dest' || field === 'unknown') {
+    drawer.value.form.dst_backend = backendId;
+  }
+}
 
 async function fetch() {
   loading.value = true;
@@ -113,12 +161,12 @@ function openEdit(item: SyncTask) {
     form: {
       sid: item.id,
       source: item.from || item.source || '',
-      dest: item.to || item.target || '',
+      dest: item.to || item.dest || item.target || '',
       unknown: item.unknown || '',
       mode: item.syncmod || item.mode || 'copy',
       operation: item.operation || item.syncmod || item.mode || 'copy',
       src_backend: item.src_backend || 'local',
-      dst_backend: item.dst_backend || 'local',
+      dst_backend: item.dst_backend || item.dst_backend_id || 'local',
       compatibility: item.compatibility ? 1 : 0,
       rename: item.rename || item.renamer ? 1 : 0,
       enabled: item.enabled ? 1 : 0,
@@ -158,6 +206,39 @@ function modeLabel(mode?: string) {
   return SYNC_MODES.find((m) => m.value === mode)?.label || mode || '-';
 }
 
+function backendTagStyle(backendId: string) {
+  if (backendId === 'local') {
+    return {
+      background: 'hsl(var(--success) / 0.1)',
+      color: 'hsl(var(--success))',
+    };
+  }
+  return {
+    background: 'hsl(var(--primary) / 0.1)',
+    color: 'hsl(var(--primary))',
+  };
+}
+
+function openAddDest(group: SyncGroup) {
+  drawer.value = {
+    show: true,
+    isEdit: false,
+    form: {
+      sid: undefined,
+      source: group.source,
+      dest: '',
+      unknown: '',
+      mode: 'copy',
+      operation: 'copy',
+      src_backend: group.src_backend || 'local',
+      dst_backend: 'local',
+      compatibility: 0,
+      rename: 1,
+      enabled: 1,
+    },
+  };
+}
+
 onMounted(fetch);
 </script>
 
@@ -195,12 +276,12 @@ onMounted(fetch);
 
     <NSpin :show="loading" class="mt-5">
       <div
-        v-if="tasks.length"
+        v-if="syncGroups.length"
         class="grid grid-cols-1 gap-4 lg:grid-cols-2"
       >
         <div
-          v-for="item in tasks"
-          :key="item.id"
+          v-for="group in syncGroups"
+          :key="group.source"
           class="rounded-xl border overflow-hidden"
           style="background: hsl(var(--card)); border-color: hsl(var(--border))"
         >
@@ -213,7 +294,7 @@ onMounted(fetch);
               <div
                 class="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0"
                 :style="{
-                  background: item.enabled
+                  background: group.items.some((i: any) => i.enabled)
                     ? 'hsl(var(--success) / 0.1)'
                     : 'hsl(var(--muted))',
                 }"
@@ -222,7 +303,7 @@ onMounted(fetch);
                   icon="lucide:folder-sync"
                   class="size-4"
                   :style="{
-                    color: item.enabled
+                    color: group.items.some((i: any) => i.enabled)
                       ? 'hsl(var(--success))'
                       : 'hsl(var(--muted-foreground))',
                   }"
@@ -233,8 +314,11 @@ onMounted(fetch);
                   class="text-sm font-semibold truncate"
                   style="color: hsl(var(--foreground))"
                 >
-                  {{ item.from || item.source || '未命名' }}
+                  {{ group.source || '未命名' }}
                 </h3>
+                <p class="text-xs mt-0.5" style="color: hsl(var(--muted-foreground))">
+                  {{ group.items.length }} 个同步配置
+                </p>
               </div>
             </div>
 
@@ -242,68 +326,90 @@ onMounted(fetch);
             <div
               class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium flex-shrink-0"
               :style="{
-                background: item.enabled
+                background: group.items.some((i: any) => i.enabled)
                   ? 'hsl(var(--success) / 0.1)'
                   : 'hsl(var(--muted))',
-                color: item.enabled
+                color: group.items.some((i: any) => i.enabled)
                   ? 'hsl(var(--success))'
                   : 'hsl(var(--muted-foreground))',
               }"
             >
               <span
                 class="size-1.5 rounded-full"
-                :class="item.enabled ? 'bg-success' : 'bg-muted-foreground'"
+                :class="group.items.some((i: any) => i.enabled) ? 'bg-success' : 'bg-muted-foreground'"
               />
-              {{ item.enabled ? '监控中' : '已停用' }}
+              {{ group.items.some((i: any) => i.enabled) ? '监控中' : '已停用' }}
             </div>
           </div>
 
-          <!-- 详情网格 -->
-          <div class="p-5 grid grid-cols-2 gap-3">
-            <div class="rounded-lg p-3" style="background: hsl(var(--muted) / 0.4)">
-              <div class="text-xs mb-1" style="color: hsl(var(--muted-foreground))">
-                源目录
+          <!-- 配置列表 -->
+          <div>
+            <div
+              v-for="(item, idx) in group.items"
+              :key="item.id"
+              class="px-5 py-2.5 flex items-center justify-between gap-3"
+              :style="idx % 2 === 0 ? '' : 'background: hsl(var(--muted) / 0.15)'"
+              :class="['group', 'hover:bg-accent/30']"
+            >
+              <div class="flex items-center gap-3 flex-1 min-w-0">
+                <!-- 固定宽度的标签区域，保证目的目录对齐 -->
+                  <div class="flex items-center gap-2 flex-shrink-0">
+                  <!-- 后端标签 -->
+                  <span
+                    class="inline-flex items-center justify-center px-2 py-0.5 rounded-md text-xs font-semibold text-center"
+                    style="width: 80px"
+                    :style="backendTagStyle(item.dst_backend || item.dst_backend_id || 'local')"
+                  >
+                    {{ backendOptions.find((b: any) => b.value === (item.dst_backend || item.dst_backend_id || 'local'))?.label || '本地' }}
+                  </span>
+                  <!-- 同步方式 -->
+                  <span
+                    class="text-xs px-1.5 py-0.5 rounded font-medium text-center"
+                    style="background: hsl(var(--accent)); color: hsl(var(--muted-foreground)); width: 56px; display: inline-block;"
+                  >
+                    {{ modeLabel(item.operation || item.syncmod || item.mode) }}
+                  </span>
+                </div>
+                <!-- 状态圆点 -->
+                <span
+                  v-if="item.enabled"
+                  class="size-1.5 rounded-full bg-success flex-shrink-0"
+                />
+                <span v-else class="size-1.5 rounded-full flex-shrink-0" style="visibility: hidden" />
+                <!-- 目的目录 -->
+                <span
+                  class="text-sm truncate font-mono flex-1"
+                  style="color: hsl(var(--foreground))"
+                  :title="item.to || item.dest || item.target"
+                >
+                  {{ item.to || item.dest || item.target || '自动' }}
+                </span>
               </div>
-              <div
-                class="text-sm font-medium font-mono truncate"
-                style="color: hsl(var(--foreground))"
-                :title="item.from"
-              >
-                {{ item.from || '-' }}
-              </div>
-            </div>
-            <div class="rounded-lg p-3" style="background: hsl(var(--muted) / 0.4)">
-              <div class="text-xs mb-1" style="color: hsl(var(--muted-foreground))">
-                目的目录
-              </div>
-              <div
-                class="text-sm font-medium font-mono truncate"
-                style="color: hsl(var(--foreground))"
-                :title="item.to"
-              >
-                {{ item.to || '自动' }}
-              </div>
-            </div>
-            <div class="rounded-lg p-3" style="background: hsl(var(--muted) / 0.4)">
-              <div class="text-xs mb-1" style="color: hsl(var(--muted-foreground))">
-                同步方式
-              </div>
-              <div
-                class="text-sm font-medium"
-                style="color: hsl(var(--foreground))"
-              >
-                {{ modeLabel(item.operation || item.syncmod || item.mode) }}
-              </div>
-            </div>
-            <div class="rounded-lg p-3" style="background: hsl(var(--muted) / 0.4)">
-              <div class="text-xs mb-1" style="color: hsl(var(--muted-foreground))">
-                目标后端
-              </div>
-              <div
-                class="text-sm font-medium font-mono truncate"
-                style="color: hsl(var(--foreground))"
-              >
-                {{ backendOptions.find((b) => b.value === (item.dst_backend || 'local'))?.label || '本地' }}
+              <div class="flex items-center gap-1 flex-shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">
+                <NTooltip>
+                  <template #trigger>
+                    <NButton size="tiny" text @click="handleRun(item)">
+                      <IconifyIcon icon="lucide:play" class="size-4" />
+                    </NButton>
+                  </template>
+                  立即同步
+                </NTooltip>
+                <NTooltip>
+                  <template #trigger>
+                    <NButton size="tiny" text @click="openEdit(item)">
+                      <IconifyIcon icon="lucide:pencil" class="size-4" />
+                    </NButton>
+                  </template>
+                  编辑
+                </NTooltip>
+                <NTooltip>
+                  <template #trigger>
+                    <NButton size="tiny" text type="error" @click="handleDelete(item)">
+                      <IconifyIcon icon="lucide:trash-2" class="size-4" />
+                    </NButton>
+                  </template>
+                  删除
+                </NTooltip>
               </div>
             </div>
           </div>
@@ -313,49 +419,12 @@ onMounted(fetch);
             class="flex items-center justify-end gap-2 px-5 py-3 border-t"
             style="border-color: hsl(var(--border))"
           >
-            <NTooltip>
-              <template #trigger>
-                <NButton
-                  size="small"
-                  text
-                  @click="handleRun(item)"
-                >
-                  <template #icon>
-                    <IconifyIcon icon="lucide:play" class="size-4" />
-                  </template>
-                </NButton>
+            <NButton size="small" text @click="openAddDest(group)">
+              <template #icon>
+                <IconifyIcon icon="lucide:plus" class="size-4" />
               </template>
-              立即同步
-            </NTooltip>
-            <NTooltip>
-              <template #trigger>
-                <NButton
-                  size="small"
-                  text
-                  @click="openEdit(item)"
-                >
-                  <template #icon>
-                    <IconifyIcon icon="lucide:pencil" class="size-4" />
-                  </template>
-                </NButton>
-              </template>
-              编辑配置
-            </NTooltip>
-            <NTooltip>
-              <template #trigger>
-                <NButton
-                  size="small"
-                  text
-                  type="error"
-                  @click="handleDelete(item)"
-                >
-                  <template #icon>
-                    <IconifyIcon icon="lucide:trash-2" class="size-4" />
-                  </template>
-                </NButton>
-              </template>
-              删除
-            </NTooltip>
+              添加目的目录
+            </NButton>
           </div>
         </div>
       </div>
@@ -403,11 +472,19 @@ onMounted(fetch);
           <NFormItem label="源目录" required>
             <NInput
               v-model:value="drawer.form.source"
-              placeholder="需要监控的目录"
+              placeholder="需要监控的目录（可手动输入或浏览选择）"
               clearable
             >
               <template #prefix>
                 <IconifyIcon icon="lucide:folder-input" class="size-4" style="color: hsl(var(--muted-foreground))" />
+              </template>
+              <template #suffix>
+                <NButton size="tiny" text @click="openPathPicker('source')"
+                  title="浏览选择目录">
+                  <template #icon>
+                    <IconifyIcon icon="lucide:folder-open" class="size-4" />
+                  </template>
+                </NButton>
               </template>
             </NInput>
           </NFormItem>
@@ -416,22 +493,38 @@ onMounted(fetch);
             <NFormItem label="目的目录">
               <NInput
                 v-model:value="drawer.form.dest"
-                placeholder="留空使用媒体库目录"
+                placeholder="留空使用媒体库目录（可手动输入或浏览选择）"
                 clearable
               >
                 <template #prefix>
                   <IconifyIcon icon="lucide:folder-output" class="size-4" style="color: hsl(var(--muted-foreground))" />
+                </template>
+                <template #suffix>
+                  <NButton size="tiny" text @click="openPathPicker('dest')"
+                    title="浏览选择目录">
+                    <template #icon>
+                      <IconifyIcon icon="lucide:folder-open" class="size-4" />
+                    </template>
+                  </NButton>
                 </template>
               </NInput>
             </NFormItem>
             <NFormItem label="未识别目录">
               <NInput
                 v-model:value="drawer.form.unknown"
-                placeholder="留空不转移未识别文件"
+                placeholder="留空不转移未识别文件（可手动输入或浏览选择）"
                 clearable
               >
                 <template #prefix>
                   <IconifyIcon icon="lucide:folder-x" class="size-4" style="color: hsl(var(--muted-foreground))" />
+                </template>
+                <template #suffix>
+                  <NButton size="tiny" text @click="openPathPicker('unknown')"
+                    title="浏览选择目录">
+                    <template #icon>
+                      <IconifyIcon icon="lucide:folder-open" class="size-4" />
+                    </template>
+                  </NButton>
                 </template>
               </NInput>
             </NFormItem>
@@ -503,5 +596,16 @@ onMounted(fetch);
         </template>
       </NDrawerContent>
     </NDrawer>
+
+    <!-- 目录选择器 -->
+    <PathPickerModal
+      v-model:show="pathPicker.show"
+      :title="pathPicker.title"
+      :initial-path="drawer.form[pathPicker.targetField]"
+      :initial-backend-id="
+        pathPicker.targetField === 'source' ? drawer.form.src_backend : drawer.form.dst_backend
+      "
+      @confirm="handlePathConfirm"
+    />
   </div>
 </template>

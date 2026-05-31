@@ -275,8 +275,8 @@ export async function getDirListApi(path?: string, filter?: string, backendId?: 
 }
 
 /** 刮削路径 */
-export async function scrapMediaPathApi(path: string) {
-  return requestClient.post('/api/media/scrap', { path });
+export async function scrapMediaPathApi(path: string, backendId?: string) {
+  return requestClient.post('/api/media/scrap', { path, backend_id: backendId || 'local' });
 }
 
 /** 下载字幕 */
@@ -292,7 +292,9 @@ export async function nameTestApi(name: string) {
 /** 获取媒体库目录列表 */
 export async function getLibraryPathsApi() {
   return requestClient.post<{
-    paths: Array<{ name: string; path: string; type: string }>;
+    library_paths: Array<{ name: string; path: string; type: string; backend_id?: string }>;
+    sync_source_paths: Array<{ name: string; path: string; type: string; backend_id?: string }>;
+    sync_dest_paths: Array<{ name: string; path: string; type: string; backend_id?: string }>;
     default_path: string;
   }>('/api/media/library/paths', {});
 }
