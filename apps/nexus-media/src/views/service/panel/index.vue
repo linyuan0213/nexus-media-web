@@ -21,7 +21,7 @@ import {
   runSchedulerItemApi,
   runSyncTaskApi,
   clearTransferBlacklistApi,
-  truncateRssHistoryApi,
+  truncateSubscriptionHistoryApi,
   netTestApi,
   backupApi,
   getFilterRulesApi,
@@ -111,12 +111,11 @@ interface ServiceItem {
 }
 
 const services = ref<ServiceItem[]>([
-  { id: 'rssdownload', name: '电影/电视剧订阅', icon: 'lucide:cloud-download', time: '', color: 'blue', action: 'scheduler', item: 'rssdownload' },
-  { id: 'subscribe_search_all', name: '订阅搜索', icon: 'lucide:search', time: '', color: 'blue', action: 'scheduler', item: 'subscribe_search_all' },
+  { id: 'subscription_monitor', name: '订阅监控', icon: 'lucide:cloud-download', time: '', color: 'blue', action: 'scheduler', item: 'subscription_monitor' },
   { id: 'pttransfer', name: '下载文件转移', icon: 'lucide:replace', time: '', color: 'green', action: 'scheduler', item: 'pttransfer' },
   { id: 'sync', name: '目录同步', icon: 'lucide:refresh-cw', time: '实时监控', color: 'orange', action: 'modal', modal: 'sync' },
   { id: 'blacklist', name: '清理转移缓存', icon: 'lucide:eraser', time: '手动', color: 'red', action: 'api', api: clearTransferBlacklistApi },
-  { id: 'rsshistory', name: '清理RSS缓存', icon: 'lucide:eraser', time: '手动', color: 'purple', action: 'api', api: truncateRssHistoryApi },
+  { id: 'subscription_history', name: '清理订阅缓存', icon: 'lucide:eraser', time: '手动', color: 'purple', action: 'api', api: truncateSubscriptionHistoryApi },
   { id: 'nametest', name: '名称识别测试', icon: 'lucide:type', time: '手动', color: 'lime', action: 'modal', modal: 'nametest' },
   { id: 'ruletest', name: '过滤规则测试', icon: 'lucide:sliders-horizontal', time: '手动', color: 'yellow', action: 'modal', modal: 'ruletest' },
   { id: 'nettest', name: '网络连通性测试', icon: 'lucide:network', time: '手动', color: 'cyan', action: 'modal', modal: 'nettest' },
@@ -171,8 +170,8 @@ async function handleServiceClick(svc: ServiceItem) {
             runningIds.value.delete(svc.id);
           }
         });
-      } else if (svc.id === 'rsshistory') {
-        showConfirmDialog('确认', '清理RSS缓存后，已下载过的RSS记录将被清除，是否确认？', async () => {
+      } else if (svc.id === 'subscription_history') {
+        showConfirmDialog('确认', '清理订阅缓存后，已下载过的订阅记录将被清除，是否确认？', async () => {
           runningIds.value.add(svc.id);
           try {
             await svc.api!();

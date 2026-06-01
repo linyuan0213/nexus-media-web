@@ -5,7 +5,7 @@ import { NSpin, useNotification } from 'naive-ui';
 import { IconifyIcon } from '@vben/icons';
 
 import { getRecommendApi, webSearchApi } from '#/api';
-import { addRssMediaApi, addRssApi } from '#/api/modules/rss';
+import { addSubscriptionMediaApi, addSubscriptionApi } from '#/api/modules/subscription';
 import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.vue';
 import type { SubscribeConfirmItem } from '#/components/subscribe/SubscribeConfirmModal.vue';
 import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
@@ -132,7 +132,7 @@ async function handleConfirmSubscribe(seasons: number[], _autoMode: boolean) {
     const typeParam = item.type === 'MOV' ? 'MOV' : 'TV';
     if (typeParam === 'TV' && seasons.length > 0) {
       for (const season of seasons) {
-        await addRssMediaApi({
+        await addSubscriptionMediaApi({
           name: item.title,
           year: item.year || '',
           type: 'TV',
@@ -142,7 +142,7 @@ async function handleConfirmSubscribe(seasons: number[], _autoMode: boolean) {
       }
       notification.success({ content: '订阅成功', description: `${item.title} 已订阅 ${seasons.length} 季` });
     } else {
-      const res: any = await addRssMediaApi({
+      const res: any = await addSubscriptionMediaApi({
         name: item.title,
         year: item.year || '',
         type: typeParam,
@@ -178,7 +178,7 @@ function handleEditSubscribe() {
 
 async function handleConfirmEdit(data: Record<string, any>) {
   try {
-    await addRssApi(data);
+    await addSubscriptionApi(data);
     notification.success({ content: '订阅成功', description: `${data.name} 已添加订阅` });
   } catch (err: any) {
     notification.error({ content: '订阅失败', description: err?.message || '未知错误' });

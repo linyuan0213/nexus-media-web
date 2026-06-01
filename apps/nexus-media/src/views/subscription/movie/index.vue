@@ -10,7 +10,6 @@ import {
   NFormItem,
   NInput,
   NModal,
-  NProgress,
   NSelect,
   NSpace,
   NSpin,
@@ -19,15 +18,15 @@ import {
 } from 'naive-ui';
 
 import {
-  getTvRssApi,
-  refreshRssApi,
-  addRssApi,
-  updateRssApi,
-  removeRssMediaApi,
-  getDefaultRssSettingApi,
-  saveDefaultRssSettingApi,
-  getRssDetailApi,
-} from '#/api/modules/rss';
+  getMovieSubscriptionApi,
+  refreshSubscriptionApi,
+  addSubscriptionApi,
+  updateSubscriptionApi,
+  removeSubscriptionApi,
+  getDefaultSubscriptionSettingApi,
+  saveDefaultSubscriptionSettingApi,
+  getSubscriptionDetailApi,
+} from '#/api/modules/subscription';
 import { searchMediaApi } from '#/api/modules/media';
 import { getSitesApi } from '#/api/modules/site';
 import { getFilterRulesApi } from '#/api/modules/filter';
@@ -37,9 +36,9 @@ import PageHeader from '#/components/page/PageHeader.vue';
 import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
 import type { SubscribeEditItem } from '#/components/subscribe/SubscribeEditModal.vue';
 import { IconifyIcon } from '@vben/icons';
-import { useRssStore } from '#/store';
+import { useSubscriptionStore } from '#/store';
 
-const rssStore = useRssStore();
+const subscriptionStore = useSubscriptionStore();
 const router = useRouter();
 const notification = useNotification();
 
@@ -47,37 +46,27 @@ const loading = ref(false);
 const deleteModalShow = ref(false);
 const deleteTarget = ref<any>(null);
 
-const rssSites = ref<{ label: string; value: string }[]>([]);
+// 站点/规则/下载设置缓存
+const subscriptionSites = ref<{ label: string; value: string }[]>([]);
 const searchSites = ref<{ label: string; value: string }[]>([]);
 const filterRules = ref<{ label: string; value: string }[]>([]);
-const filterRuleMap = ref<Record<string, string>>({});
 const downloadSettings = ref<{ label: string; value: string }[]>([]);
 const downloadDirs = ref<{ label: string; value: string }[]>([]);
-
-const seasonOptions = Array.from({ length: 51 }, (_, i) =>
-  i === 0 ? { label: '请选择', value: '' } : { label: `第${i}季`, value: String(i) }
-);
-
 const downloadSettingMap = ref<Record<string, string>>({});
-
-function getFilterRuleLabel(val: any): string {
-  if (val == null || val === '' || val === '0') return '';
-  const s = String(val);
-  return filterRuleMap.value[s] || s;
-}
-
-function formatSeason(season: string | number | undefined): string {
-  if (!season || season === 'S00') return '';
-  const n = Number(String(season).replace(/^S/i, ''));
-  if (Number.isNaN(n) || n <= 0) return '';
-  return `S${String(n).padStart(2, '0')}`;
-}
 function getDownloadSettingLabel(val: any): string {
   if (val == null || val === '' || val === '-1') return '';
   const s = String(val);
   return downloadSettingMap.value[s] || s;
 }
 
+const filterRuleMap = ref<Record<string, string>>({});
+function getFilterRuleLabel(val: any): string {
+  if (val == null || val === '' || val === '-1') return '';
+  const s = String(val);
+  return filterRuleMap.value[s] || s;
+}
+
+// 质量/分辨率选项（与旧版模板一致）
 const restypeOptions = [
   { label: '全部', value: '' },
   { label: 'BluRay', value: 'BluRay' },
@@ -95,12 +84,15 @@ const pixOptions = [
   { label: '720p', value: '720p' },
 ];
 
+// 详情弹窗
 const detailModalShow = ref(false);
 const detailItem = ref<any>(null);
 
+// 编辑弹窗 (复用组件)
 const subscribeEditShow = ref(false);
 const subscribeEditItem = ref<SubscribeEditItem | null>(null);
 
+// 新增订阅
 const addModalShow = ref(false);
 const addKeyword = ref('');
 const addSearchResults = ref<any[]>([]);
@@ -108,8 +100,7 @@ const addSearchLoading = ref(false);
 const addForm = ref({
   name: '',
   year: '',
-  type: 'TV',
-  season: '',
+  type: 'MOV',
   tmdbid: '',
   image: '',
   keyword: '',
@@ -123,14 +114,13 @@ const addForm = ref({
   filter_exclude: '',
   download_setting: '',
   save_path: '',
-  total_ep: '',
-  current_ep: '',
   rss_sites: [] as string[],
   search_sites: [] as string[],
 });
 const addStep = ref<'search' | 'form'>('search');
 const addSelectedMedia = ref<any>(null);
 
+// 默认设置
 const settingModalShow = ref(false);
 const settingForm = ref({
   over_edition: '0',
@@ -148,9 +138,9 @@ const settingForm = ref({
 async function fetchData() {
   loading.value = true;
   try {
-    const res: any = await getTvRssApi();
+    const res: any = await getMovieSubscriptionApi();
     const list = Array.isArray(res) ? res : (res?.data || []);
-    rssStore.setTvSubscriptions(list);
+    subscriptionStore.setMovieSubscriptions(list);
   } finally {
     loading.value = false;
   }
@@ -160,10 +150,12 @@ async function fetchSites() {
   try {
     const res: any = await getSitesApi();
     const sites = Array.isArray(res) ? res : (res?.data || []);
-    rssSites.value = sites
+    subscriptionSites.value = sites
       .filter((s: any) => s.rss)
       .map((s: any) => ({ label: s.name, value: s.name }));
-  } catch { /* ignore */ }
+  } catch {
+    // ignore
+  }
 }
 
 async function fetchIndexers() {
@@ -171,7 +163,9 @@ async function fetchIndexers() {
     const res: any = await getIndexersApi();
     const idx = Array.isArray(res) ? res : (res?.data || []);
     searchSites.value = idx.map((i: any) => ({ label: i.name, value: i.name }));
-  } catch { /* ignore */ }
+  } catch {
+    // ignore
+  }
 }
 
 async function fetchFilterRules() {
@@ -201,7 +195,6 @@ async function fetchDownloadSettings() {
         return { label: d.name || idValue, value: idValue };
       }),
     ];
-    // 构建 ID -> 名称 映射，用于卡片展示
     const map: Record<string, string> = {};
     list.forEach((d: any) => {
       if (d.id != null) map[String(d.id)] = d.name || String(d.id);
@@ -218,7 +211,10 @@ async function fetchDownloadDirs(sid?: string) {
     const safeSid = sid && sid !== 'undefined' ? sid : undefined;
     const res: any = await getDownloadDirsApi(safeSid);
     const dirs = Array.isArray(res) ? res : (res?.data || []);
-    downloadDirs.value = [{ label: '请选择', value: '' }, ...dirs.map((d: any) => ({ label: d, value: d }))];
+    downloadDirs.value = [
+      { label: '请选择', value: '' },
+      ...dirs.map((d: any) => ({ label: d, value: d })),
+    ];
   } catch {
     downloadDirs.value = [{ label: '请选择', value: '' }];
   }
@@ -230,22 +226,26 @@ function getImgUrl(src?: string) {
 }
 
 function getStateDot(state: string) {
-  const map: Record<string, string> = { D: 'bg-gray-400', S: 'bg-orange-500', R: 'bg-green-500', N: 'bg-blue-500' };
+  const map: Record<string, string> = {
+    D: 'bg-gray-400',
+    S: 'bg-orange-500',
+    R: 'bg-green-500',
+    N: 'bg-blue-500',
+  };
   return map[state] || 'bg-gray-400';
 }
 
 function getStateLabel(state: string) {
-  const map: Record<string, string> = { D: '队列中', S: '正在搜索', R: '正在订阅', N: '完成' };
+  const map: Record<string, string> = {
+    D: '队列中',
+    S: '正在搜索',
+    R: '正在订阅',
+    N: '完成',
+  };
   return map[state] || state;
 }
 
-function tvProgress(item: any) {
-  if (item.total && item.total > 0) {
-    return Math.round(((item.total - (item.lack || 0)) / item.total) * 100);
-  }
-  return 0;
-}
-
+// ---------- 详情弹窗 ----------
 function handleCardClick(item: any) {
   detailItem.value = item;
   detailModalShow.value = true;
@@ -256,14 +256,17 @@ function getOverviewText(item: any): string {
   if (typeof ov === 'string' && ov.trim() && !ov.trim().startsWith('{')) return ov.trim();
   return '';
 }
+
 function handleDetailEdit() {
   detailModalShow.value = false;
   handleEdit(detailItem.value);
 }
+
 function handleDetailDelete() {
   detailModalShow.value = false;
   handleDelete(detailItem.value);
 }
+
 function handleDetailSearch() {
   const name = detailItem.value?.name;
   if (!name) {
@@ -272,27 +275,30 @@ function handleDetailSearch() {
   }
   router.push(`/media/search?s=${encodeURIComponent(name)}`);
 }
+
 async function handleDetailRefresh() {
   try {
-    await refreshRssApi('TV', String(detailItem.value.id));
+    await refreshSubscriptionApi('MOV', String(detailItem.value.id));
     notification.success({ content: '已触发刷新' });
   } catch (err: any) {
     notification.error({ content: '刷新失败', description: err?.message || '' });
   }
 }
 
+// ---------- 编辑弹窗 ----------
 async function handleEdit(item: any) {
   let detail: any = {};
   try {
-    const res: any = await getRssDetailApi(item.id, 'TV');
+    const res: any = await getSubscriptionDetailApi(item.id, 'MOV');
     detail = res?.detail || res || {};
-  } catch { detail = item; }
+  } catch {
+    detail = item;
+  }
   subscribeEditItem.value = {
     rssid: String(detail.id || item.id),
     name: detail.name || item.name || '',
     year: detail.year || item.year || '',
-    type: 'TV',
-    season: detail.season ? String(Number(String(detail.season).replace(/^S/i, ''))) : '',
+    type: 'MOV',
     tmdbid: detail.tmdbid || item.tmdbid || '',
     image: detail.image || item.image || '',
     keyword: detail.keyword || '',
@@ -306,16 +312,15 @@ async function handleEdit(item: any) {
     filter_exclude: detail.filter_exclude || detail.exclude || '',
     download_setting: detail.download_setting != null ? String(detail.download_setting) : '',
     save_path: detail.save_path || '',
-    total_ep: String(detail.total_ep || detail.total || item.total || ''),
-    current_ep: detail.current_ep != null ? String(detail.current_ep) : '',
     rss_sites: Array.isArray(detail.rss_sites) ? detail.rss_sites : [],
     search_sites: Array.isArray(detail.search_sites) ? detail.search_sites : [],
   };
   subscribeEditShow.value = true;
 }
+
 async function handleConfirmEdit(data: Record<string, any>) {
   try {
-    await updateRssApi(data);
+    await updateSubscriptionApi(data);
     notification.success({ content: '保存成功' });
     subscribeEditShow.value = false;
     await fetchData();
@@ -324,17 +329,19 @@ async function handleConfirmEdit(data: Record<string, any>) {
   }
 }
 
+// ---------- 删除 ----------
 function handleDelete(item: any) {
   deleteTarget.value = item;
   deleteModalShow.value = true;
 }
+
 async function confirmDelete() {
   if (!deleteTarget.value) return;
   try {
     const t = deleteTarget.value;
-    await removeRssMediaApi({
+    await removeSubscriptionApi({
       name: t.name,
-      type: 'TV',
+      type: 'MOV',
       year: String(t.year || ''),
       rssid: String(t.id),
       tmdbid: t.tmdbid ? String(t.tmdbid) : undefined,
@@ -348,15 +355,17 @@ async function confirmDelete() {
     await fetchData();
   }
 }
+
 async function handleRefresh(item: any) {
   try {
-    await refreshRssApi('TV', String(item.id));
+    await refreshSubscriptionApi('MOV', String(item.id));
     notification.success({ content: '已触发刷新' });
   } catch (err: any) {
     notification.error({ content: '刷新失败', description: err?.message || '' });
   }
 }
 
+// ---------- 新增订阅 ----------
 let addSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
 function openAddModal() {
@@ -366,6 +375,7 @@ function openAddModal() {
   addSelectedMedia.value = null;
   addModalShow.value = true;
 }
+
 async function handleAddSearch() {
   if (!addKeyword.value.trim()) return;
   addSearchLoading.value = true;
@@ -374,8 +384,7 @@ async function handleAddSearch() {
     const raw = Array.isArray(res) ? res : (res?.data || []);
     addSearchResults.value = raw.filter((m: any) => {
       const t = String(m.type || m.media_type || '').toUpperCase();
-      // TV 页面：排除电影类型，其余都保留（包括电视剧、动漫、纪录片等）
-      return t !== 'MOVIE' && t !== '电影';
+      return !t || t === 'MOVIE' || t === '电影';
     });
   } catch (err: any) {
     notification.error({ content: '搜索失败', description: err?.message || '' });
@@ -383,6 +392,7 @@ async function handleAddSearch() {
     addSearchLoading.value = false;
   }
 }
+
 watch(addKeyword, (val) => {
   if (addSearchTimer) clearTimeout(addSearchTimer);
   if (!val.trim()) {
@@ -391,21 +401,25 @@ watch(addKeyword, (val) => {
   }
   addSearchTimer = setTimeout(() => handleAddSearch(), 400);
 });
+
 async function selectAddMedia(media: any) {
   addSelectedMedia.value = media;
   addStep.value = 'form';
+  // 加载默认设置
   await Promise.all([fetchSites(), fetchIndexers(), fetchFilterRules(), fetchDownloadSettings()]);
   let defaults: any = {};
   try {
-    const res: any = await getDefaultRssSettingApi('TV');
-    defaults = res?.data || res || {};
-  } catch { /* ignore */ }
+    const res: any = await getDefaultSubscriptionSettingApi('MOV');
+    defaults = res?.data || {};
+  } catch {
+    // ignore
+  }
   await fetchDownloadDirs(defaults.download_setting);
+
   addForm.value = {
     name: media.title || '',
     year: media.year || '',
-    type: 'TV',
-    season: '',
+    type: 'MOV',
     tmdbid: String(media.id || media.tmdb_id || ''),
     image: media.image || media.poster || '',
     keyword: '',
@@ -419,40 +433,36 @@ async function selectAddMedia(media: any) {
     filter_exclude: defaults.exclude || defaults.filter_exclude || '',
     download_setting: defaults.download_setting != null ? String(defaults.download_setting) : '',
     save_path: defaults.save_path || '',
-    total_ep: '',
-    current_ep: '',
     rss_sites: Array.isArray(defaults.rss_sites) ? defaults.rss_sites : [],
     search_sites: Array.isArray(defaults.search_sites) ? defaults.search_sites : [],
   };
 }
+
 function backToAddSearch() {
   addStep.value = 'search';
   addSelectedMedia.value = null;
 }
+
 async function confirmAdd() {
   try {
-    await addRssApi({
+    await addSubscriptionApi({
       name: addForm.value.name,
       year: addForm.value.year,
-      type: 'TV',
+      type: 'MOV',
       in_form: 'manual',
-      season: addForm.value.season || undefined,
       mediaid: addForm.value.tmdbid,
-      tmdbid: addForm.value.tmdbid,
       image: addForm.value.image,
       keyword: addForm.value.keyword || undefined,
       fuzzy_match: addForm.value.fuzzy_match,
       over_edition: addForm.value.over_edition,
-      filter_restype: addForm.value.filter_restype,
-      filter_pix: addForm.value.filter_pix,
-      filter_team: addForm.value.filter_team,
-      filter_rule: addForm.value.filter_rule,
-      filter_include: addForm.value.filter_include,
-      filter_exclude: addForm.value.filter_exclude,
+      filter_restype: addForm.value.filter_restype || undefined,
+      filter_pix: addForm.value.filter_pix || undefined,
+      filter_team: addForm.value.filter_team || undefined,
+      filter_rule: addForm.value.filter_rule || undefined,
+      filter_include: addForm.value.filter_include || undefined,
+      filter_exclude: addForm.value.filter_exclude || undefined,
       download_setting: addForm.value.download_setting || undefined,
       save_path: addForm.value.save_path || undefined,
-      total_ep: addForm.value.total_ep ? Number(addForm.value.total_ep) : undefined,
-      current_ep: addForm.value.current_ep ? Number(addForm.value.current_ep) : undefined,
       rss_sites: addForm.value.rss_sites,
       search_sites: addForm.value.search_sites,
     });
@@ -464,12 +474,13 @@ async function confirmAdd() {
   }
 }
 
+// ---------- 默认设置 ----------
 async function openSettingModal() {
   settingModalShow.value = true;
   await Promise.all([fetchSites(), fetchIndexers(), fetchFilterRules()]);
   try {
-    const res: any = await getDefaultRssSettingApi('TV');
-    const data = res?.data || res || {};
+    const res: any = await getDefaultSubscriptionSettingApi('MOV');
+    const data = res?.data || {};
     settingForm.value = {
       over_edition: data.over_edition && String(data.over_edition) === '1' ? '1' : '0',
       restype: data.restype || data.filter_restype || '',
@@ -482,11 +493,14 @@ async function openSettingModal() {
       rss_sites: Array.isArray(data.rss_sites) ? data.rss_sites : [],
       search_sites: Array.isArray(data.search_sites) ? data.search_sites : [],
     };
-  } catch { /* ignore */ }
+  } catch {
+    // ignore
+  }
 }
+
 async function confirmSetting() {
   try {
-    await saveDefaultRssSettingApi('TV', {
+    await saveDefaultSubscriptionSettingApi('MOV', {
       over_edition: settingForm.value.over_edition,
       restype: settingForm.value.restype,
       pix: settingForm.value.pix,
@@ -505,19 +519,20 @@ async function confirmSetting() {
   }
 }
 
-function toggleAllSites(target: string, checked: boolean) {
-  const all = rssSites.value.map(s => s.value);
-  const allSearch = searchSites.value.map(s => s.value);
-  if (target === 'addRss') addForm.value.rss_sites = checked ? [...all] : [];
-  if (target === 'addSearch') addForm.value.search_sites = checked ? [...allSearch] : [];
-  if (target === 'settingRss') settingForm.value.rss_sites = checked ? [...all] : [];
-  if (target === 'settingSearch') settingForm.value.search_sites = checked ? [...allSearch] : [];
+// ---------- 站点全选 ----------
+function toggleAllSites(target: 'addSubscription' | 'addSearch' | 'settingSubscription' | 'settingSearch', checked: boolean) {
+  if (target === 'addSubscription') addForm.value.rss_sites = checked ? subscriptionSites.value.map(s => s.value) : [];
+  if (target === 'addSearch') addForm.value.search_sites = checked ? searchSites.value.map(s => s.value) : [];
+  if (target === 'settingSubscription') settingForm.value.rss_sites = checked ? subscriptionSites.value.map(s => s.value) : [];
+  if (target === 'settingSearch') settingForm.value.search_sites = checked ? searchSites.value.map(s => s.value) : [];
 }
-function isAllSelected(target: string) {
-  let arr: string[] = [], all: string[] = [];
-  if (target === 'addRss') { arr = addForm.value.rss_sites; all = rssSites.value.map(s => s.value); }
+
+function isAllSelected(target: 'addSubscription' | 'addSearch' | 'settingSubscription' | 'settingSearch') {
+  let arr: string[] = [];
+  let all: string[] = [];
+  if (target === 'addSubscription') { arr = addForm.value.rss_sites; all = subscriptionSites.value.map(s => s.value); }
   if (target === 'addSearch') { arr = addForm.value.search_sites; all = searchSites.value.map(s => s.value); }
-  if (target === 'settingRss') { arr = settingForm.value.rss_sites; all = rssSites.value.map(s => s.value); }
+  if (target === 'settingSubscription') { arr = settingForm.value.rss_sites; all = subscriptionSites.value.map(s => s.value); }
   if (target === 'settingSearch') { arr = settingForm.value.search_sites; all = searchSites.value.map(s => s.value); }
   return all.length > 0 && arr.length === all.length;
 }
@@ -527,7 +542,7 @@ onMounted(fetchData);
 
 <template>
   <div class="p-4">
-    <PageHeader title="电视剧订阅">
+    <PageHeader title="电影订阅">
       <template #actions>
         <NSpace>
           <NButton type="primary" @click="openAddModal">新增订阅</NButton>
@@ -537,11 +552,11 @@ onMounted(fetchData);
     </PageHeader>
 
     <NSpin :show="loading">
-      <div v-if="rssStore.tvSubscriptions.length > 0" class="grid-rss-card">
+      <div v-if="subscriptionStore.movieSubscriptions.length > 0" class="grid-subscription-card">
         <div
-          v-for="item in rssStore.tvSubscriptions"
+          v-for="item in subscriptionStore.movieSubscriptions"
           :key="item.id"
-          class="rss-card overflow-hidden rounded cursor-pointer tbl-card tbl-card-hover"
+          class="subscription-card overflow-hidden rounded cursor-pointer tbl-card tbl-card-hover"
           @click="handleCardClick(item)"
         >
           <div class="relative">
@@ -552,32 +567,22 @@ onMounted(fetchData);
               alt=""
               @error="(e: any) => e.target.src = '/static/img/no-image.png'"
             />
-            <div
-              v-if="item.total && item.total > 0"
-              class="absolute bottom-0 left-0 right-0 bg-black/50 px-2 py-1"
-            >
-              <div class="progress-bar-tblr">
-                <div class="progress-bar-tblr-fill" :style="{ width: `${tvProgress(item)}%` }" />
-              </div>
-            </div>
           </div>
           <div class="p-2 text-center">
             <div class="text-sm font-medium truncate" :title="item.name">
               {{ item.year ? `${item.name} (${item.year})` : item.name }}
-              <span v-if="item.season && item.season !== 'S00'">{{ item.season }}</span>
             </div>
             <div class="text-xs text-gray-500 mt-1 flex items-center justify-center gap-1">
               <span class="inline-block w-2 h-2 rounded-full" :class="getStateDot(item.state || '')" />
               {{ getStateLabel(item.state || '') }}
-              <span v-if="item.total && item.total > 0">({{ (item.total || 0) - (item.lack || 0) }}/{{ item.total }})</span>
             </div>
-            <div v-if="item.over_edition || item.filter_restype || item.filter_pix || item.filter_team || (item.filter_rule != null && String(item.filter_rule) !== '' && String(item.filter_rule) !== '0') || item.filter_include || item.filter_exclude || (item.download_setting != null && String(item.download_setting) !== '' && String(item.download_setting) !== '-1')" class="flex flex-wrap justify-center gap-1 mt-2 border-t border-gray-200 pt-2">
+            <div v-if="item.over_edition || item.filter_restype || item.filter_pix || item.filter_team || item.filter_rule || item.filter_include || item.filter_exclude || (item.download_setting != null && String(item.download_setting) !== '' && String(item.download_setting) !== '-1')" class="flex flex-wrap justify-center gap-1 mt-2 border-t border-gray-200 pt-2">
               <NTag v-if="item.over_edition" size="tiny">洗版</NTag>
               <NTag v-if="item.download_setting != null && String(item.download_setting) !== '' && String(item.download_setting) !== '-1'" size="tiny" type="default">{{ getDownloadSettingLabel(item.download_setting) }}</NTag>
               <NTag v-if="item.filter_restype" size="tiny" type="warning">{{ item.filter_restype }}</NTag>
               <NTag v-if="item.filter_pix" size="tiny" type="warning">{{ item.filter_pix }}</NTag>
               <NTag v-if="item.filter_team" size="tiny" type="info">{{ item.filter_team }}</NTag>
-              <NTag v-if="item.filter_rule != null && String(item.filter_rule) !== '' && String(item.filter_rule) !== '0'" size="tiny" type="error">{{ getFilterRuleLabel(item.filter_rule) }}</NTag>
+              <NTag v-if="item.filter_rule" size="tiny" type="error">{{ getFilterRuleLabel(item.filter_rule) }}</NTag>
               <NTag v-if="item.filter_include" size="tiny" type="success">{{ item.filter_include }}</NTag>
               <NTag v-if="item.filter_exclude" size="tiny" type="error">{{ item.filter_exclude }}</NTag>
             </div>
@@ -588,34 +593,35 @@ onMounted(fetchData);
           </div>
         </div>
       </div>
-      <EmptyState v-else title="没有订阅" subtitle="当前没有正在订阅的电视剧" />
+      <EmptyState v-else title="没有订阅" subtitle="当前没有正在订阅的电影" />
     </NSpin>
 
-    <!-- Detail -->
-    <NModal v-model:show="detailModalShow" title="订阅详情" preset="card" :style="{ width: '600px' }" :bordered="false">
+    <!-- 详情弹窗 -->
+    <NModal
+      v-model:show="detailModalShow"
+      title="订阅详情"
+      preset="card"
+      :style="{ width: '600px' }"
+      :bordered="false"
+    >
       <div v-if="detailItem" class="flex gap-6">
-        <img :src="getImgUrl(detailItem.image)" class="rounded-xl shadow-lg" style="width: 220px; aspect-ratio: 2/3; object-fit: cover; flex-shrink: 0" alt="" @error="(e: any) => e.target.src = '/static/img/no-image.png'" />
+        <img
+          :src="getImgUrl(detailItem.image)"
+          class="rounded-xl shadow-lg"
+          style="width: 220px; aspect-ratio: 2/3; object-fit: cover; flex-shrink: 0"
+          alt=""
+          @error="(e: any) => e.target.src = '/static/img/no-image.png'"
+        />
         <div class="flex-1 min-w-0 flex flex-col">
           <div class="flex items-start justify-between">
             <div class="min-w-0">
               <h3 class="text-xl font-bold truncate" :title="detailItem.name">{{ detailItem.name }}</h3>
-              <p v-if="detailItem.year || (detailItem.season && detailItem.season !== 'S00')" class="text-gray-500 mt-1 text-sm">
-                {{ detailItem.year }}
-                <span v-if="detailItem.season && detailItem.season !== 'S00'">{{ detailItem.season }}</span>
-              </p>
+              <p v-if="detailItem.year" class="text-gray-500 mt-1 text-sm">{{ detailItem.year }}</p>
             </div>
             <div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 flex-shrink-0 ml-2">
               <span class="inline-block w-2 h-2 rounded-full" :class="getStateDot(detailItem.state || '')" />
               <span class="text-xs text-gray-600">{{ getStateLabel(detailItem.state || '') }}</span>
             </div>
-          </div>
-
-          <div v-if="detailItem.total && detailItem.total > 0" class="mt-4">
-            <div class="flex items-center justify-between text-sm text-gray-600 mb-1.5">
-              <span>进度</span>
-              <span class="font-medium">{{ (detailItem.total || 0) - (detailItem.lack || 0) }} / {{ detailItem.total }}</span>
-            </div>
-            <NProgress type="line" :percentage="tvProgress(detailItem)" :height="8" :border-radius="4" :indicator-placement="'inside'" />
           </div>
 
           <div v-if="getOverviewText(detailItem)" class="mt-3 text-sm text-gray-600 leading-relaxed">
@@ -626,12 +632,12 @@ onMounted(fetchData);
             <span class="text-gray-400">搜索词：</span>{{ detailItem.keyword }}
           </div>
 
-          <div v-if="detailItem.over_edition || detailItem.filter_restype || detailItem.filter_pix || detailItem.filter_team || (detailItem.filter_rule != null && String(detailItem.filter_rule) !== '' && String(detailItem.filter_rule) !== '0') || detailItem.filter_include || detailItem.filter_exclude" class="flex flex-wrap gap-1.5 mt-4">
+          <div v-if="detailItem.over_edition || detailItem.filter_restype || detailItem.filter_pix || detailItem.filter_team || detailItem.filter_rule || detailItem.filter_include || detailItem.filter_exclude" class="flex flex-wrap gap-1.5 mt-4">
             <NTag v-if="detailItem.over_edition" size="small" type="error" round>洗版</NTag>
             <NTag v-if="detailItem.filter_restype" size="small" type="warning" round>{{ detailItem.filter_restype }}</NTag>
             <NTag v-if="detailItem.filter_pix" size="small" type="warning" round>{{ detailItem.filter_pix }}</NTag>
             <NTag v-if="detailItem.filter_team" size="small" type="info" round>{{ detailItem.filter_team }}</NTag>
-            <NTag v-if="detailItem.filter_rule != null && String(detailItem.filter_rule) !== '' && String(detailItem.filter_rule) !== '0'" size="small" type="error" round>{{ getFilterRuleLabel(detailItem.filter_rule) }}</NTag>
+            <NTag v-if="detailItem.filter_rule" size="small" type="error" round>{{ getFilterRuleLabel(detailItem.filter_rule) }}</NTag>
             <NTag v-if="detailItem.filter_include" size="small" type="success" round>{{ detailItem.filter_include }}</NTag>
             <NTag v-if="detailItem.filter_exclude" size="small" type="error" round>{{ detailItem.filter_exclude }}</NTag>
           </div>
@@ -657,25 +663,25 @@ onMounted(fetchData);
         <NSpace justify="end" :size="12">
           <NButton type="error" ghost size="small" @click="handleDetailDelete">
             <template #icon>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+              <IconifyIcon icon="lucide:trash-2" class="h-4 w-4" />
             </template>
             取消订阅
           </NButton>
           <NButton quaternary size="small" @click="handleDetailSearch">
             <template #icon>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              <IconifyIcon icon="lucide:search" class="h-4 w-4" />
             </template>
             搜索
           </NButton>
           <NButton quaternary size="small" @click="handleDetailRefresh">
             <template #icon>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+              <IconifyIcon icon="lucide:refresh-cw" class="h-4 w-4" />
             </template>
             刷新
           </NButton>
           <NButton type="primary" size="small" @click="handleDetailEdit">
             <template #icon>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+              <IconifyIcon icon="lucide:pencil" class="h-4 w-4" />
             </template>
             编辑
           </NButton>
@@ -683,27 +689,50 @@ onMounted(fetchData);
       </template>
     </NModal>
 
-    <!-- Add -->
-    <NModal v-model:show="addModalShow" title="新增订阅" preset="card" :style="{ width: '720px', maxHeight: '90vh' }" :bordered="false">
+    <!-- 新增订阅 -->
+    <NModal
+      v-model:show="addModalShow"
+      title="新增订阅"
+      preset="card"
+      :style="{ width: '720px', maxHeight: '85vh' }"
+      :bordered="false"
+    >
       <div v-if="addStep === 'search'">
         <NSpace vertical>
           <NSpace>
-            <NInput v-model:value="addKeyword" placeholder="输入电视剧名称" @keyup.enter="handleAddSearch" style="width: 400px" />
+            <NInput v-model:value="addKeyword" placeholder="输入电影名称" @keyup.enter="handleAddSearch" style="width: 400px" />
             <NButton type="primary" :loading="addSearchLoading" @click="handleAddSearch">搜索</NButton>
           </NSpace>
-          <div v-if="addSearchResults.length > 0" class="grid-rss-card mt-2" style="max-height: 50vh; overflow-y: auto;">
-            <div v-for="media in addSearchResults" :key="media.id" class="rss-card overflow-hidden rounded cursor-pointer tbl-card tbl-card-hover" @click="selectAddMedia(media)">
-              <img :src="getImgUrl(media.image || media.poster)" class="w-full object-cover" style="aspect-ratio: 10/6" alt="" @error="(e: any) => e.target.src = '/static/img/no-image.png'" />
+          <div v-if="addSearchResults.length > 0" class="grid-subscription-card mt-2" style="max-height: 50vh; overflow-y: auto;">
+            <div
+              v-for="media in addSearchResults"
+              :key="media.id"
+              class="subscription-card overflow-hidden rounded cursor-pointer tbl-card tbl-card-hover"
+              @click="selectAddMedia(media)"
+            >
+              <img
+                :src="getImgUrl(media.image || media.poster)"
+                class="w-full object-cover"
+                style="aspect-ratio: 10/6"
+                alt=""
+                @error="(e: any) => e.target.src = '/static/img/no-image.png'"
+              />
               <div class="p-2 text-center text-sm truncate">{{ media.title }} {{ media.year ? `(${media.year})` : '' }}</div>
             </div>
           </div>
           <EmptyState v-else-if="!addSearchLoading && addKeyword" title="未找到相关媒体" subtitle="请尝试其他关键词" />
         </NSpace>
       </div>
+
       <div v-else>
         <!-- 顶部信息栏 -->
         <div class="flex items-center gap-4 mb-5 pb-4 border-b border-gray-100">
-          <img :src="getImgUrl(addSelectedMedia?.image || addSelectedMedia?.poster)" class="rounded-lg shadow" style="width: 60px; aspect-ratio: 2/3; object-fit: cover; flex-shrink: 0" alt="" />
+          <img
+            :src="getImgUrl(addSelectedMedia?.image || addSelectedMedia?.poster)"
+            class="rounded-lg shadow"
+            style="width: 60px; aspect-ratio: 2/3; object-fit: cover; flex-shrink: 0"
+            alt=""
+          />
           <div class="min-w-0">
             <h4 class="font-bold text-base truncate">{{ addForm.name || addSelectedMedia?.title }}</h4>
             <p class="text-gray-400 text-sm mt-0.5">{{ addForm.year || addSelectedMedia?.year }}</p>
@@ -714,36 +743,53 @@ onMounted(fetchData);
             <NInput v-model:value="addForm.keyword" placeholder="留空使用TMDB数据" />
           </NFormItem>
           <div class="grid grid-cols-3 gap-3">
-            <NFormItem label="季"><NSelect v-model:value="addForm.season" :options="seasonOptions" /></NFormItem>
-            <NFormItem label="总集数"><NInput v-model:value="addForm.total_ep" placeholder="可留空" /></NFormItem>
-            <NFormItem label="开始集数"><NInput v-model:value="addForm.current_ep" placeholder="开始订阅集数" /></NFormItem>
-          </div>
-          <div class="grid grid-cols-3 gap-3">
-            <NFormItem label="模糊匹配"><NCheckbox v-model:checked="addForm.fuzzy_match">开启</NCheckbox></NFormItem>
-            <NFormItem label="洗版"><NCheckbox v-model:checked="addForm.over_edition">开启</NCheckbox></NFormItem>
+            <NFormItem label="模糊匹配">
+              <NCheckbox v-model:checked="addForm.fuzzy_match">开启</NCheckbox>
+            </NFormItem>
+            <NFormItem label="洗版">
+              <NCheckbox v-model:checked="addForm.over_edition">开启</NCheckbox>
+            </NFormItem>
             <NFormItem />
           </div>
           <div class="grid grid-cols-3 gap-3">
-            <NFormItem label="质量"><NSelect v-model:value="addForm.filter_restype" :options="restypeOptions" /></NFormItem>
-            <NFormItem label="分辨率"><NSelect v-model:value="addForm.filter_pix" :options="pixOptions" /></NFormItem>
-            <NFormItem label="制作组"><NInput v-model:value="addForm.filter_team" placeholder="支持正则" /></NFormItem>
+            <NFormItem label="质量">
+              <NSelect v-model:value="addForm.filter_restype" :options="restypeOptions" />
+            </NFormItem>
+            <NFormItem label="分辨率">
+              <NSelect v-model:value="addForm.filter_pix" :options="pixOptions" />
+            </NFormItem>
+            <NFormItem label="制作组">
+              <NInput v-model:value="addForm.filter_team" placeholder="支持正则" />
+            </NFormItem>
           </div>
           <div class="grid grid-cols-2 gap-3">
-            <NFormItem label="包含"><NInput v-model:value="addForm.filter_include" placeholder="关键字或正则" /></NFormItem>
-            <NFormItem label="排除"><NInput v-model:value="addForm.filter_exclude" placeholder="关键字或正则" /></NFormItem>
+            <NFormItem label="包含">
+              <NInput v-model:value="addForm.filter_include" placeholder="关键字或正则" />
+            </NFormItem>
+            <NFormItem label="排除">
+              <NInput v-model:value="addForm.filter_exclude" placeholder="关键字或正则" />
+            </NFormItem>
           </div>
           <div class="grid grid-cols-2 gap-3">
-            <NFormItem label="过滤规则"><NSelect v-model:value="addForm.filter_rule" :options="filterRules" /></NFormItem>
-            <NFormItem label="下载设置"><NSelect v-model:value="addForm.download_setting" :options="downloadSettings" @update:value="fetchDownloadDirs" /></NFormItem>
+            <NFormItem label="过滤规则">
+              <NSelect v-model:value="addForm.filter_rule" :options="filterRules" />
+            </NFormItem>
+            <NFormItem label="下载设置">
+              <NSelect v-model:value="addForm.download_setting" :options="downloadSettings" clearable @update:value="fetchDownloadDirs" />
+            </NFormItem>
           </div>
-          <NFormItem label="保存路径"><NSelect v-model:value="addForm.save_path" :options="downloadDirs" /></NFormItem>
+          <NFormItem label="保存路径">
+            <NSelect v-model:value="addForm.save_path" :options="downloadDirs" clearable />
+          </NFormItem>
           <NFormItem label="订阅站点">
             <NCard size="small" :bordered="true" class="site-card">
               <div class="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
-                <NCheckbox :checked="isAllSelected('addRss')" @update:checked="v => toggleAllSites('addRss', v)">全选</NCheckbox>
+                <NCheckbox :checked="isAllSelected('addSubscription')" @update:checked="v => toggleAllSites('addSubscription', v)">全选</NCheckbox>
               </div>
               <div class="flex flex-wrap gap-x-4 gap-y-2">
-                <NCheckbox v-for="site in rssSites" :key="site.value" :checked="addForm.rss_sites.includes(site.value)" @update:checked="(v: boolean) => { const set = new Set(addForm.rss_sites); if (v) set.add(site.value); else set.delete(site.value); addForm.rss_sites = Array.from(set); }">{{ site.label }}</NCheckbox>
+                <NCheckbox v-for="site in subscriptionSites" :key="site.value" :value="site.value" :checked="addForm.rss_sites.includes(site.value)" @update:checked="(v: boolean) => { const set = new Set(addForm.rss_sites); if (v) set.add(site.value); else set.delete(site.value); addForm.rss_sites = Array.from(set); }">
+                  {{ site.label }}
+                </NCheckbox>
               </div>
             </NCard>
           </NFormItem>
@@ -753,7 +799,9 @@ onMounted(fetchData);
                 <NCheckbox :checked="isAllSelected('addSearch')" @update:checked="v => toggleAllSites('addSearch', v)">全选</NCheckbox>
               </div>
               <div class="flex flex-wrap gap-x-4 gap-y-2">
-                <NCheckbox v-for="site in searchSites" :key="site.value" :checked="addForm.search_sites.includes(site.value)" @update:checked="(v: boolean) => { const set = new Set(addForm.search_sites); if (v) set.add(site.value); else set.delete(site.value); addForm.search_sites = Array.from(set); }">{{ site.label }}</NCheckbox>
+                <NCheckbox v-for="site in searchSites" :key="site.value" :value="site.value" :checked="addForm.search_sites.includes(site.value)" @update:checked="(v: boolean) => { const set = new Set(addForm.search_sites); if (v) set.add(site.value); else set.delete(site.value); addForm.search_sites = Array.from(set); }">
+                  {{ site.label }}
+                </NCheckbox>
               </div>
             </NCard>
           </NFormItem>
@@ -767,38 +815,71 @@ onMounted(fetchData);
       </div>
     </NModal>
 
-    <!-- Default Settings -->
-    <NModal v-model:show="settingModalShow" title="订阅默认设置" preset="card" :style="{ width: '720px', maxHeight: '85vh' }" :bordered="false">
+    <!-- 默认设置 -->
+    <NModal
+      v-model:show="settingModalShow"
+      title="订阅默认设置"
+      preset="card"
+      :style="{ width: '720px', maxHeight: '85vh' }"
+      :bordered="false"
+    >
       <NForm label-placement="left" label-width="100">
         <div class="grid grid-cols-3 gap-2">
-          <NFormItem label="质量"><NSelect v-model:value="settingForm.restype" :options="restypeOptions" /></NFormItem>
-          <NFormItem label="分辨率"><NSelect v-model:value="settingForm.pix" :options="pixOptions" /></NFormItem>
-          <NFormItem label="制作组"><NInput v-model:value="settingForm.team" placeholder="支持正则" /></NFormItem>
+          <NFormItem label="质量">
+            <NSelect v-model:value="settingForm.restype" :options="restypeOptions" />
+          </NFormItem>
+          <NFormItem label="分辨率">
+            <NSelect v-model:value="settingForm.pix" :options="pixOptions" />
+          </NFormItem>
+          <NFormItem label="制作组">
+            <NInput v-model:value="settingForm.team" placeholder="支持正则" />
+          </NFormItem>
         </div>
         <div class="grid grid-cols-2 gap-2">
-          <NFormItem label="包含"><NInput v-model:value="settingForm.include" placeholder="关键字或正则" /></NFormItem>
-          <NFormItem label="排除"><NInput v-model:value="settingForm.exclude" placeholder="关键字或正则" /></NFormItem>
+          <NFormItem label="包含">
+            <NInput v-model:value="settingForm.include" placeholder="关键字或正则" />
+          </NFormItem>
+          <NFormItem label="排除">
+            <NInput v-model:value="settingForm.exclude" placeholder="关键字或正则" />
+          </NFormItem>
         </div>
         <div class="grid grid-cols-3 gap-2">
-          <NFormItem label="过滤规则"><NSelect v-model:value="settingForm.rule" :options="filterRules" /></NFormItem>
-          <NFormItem label="下载设置"><NSelect v-model:value="settingForm.download_setting" :options="downloadSettings" /></NFormItem>
-          <NFormItem label="洗版"><NSelect v-model:value="settingForm.over_edition" :options="[{ label: '否', value: '0' }, { label: '是', value: '1' }]" /></NFormItem>
+          <NFormItem label="过滤规则">
+            <NSelect v-model:value="settingForm.rule" :options="filterRules" />
+          </NFormItem>
+          <NFormItem label="下载设置">
+            <NSelect v-model:value="settingForm.download_setting" :options="downloadSettings" clearable />
+          </NFormItem>
+          <NFormItem label="洗版">
+            <NSelect v-model:value="settingForm.over_edition" :options="[{ label: '否', value: '0' }, { label: '是', value: '1' }]" />
+          </NFormItem>
         </div>
         <NFormItem label="订阅站点">
-          <div class="flex items-center gap-2 mb-1"><NCheckbox :checked="isAllSelected('settingRss')" @update:checked="v => toggleAllSites('settingRss', v)">全选</NCheckbox></div>
+          <div class="flex items-center gap-2 mb-1">
+            <NCheckbox :checked="isAllSelected('settingSubscription')" @update:checked="v => toggleAllSites('settingSubscription', v)">全选</NCheckbox>
+          </div>
           <div class="flex flex-wrap gap-2">
-            <NCheckbox v-for="site in rssSites" :key="site.value" :checked="settingForm.rss_sites.includes(site.value)" @update:checked="(v: boolean) => { const set = new Set(settingForm.rss_sites); if (v) set.add(site.value); else set.delete(site.value); settingForm.rss_sites = Array.from(set); }">{{ site.label }}</NCheckbox>
+            <NCheckbox v-for="site in subscriptionSites" :key="site.value" :value="site.value" :checked="settingForm.rss_sites.includes(site.value)" @update:checked="(v: boolean) => { const set = new Set(settingForm.rss_sites); if (v) set.add(site.value); else set.delete(site.value); settingForm.rss_sites = Array.from(set); }">
+              {{ site.label }}
+            </NCheckbox>
           </div>
         </NFormItem>
         <NFormItem label="搜索站点">
-          <div class="flex items-center gap-2 mb-1"><NCheckbox :checked="isAllSelected('settingSearch')" @update:checked="v => toggleAllSites('settingSearch', v)">全选</NCheckbox></div>
+          <div class="flex items-center gap-2 mb-1">
+            <NCheckbox :checked="isAllSelected('settingSearch')" @update:checked="v => toggleAllSites('settingSearch', v)">全选</NCheckbox>
+          </div>
           <div class="flex flex-wrap gap-2">
-            <NCheckbox v-for="site in searchSites" :key="site.value" :checked="settingForm.search_sites.includes(site.value)" @update:checked="(v: boolean) => { const set = new Set(settingForm.search_sites); if (v) set.add(site.value); else set.delete(site.value); settingForm.search_sites = Array.from(set); }">{{ site.label }}</NCheckbox>
+            <NCheckbox v-for="site in searchSites" :key="site.value" :value="site.value" :checked="settingForm.search_sites.includes(site.value)" @update:checked="(v: boolean) => { const set = new Set(settingForm.search_sites); if (v) set.add(site.value); else set.delete(site.value); settingForm.search_sites = Array.from(set); }">
+              {{ site.label }}
+            </NCheckbox>
           </div>
         </NFormItem>
       </NForm>
       <template #footer>
-        <NSpace justify="end"><NButton @click="settingModalShow = false">取消</NButton><NButton type="primary" @click="confirmSetting">保存</NButton></NSpace>
+        <NSpace justify="end">
+          <NButton @click="settingModalShow = false">取消</NButton>
+          <NButton type="primary" @click="confirmSetting">保存</NButton>
+        </NSpace>
       </template>
     </NModal>
 
@@ -809,16 +890,28 @@ onMounted(fetchData);
       @confirm="handleConfirmEdit"
     />
 
-    <!-- Delete Confirm -->
-    <NModal v-model:show="deleteModalShow" title="确认删除" preset="dialog" positive-text="确认" negative-text="取消" type="warning" @positive-click="confirmDelete">
+    <!-- 删除确认 -->
+    <NModal
+      v-model:show="deleteModalShow"
+      title="确认删除"
+      preset="dialog"
+      positive-text="确认"
+      negative-text="取消"
+      type="warning"
+      @positive-click="confirmDelete"
+    >
       <p>确定要删除订阅「{{ deleteTarget?.name }}」吗？</p>
     </NModal>
   </div>
 </template>
 
 <style scoped>
-.grid-rss-card { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
-.rss-card { transition: all 0.2s ease; }
-.progress-bar-tblr { height: 4px; background: hsl(var(--muted) / 0.2); border-radius: 2px; overflow: hidden; }
-.progress-bar-tblr-fill { height: 100%; background: hsl(var(--success)); transition: width 0.3s ease; }
+.grid-subscription-card {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+.subscription-card {
+  transition: all 0.2s ease;
+}
 </style>

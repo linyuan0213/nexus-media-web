@@ -4,7 +4,7 @@ export * from './download';
 export * from './filter';
 export * from './media';
 export * from './plugin';
-export * from './rss';
+export * from './subscription';
 export * from './scheduler';
 export * from './site';
 export * from './sync';

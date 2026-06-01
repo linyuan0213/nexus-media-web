@@ -6,7 +6,7 @@ import { IconifyIcon } from '@vben/icons';
 
 import PageHeader from '#/components/page/PageHeader.vue';
 import { getMediaDetailApi, getSimilarApi, getRecommendationsApi, webSearchApi } from '#/api/modules/media';
-import { addRssMediaApi, removeRssMediaApi } from '#/api/modules/rss';
+import { addSubscriptionMediaApi, removeSubscriptionApi } from '#/api/modules/subscription';
 
 const route = useRoute();
 const router = useRouter();
@@ -125,7 +125,7 @@ async function handleSearch() {
 async function handleSubscribe() {
   try {
     if (fav.value === '1') {
-      await removeRssMediaApi({
+      await removeSubscriptionApi({
         name: detail.value.title,
         year: detail.value.year || '',
         type: mediaType.value,
@@ -135,7 +135,7 @@ async function handleSubscribe() {
       fav.value = '0';
       message.success('已删除订阅');
     } else {
-      await addRssMediaApi({
+      await addSubscriptionMediaApi({
         name: detail.value.title,
         year: detail.value.year || '',
         type: mediaType.value,

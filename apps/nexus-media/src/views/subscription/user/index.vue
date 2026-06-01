@@ -11,10 +11,10 @@ import {
   NTag,
 } from 'naive-ui';
 
-import { deleteUserRssApi, getUserRssApi } from '#/api';
-import { useRssStore } from '#/store';
+import { deleteRssAutomationApi, getRssAutomationApi } from '#/api';
+import { useSubscriptionStore } from '#/store';
 
-const rssStore = useRssStore();
+const subscriptionStore = useSubscriptionStore();
 const loading = ref(false);
 
 const columns = [
@@ -48,15 +48,15 @@ const columns = [
 async function fetchData() {
   loading.value = true;
   try {
-    const res = await getUserRssApi();
-    rssStore.setUserRss(res as any);
+    const res = await getRssAutomationApi();
+    subscriptionStore.setRssAutomationItems(res as any);
   } finally {
     loading.value = false;
   }
 }
 
 async function handleDelete(id: number) {
-  await deleteUserRssApi(id);
+  await deleteRssAutomationApi(id);
   await fetchData();
 }
 
@@ -69,17 +69,17 @@ import { h } from 'vue';
 
 <template>
   <div class="p-4">
-    <NCard title="自定义 RSS">
+    <NCard title="自定义 RSS自动化">
       <NSpin :show="loading">
         <NDataTable
-          v-if="rssStore.userRss.length > 0"
+          v-if="subscriptionStore.rssAutomationItems.length > 0"
           :columns="columns"
-          :data="rssStore.userRss"
+          :data="subscriptionStore.rssAutomationItems"
           :bordered="false"
           :single-line="false"
           remote
         />
-        <NEmpty v-else description="暂无自定义 RSS" />
+        <NEmpty v-else description="暂无自定义 RSS自动化" />
       </NSpin>
     </NCard>
   </div>

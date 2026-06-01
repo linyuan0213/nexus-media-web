@@ -30,8 +30,8 @@
     "statistics": "站点统计",
     "signin": "签到管理"
   },
-  "rss": {
-    "title": "RSS 订阅",
+  "subscription": {
+    "title": "媒体订阅",
     "movie": "电影订阅",
     "tv": "剧集订阅",
     "user": "自定义 RSS",

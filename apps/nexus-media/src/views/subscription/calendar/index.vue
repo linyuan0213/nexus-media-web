@@ -8,7 +8,7 @@ import {
   NSpace,
   NTag,
 } from 'naive-ui';
-import { getMovieRssItemsApi, getTvRssItemsApi } from '#/api/modules/rss';
+import { getMovieSubscriptionItemsApi, getTvSubscriptionItemsApi } from '#/api/modules/subscription';
 import { getMovieCalendarApi, getTvCalendarApi } from '#/api/modules/media';
 
 interface CalendarEvent {
@@ -67,8 +67,8 @@ async function loadCalendarEvents() {
   loading.value = true;
   try {
     const [movieItemsRes, tvItemsRes] = await Promise.all([
-      getMovieRssItemsApi(),
-      getTvRssItemsApi(),
+      getMovieSubscriptionItemsApi(),
+      getTvSubscriptionItemsApi(),
     ]);
     const movieItems = (movieItemsRes || []) as Array<{
       id: string;

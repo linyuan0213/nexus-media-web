@@ -49,9 +49,8 @@ interface SiteForm {
   headers: string;
   rule: string;
   download_setting: string;
-  limit_interval: string;
-  limit_count: string;
-  limit_seconds: string;
+  rate_limit: string;
+  rate_burst: string;
 }
 
 const siteStore = useSiteStore();
@@ -161,9 +160,8 @@ function buildNote(form: SiteForm): string {
   if (form.tag) note.tag = 'Y';
   if (form.public === 'Y') note.public = 'Y';
   else note.public = 'N';
-  if (form.limit_interval) note.limit_interval = form.limit_interval;
-  if (form.limit_count) note.limit_count = form.limit_count;
-  if (form.limit_seconds) note.limit_seconds = form.limit_seconds;
+  if (form.rate_limit) note.rate_limit = form.rate_limit;
+  if (form.rate_burst) note.rate_burst = form.rate_burst;
   return JSON.stringify(note);
 }
 
@@ -188,9 +186,8 @@ function handleAdd() {
     headers: '',
     rule: '',
     download_setting: '',
-    limit_interval: '',
-    limit_count: '',
-    limit_seconds: '',
+    rate_limit: '10/m',
+    rate_burst: '10',
   };
   editModalShow.value = true;
 }
@@ -221,9 +218,8 @@ function handleEdit(item: any) {
     headers: parseNoteStr(parsedNote?.headers),
     rule: parseNoteStr(parsedNote?.rule),
     download_setting: parseNoteStr(parsedNote?.download_setting),
-    limit_interval: parseNoteStr(parsedNote?.limit_interval),
-    limit_count: parseNoteStr(parsedNote?.limit_count),
-    limit_seconds: parseNoteStr(parsedNote?.limit_seconds),
+    rate_limit: parseNoteStr(parsedNote?.rate_limit) || '10/m',
+    rate_burst: parseNoteStr(parsedNote?.rate_burst) || '10',
   };
   editModalShow.value = true;
 }
@@ -557,19 +553,31 @@ onMounted(fetchSites);
           </div>
         </div>
 
-        <!-- 流控规则 -->
+        <!-- 限流配置 -->
         <div class="form-section">
-          <div class="form-section-title">流控规则</div>
-          <div class="form-grid-3">
-            <NFormItem label="单位时间(分)">
-              <NInput v-model:value="editingSite.limit_interval" placeholder="10" />
+          <div class="form-section-title">限流配置</div>
+          <div class="form-grid-2">
+            <NFormItem label="速率限制">
+              <NSelect
+                v-model:value="editingSite.rate_limit"
+                :options="[
+                  { label: '不限流', value: '' },
+                  { label: '每秒 1 次', value: '1/s' },
+                  { label: '每秒 2 次', value: '2/s' },
+                  { label: '每分钟 5 次', value: '5/m' },
+                  { label: '每分钟 10 次（默认）', value: '10/m' },
+                  { label: '每分钟 20 次', value: '20/m' },
+                  { label: '每小时 50 次', value: '50/h' },
+                  { label: '每小时 100 次', value: '100/h' },
+                ]"
+              />
             </NFormItem>
-            <NFormItem label="访问次数">
-              <NInput v-model:value="editingSite.limit_count" placeholder="10" />
+            <NFormItem label="突发容量">
+              <NInput v-model:value="editingSite.rate_burst" placeholder="10" />
             </NFormItem>
-            <NFormItem label="间隔(秒)">
-              <NInput v-model:value="editingSite.limit_seconds" placeholder="5" />
-            </NFormItem>
+          </div>
+          <div class="text-xs text-muted-foreground mt-1">
+            速率格式：次数/单位（s=秒, m=分钟, h=小时）。PT 站点建议设置为 10/m 或更低，防止触发站点流控。
           </div>
         </div>
       </NForm>

@@ -11,14 +11,14 @@ import {
   useNotification,
 } from 'naive-ui';
 
-import { deleteRssHistoryApi, getRssHistoryApi, reRssHistoryApi } from '#/api';
+import { deleteSubscriptionHistoryApi, getSubscriptionHistoryApi, redoSubscriptionHistoryApi } from '#/api';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
-import { useRssStore } from '#/store';
+import { useSubscriptionStore } from '#/store';
 
 const route = useRoute();
 const router = useRouter();
-const rssStore = useRssStore();
+const subscriptionStore = useSubscriptionStore();
 const notification = useNotification();
 
 const loading = ref(false);
@@ -35,7 +35,7 @@ const pageTitle = computed(() =>
 );
 
 const backPath = computed(() =>
-  type.value === 'tv' ? '/rss/tv' : '/rss/movie'
+  type.value === 'tv' ? '/subscription/tv' : '/subscription/movie'
 );
 
 function getImgUrl(src?: string) {
@@ -45,7 +45,7 @@ function getImgUrl(src?: string) {
 
 // 统一将后端可能返回的大小写字段转换为小写格式
 const historyList = computed(() => {
-  return rssStore.rssHistory.map((item: any) => ({
+  return subscriptionStore.subscriptionHistory.map((item: any) => ({
     id: (item.ID ?? item.id) as number | string,
     title: (item.NAME ?? item.title ?? item.name ?? '') as string,
     year: (item.YEAR ?? item.year ?? '') as string,
@@ -63,8 +63,8 @@ const historyList = computed(() => {
 async function fetchData() {
   loading.value = true;
   try {
-    const res = await getRssHistoryApi(type.value);
-    rssStore.setRssHistory(res);
+    const res = await getSubscriptionHistoryApi(type.value);
+    subscriptionStore.setSubscriptionHistory(res);
   } finally {
     loading.value = false;
   }
@@ -72,7 +72,7 @@ async function fetchData() {
 
 async function handleReRss(row: any) {
   try {
-    await reRssHistoryApi(row.id, type.value);
+    await redoSubscriptionHistoryApi(row.id, type.value);
     notification.success({ content: '重新订阅成功' });
     await fetchData();
   } catch (err: any) {
@@ -91,7 +91,7 @@ function handleDelete(row: any) {
 async function confirmDelete() {
   if (!deleteTarget.value) return;
   try {
-    await deleteRssHistoryApi(deleteTarget.value.id);
+    await deleteSubscriptionHistoryApi(deleteTarget.value.id);
     notification.success({ content: '已删除' });
     await fetchData();
   } catch (err: any) {
