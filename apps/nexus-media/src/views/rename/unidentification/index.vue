@@ -7,7 +7,6 @@ import {
   NCheckbox,
   NDropdown,
   NInput,
-  NModal,
   NPagination,
   NSpace,
   NSpin,
@@ -228,7 +227,7 @@ function getFileExt(filename?: string) {
   return ext || '?';
 }
 
-function getItemOptions(item: any) {
+function getItemOptions() {
   return [
     { label: '识别', key: 'identify', icon: () => h(IconifyIcon, { icon: 'lucide:scan-line', class: 'size-4' }) },
     { label: '转移', key: 'transfer', icon: () => h(IconifyIcon, { icon: 'lucide:arrow-right-left', class: 'size-4' }) },
@@ -357,7 +356,7 @@ onMounted(() => fetchData(1));
                 </div>
                 <div class="unknown-footer">
                   <NDropdown
-                    :options="getItemOptions(item)"
+                    :options="getItemOptions()"
                     @select="(key: string) => handleItemAction(key, item)"
                   >
                     <NButton size="tiny" text @click.stop>

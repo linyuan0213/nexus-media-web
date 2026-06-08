@@ -13,9 +13,12 @@ import {
   NSpace,
   NSwitch,
   NSpin,
-  NEmpty,
   useMessage,
 } from 'naive-ui';
+
+// naive-ui NSelect prefix slot 类型缺失，临时包装
+const NSelectWithPrefix = NSelect as any;
+
 import { IconifyIcon } from '@vben/icons';
 
 import {
@@ -26,12 +29,12 @@ import {
   getStorageTypesApi,
   testStorageBackendApi,
 } from '#/api/modules/storage';
-import type { StorageApi } from '#/api/modules/storage';
+import type { StorageApi, StorageTypeSchema } from '#/api/modules/storage';
 import PageHeader from '#/components/page/PageHeader.vue';
 
 const message = useMessage();
 const backends = ref<StorageApi.StorageBackend[]>([]);
-const typeSchema = ref<StorageApi.StorageTypeSchema[]>([]);
+const typeSchema = ref<StorageTypeSchema[]>([]);
 const loading = ref(false);
 
 const windowWidth = ref(window.innerWidth);
@@ -379,12 +382,13 @@ onMounted(fetch);
           </NFormItem>
 
           <NFormItem label="类型" required>
-            <NSelect
+            <NSelectWithPrefix
               v-model:value="drawer.form.type"
               :options="types"
               placeholder="选择存储类型"
               @update:value="drawer.form.config = defaultConfig($event); testResult = null"
             >
+              <!-- @ts-ignore: naive-ui NSelect prefix slot -->
               <template #prefix>
                 <IconifyIcon
                   :icon="currentIcon"
@@ -392,7 +396,7 @@ onMounted(fetch);
                   style="color: hsl(var(--muted-foreground))"
                 />
               </template>
-            </NSelect>
+            </NSelectWithPrefix>
           </NFormItem>
 
           <!-- 动态配置字段 -->

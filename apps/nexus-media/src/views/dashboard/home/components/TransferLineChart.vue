@@ -71,7 +71,7 @@ function buildOption() {
       axisTick: { show: false },
       boundaryGap: false,
       data: props.labels,
-      type: 'category',
+      type: 'category' as const,
     },
     yAxis: {
       axisLine: { show: false },
@@ -82,17 +82,17 @@ function buildOption() {
           type: 'dashed',
         },
       },
-      type: 'value',
+      type: 'value' as const,
     },
   };
 }
 
 onMounted(() => {
-  renderEcharts(buildOption());
+  renderEcharts(buildOption() as any);
 });
 
 watch(() => [props.labels, props.movieData, props.tvData, props.animeData], () => {
-  renderEcharts(buildOption());
+  renderEcharts(buildOption() as any);
 }, { deep: true });
 </script>
 

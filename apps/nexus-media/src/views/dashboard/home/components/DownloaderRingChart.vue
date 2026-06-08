@@ -34,7 +34,7 @@ function buildOption() {
       orient: 'vertical',
       right: 0,
       top: 'middle',
-      type: 'scroll',
+      type: 'scroll' as const,
     },
     series: [
       {
@@ -81,17 +81,17 @@ function buildOption() {
     ],
     tooltip: {
       formatter: '{b}: {c} ({d}%)',
-      trigger: 'item',
+      trigger: 'item' as const,
     },
   };
 }
 
 onMounted(() => {
-  renderEcharts(buildOption());
+  renderEcharts(buildOption() as any);
 });
 
 watch(() => props.data, () => {
-  renderEcharts(buildOption());
+  renderEcharts(buildOption() as any);
 }, { deep: true });
 </script>
 

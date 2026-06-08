@@ -13,7 +13,6 @@ import {
   NSpace,
   NSpin,
   NSwitch,
-  NTag,
   NTabs,
   NTabPane,
   NCheckbox,

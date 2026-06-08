@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
-import { useUserStore } from '@vben/stores';
 
 import {
   NTag,

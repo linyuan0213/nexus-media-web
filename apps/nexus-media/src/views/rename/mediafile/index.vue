@@ -3,7 +3,6 @@ import { computed, h, onMounted, ref } from 'vue';
 
 import {
   NButton,
-  NCard,
   NCollapse,
   NCollapseItem,
   NDropdown,
@@ -91,17 +90,6 @@ function getBackendTagStyle(backendId?: string) {
   return colors[idx] || colors[0];
 }
 
-function getPathTypeLabel(type: string) {
-  const map: Record<string, string> = {
-    movie: '媒体库',
-    tv: '媒体库',
-    anime: '媒体库',
-    sync: '同步源',
-    sync_dest: '同步目标',
-  };
-  return map[type] || type;
-}
-
 // 按后端分组，每组内部再按类型分组
 interface PathItem {
   name: string;
@@ -138,7 +126,7 @@ const backendGroups = computed<BackendGroup[]>(() => {
   });
   return sortedIds.map((id) => {
     const items = byBackend.get(id)!;
-    const style = getBackendTagStyle(id);
+    const style = getBackendTagStyle(id)!;
     const sections: TypeGroup[] = [];
     const libs = items.filter((i) => ['movie', 'tv', 'anime'].includes(i.type));
     if (libs.length) sections.push({ label: '媒体库', type: 'lib', items: libs });
@@ -155,18 +143,6 @@ const backendGroups = computed<BackendGroup[]>(() => {
     };
   });
 });
-
-const expandedBackends = ref<Set<string>>(new Set(['local']));
-
-function toggleBackend(backendId: string) {
-  const next = new Set(expandedBackends.value);
-  if (next.has(backendId)) {
-    next.delete(backendId);
-  } else {
-    next.add(backendId);
-  }
-  expandedBackends.value = next;
-}
 
 const currentRoot = computed(() => {
   if (!currentPath.value) return null;
@@ -287,8 +263,8 @@ async function initLibraryPaths() {
       );
       if (defaultPath.value && defaultPath.value !== '/' && matched?.backend_id === currentBackendId.value) {
         await fetchDirList(defaultPath.value);
-      } else if (currentBackendPaths.length > 0) {
-        await fetchDirList(currentBackendPaths[0].path);
+      } else       if (currentBackendPaths.length > 0) {
+        await fetchDirList(currentBackendPaths[0]!.path);
       } else {
         await fetchDirList();
       }
@@ -355,7 +331,11 @@ function goUp() {
   const parts = norm.split('/').filter(Boolean);
   parts.pop();
   const parent = parts.length > 0 ? '/' + parts.join('/') : '/';
-  navigateTo(parent === '/' ? undefined : parent);
+  if (parent === '/') {
+    navigateTo('');
+  } else {
+    navigateTo(parent);
+  }
 }
 
 function handleItemClick(item: any) {
@@ -470,12 +450,6 @@ const hardlinkLoading = ref(false);
 
 const deleteModalShow = ref(false);
 const deletePayload = ref<{ path: string; name: string; is_dir: boolean } | null>(null);
-
-// tmdb search
-const tmdbSearchShow = ref(false);
-const tmdbSearchKeyword = ref('');
-const tmdbSearchLoading = ref(false);
-const tmdbSearchResults = ref<any[]>([]);
 
 // identify result
 const identifyResultShow = ref(false);
@@ -606,7 +580,7 @@ async function submitHardlinkQuery() {
       files: [hardlinkConfigForm.value.path],
       dir: hardlinkConfigForm.value.dir || undefined,
     });
-    hardlinkResult.value = res || {};
+    hardlinkResult.value = (res || {}) as any;
     hardlinkModalShow.value = true;
   } catch (err: any) {
     notification.error({ content: '查询失败', description: err?.message || '' });

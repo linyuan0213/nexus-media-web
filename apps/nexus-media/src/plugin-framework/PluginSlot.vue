@@ -8,7 +8,7 @@ import { computed } from 'vue';
 import { NCard, NEmpty } from 'naive-ui';
 import { IconifyIcon } from '@vben/icons';
 
-import { getSlotComponents, type SlotComponent } from '#/plugin-framework/loader';
+import { getSlotComponents } from '#/plugin-framework/loader';
 
 const props = defineProps<{
   target: string;

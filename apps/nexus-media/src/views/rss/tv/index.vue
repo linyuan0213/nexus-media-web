@@ -36,7 +36,6 @@ import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
 import type { SubscribeEditItem } from '#/components/subscribe/SubscribeEditModal.vue';
-import { IconifyIcon } from '@vben/icons';
 import { useSubscriptionStore } from '#/store';
 
 const subscriptionStore = useSubscriptionStore();
@@ -66,12 +65,6 @@ function getFilterRuleLabel(val: any): string {
   return filterRuleMap.value[s] || s;
 }
 
-function formatSeason(season: string | number | undefined): string {
-  if (!season || season === 'S00') return '';
-  const n = Number(String(season).replace(/^S/i, ''));
-  if (Number.isNaN(n) || n <= 0) return '';
-  return `S${String(n).padStart(2, '0')}`;
-}
 function getDownloadSettingLabel(val: any): string {
   if (val == null || val === '' || val === '-1') return '';
   const s = String(val);
@@ -362,15 +355,6 @@ async function confirmDelete() {
     await fetchData();
   }
 }
-async function handleRefresh(item: any) {
-  try {
-    await refreshSubscriptionApi('tv', String(item.id));
-    notification.success({ content: '已触发刷新' });
-  } catch (err: any) {
-    notification.error({ content: '刷新失败', description: err?.message || '' });
-  }
-}
-
 let addSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
 function openAddModal() {

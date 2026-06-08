@@ -66,7 +66,7 @@ const syncGroups = computed<SyncGroup[]>(() => {
   }
   return Array.from(map.entries()).map(([source, items]) => ({
     source,
-    src_backend: items[0]?.src_backend || items[0]?.src_backend_id || 'local',
+    src_backend: items[0]?.src_backend || 'local',
     items,
   }));
 });
@@ -161,12 +161,12 @@ function openEdit(item: SyncTask) {
     form: {
       sid: item.id,
       source: item.from || item.source || '',
-      dest: item.to || item.dest || item.target || '',
+      dest: item.to || item.target || '',
       unknown: item.unknown || '',
       mode: item.syncmod || item.mode || 'copy',
       operation: item.operation || item.syncmod || item.mode || 'copy',
       src_backend: item.src_backend || 'local',
-      dst_backend: item.dst_backend || item.dst_backend_id || 'local',
+      dst_backend: item.dst_backend || 'local',
       compatibility: item.compatibility ? 1 : 0,
       rename: item.rename || item.renamer ? 1 : 0,
       enabled: item.enabled ? 1 : 0,
@@ -177,9 +177,9 @@ function openEdit(item: SyncTask) {
 async function save() {
   const f = drawer.value.form;
   await saveSyncTaskApi({
-    sid: f.sid,
+    id: f.sid,
     source: f.source,
-    dest: f.dest,
+    target: f.dest,
     unknown: f.unknown,
     mode: f.mode,
     operation: f.operation,
@@ -358,9 +358,9 @@ onMounted(fetch);
                   <span
                     class="inline-flex items-center justify-center px-2 py-0.5 rounded-md text-xs font-semibold text-center"
                     style="width: 80px"
-                    :style="backendTagStyle(item.dst_backend || item.dst_backend_id || 'local')"
+                    :style="backendTagStyle(item.dst_backend || 'local')"
                   >
-                    {{ backendOptions.find((b: any) => b.value === (item.dst_backend || item.dst_backend_id || 'local'))?.label || '本地' }}
+                    {{ backendOptions.find((b: any) => b.value === (item.dst_backend || 'local'))?.label || '本地' }}
                   </span>
                   <!-- 同步方式 -->
                   <span
@@ -380,9 +380,9 @@ onMounted(fetch);
                 <span
                   class="text-sm truncate font-mono flex-1"
                   style="color: hsl(var(--foreground))"
-                  :title="item.to || item.dest || item.target"
+                  :title="item.to || item.target"
                 >
-                  {{ item.to || item.dest || item.target || '自动' }}
+                  {{ item.to || item.target || '自动' }}
                 </span>
               </div>
               <div class="flex items-center gap-1 flex-shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">

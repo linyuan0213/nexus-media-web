@@ -11,7 +11,6 @@ import {
   NSpace,
   NSpin,
   NSelect,
-  NTag,
   NTooltip,
   useMessage,
 } from 'naive-ui';
@@ -433,13 +432,15 @@ onMounted(fetchData);
         <div class="grid grid-cols-2 gap-3">
           <NFormItem label="上传速度限制 (KB/s)">
             <NInput
-              v-model:value="editing.upload_limit"
+              :value="editing.upload_limit?.toString() ?? ''"
+              @update:value="(v: string) => editing.upload_limit = v ? Number(v) : undefined"
               placeholder="0 为不限速"
             />
           </NFormItem>
           <NFormItem label="下载速度限制 (KB/s)">
             <NInput
-              v-model:value="editing.download_limit"
+              :value="editing.download_limit?.toString() ?? ''"
+              @update:value="(v: string) => editing.download_limit = v ? Number(v) : undefined"
               placeholder="0 为不限速"
             />
           </NFormItem>
@@ -448,13 +449,15 @@ onMounted(fetchData);
         <div class="grid grid-cols-2 gap-3">
           <NFormItem label="分享率限制">
             <NInput
-              v-model:value="editing.ratio_limit"
+              :value="editing.ratio_limit?.toString() ?? ''"
+              @update:value="(v: string) => editing.ratio_limit = v ? Number(v) : undefined"
               placeholder="0 为无限制"
             />
           </NFormItem>
           <NFormItem label="做种时间限制 (分钟)">
             <NInput
-              v-model:value="editing.seeding_time_limit"
+              :value="editing.seeding_time_limit?.toString() ?? ''"
+              @update:value="(v: string) => editing.seeding_time_limit = v ? Number(v) : undefined"
               placeholder="0 为无限制"
             />
           </NFormItem>

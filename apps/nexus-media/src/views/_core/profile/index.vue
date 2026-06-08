@@ -50,7 +50,7 @@ async function handleAvatarUpload(event: Event) {
       userStore.setUserInfo({
         ...userStore.userInfo,
         avatar: url,
-      });
+      } as any);
       // 刷新后端用户信息
       const infoRes: any = await getUserInfoApi();
       const data = infoRes?.data ?? infoRes ?? {};

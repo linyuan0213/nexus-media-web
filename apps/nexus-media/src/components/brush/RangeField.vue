@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { computed } from 'vue';
 import { NSelect, NInput } from 'naive-ui';
 
 interface OperatorOption {
   label: string;
   value: string;
+  type?: string;
 }
 
 const props = defineProps<{
@@ -50,7 +51,7 @@ function handleValueChange(val: string) {
   <div class="range-field">
     <NSelect
       :value="operator"
-      :options="options"
+      :options="options as any"
       @update:value="handleOperatorChange"
       class="range-operator"
       size="small"

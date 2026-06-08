@@ -6,7 +6,6 @@ import type { RouteRecordRaw } from 'vue-router';
 
 import { h, reactive, type Component } from 'vue';
 
-import { useAccessStore } from '@vben/stores';
 import { IconifyIcon } from '@vben/icons';
 
 import { router } from '#/router';
@@ -203,7 +202,9 @@ function registerPluginSlots(plugin: PluginManifestFrontend) {
         pluginId: plugin.id,
         componentName: slot.component,
         name: plugin.name,
+        // @ts-ignore
         icon: plugin.icon || 'lucide:puzzle',
+        // @ts-ignore
         color: plugin.color,
       });
       slotRegistry[slot.target] = list;
@@ -321,6 +322,7 @@ export function unloadPluginFrontend(pluginId: string): void {
   // 移除插槽
   for (const target of Object.keys(slotRegistry)) {
     const list = slotRegistry[target];
+    if (!list) continue;
     const filtered = list.filter((s) => s.pluginId !== pluginId);
     if (filtered.length !== list.length) {
       slotRegistry[target] = filtered;

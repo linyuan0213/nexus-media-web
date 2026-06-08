@@ -1,13 +1,12 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue';
 
-import { NButton, NCard, NEmpty, NSpin, NSpace, NPagination, NTooltip, useMessage } from 'naive-ui';
+import { NButton, NCard, NSpin, NSpace, NPagination, NTooltip, useMessage } from 'naive-ui';
 
 import { IconifyIcon } from '@vben/icons';
 
 import { getDownloadHistoryApi } from '#/api';
 import EmptyState from '#/components/empty/EmptyState.vue';
-import PageHeader from '#/components/page/PageHeader.vue';
 import { useDownloadStore } from '#/store';
 
 const downloadStore = useDownloadStore();

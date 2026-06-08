@@ -89,19 +89,6 @@ function getFaviconFallback(name: string): string {
   return `https://www.google.com/s2/favicons?domain=${name.toLowerCase()}.com&sz=64`;
 }
 
-function getFaviconExternalUrl(name: string): string {
-  const domainMap: Record<string, string> = {
-    '0magnet': '0magnet.com',
-    '1377x': 'www.1377x.to',
-    'acgrip': 'acg.rip',
-    'dmhy': 'dmhy.org',
-    'mikanani': 'mikanani.me',
-    'nyaa': 'nyaa.si',
-  };
-  const domain = domainMap[name.toLowerCase()] || `${name.toLowerCase()}.com`;
-  return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-}
-
 function handleOpenSiteDetail(row: StatisticsItem) {
   siteDetailName.value = row.site_name;
   siteDetailModalShow.value = true;
@@ -293,20 +280,20 @@ function getColumns(isMobile: boolean): any[] {
       key: 'user_level',
       width: isMobile ? 60 : 80,
       render(row: StatisticsItem) {
-        return row.user_level || '-';
+        return (row as any).user_level || '-';
       },
     },
     {
       title: '上传',
       key: 'upload',
       width: isMobile ? 90 : 110,
-      sorter: (a, b) => parseSize(a.upload) - parseSize(b.upload),
+      sorter: (a: StatisticsItem, b: StatisticsItem) => parseSize(a.upload) - parseSize(b.upload),
     },
     {
       title: '下载',
       key: 'download',
       width: isMobile ? 90 : 110,
-      sorter: (a, b) => parseSize(a.download) - parseSize(b.download),
+      sorter: (a: StatisticsItem, b: StatisticsItem) => parseSize(a.download) - parseSize(b.download),
     },
     {
       title: '分享率',
@@ -320,13 +307,13 @@ function getColumns(isMobile: boolean): any[] {
         else if (ratio > 0) type = 'error';
           return h(NTag, { size: 'small', type }, () => row.ratio);
         },
-        sorter: (a, b) => parseFloat(a.ratio) - parseFloat(b.ratio),
+        sorter: (a: StatisticsItem, b: StatisticsItem) => parseFloat(a.ratio) - parseFloat(b.ratio),
       },
     {
       title: '做种',
       key: 'seeding_count',
       width: isMobile ? 70 : 85,
-      sorter: (a, b) => (a.seeding_count || 0) - (b.seeding_count || 0),
+      sorter: (a: StatisticsItem, b: StatisticsItem) => (a.seeding_count || 0) - (b.seeding_count || 0),
     },
   ];
 
@@ -340,7 +327,7 @@ function getColumns(isMobile: boolean): any[] {
       title: '魔力值',
       key: 'bonus',
       width: 100,
-      sorter: (a, b) => parseFloat(a.bonus) - parseFloat(b.bonus),
+      sorter: (a: StatisticsItem, b: StatisticsItem) => parseFloat(a.bonus) - parseFloat(b.bonus),
     },
     {
       title: '消息',

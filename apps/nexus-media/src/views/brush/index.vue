@@ -114,9 +114,9 @@ async function fetchData() {
       getBrushTasksApi(),
       getBrushRulesApi(),
     ]);
-    const list = Array.isArray(taskRes) ? taskRes : (taskRes?.data || []);
+    const list = Array.isArray(taskRes) ? taskRes : ((taskRes as any)?.data || []);
     tasks.value = list;
-    const rules = Array.isArray(ruleRes) ? ruleRes : (ruleRes?.data || []);
+    const rules = Array.isArray(ruleRes) ? ruleRes : ((ruleRes as any)?.data || []);
     brushRules.value = rules;
     await refreshTaskCounts(list);
   } finally {
@@ -247,12 +247,6 @@ function getStateLabel(state?: string) {
   return '未知';
 }
 
-function getFreeType(free?: string) {
-  if (!free || free === 'FREE') return 'success';
-  if (free === '2XFREE') return 'warning';
-  return 'default';
-}
-
 function getFreeLabel(free?: string) {
   if (!free) return '全部';
   if (free === 'FREE') return '免费';
@@ -289,7 +283,7 @@ function getDownloaderName(did?: string | number): string {
   return d?.label || id;
 }
 
-function getActionOptions(row: BrushApi.BrushTask) {
+function getActionOptions() {
   return [
     { label: '立即运行', key: 'run', icon: () => h(IconifyIcon, { icon: 'lucide:zap', class: 'h-4 w-4' }) },
     { label: '查看详情', key: 'detail', icon: () => h(IconifyIcon, { icon: 'lucide:eye', class: 'h-4 w-4' }) },
@@ -552,7 +546,7 @@ onMounted(() => {
             </NButton>
             <NDropdown
               trigger="click"
-              :options="getActionOptions(task)"
+              :options="getActionOptions()"
               @select="(key: string) => handleActionSelect(key, task)"
             >
               <NButton size="small" text>

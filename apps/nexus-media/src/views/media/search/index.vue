@@ -8,7 +8,6 @@ import {
   NEmpty,
   NInput,
   NSelect,
-  NSpace,
   NSpin,
   NTag,
   NProgress,
@@ -438,7 +437,7 @@ function episodeKeyMatches(seKey: string, episode: string): boolean {
   const m = seKey.match(/E(\d+)(?:-E?(\d+))?$/i);
   if (!m) return false;
   const target = parseInt(episode.replace(/^E/i, ''), 10);
-  const start = parseInt(m[1], 10);
+  const start = parseInt(m[1] || '', 10);
   const end = m[2] ? parseInt(m[2], 10) : start;
   return target >= start && target <= end;
 }

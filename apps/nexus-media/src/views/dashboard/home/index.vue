@@ -2,7 +2,6 @@
 import { computed, onMounted, ref } from 'vue';
 
 import { NCard, NEmpty, NSpin } from 'naive-ui';
-import { useUserStore } from '@vben/stores';
 
 import {
   getDashboardBrushTasksApi,
@@ -23,7 +22,6 @@ import TransferLineChart from './components/TransferLineChart.vue';
 import WelcomeHeader from './components/WelcomeHeader.vue';
 import { PluginSlot } from '#/plugin-framework';
 
-const userStore = useUserStore();
 const loading = ref(true);
 
 // 系统状态
@@ -132,7 +130,7 @@ function parseSizeToBytes(size?: number | string): number {
   if (typeof size === 'number') return size;
   const match = size.match(/^(\d+\.?\d*)\s*([KMGTPE]?B|TiB|GiB|MiB|KiB)?$/i);
   if (!match) return 0;
-  const num = parseFloat(match[1]);
+  const num = parseFloat(match[1] || '');
   if (!Number.isFinite(num)) return 0;
   const unit = (match[2] || 'B').toUpperCase().replace(/IB$/, 'B');
   const multipliers: Record<string, number> = { B: 1, KB: 1024, MB: 1024 ** 2, GB: 1024 ** 3, TB: 1024 ** 4, PB: 1024 ** 5, EB: 1024 ** 6 };
@@ -169,20 +167,20 @@ async function fetchData() {
       getDashboardSchedulerJobsApi(),
     ]);
 
-    systemStatus.value = sysRes;
-    const mc = libRes.MediaCount || {};
+    systemStatus.value = sysRes as any;
+    const mc = (libRes as any)?.media_counts || {};
     libraryData.value = {
       media_counts: {
-        Movie: mc.MovieCount || 0,
-        Series: mc.SeriesCount || 0,
-        Music: mc.SongCount || 0,
-        Episodes: mc.EpisodeCount || 0,
-        User: libRes.UserCount || 0,
+        Movie: mc.Movie || 0,
+        Series: mc.Series || 0,
+        Music: mc.Music || 0,
+        Episodes: mc.Episodes || 0,
+        User: mc.User || 0,
       },
-      library_spaces: libRes.LibrarySpaces || {},
+      library_spaces: ((libRes as any)?.library_spaces || {}) as any,
     };
     transferStats.value = transferRes;
-    siteStats.value = siteRes || [];
+    siteStats.value = (siteRes || []) as any;
     indexerStats.value = indexerRes;
     brushTasks.value = brushRes || [];
     schedulerJobs.value = jobRes || [];

@@ -61,7 +61,7 @@ const editingClient = ref<Partial<MessageClient>>({});
 const editingType = ref('');
 const editingConfig = ref<Record<string, any>>({});
 const editingSwitchs = ref<string[]>([]);
-const editingTemplateMap = ref<Record<string, { title: string; text: string }>>({});
+const editingTemplateMap = ref<Record<string, any>>({});
 const defaultTemplates = ref<Record<string, { title: string; text: string }>>({});
 function channelIcon(type?: string): string {
   return type ? `/static/img/message/${type}.png` : '';
@@ -77,18 +77,6 @@ const customClients = ref<string[]>([]);
 
 const clientList = computed(() => Object.values(clients.value));
 const enabledClients = computed(() => clientList.value.filter((c) => c.enabled === 1));
-
-const switchCategories = [
-  { key: 'download', label: '下载', color: 'bg-blue-500' },
-  { key: 'transfer', label: '入库', color: 'bg-orange-500' },
-  { key: 'rss', label: '订阅', color: 'bg-indigo-500' },
-  { key: 'site', label: '站点', color: 'bg-purple-500' },
-  { key: 'brush', label: '刷流', color: 'bg-pink-500' },
-  { key: 'ptrefresh', label: '统计', color: 'bg-teal-500' },
-  { key: 'auto_remove', label: '删种', color: 'bg-green-500' },
-  { key: 'mediaserver', label: '媒体', color: 'bg-sky-500' },
-  { key: 'custom', label: '插件', color: 'bg-gray-500' },
-];
 
 function getSwitchColorClass(swid: string): string {
   if (swid.includes('download')) return 'bg-blue-100 text-blue-700 border-blue-200';
@@ -112,9 +100,9 @@ async function fetchData() {
     ]);
 
     // AxiosResponse 中提取实际响应体
-    const clientData = clientRes?.data ?? clientRes;
-    const configData = configRes?.data ?? configRes;
-    const templatesData = templatesRes?.data ?? templatesRes;
+    const clientData: any = clientRes;
+    const configData: any = configRes;
+    const templatesData: any = templatesRes;
 
     // 处理客户端列表
     if (clientData?.code === 0 && clientData.data !== undefined) {

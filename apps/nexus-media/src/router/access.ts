@@ -27,7 +27,7 @@ async function generateAccess(options: GenerateMenuAndRoutesOptions) {
       message.loading(`${$t('common.loadingMenu')}...`, {
         duration: 1.5,
       });
-      return await getUserMenusApi();
+      return (await getUserMenusApi()) as any;
     },
     forbiddenComponent,
     layoutMap,

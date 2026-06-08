@@ -68,17 +68,17 @@ function buildOption() {
     ],
     tooltip: {
       formatter: '{b}: {c} ({d}%)',
-      trigger: 'item',
+      trigger: 'item' as const,
     },
   };
 }
 
 onMounted(() => {
-  renderEcharts(buildOption());
+  renderEcharts(buildOption() as any);
 });
 
 watch(() => props.data, () => {
-  renderEcharts(buildOption());
+  renderEcharts(buildOption() as any);
 }, { deep: true });
 </script>
 

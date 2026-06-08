@@ -68,12 +68,6 @@ const form = ref<BrushTaskFormData>(defaultForm());
 
 const isEdit = computed(() => !!props.task?.id);
 
-const stateOptions = [
-  { label: '启用', value: 'Y' },
-  { label: '停止下载新种', value: 'S' },
-  { label: '停用', value: 'N' },
-];
-
 const brushRules = ref<Array<{ label: string; value: number }>>([]);
 const ruleLoading = ref(false);
 
@@ -124,7 +118,7 @@ watch(() => props.task, async (task) => {
 
 const rules = {
   brushtask_name: { required: true, message: '请输入任务名称', trigger: 'blur' },
-  brushtask_rule_id: { required: true, message: '请选择规则模板', trigger: 'change', type: 'number' },
+  brushtask_rule_id: { required: true, message: '请选择规则模板', trigger: 'change' },
   brushtask_site: { required: true, message: '请选择站点', trigger: 'change' },
   brushtask_interval: { required: true, message: '请输入执行周期', trigger: 'blur' },
   brushtask_downloader: { required: true, message: '请选择下载器', trigger: 'change' },

@@ -3,15 +3,12 @@ import { ref, onMounted, computed } from 'vue';
 
 import {
   NButton,
-  NCard,
   NCheckbox,
   NCheckboxGroup,
-  NEmpty,
   NInput,
   NModal,
   NSelect,
   NSpace,
-  NSpin,
   useMessage,
 } from 'naive-ui';
 import { IconifyIcon } from '@vben/icons';
@@ -23,19 +20,16 @@ import {
   clearTransferBlacklistApi,
   truncateSubscriptionHistoryApi,
   netTestApi,
-  backupApi,
   getFilterRulesApi,
   getSyncTasksApi,
 } from '#/api';
 import { requestClient } from '#/api/request';
 import { useAccessStore } from '@vben/stores';
 import PageHeader from '#/components/page/PageHeader.vue';
-import EmptyState from '#/components/empty/EmptyState.vue';
 import IdentifyResult from '#/components/media/IdentifyResult.vue';
 
 const message = useMessage();
 
-const loading = ref(false);
 const systemInfo = ref<any>(null);
 const runningIds = ref<Set<string>>(new Set());
 
@@ -200,7 +194,7 @@ async function handleServiceClick(svc: ServiceItem) {
       break;
 
     case 'backup':
-      handleBackup();
+      openModal('backup');
       break;
   }
 }
@@ -280,7 +274,7 @@ async function fetchCommands() {
 async function fetchFilterGroups() {
   try {
     const res = await getFilterRulesApi();
-    const data = Array.isArray(res) ? res : (res?.data || []);
+    const data = Array.isArray(res) ? res : ((res as any)?.data || []);
     filterGroups.value = data.map((g: any) => ({ id: g.id, name: g.name }));
   } catch (e: any) {
     message.error(e?.message || '获取规则组失败');
@@ -299,15 +293,6 @@ async function fetchSyncPaths() {
     })).filter((p) => p.from);
   } catch (e: any) {
     message.error(e?.message || '获取同步目录失败');
-  }
-}
-
-function toggleSyncId(id: string) {
-  const idx = selectedSyncIds.value.indexOf(id);
-  if (idx > -1) {
-    selectedSyncIds.value.splice(idx, 1);
-  } else {
-    selectedSyncIds.value.push(id);
   }
 }
 
@@ -443,16 +428,16 @@ function handleFileDrop(e: DragEvent) {
   isDragging.value = false;
   const files = e.dataTransfer?.files;
   if (files && files.length > 0) {
-    backupFile.value = files[0];
-    uploadBackupFile(files[0]);
+    backupFile.value = files[0] || null;
+    if (files[0]) uploadBackupFile(files[0]);
   }
 }
 
 function handleFileSelect(e: Event) {
   const target = e.target as HTMLInputElement;
   if (target.files && target.files.length > 0) {
-    backupFile.value = target.files[0];
-    uploadBackupFile(target.files[0]);
+    backupFile.value = target.files[0] || null;
+    if (target.files[0]) uploadBackupFile(target.files[0]);
   }
 }
 
@@ -839,7 +824,7 @@ onMounted(() => {
           @dragenter.prevent="isDragging = true"
           @dragleave.prevent="isDragging = false"
           @drop.prevent="handleFileDrop"
-          @click="$refs.backupInput?.click()"
+          @click="($refs.backupInput as any)?.click()"
         >
           <input
             ref="backupInput"

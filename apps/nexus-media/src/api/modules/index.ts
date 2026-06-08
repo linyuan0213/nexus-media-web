@@ -4,7 +4,7 @@ export * from './dashboard';
 export * from './download';
 export * from './filter';
 export * from './media';
-export * from './plugin';
+export type { PluginApi } from './plugin';
 export * from './plugin_framework';
 export * from './rbac';
 export * from './subscription';

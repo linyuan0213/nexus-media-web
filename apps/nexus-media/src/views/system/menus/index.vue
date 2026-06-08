@@ -9,7 +9,6 @@ import { IconifyIcon } from '@vben/icons';
 
 import {
   NButton,
-  NCard,
   NDrawer,
   NDrawerContent,
   NForm,
@@ -67,7 +66,7 @@ const menus = ref<MenuItem[]>([]);
 const loading = ref(false);
 const drawerShow = ref(false);
 const drawerTitle = ref('');
-const editingMenu = ref<Partial<MenuItem>>({});
+const editingMenu = ref<Partial<MenuItem> & { parent_id?: string | number }>({});
 const selectedMenu = ref<MenuItem | null>(null);
 const selectedKeys = ref<string[]>([]);
 
@@ -112,7 +111,7 @@ function handleAdd(parentId?: number) {
     id: 0,
     menu_name: '',
     menu_code: '',
-    parent_id: parentId ? String(parentId) : undefined,
+    parent_id: parentId as any,
     path: '',
     icon: '',
     component: '',
@@ -128,7 +127,7 @@ function handleAdd(parentId?: number) {
 function handleEdit(menu: MenuItem) {
   editingMenu.value = {
     ...menu,
-    parent_id: menu.parent_id ? String(menu.parent_id) : undefined,
+    parent_id: menu.parent_id as any,
   };
   drawerTitle.value = '编辑菜单';
   drawerShow.value = true;
@@ -157,7 +156,7 @@ async function handleSave() {
   if (!data.menu_name || !data.menu_code) return;
   const payload = {
     ...data,
-    parent_id: data.parent_id ? Number(data.parent_id) : null,
+    parent_id: data.parent_id ? Number(data.parent_id) : undefined,
     sort_order: Number(data.sort_order) || 0,
   };
   if (data.id) {
@@ -209,9 +208,11 @@ function findSiblingsAndIndex(
   nodes: TreeOption[],
 ): [TreeOption[], number] | [null, null] {
   for (let i = 0; i < nodes.length; i++) {
-    if (nodes[i].key === key) return [nodes, i];
-    if (nodes[i].children) {
-      const result = findSiblingsAndIndex(key, nodes[i].children!);
+    const node = nodes[i];
+    if (!node) continue;
+    if (node.key === key) return [nodes, i];
+    if (node.children) {
+      const result = findSiblingsAndIndex(key, node.children);
       if (result[0] !== null) return result;
     }
   }
@@ -222,7 +223,7 @@ function findSiblingsAndIndex(
 function removeNodeByKey(nodes: TreeOption[], key: string): TreeOption | null {
   const [siblings, index] = findSiblingsAndIndex(key, nodes);
   if (siblings !== null && index !== null) {
-    return siblings.splice(index, 1)[0];
+    return siblings.splice(index, 1)[0] ?? null;
   }
   return null;
 }
@@ -257,14 +258,14 @@ function traverseAndAssign(
   nodes: TreeOption[],
   parentId: number | undefined,
   startOrder: number,
-): Array<{ id: number; sort_order: number; parent_id: number | null }> {
-  const updates: Array<{ id: number; sort_order: number; parent_id: number | null }> = [];
+): Array<{ id: number; sort_order: number; parent_id: number | undefined }> {
+  const updates: Array<{ id: number; sort_order: number; parent_id: number | undefined }> = [];
   let order = startOrder;
   for (const node of nodes) {
     const menu = node.menu as MenuItem;
     menu.parent_id = parentId;
     menu.sort_order = order;
-    updates.push({ id: menu.id, sort_order: order, parent_id: parentId ?? null });
+    updates.push({ id: menu.id, sort_order: order, parent_id: parentId });
     order++;
     if (node.children && node.children.length > 0) {
       const childUpdates = traverseAndAssign(node.children, menu.id, order);
@@ -428,7 +429,7 @@ onMounted(fetchData);
                   style="background: hsl(var(--accent))"
                 >
                   <IconifyIcon
-                    :icon="selectedMenu.meta?.icon || selectedMenu.icon"
+                    :icon="(selectedMenu.meta?.icon || selectedMenu.icon || '') as string"
                     class="size-5"
                     style="color: hsl(var(--accent-foreground))"
                   />

@@ -206,7 +206,7 @@ function handleItemAction(key: string, item: any) {
       del_dest: '删除媒体库文件',
       del_all: '删除源及媒体库文件',
     };
-    deletePayload.value = { logids: [item.ID], flag: key === 'del_log' ? '' : key, label: labels[key] };
+    deletePayload.value = { logids: [item.ID], flag: key === 'del_log' ? '' : key, label: labels[key] ?? '' };
     deleteModalShow.value = true;
   }
 }
@@ -222,7 +222,7 @@ function handleBulkAction(key: string) {
     del_dest: '删除媒体库文件',
     del_all: '删除源及媒体库文件',
   };
-  deletePayload.value = { logids: [...selectedIds.value], flag: key === 'del_log' ? '' : key, label: labels[key] };
+  deletePayload.value = { logids: [...selectedIds.value], flag: key === 'del_log' ? '' : key, label: labels[key] ?? '' };
   deleteModalShow.value = true;
 }
 

@@ -143,7 +143,7 @@ onMounted(fetchPlugins);
               :key="opt.key"
               class="status-filter-btn"
               :class="{ active: statusFilter === opt.key }"
-              @click="statusFilter = opt.key"
+              @click="statusFilter = opt.key as 'all' | 'enabled' | 'disabled'"
             >
               <span>{{ opt.label }}</span>
             </button>

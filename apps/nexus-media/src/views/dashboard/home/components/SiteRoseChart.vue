@@ -21,7 +21,7 @@ function buildOption() {
       itemGap: 8,
       left: 'center',
       textStyle: { fontSize: 11 },
-      type: 'scroll',
+      type: 'scroll' as const,
     },
     series: [
       {
@@ -68,17 +68,17 @@ function buildOption() {
     ],
     tooltip: {
       formatter: '{b}: {c}',
-      trigger: 'item',
+      trigger: 'item' as const,
     },
   };
 }
 
 onMounted(() => {
-  renderEcharts(buildOption());
+  renderEcharts(buildOption() as any);
 });
 
 watch(() => props.data, () => {
-  renderEcharts(buildOption());
+  renderEcharts(buildOption() as any);
 }, { deep: true });
 </script>
 

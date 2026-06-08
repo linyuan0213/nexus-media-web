@@ -69,10 +69,6 @@ const scraperConfig = ref({
   },
 });
 
-// 自定义脚本模态框
-const scriptModal = ref(false);
-const customScript = ref({ css: '', javascript: '' });
-
 async function fetchData() {
   loading.value = true;
   try {
@@ -162,12 +158,6 @@ function saveMedia() {
   saveSection('media', data);
 }
 
-const providerOptions = [
-  { label: 'OpenAI / DeepSeek 兼容', value: 'openai' },
-  { label: 'Ollama (本地)', value: 'ollama' },
-  { label: 'Gemini', value: 'gemini' },
-];
-
 function currentProviderName(): string {
   return config.value['agent.default_provider'] || 'openai';
 }
@@ -247,12 +237,6 @@ async function saveScraper() {
   message.success('刮削设置已保存');
 }
 
-async function saveUserScript() {
-  // await saveUserScriptApi(customScript.value);
-  scriptModal.value = false;
-  message.success('自定义脚本已保存');
-}
-
 // 站点配置更新
 const siteConfigVersion = ref({ local: '', remote: '', needs_update: false });
 const updatingSiteConfig = ref(false);
@@ -283,7 +267,7 @@ async function handleUpdateSiteConfig() {
 async function handleReloadConfig() {
   reloadingConfig.value = true;
   try {
-    const data = await reloadConfigApi();
+    const data: any = await reloadConfigApi();
     if (data && Object.values(data.steps || {}).every(Boolean)) {
       message.success(`配置重载成功 (v${data.version})`);
     } else {

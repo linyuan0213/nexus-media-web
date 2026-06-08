@@ -71,7 +71,7 @@ function buildOption() {
       axisLine: { show: false },
       axisTick: { show: false },
       data: props.labels,
-      type: 'category',
+      type: 'category' as const,
     },
     yAxis: {
       axisLine: { show: false },
@@ -91,11 +91,11 @@ function buildOption() {
 }
 
 onMounted(() => {
-  renderEcharts(buildOption());
+  renderEcharts(buildOption() as any);
 });
 
 watch(() => [props.labels, props.uploadData, props.downloadData], () => {
-  renderEcharts(buildOption());
+  renderEcharts(buildOption() as any);
 }, { deep: true });
 </script>
 

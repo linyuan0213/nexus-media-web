@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, h, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 import {
   NButton,
@@ -119,10 +119,6 @@ async function fetchData() {
   }
 }
 
-function getDownloaderType(did: string) {
-  return downloaders.value.find((d) => d.id === did)?.type || '';
-}
-
 function toggleExpand(id: string | number) {
   if (expandedIds.value.has(id)) {
     expandedIds.value.delete(id);
@@ -193,8 +189,6 @@ async function handleSave() {
 
   editLoading.value = true;
   try {
-    const downloaderType = getDownloaderType(String(d.downloader));
-
     const payload: Record<string, any> = {
       tid: d.id || '',
       name: d.name,

@@ -70,7 +70,7 @@ watch(() => [props.show, props.pluginId], () => {
   <NDrawer v-model:show="visible" :width="500" placement="right">
     <NDrawerContent :title="`插件日志`" closable
 >
-      <template #header-extra>
+      <template #header>
         <NPopconfirm @positive-click="handleClear">
           <template #trigger>
             <NButton size="tiny" type="error">

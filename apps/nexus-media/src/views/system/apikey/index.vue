@@ -268,7 +268,6 @@ import { useMessage } from 'naive-ui';
 import { IconifyIcon } from '@vben/icons';
 import {
   NButton,
-  NCard,
   NDataTable,
   NForm,
   NFormItem,
@@ -314,7 +313,7 @@ const expiresOptions = [
   { label: '90 天', value: 90 },
   { label: '1 年', value: 365 },
   { label: '永久', value: null },
-];
+] as any[];
 
 const showEditModal = ref(false);
 const editFormRef = ref<any>(null);
@@ -364,7 +363,7 @@ const logColumns = [
   { title: '来源', key: 'source_ip', width: 130, render(row: any) { return row.source_ip || '-'; } },
   { title: '时间', key: 'request_at', width: 160, render(row: any) { return formatTime(row.request_at); } },
   {
-    title: '状态', key: 'status', width: 70, align: 'center',
+    title: '状态', key: 'status', width: 70, align: 'center' as const,
     render(row: any) {
       return h(NTag, { type: row.status === 1 ? 'success' : 'error', size: 'small' }, { default: () => row.status === 1 ? '成功' : '失败' });
     },

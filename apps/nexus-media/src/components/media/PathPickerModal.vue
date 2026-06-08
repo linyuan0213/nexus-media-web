@@ -86,7 +86,7 @@ function goUp() {
   const parts = norm.split('/').filter(Boolean);
   parts.pop();
   const parent = parts.length > 0 ? '/' + parts.join('/') : '/';
-  navigateTo(parent === '/' ? undefined : parent);
+  navigateTo(parent === '/' ? '' : parent);
 }
 
 function switchBackend(backendId: string) {
@@ -146,7 +146,7 @@ watch(
 
       <!-- 面包屑 -->
       <div class="picker-breadcrumb">
-        <span class="breadcrumb-root" @click="navigateTo(undefined)">根目录</span>
+        <span class="breadcrumb-root" @click="navigateTo('')">根目录</span>
         <template v-for="(crumb, index) in breadcrumbs" :key="crumb.path">
           <span class="breadcrumb-separator">/</span>
           <span
