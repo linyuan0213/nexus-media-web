@@ -133,7 +133,7 @@ function getPosterUrl(path?: string) {
 }
 
 function getTmdbUrl(item: any) {
-  return item.media_type === '电影'
+  return item.media_type === 'movie'
     ? `https://www.themoviedb.org/movie/${item.tmdb_id}`
     : `https://www.themoviedb.org/tv/${item.tmdb_id}`;
 }
@@ -243,7 +243,7 @@ onMounted(() => fetchData(1));
                 <div class="blacklist-meta">
                   <span class="blacklist-tag">
                     <IconifyIcon
-                      :icon="item.media_type === '电影' ? 'lucide:film' : 'lucide:tv'"
+                      :icon="item.media_type === 'movie' ? 'lucide:film' : 'lucide:tv'"
                       class="size-3 inline mr-1"
                     />
                     {{ item.media_type }}

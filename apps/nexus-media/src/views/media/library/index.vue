@@ -121,7 +121,7 @@ function showStats() {
 }
 
 function getTypeColor(type: string) {
-  return type === '电影' ? 'bg-green-500' : 'bg-blue-500';
+  return type === 'movie' ? 'bg-green-500' : 'bg-blue-500';
 }
 
 function getTypeLabel(type: string) {

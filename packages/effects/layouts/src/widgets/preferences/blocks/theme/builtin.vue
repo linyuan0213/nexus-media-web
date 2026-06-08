@@ -58,7 +58,6 @@ function typeView(name: BuiltinThemeType) {
     case 'green': {
       return $t('preferences.theme.builtin.green');
     }
-
     case 'neutral': {
       return $t('preferences.theme.builtin.neutral');
     }
@@ -104,7 +103,7 @@ function selectColor() {
 
 watch(
   () => [modelValue.value, props.isDark] as [BuiltinThemeType, boolean],
-  ([themeType, isDark], [_, isDarkPrev]) => {
+  ([themeType, isDark]) => {
     const theme = builtinThemePresets.value.find(
       (item) => item.type === themeType,
     );
@@ -113,9 +112,7 @@ watch(
         ? theme.darkPrimaryColor || theme.primaryColor
         : theme.primaryColor;
 
-      if (!(theme.type === 'custom' && isDark !== isDarkPrev)) {
-        themeColorPrimary.value = primaryColor || theme.color;
-      }
+      themeColorPrimary.value = primaryColor || theme.color;
     }
   },
 );
@@ -129,7 +126,7 @@ watch(
           :class="{
             'outline-box-active': theme.type === modelValue,
           }"
-          class="outline-box flex-center group cursor-pointer"
+          class="group outline-box flex-center cursor-pointer"
         >
           <template v-if="theme.type !== 'custom'">
             <div
@@ -139,9 +136,9 @@ watch(
           </template>
           <template v-else>
             <div class="size-full px-9 py-2" @click.stop="selectColor">
-              <div class="flex-center relative size-5 rounded-sm">
+              <div class="relative flex-center size-5 rounded-sm">
                 <UserRoundPen
-                  class="z-1 absolute size-5 opacity-60 group-hover:opacity-100"
+                  class="absolute z-1 size-5 opacity-60 group-hover:opacity-100"
                 />
                 <input
                   ref="colorInput"
@@ -154,7 +151,7 @@ watch(
             </div>
           </template>
         </div>
-        <div class="text-muted-foreground my-2 text-center text-xs">
+        <div class="my-2 text-center text-xs text-muted-foreground">
           {{ typeView(theme.type) }}
         </div>
       </div>

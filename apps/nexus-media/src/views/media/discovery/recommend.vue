@@ -79,7 +79,7 @@ async function loadItems(page: number, append = false) {
 function handleCardClick(item: RecommendItem) {
   const mediaId = item.tmdbid || item.id;
   if (!mediaId) return;
-  const typeParam = item.type || item.media_type || 'MOV';
+  const typeParam = item.type || item.media_type || 'movie';
   router.push({
     name: 'MediaDetail',
     query: {
@@ -103,11 +103,11 @@ async function handleSearch(item: RecommendItem, e: Event) {
   }
 }
 
-function normalizeMediaType(type?: string): 'MOV' | 'TV' {
-  if (!type) return 'MOV';
-  const t = String(type).toUpperCase().trim();
-  if (t === 'MOV' || t === 'MOVIE' || t === '电影') return 'MOV';
-  return 'TV';
+function normalizeMediaType(type?: string): 'movie' | 'tv' {
+  if (!type) return 'movie';
+  const t = String(type).toLowerCase().trim();
+  if (t === 'movie') return 'movie';
+  return 'tv';
 }
 
 function handleSubscribe(item: RecommendItem, e: Event) {
@@ -129,13 +129,13 @@ async function handleConfirmSubscribe(seasons: number[], _autoMode: boolean) {
   if (!item) return;
   subscribeConfirmPending.value = true;
   try {
-    const typeParam = item.type === 'MOV' ? 'MOV' : 'TV';
-    if (typeParam === 'TV' && seasons.length > 0) {
+    const typeParam = item.type === 'movie' ? 'movie' : 'tv';
+    if (typeParam === 'tv' && seasons.length > 0) {
       for (const season of seasons) {
         await addSubscriptionMediaApi({
           name: item.title,
           year: item.year || '',
-          type: 'TV',
+          type: 'tv',
           mediaid: String(item.id),
           season: String(season),
         });
@@ -168,7 +168,7 @@ function handleEditSubscribe() {
   subscribeEditItem.value = {
     name: item.title,
     year: item.year || '',
-    type: item.type === 'MOV' ? 'MOV' : 'TV',
+    type: item.type === 'movie' ? 'movie' : 'tv',
     tmdbid: String(item.tmdbid || item.id || ''),
     image: item.image,
     season: '',
@@ -247,7 +247,7 @@ watch(() => route.query, () => {
           <span
             v-if="item.media_type || item.type"
             class="absolute top-1.5 left-1.5 text-white text-[10px] px-1.5 py-0.5 rounded"
-            :class="(item.media_type || item.type) === '电影' ? 'bg-primary' : 'bg-accent'"
+            :class="(item.media_type || item.type) === 'movie' ? 'bg-primary' : 'bg-accent'"
           >
             {{ item.media_type || item.type }}
           </span>

@@ -105,34 +105,34 @@ import { getProgressApi } from '#/api/modules/system';
 // 各页面分类配置（key 用 route.name，不受父菜单 path 变化影响）
 const pageCategories: Record<string, CategoryConfig[]> = {
   Ranking: [
-    { type: 'MOV', subtype: 'dbom', title: '正在热映' },
-    { type: 'MOV', subtype: 'dbnm', title: '即将上映' },
+    { type: 'movie', subtype: 'dbom', title: '正在热映' },
+    { type: 'movie', subtype: 'dbnm', title: '即将上映' },
     { type: 'TRENDING', subtype: 'tmdb', title: 'TMDB流行趋势' },
-    { type: 'MOV', subtype: 'dbhm', title: '豆瓣热门电影' },
-    { type: 'MOV', subtype: 'dbtop', title: '豆瓣电影TOP250' },
-    { type: 'TV', subtype: 'dbht', title: '豆瓣热门剧集' },
-    { type: 'TV', subtype: 'dbdh', title: '豆瓣热门动漫' },
-    { type: 'TV', subtype: 'dbzy', title: '豆瓣热门综艺' },
-    { type: 'TV', subtype: 'dbct', title: '华语口碑剧集榜' },
-    { type: 'TV', subtype: 'dbgt', title: '全球口碑剧集榜' },
+    { type: 'movie', subtype: 'dbhm', title: '豆瓣热门电影' },
+    { type: 'movie', subtype: 'dbtop', title: '豆瓣电影TOP250' },
+    { type: 'tv', subtype: 'dbht', title: '豆瓣热门剧集' },
+    { type: 'tv', subtype: 'dbdh', title: '豆瓣热门动漫' },
+    { type: 'tv', subtype: 'dbzy', title: '豆瓣热门综艺' },
+    { type: 'tv', subtype: 'dbct', title: '华语口碑剧集榜' },
+    { type: 'tv', subtype: 'dbgt', title: '全球口碑剧集榜' },
   ],
   Bangumi: [
-    { type: 'TV', subtype: 'bangumi', title: '星期一', week: '1' },
-    { type: 'TV', subtype: 'bangumi', title: '星期二', week: '2' },
-    { type: 'TV', subtype: 'bangumi', title: '星期三', week: '3' },
-    { type: 'TV', subtype: 'bangumi', title: '星期四', week: '4' },
-    { type: 'TV', subtype: 'bangumi', title: '星期五', week: '5' },
-    { type: 'TV', subtype: 'bangumi', title: '星期六', week: '6' },
-    { type: 'TV', subtype: 'bangumi', title: '星期日', week: '7' },
+    { type: 'tv', subtype: 'bangumi', title: '星期一', week: '1' },
+    { type: 'tv', subtype: 'bangumi', title: '星期二', week: '2' },
+    { type: 'tv', subtype: 'bangumi', title: '星期三', week: '3' },
+    { type: 'tv', subtype: 'bangumi', title: '星期四', week: '4' },
+    { type: 'tv', subtype: 'bangumi', title: '星期五', week: '5' },
+    { type: 'tv', subtype: 'bangumi', title: '星期六', week: '6' },
+    { type: 'tv', subtype: 'bangumi', title: '星期日', week: '7' },
   ],
 };
 
 // 单列表页面配置
 const singlePageMap: Record<string, CategoryConfig> = {
-  DoubanMovie: { type: 'MOV', subtype: 'dbhm', title: '豆瓣电影' },
-  DoubanTv: { type: 'TV', subtype: 'dbht', title: '豆瓣电视剧' },
-  TmdbMovie: { type: 'MOV', subtype: 'nm', title: 'TMDB电影' },
-  TmdbTv: { type: 'TV', subtype: 'nt', title: 'TMDB电视剧' },
+  DoubanMovie: { type: 'movie', subtype: 'dbhm', title: '豆瓣电影' },
+  DoubanTv: { type: 'tv', subtype: 'dbht', title: '豆瓣电视剧' },
+  TmdbMovie: { type: 'movie', subtype: 'nm', title: 'TMDB电影' },
+  TmdbTv: { type: 'tv', subtype: 'nt', title: 'TMDB电视剧' },
 };
 
 const pageTitle = computed(() => {
@@ -226,8 +226,7 @@ async function loadAll() {
 function handleCardClick(item: RecommendItem) {
   const mediaId = item.tmdbid || item.id;
   if (!mediaId) return;
-  // 使用 MOV/TV 而非 movie/tv，后端 MovieTypes 只认前者
-  const typeParam = item.type || item.media_type || 'MOV';
+  const typeParam = item.type || item.media_type || 'movie';
   router.push({
     name: 'MediaDetail',
     query: {
@@ -262,11 +261,11 @@ async function handleSearch(item: RecommendItem, e: Event) {
   }
 }
 
-function normalizeMediaType(type?: string): 'MOV' | 'TV' {
-  if (!type) return 'MOV';
-  const t = String(type).toUpperCase().trim();
-  if (t === 'MOV' || t === 'MOVIE' || t === '电影') return 'MOV';
-  return 'TV';
+function normalizeMediaType(type?: string): 'movie' | 'tv' {
+  if (!type) return 'movie';
+  const t = String(type).toLowerCase().trim();
+  if (t === 'movie') return 'movie';
+  return 'tv';
 }
 
 function handleSubscribe(item: RecommendItem, e: Event) {
@@ -288,14 +287,14 @@ async function handleConfirmSubscribe(seasons: number[], _autoMode: boolean) {
   if (!item) return;
   subscribeConfirmPending.value = true;
   try {
-    const typeParam = item.type === 'MOV' ? 'MOV' : 'TV';
-    if (typeParam === 'TV' && seasons.length > 0) {
+    const typeParam = item.type === 'movie' ? 'movie' : 'tv';
+    if (typeParam === 'tv' && seasons.length > 0) {
       // 多季批量订阅
       for (const season of seasons) {
         await addSubscriptionMediaApi({
           name: item.title,
           year: item.year || '',
-          type: 'TV',
+          type: 'tv',
           mediaid: String(item.id),
           season: String(season),
         });
@@ -328,7 +327,7 @@ function handleEditSubscribe() {
   subscribeEditItem.value = {
     name: item.title,
     year: item.year || '',
-    type: item.type === 'MOV' ? 'MOV' : 'TV',
+    type: item.type === 'movie' ? 'movie' : 'tv',
     tmdbid: String(item.tmdbid || item.id || ''),
     image: item.image,
     season: '',

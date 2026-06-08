@@ -155,8 +155,8 @@ const advancedForm = ref({
   season: '',
 });
 const advancedTypeOptions = [
-  { label: '电影', value: 'MOV' },
-  { label: '电视剧', value: 'TV' },
+  { label: '电影', value: 'movie' },
+  { label: '电视剧', value: 'tv' },
 ];
 
 // 下载模态框
@@ -346,7 +346,7 @@ onUnmounted(() => {
 });
 
 function getTypeColor(type: string) {
-  return type === '电影' ? 'success' : 'info';
+  return type === 'movie' ? 'success' : 'info';
 }
 
 function hasFilters(item: SearchResultWithFilter) {
@@ -614,7 +614,7 @@ async function confirmDownload() {
           </div>
           <span v-if="media.media_type || media.type"
             class="absolute top-1.5 left-1.5 text-white text-[10px] px-1.5 py-0.5 rounded"
-            :class="(media.media_type || media.type) === '电影' ? 'bg-[hsl(var(--success))]' : 'bg-[hsl(var(--info))]'">
+            :class="(media.media_type || media.type) === 'movie' ? 'bg-[hsl(var(--success))]' : 'bg-[hsl(var(--info))]'">
             {{ media.media_type || media.type }}
           </span>
           <span v-if="media.vote && media.vote !== '0.0' && media.vote !== '0'"
@@ -660,7 +660,7 @@ async function confirmDownload() {
             <div class="result-hero">
               <!-- 左侧海报 -->
               <div v-if="item.poster" class="hero-poster"
-                @click="item.tmdbid && item.tmdbid !== '0' ? $router.push({ name: 'MediaDetail', query: { id: item.tmdbid, type: item.type === '电影' ? 'movie' : 'tv' } }) : null">
+                @click="item.tmdbid && item.tmdbid !== '0' ? $router.push({ name: 'MediaDetail', query: { id: item.tmdbid, type: item.type === 'movie' ? 'movie' : 'tv' } }) : null">
                 <img :src="item.poster" alt="" />
                 <div v-if="item.type" class="hero-poster-tag">
                   <NTag :type="getTypeColor(item.type)" size="small" round>{{ item.type }}</NTag>
@@ -675,7 +675,7 @@ async function confirmDownload() {
                 <div class="hero-title-row">
                   <h2 class="hero-title">
                     <a v-if="item.tmdbid && item.tmdbid !== '0'"
-                      :href="`https://www.themoviedb.org/${item.type === '电影' ? 'movie' : 'tv'}/${item.tmdbid}`"
+                      :href="`https://www.themoviedb.org/${item.type === 'movie' ? 'movie' : 'tv'}/${item.tmdbid}`"
                       target="_blank" class="hero-title-link">{{ item.title }}</a>
                     <span v-else>{{ item.title }}</span>
                     <span v-if="item.year" class="hero-year">({{ item.year }})</span>
@@ -763,7 +763,7 @@ async function confirmDownload() {
             <!-- 种子列表 -->
             <div class="torrent-section">
               <div v-for="seTuple in filteredTorrentDict(item)" :key="seTuple[0]" class="season-block">
-                <div v-if="seTuple[0] !== 'MOV'" class="season-name">{{ seTuple[0] }}</div>
+                <div v-if="seTuple[0] !== 'movie'" class="season-name">{{ seTuple[0] }}</div>
 
                 <NCollapse :default-expanded-names="['0']">
                   <NCollapseItem v-for="(group, gKey, gIdx) in seTuple[1]" :key="gKey" :name="String(gIdx)">

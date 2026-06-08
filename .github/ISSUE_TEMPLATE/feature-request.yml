@@ -1,66 +1,70 @@
-name: ✨ 功能请求
-description: 提出新功能或改进建议
-title: 'Feature: '
-labels: ['enhancement']
-
+name: ✨ New Feature Proposal
+description: Propose a new feature to be added to Vben Admin
+title: 'FEATURE: '
+labels: ['enhancement: pending triage']
 body:
   - type: markdown
     attributes:
       value: |
-        感谢提出功能建议！请尽可能详细描述，方便我们评估和实现。
-
+        Thank you for suggesting a feature for our project! Please fill out the information below to help us understand and implement your request!
   - type: dropdown
-    id: component
-    attributes:
-      label: 涉及组件
-      description: 这个功能涉及哪个部分？
-      options:
-        - 后端 API / 服务
-        - 前端 Web UI
-        - Docker / 部署
-        - 插件
-        - 其他
-    validations:
-      required: true
-
-  - type: input
     id: version
     attributes:
-      label: 当前版本
-      description: 你当前使用的版本
-      placeholder: v3.8.0
+      label: Version
+      description: What version of our software are you running?
+      options:
+        - Vben Admin V5
+        - Vben Admin V2
+      default: 0
+    validations:
+      required: true
 
   - type: textarea
     id: description
     attributes:
-      label: 功能描述
-      description: 详细描述你想要的功能
-      placeholder: 描述功能的具体行为和效果
+      label: Description
+      description: A detailed description of the feature request.
+      placeholder: Please describe the feature you would like to see, and why it would be useful.
     validations:
       required: true
 
   - type: textarea
-    id: scenario
+    id: proposed-solution
     attributes:
-      label: 使用场景
-      description: 这个功能在什么场景下使用？解决了什么问题？
-      placeholder: 描述使用场景和痛点
+      label: Proposed Solution
+      description: A clear and concise description of what you want to happen.
+      placeholder: Describe the solution you'd like to see
     validations:
       required: true
 
   - type: textarea
-    id: reference
+    id: alternatives
     attributes:
-      label: 参考实现（可选）
-      description: 是否有其他项目实现了类似功能？可以列举参考，但不要引用商业化软件。
-      placeholder: 相关开源项目或文档链接
+      label: Alternatives Considered
+      description: |
+        A clear and concise description of any alternative solutions or features you've considered.
+      placeholder: Describe any alternative solutions or features you've considered
+    validations:
+      required: false
+
+  - type: input
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context or screenshots about the feature request here.
+      placeholder: Any additional information
+    validations:
+      required: false
 
   - type: checkboxes
-    id: terms
+    id: checkboxes
     attributes:
-      label: 提交前确认
+      label: Validations
+      description: Before submitting the issue, please make sure you do the following
       options:
-        - label: 已搜索现有 issues，确认未重复提交
+        - label: Read the [docs](https://doc.vben.pro/)
           required: true
-        - label: 已阅读文档，确认当前版本不支持该功能
+        - label: Ensure the code is up to date. (Some issues have been fixed in the latest version)
+          required: true
+        - label: I have searched the [existing issues](https://github.com/vbenjs/vue-vben-admin/issues) and checked that my issue does not duplicate any existing issues.
           required: true

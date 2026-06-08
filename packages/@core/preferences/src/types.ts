@@ -17,6 +17,84 @@ import type {
 } from '@vben-core/typings';
 
 type SupportedLanguagesType = 'en-US' | 'zh-CN';
+type CustomPreferencesValue = boolean | number | string;
+
+interface CustomPreferencesOption<TValue extends string = string> {
+  label: string;
+  value: TValue;
+}
+
+interface BaseCustomPreferencesField<
+  TKey extends string = string,
+  TValue extends CustomPreferencesValue = CustomPreferencesValue,
+> {
+  componentProps?: Record<string, any>;
+  defaultValue: TValue;
+  disabled?: boolean;
+  key: TKey;
+  label: string;
+  placeholder?: string;
+  tip?: string;
+}
+
+interface CustomPreferencesInputField<
+  TKey extends string = string,
+> extends BaseCustomPreferencesField<TKey, string> {
+  component: 'input';
+}
+
+interface CustomPreferencesNumberField<
+  TKey extends string = string,
+> extends BaseCustomPreferencesField<TKey, number> {
+  component: 'number';
+}
+
+interface CustomPreferencesSelectField<
+  TKey extends string = string,
+> extends BaseCustomPreferencesField<TKey, string> {
+  component: 'select';
+  options: CustomPreferencesOption[];
+}
+
+interface CustomPreferencesSwitchField<
+  TKey extends string = string,
+> extends BaseCustomPreferencesField<TKey, boolean> {
+  component: 'switch';
+}
+
+type CustomPreferencesRecord = Record<string, CustomPreferencesValue>;
+
+type AnyCustomPreferencesField =
+  | CustomPreferencesInputField
+  | CustomPreferencesNumberField
+  | CustomPreferencesSelectField
+  | CustomPreferencesSwitchField;
+
+type CustomPreferencesField<
+  TCustomPreferences extends object = CustomPreferencesRecord,
+> =
+  string extends Extract<keyof TCustomPreferences, string>
+    ? AnyCustomPreferencesField
+    : {
+        [K in Extract<
+          keyof TCustomPreferences,
+          string
+        >]: TCustomPreferences[K] extends boolean
+          ? CustomPreferencesSwitchField<K>
+          : TCustomPreferences[K] extends number
+            ? CustomPreferencesNumberField<K>
+            : TCustomPreferences[K] extends string
+              ? CustomPreferencesInputField<K> | CustomPreferencesSelectField<K>
+              : never;
+      }[Extract<keyof TCustomPreferences, string>];
+
+interface PreferencesExtension<
+  TCustomPreferences extends object = CustomPreferencesRecord,
+> {
+  fields: Array<CustomPreferencesField<TCustomPreferences>>;
+  tabLabel: string;
+  title?: string;
+}
 
 interface AppPreferences {
   /** 权限模式 */
@@ -53,6 +131,8 @@ interface AppPreferences {
   dynamicTitle: boolean;
   /** 是否开启检查更新 */
   enableCheckUpdates: boolean;
+  /** 是否显示复制偏好设置按钮 */
+  enableCopyPreferences: boolean;
   /** 是否显示偏好设置 */
   enablePreferences: boolean;
   /**
@@ -75,6 +155,10 @@ interface AppPreferences {
   name: string;
   /** 偏好设置按钮位置 */
   preferencesButtonPosition: PreferencesButtonPositionType;
+  /**
+   * @zh_CN 应用时区
+   */
+  timezone: string;
   /**
    * @zh_CN 是否开启水印
    */
@@ -170,6 +254,8 @@ interface SidebarPreferences {
   collapsedShowTitle: boolean;
   /** 侧边栏折叠宽度 */
   collapseWidth: number;
+  /** 侧边栏菜单拖拽 */
+  draggable: boolean;
   /** 侧边栏是否可见 */
   enable: boolean;
   /** 菜单自动展开状态 */
@@ -222,6 +308,8 @@ interface TabbarPreferences {
   showMaximize: boolean;
   /** 显示更多按钮 */
   showMore: boolean;
+  /** 显示刷新按钮 */
+  showRefresh: boolean;
   /** 标签页风格 */
   styleType: TabsStyleType;
   /** 是否开启访问历史记录 */
@@ -251,6 +339,8 @@ interface ThemePreferences {
   semiDarkHeader: boolean;
   /** 是否开启半深色菜单（只在theme='light'时生效） */
   semiDarkSidebar: boolean;
+  /** 是否开启半深色子菜单（只在theme='light'时生效） */
+  semiDarkSidebarSub: boolean;
 }
 
 interface TransitionPreferences {
@@ -316,19 +406,33 @@ interface Preferences {
 
 type PreferencesKeys = keyof Preferences;
 
-interface InitialOptions {
+interface InitialOptions<
+  TCustomPreferences extends object = CustomPreferencesRecord,
+> {
+  extension?: PreferencesExtension<TCustomPreferences>;
   namespace: string;
   overrides?: DeepPartial<Preferences>;
 }
 export type {
+  AnyCustomPreferencesField,
   AppPreferences,
+  BaseCustomPreferencesField,
   BreadcrumbPreferences,
+  CustomPreferencesField,
+  CustomPreferencesInputField,
+  CustomPreferencesNumberField,
+  CustomPreferencesOption,
+  CustomPreferencesRecord,
+  CustomPreferencesSelectField,
+  CustomPreferencesSwitchField,
+  CustomPreferencesValue,
   FooterPreferences,
   HeaderPreferences,
   InitialOptions,
   LogoPreferences,
   NavigationPreferences,
   Preferences,
+  PreferencesExtension,
   PreferencesKeys,
   ShortcutKeyPreferences,
   SidebarPreferences,

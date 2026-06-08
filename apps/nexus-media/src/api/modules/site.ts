@@ -11,6 +11,9 @@ export namespace SiteApi {
     url?: string;
     signurl?: string;
     cookie?: string;
+    api_key?: string;
+    bearer_token?: string;
+    headers?: string;
     rssurl?: string;
     pri?: number;
     status?: number;
@@ -85,6 +88,9 @@ export async function saveSiteApi(data: Record<string, any>) {
     site_rssurl: data.rssurl,
     site_signurl: data.signurl,
     site_cookie: data.cookie,
+    site_api_key: data.api_key,
+    site_bearer_token: data.bearer_token,
+    site_headers: data.headers,
     site_note: data.note,
     site_include: data.include,
   });

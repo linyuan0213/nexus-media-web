@@ -130,7 +130,7 @@ onMounted(fetchData);
               />
               <span
                 class="absolute top-2 left-2 px-2 py-0.5 text-xs rounded-full text-white"
-                :class="resume.type === '电影' ? 'bg-green-500' : 'bg-blue-500'"
+                :class="resume.type === 'movie' ? 'bg-green-500' : 'bg-blue-500'"
               >
                 {{ resume.type }}
               </span>
@@ -161,7 +161,7 @@ onMounted(fetchData);
               />
               <span
                 class="absolute top-2 left-2 px-2 py-0.5 text-xs rounded-full text-white"
-                :class="latest.type === '电影' ? 'bg-green-500' : 'bg-blue-500'"
+                :class="latest.type === 'movie' ? 'bg-green-500' : 'bg-blue-500'"
               >
                 {{ latest.type }}
               </span>

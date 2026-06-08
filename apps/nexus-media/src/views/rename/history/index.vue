@@ -60,7 +60,7 @@ const manualForm = ref({
   logid: 0,
   path: '',
   syncmod: 'copy',
-  type: 'MOV',
+    type: 'movie',
   tmdb: undefined as number | undefined,
   season: undefined as number | undefined,
   min_filesize: undefined as number | undefined,
@@ -265,7 +265,7 @@ function openManualModal(item: any) {
     logid: item.ID,
     path: item.SOURCE_PATH ? `${item.SOURCE_PATH}/${item.SOURCE_FILENAME}` : '',
     syncmod: item.SYNC_MODE || 'copy',
-    type: item.TYPE === '电影' ? 'MOV' : item.TYPE === '动漫' ? 'ANI' : 'TV',
+    type: item.TYPE === 'movie' ? 'movie' : item.TYPE === 'anime' ? 'anime' : 'tv',
     tmdb: item.TMDBID || undefined,
     season: undefined,
     min_filesize: undefined,
@@ -353,15 +353,15 @@ function formatDate(dateStr: string) {
 
 function getTypeIcon(type: string) {
   const t = type || '';
-  if (t === '电影' || t === 'MOV') return 'lucide:film';
-  if (t === '动漫' || t === 'ANI') return 'lucide:sparkles';
+  if (t === 'movie') return 'lucide:film';
+  if (t === 'anime') return 'lucide:sparkles';
   return 'lucide:tv';
 }
 
 function getTypeColor(type: string) {
   const t = type || '';
-  if (t === '电影' || t === 'MOV') return 'var(--primary)';
-  if (t === '动漫' || t === 'ANI') return 'var(--warning)';
+  if (t === 'movie') return 'var(--primary)';
+  if (t === 'anime') return 'var(--warning)';
   return 'var(--success)';
 }
 
@@ -370,9 +370,9 @@ function getTypeLabel(type: string) {
     电影: '电影',
     电视剧: '电视剧',
     动漫: '动漫',
-    MOV: '电影',
-    TV: '电视剧',
-    ANI: '动漫',
+    movie: '电影',
+    tv: '电视剧',
+    anime: '动漫',
   };
   return map[type] || type || '-';
 }
@@ -638,9 +638,9 @@ onMounted(() => {
           </NFormItem>
           <NFormItem label="类型">
             <NRadioGroup v-model:value="manualForm.type" size="small">
-              <NRadioButton value="MOV">电影</NRadioButton>
-              <NRadioButton value="TV">电视剧</NRadioButton>
-              <NRadioButton value="ANI">动漫</NRadioButton>
+              <NRadioButton value="movie">电影</NRadioButton>
+              <NRadioButton value="tv">电视剧</NRadioButton>
+              <NRadioButton value="anime">动漫</NRadioButton>
             </NRadioGroup>
           </NFormItem>
         </div>

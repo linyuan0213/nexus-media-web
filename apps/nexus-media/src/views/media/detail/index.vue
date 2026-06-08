@@ -21,10 +21,10 @@ const fav = ref<string>('0');
 
 const mediaId = computed(() => String(route.query.id || ''));
 const mediaType = computed(() => {
-  const t = String(route.query.type || 'MOV');
+  const t = String(route.query.type || 'movie');
   // 统一兼容 movie/tv -> MOV/TV
-  if (t.toLowerCase() === 'movie') return 'MOV';
-  if (t.toLowerCase() === 'tv') return 'TV';
+  if (t.toLowerCase() === 'movie') return 'movie';
+  if (t.toLowerCase() === 'tv') return 'tv';
   return t;
 });
 
@@ -156,7 +156,7 @@ function goDetail(item: any) {
   router.push({
     name: 'MediaDetail',
     query: {
-      type: item.type || 'MOV',
+      type: item.type || 'movie',
       id: targetId,
     },
   });

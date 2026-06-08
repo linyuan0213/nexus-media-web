@@ -34,7 +34,7 @@ const emit = defineEmits<{
 const loading = ref(false);
 const seasons = ref<Array<{ season_number: number; name?: string; episode_count?: number; poster_path?: string }>>([]);
 const selectedSeasons = ref<number[]>([]);
-const isTv = computed(() => props.item?.type === 'TV');
+const isTv = computed(() => props.item?.type === 'tv');
 
 watch(() => props.show, async (visible) => {
   if (visible && props.item) {
@@ -121,9 +121,9 @@ function toggleSeason(num: number) {
           <div class="mt-2">
             <span
               class="text-xs px-2 py-0.5 rounded"
-              :class="item.type === 'MOV' ? 'bg-lime-100 text-lime-700' : 'bg-blue-100 text-blue-700'"
+              :class="item.type === 'movie' ? 'bg-lime-100 text-lime-700' : 'bg-blue-100 text-blue-700'"
             >
-              {{ item.type === 'MOV' ? '电影' : '剧集' }}
+              {{ item.type === 'movie' ? '电影' : '剧集' }}
             </span>
           </div>
         </div>

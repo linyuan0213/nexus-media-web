@@ -50,7 +50,7 @@ const form = ref<TransferFormData>({
   path: '',
   outpath: '',
   syncmod: 'copy',
-  type: 'MOV',
+  type: 'movie',
 });
 
 watch(
@@ -61,7 +61,7 @@ watch(
         path: props.path,
         outpath: props.outpath || '',
         syncmod: props.syncmod || 'copy',
-        type: props.type || 'MOV',
+        type: props.type || 'movie',
         tmdb: undefined,
         season: undefined,
         min_filesize: undefined,
@@ -152,9 +152,9 @@ function getImgUrl(url?: string) {
           </NFormItem>
           <NFormItem label="类型">
             <NRadioGroup v-model:value="form.type" size="small">
-              <NRadioButton value="MOV">电影</NRadioButton>
-              <NRadioButton value="TV">电视剧</NRadioButton>
-              <NRadioButton value="ANI">动漫</NRadioButton>
+              <NRadioButton value="movie">电影</NRadioButton>
+              <NRadioButton value="tv">电视剧</NRadioButton>
+              <NRadioButton value="anime">动漫</NRadioButton>
             </NRadioGroup>
           </NFormItem>
         </div>

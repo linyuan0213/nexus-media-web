@@ -12,6 +12,9 @@ export interface SiteItem {
   pri?: number;
   signurl?: string;
   cookie?: string;
+  api_key?: string;
+  bearer_token?: string;
+  headers?: string;
   rssurl?: string;
   rss_enable?: boolean;
   brush_enable?: boolean;

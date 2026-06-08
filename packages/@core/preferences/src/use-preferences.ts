@@ -7,12 +7,22 @@ import { isDarkTheme } from './update-css-variables';
 
 function usePreferences() {
   const preferences = preferencesManager.getPreferences();
+  const customPreferences = preferencesManager.getCustomPreferences();
   const initialPreferences = preferencesManager.getInitialPreferences();
+  const initialCustomPreferences =
+    preferencesManager.getInitialCustomPreferences();
+  const preferencesExtension = computed(() =>
+    preferencesManager.getPreferencesExtension(),
+  );
   /**
    * @zh_CN 计算偏好设置的变化
    */
   const diffPreference = computed(() => {
     return diff(initialPreferences, preferences);
+  });
+
+  const diffCustomPreference = computed(() => {
+    return diff(initialCustomPreferences, customPreferences);
   });
 
   const appPreferences = computed(() => preferences.app);
@@ -185,12 +195,12 @@ function usePreferences() {
    */
   const preferencesButtonPosition = computed(() => {
     const { enablePreferences, preferencesButtonPosition } = preferences.app;
-
     // 如果没有启用偏好设置按钮
     if (!enablePreferences) {
       return {
         fixed: false,
         header: false,
+        userDropdown: false,
       };
     }
 
@@ -201,12 +211,15 @@ function usePreferences() {
     const contentIsMaximize = headerHidden && sidebarHidden;
 
     const isHeaderPosition = preferencesButtonPosition === 'header';
+    const isUserDropdownPosition =
+      preferencesButtonPosition === 'user-dropdown';
 
     // 如果设置了固定位置
     if (preferencesButtonPosition !== 'auto') {
       return {
         fixed: preferencesButtonPosition === 'fixed',
         header: isHeaderPosition,
+        userDropdown: isUserDropdownPosition,
       };
     }
 
@@ -220,6 +233,7 @@ function usePreferences() {
     return {
       fixed,
       header: !fixed,
+      userDropdown: !fixed && isUserDropdownPosition,
     };
   });
 
@@ -228,7 +242,9 @@ function usePreferences() {
     authPanelLeft,
     authPanelRight,
     contentIsMaximize,
+    customPreferences,
     diffPreference,
+    diffCustomPreference,
     globalLockScreenShortcutKey,
     globalLogoutShortcutKey,
     globalSearchShortcutKey,
@@ -245,6 +261,7 @@ function usePreferences() {
     keepAlive,
     layout,
     locale,
+    preferencesExtension,
     preferencesButtonPosition,
     sidebarCollapsed,
     theme,

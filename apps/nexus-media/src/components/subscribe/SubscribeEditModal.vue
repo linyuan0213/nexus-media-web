@@ -20,7 +20,7 @@ export interface SubscribeEditItem {
   rssid?: string;
   name: string;
   year?: string;
-  type: 'MOV' | 'TV';
+  type: 'movie' | 'tv';
   tmdbid?: string;
   image?: string;
   season?: string;

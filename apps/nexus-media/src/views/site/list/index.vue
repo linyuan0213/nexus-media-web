@@ -3,6 +3,8 @@ import { ref, computed, onMounted } from 'vue';
 
 import {
   NButton,
+  NCollapse,
+  NCollapseItem,
   NForm,
   NFormItem,
   NInput,
@@ -34,6 +36,8 @@ interface SiteForm {
   pri: string;
   signurl: string;
   cookie: string;
+  api_key: string;
+  bearer_token: string;
   rssurl: string;
   public: string;
   rss_enable: boolean;
@@ -95,8 +99,8 @@ async function fetchSites() {
     siteStore.setSites(list);
 
     // requestClient 已自动解包 { code: 0, data: {...} }
-    const favData = (typeof favRes === 'object' && !Array.isArray(favRes)) ? favRes : (favRes?.data || {});
-    favicons.value = favData;
+    const favData = (favRes && typeof favRes === 'object' && !Array.isArray(favRes)) ? favRes : (favRes?.data || {});
+    favicons.value = favData || {};
 
     const fg = Array.isArray(filterRes) ? filterRes : (filterRes?.data || []);
     filterGroups.value = [{ label: '默认', value: '' }, ...fg.map((g: any) => ({
@@ -133,10 +137,6 @@ function getSiteTypeLabel(publicFlag?: boolean): string {
   return publicFlag ? 'BT' : 'PT';
 }
 
-function getSiteTypeColor(publicFlag?: boolean): any {
-  return publicFlag ? 'warning' : 'success';
-}
-
 function parseNoteBool(val?: string | boolean): boolean {
   if (typeof val === 'boolean') return val;
   return val === 'Y' || val === 'y' || val === '1';
@@ -171,6 +171,8 @@ function handleAdd() {
     pri: '1',
     signurl: '',
     cookie: '',
+    api_key: '',
+    bearer_token: '',
     rssurl: '',
     public: 'N',
     rss_enable: true,
@@ -203,6 +205,8 @@ function handleEdit(item: any) {
     pri: String(item.pri ?? '1'),
     signurl: item.signurl || '',
     cookie: item.cookie || '',
+    api_key: item.api_key || '',
+    bearer_token: item.bearer_token || '',
     rssurl: item.rssurl || '',
     public: item.public ? 'Y' : 'N',
     rss_enable: !!item.rss_enable,
@@ -215,7 +219,8 @@ function handleEdit(item: any) {
     subtitle: parseNoteBool(parsedNote?.subtitle),
     tag: parseNoteBool(parsedNote?.tag),
     ua: parseNoteStr(parsedNote?.ua),
-    headers: parseNoteStr(parsedNote?.headers),
+    // 优先使用独立字段，回退到 note.headers（向后兼容）
+    headers: item.headers || parseNoteStr(parsedNote?.headers),
     rule: parseNoteStr(parsedNote?.rule),
     download_setting: parseNoteStr(parsedNote?.download_setting),
     rate_limit: parseNoteStr(parsedNote?.rate_limit) || '10/m',
@@ -236,9 +241,10 @@ async function handleSave() {
   try {
     const form = editingSite.value;
     const uses: string[] = [];
+    const hasAuth = !!(form.cookie || form.api_key || form.bearer_token || form.headers);
     if (form.rss_enable && form.rssurl) uses.push('D');
-    if (form.brush_enable && form.rssurl && (form.cookie || form.headers)) uses.push('S');
-    if (form.statistic_enable && (form.rssurl || form.signurl) && (form.cookie || form.headers)) uses.push('T');
+    if (form.brush_enable && form.rssurl && hasAuth) uses.push('S');
+    if (form.statistic_enable && (form.rssurl || form.signurl) && hasAuth) uses.push('T');
 
     await saveSiteApi({
       id: form.id,
@@ -247,6 +253,9 @@ async function handleSave() {
       signurl: form.signurl,
       rssurl: form.rssurl,
       cookie: form.cookie,
+      api_key: form.api_key,
+      bearer_token: form.bearer_token,
+      headers: form.headers,
       note: buildNote(form),
       include: uses.join(''),
     });
@@ -400,9 +409,9 @@ onMounted(fetchSites);
                   <a :href="site.signurl" target="_blank" class="site-link">{{ site.signurl }}</a>
                 </dd>
               </div>
-              <div v-if="site.cookie" class="info-row">
-                <dt class="info-label">Cookie</dt>
-                <dd class="info-value">***</dd>
+              <div v-if="site.cookie || site.api_key || site.bearer_token" class="info-row">
+                <dt class="info-label">认证</dt>
+                <dd class="info-value">已配置</dd>
               </div>
               <div v-if="site.rssurl" class="info-row">
                 <dt class="info-label">RSS</dt>
@@ -440,144 +449,282 @@ onMounted(fetchSites);
       v-model:show="editModalShow"
       :title="editingSite?.id ? '编辑站点' : '新增站点'"
       preset="card"
-      class="w-[720px]"
+      class="site-edit-modal"
+      :style="{ width: '680px', maxWidth: '92vw' }"
       :bordered="false"
       :segmented="{ content: true }"
     >
-      <NForm v-if="editingSite" label-placement="left" label-width="120" size="small">
+      <NForm v-if="editingSite" label-placement="left" label-width="110" size="small" class="site-edit-form">
         <!-- 基础信息 -->
         <div class="form-section">
-          <div class="form-section-title">基础信息</div>
-          <div class="form-grid-2">
-            <NFormItem label="名称" required>
-              <NInput v-model:value="editingSite.name" placeholder="自定义站点名称" />
-            </NFormItem>
-            <NFormItem label="优先级" required>
-              <NInput v-model:value="editingSite.pri" placeholder="1-50，越小优先级越高" />
-            </NFormItem>
+          <div class="form-section-header">
+            <div class="form-section-icon form-icon-info">
+              <IconifyIcon icon="lucide:info" class="h-4 w-4" />
+            </div>
+            <span class="form-section-title">基础信息</span>
           </div>
-          <NFormItem label="站点地址" required>
-            <NInput v-model:value="editingSite.signurl" placeholder="https://example.com" />
-          </NFormItem>
-          <div class="form-grid-2">
-            <NFormItem label="站点类型">
-              <NSelect
-                v-model:value="editingSite.public"
-                :options="[
-                  { label: 'PT站点（私有）', value: 'N' },
-                  { label: 'BT站点（公开）', value: 'Y' },
-                ]"
-              />
+          <div class="form-section-body">
+            <div class="form-grid-2">
+              <NFormItem label="名称" required>
+                <NInput v-model:value="editingSite.name" placeholder="自定义站点名称" />
+              </NFormItem>
+              <NFormItem label="优先级" required>
+                <NInput v-model:value="editingSite.pri" placeholder="1-50，越小优先级越高" />
+              </NFormItem>
+            </div>
+            <NFormItem label="站点地址" required>
+              <NInput v-model:value="editingSite.signurl" placeholder="https://example.com" />
             </NFormItem>
-            <NFormItem label="过滤规则">
-              <NSelect v-model:value="editingSite.rule" :options="filterGroups" clearable />
-            </NFormItem>
+            <div class="form-grid-2">
+              <NFormItem label="站点类型">
+                <NSelect
+                  v-model:value="editingSite.public"
+                  :options="[
+                    { label: 'PT站点（私有）', value: 'N' },
+                    { label: 'BT站点（公开）', value: 'Y' },
+                  ]"
+                />
+              </NFormItem>
+              <NFormItem label="过滤规则">
+                <NSelect v-model:value="editingSite.rule" :options="filterGroups" clearable />
+              </NFormItem>
+            </div>
           </div>
         </div>
 
         <!-- 认证信息 -->
         <div class="form-section">
-          <div class="form-section-title">认证信息</div>
-          <NFormItem label="Cookie">
-            <NInput v-model:value="editingSite.cookie" type="textarea" :rows="2" placeholder="站点Cookie，用于签到、数据统计等" />
-          </NFormItem>
-          <NFormItem label="User-Agent">
-            <NInput v-model:value="editingSite.ua" placeholder="站点访问User-Agent，为空使用全局配置" />
-          </NFormItem>
-          <NFormItem label="请求头参数">
-            <NInput
-              v-model:value="editingSite.headers"
-              type="textarea"
-              :rows="2"
-              placeholder='自定义请求头参数，格式{"xxx": "xxx"}'
-            />
-          </NFormItem>
+          <div class="form-section-header">
+            <div class="form-section-icon form-icon-auth">
+              <IconifyIcon icon="lucide:key-round" class="h-4 w-4" />
+            </div>
+            <span class="form-section-title">认证信息</span>
+          </div>
+          <div class="form-section-body">
+            <div class="form-grid-2">
+              <NFormItem label="Cookie">
+                <NInput
+                  v-model:value="editingSite.cookie"
+                  type="textarea"
+                  :rows="2"
+                  placeholder="站点Cookie"
+                />
+              </NFormItem>
+              <NFormItem label="API Key">
+                <NInput
+                  v-model:value="editingSite.api_key"
+                  type="password"
+                  show-password-on="click"
+                  placeholder="站点API Key"
+                />
+              </NFormItem>
+            </div>
+            <div class="form-grid-2">
+              <NFormItem label="Bearer Token">
+                <NInput
+                  v-model:value="editingSite.bearer_token"
+                  type="password"
+                  show-password-on="click"
+                  placeholder="站点Bearer Token"
+                />
+              </NFormItem>
+              <NFormItem label="User-Agent">
+                <NInput
+                  v-model:value="editingSite.ua"
+                  placeholder="站点访问User-Agent，为空使用全局配置"
+                />
+              </NFormItem>
+            </div>
+            <NCollapse class="auth-advanced">
+              <NCollapseItem title="高级请求头">
+                <NFormItem label="自定义请求头 (JSON)">
+                  <NInput
+                    v-model:value="editingSite.headers"
+                    type="textarea"
+                    :rows="3"
+                    placeholder='自定义请求头参数，格式 {"xxx": "xxx"}'
+                  />
+                </NFormItem>
+              </NCollapseItem>
+            </NCollapse>
+          </div>
         </div>
 
         <!-- RSS设置 -->
         <div class="form-section">
-          <div class="form-section-title">RSS设置</div>
-          <NFormItem label="RSS订阅地址">
-            <NInput v-model:value="editingSite.rssurl" placeholder="站点RSS订阅URL" />
-          </NFormItem>
-          <div class="form-grid-2">
-            <NFormItem label="下载设置">
-              <NSelect v-model:value="editingSite.download_setting" :options="downloadSettings" clearable />
+          <div class="form-section-header">
+            <div class="form-section-icon form-icon-rss">
+              <IconifyIcon icon="lucide:rss" class="h-4 w-4" />
+            </div>
+            <span class="form-section-title">RSS设置</span>
+          </div>
+          <div class="form-section-body">
+            <NFormItem label="RSS订阅地址">
+              <NInput v-model:value="editingSite.rssurl" placeholder="站点RSS订阅URL" />
             </NFormItem>
-            <NFormItem>
-              <!-- 占位 -->
-            </NFormItem>
+            <div class="form-grid-2">
+              <NFormItem label="下载设置">
+                <NSelect v-model:value="editingSite.download_setting" :options="downloadSettings" clearable />
+              </NFormItem>
+            </div>
           </div>
         </div>
 
         <!-- 功能开关 -->
         <div class="form-section">
-          <div class="form-section-title">功能开关</div>
-          <div class="switch-grid">
-            <div class="switch-item">
-              <span class="switch-label">RSS订阅</span>
-              <NSwitch v-model:value="editingSite.rss_enable" />
+          <div class="form-section-header">
+            <div class="form-section-icon form-icon-switch">
+              <IconifyIcon icon="lucide:toggle-left" class="h-4 w-4" />
             </div>
-            <div class="switch-item">
-              <span class="switch-label">刷流任务</span>
-              <NSwitch v-model:value="editingSite.brush_enable" />
-            </div>
-            <div class="switch-item">
-              <span class="switch-label">数据统计</span>
-              <NSwitch v-model:value="editingSite.statistic_enable" />
-            </div>
-            <div class="switch-item">
-              <span class="switch-label">解析种子详情</span>
-              <NSwitch v-model:value="editingSite.parse" />
-            </div>
-            <div class="switch-item">
-              <span class="switch-label">消息通知</span>
-              <NSwitch v-model:value="editingSite.unread_msg_notify" />
-            </div>
-            <div class="switch-item">
-              <span class="switch-label">浏览器仿真</span>
-              <NSwitch v-model:value="editingSite.chrome" />
-            </div>
-            <div class="switch-item">
-              <span class="switch-label">使用代理</span>
-              <NSwitch v-model:value="editingSite.proxy" />
-            </div>
-            <div class="switch-item">
-              <span class="switch-label">下载字幕</span>
-              <NSwitch v-model:value="editingSite.subtitle" />
-            </div>
-            <div class="switch-item">
-              <span class="switch-label">下载器标签</span>
-              <NSwitch v-model:value="editingSite.tag" />
+            <span class="form-section-title">功能开关</span>
+          </div>
+          <div class="form-section-body">
+            <div class="switch-grid">
+              <div class="switch-card" :class="{ 'switch-card-on': editingSite.rss_enable }">
+                <div class="switch-card-main">
+                  <div class="switch-card-icon switch-card-rss">
+                    <IconifyIcon icon="lucide:rss" class="h-4 w-4" />
+                  </div>
+                  <div class="switch-card-info">
+                    <span class="switch-card-label">RSS订阅</span>
+                    <span class="switch-card-desc">自动获取种子列表</span>
+                  </div>
+                </div>
+                <NSwitch v-model:value="editingSite.rss_enable" size="small" />
+              </div>
+              <div class="switch-card" :class="{ 'switch-card-on': editingSite.brush_enable }">
+                <div class="switch-card-main">
+                  <div class="switch-card-icon switch-card-brush">
+                    <IconifyIcon icon="lucide:zap" class="h-4 w-4" />
+                  </div>
+                  <div class="switch-card-info">
+                    <span class="switch-card-label">刷流任务</span>
+                    <span class="switch-card-desc">自动下载免费种子</span>
+                  </div>
+                </div>
+                <NSwitch v-model:value="editingSite.brush_enable" size="small" />
+              </div>
+              <div class="switch-card" :class="{ 'switch-card-on': editingSite.statistic_enable }">
+                <div class="switch-card-main">
+                  <div class="switch-card-icon switch-card-stat">
+                    <IconifyIcon icon="lucide:bar-chart-3" class="h-4 w-4" />
+                  </div>
+                  <div class="switch-card-info">
+                    <span class="switch-card-label">数据统计</span>
+                    <span class="switch-card-desc">上传下载做种统计</span>
+                  </div>
+                </div>
+                <NSwitch v-model:value="editingSite.statistic_enable" size="small" />
+              </div>
+              <div class="switch-card" :class="{ 'switch-card-on': editingSite.parse }">
+                <div class="switch-card-main">
+                  <div class="switch-card-icon switch-card-parse">
+                    <IconifyIcon icon="lucide:file-search" class="h-4 w-4" />
+                  </div>
+                  <div class="switch-card-info">
+                    <span class="switch-card-label">解析种子详情</span>
+                    <span class="switch-card-desc">获取种子详细信息</span>
+                  </div>
+                </div>
+                <NSwitch v-model:value="editingSite.parse" size="small" />
+              </div>
+              <div class="switch-card" :class="{ 'switch-card-on': editingSite.unread_msg_notify }">
+                <div class="switch-card-main">
+                  <div class="switch-card-icon switch-card-msg">
+                    <IconifyIcon icon="lucide:bell" class="h-4 w-4" />
+                  </div>
+                  <div class="switch-card-info">
+                    <span class="switch-card-label">消息通知</span>
+                    <span class="switch-card-desc">未读消息提醒</span>
+                  </div>
+                </div>
+                <NSwitch v-model:value="editingSite.unread_msg_notify" size="small" />
+              </div>
+              <div class="switch-card" :class="{ 'switch-card-on': editingSite.chrome }">
+                <div class="switch-card-main">
+                  <div class="switch-card-icon switch-card-chrome">
+                    <IconifyIcon icon="lucide:chrome" class="h-4 w-4" />
+                  </div>
+                  <div class="switch-card-info">
+                    <span class="switch-card-label">浏览器仿真</span>
+                    <span class="switch-card-desc">模拟浏览器访问</span>
+                  </div>
+                </div>
+                <NSwitch v-model:value="editingSite.chrome" size="small" />
+              </div>
+              <div class="switch-card" :class="{ 'switch-card-on': editingSite.proxy }">
+                <div class="switch-card-main">
+                  <div class="switch-card-icon switch-card-proxy">
+                    <IconifyIcon icon="lucide:globe" class="h-4 w-4" />
+                  </div>
+                  <div class="switch-card-info">
+                    <span class="switch-card-label">使用代理</span>
+                    <span class="switch-card-desc">通过代理访问站点</span>
+                  </div>
+                </div>
+                <NSwitch v-model:value="editingSite.proxy" size="small" />
+              </div>
+              <div class="switch-card" :class="{ 'switch-card-on': editingSite.subtitle }">
+                <div class="switch-card-main">
+                  <div class="switch-card-icon switch-card-subtitle">
+                    <IconifyIcon icon="lucide:subtitles" class="h-4 w-4" />
+                  </div>
+                  <div class="switch-card-info">
+                    <span class="switch-card-label">下载字幕</span>
+                    <span class="switch-card-desc">自动获取字幕文件</span>
+                  </div>
+                </div>
+                <NSwitch v-model:value="editingSite.subtitle" size="small" />
+              </div>
+              <div class="switch-card" :class="{ 'switch-card-on': editingSite.tag }">
+                <div class="switch-card-main">
+                  <div class="switch-card-icon switch-card-tag">
+                    <IconifyIcon icon="lucide:tag" class="h-4 w-4" />
+                  </div>
+                  <div class="switch-card-info">
+                    <span class="switch-card-label">下载器标签</span>
+                    <span class="switch-card-desc">添加站点标签</span>
+                  </div>
+                </div>
+                <NSwitch v-model:value="editingSite.tag" size="small" />
+              </div>
             </div>
           </div>
         </div>
 
         <!-- 限流配置 -->
         <div class="form-section">
-          <div class="form-section-title">限流配置</div>
-          <div class="form-grid-2">
-            <NFormItem label="速率限制">
-              <NSelect
-                v-model:value="editingSite.rate_limit"
-                :options="[
-                  { label: '不限流', value: '' },
-                  { label: '每秒 1 次', value: '1/s' },
-                  { label: '每秒 2 次', value: '2/s' },
-                  { label: '每分钟 5 次', value: '5/m' },
-                  { label: '每分钟 10 次（默认）', value: '10/m' },
-                  { label: '每分钟 20 次', value: '20/m' },
-                  { label: '每小时 50 次', value: '50/h' },
-                  { label: '每小时 100 次', value: '100/h' },
-                ]"
-              />
-            </NFormItem>
-            <NFormItem label="突发容量">
-              <NInput v-model:value="editingSite.rate_burst" placeholder="10" />
-            </NFormItem>
+          <div class="form-section-header">
+            <div class="form-section-icon form-icon-rate">
+              <IconifyIcon icon="lucide:gauge" class="h-4 w-4" />
+            </div>
+            <span class="form-section-title">限流配置</span>
           </div>
-          <div class="text-xs text-muted-foreground mt-1">
-            速率格式：次数/单位（s=秒, m=分钟, h=小时）。PT 站点建议设置为 10/m 或更低，防止触发站点流控。
+          <div class="form-section-body">
+            <div class="form-grid-2">
+              <NFormItem label="速率限制">
+                <NSelect
+                  v-model:value="editingSite.rate_limit"
+                  :options="[
+                    { label: '不限流', value: '' },
+                    { label: '每秒 1 次', value: '1/s' },
+                    { label: '每秒 2 次', value: '2/s' },
+                    { label: '每分钟 5 次', value: '5/m' },
+                    { label: '每分钟 10 次（默认）', value: '10/m' },
+                    { label: '每分钟 20 次', value: '20/m' },
+                    { label: '每小时 50 次', value: '50/h' },
+                    { label: '每小时 100 次', value: '100/h' },
+                  ]"
+                />
+              </NFormItem>
+              <NFormItem label="突发容量">
+                <NInput v-model:value="editingSite.rate_burst" placeholder="10" />
+              </NFormItem>
+            </div>
+            <div class="form-hint">
+              <IconifyIcon icon="lucide:info" class="h-3 w-3" />
+              <span>速率格式：次数/单位（s=秒, m=分钟, h=小时）。PT 站点建议设置为 10/m 或更低，防止触发站点流控。</span>
+            </div>
           </div>
         </div>
       </NForm>
@@ -843,18 +990,82 @@ onMounted(fetchSites);
   color: hsl(var(--warning));
 }
 
-/* 表单样式 */
+/* 弹窗 */
+.site-edit-modal :deep(.n-card-header) {
+  padding: 1rem 1.25rem;
+}
+
+.site-edit-modal :deep(.n-card__content) {
+  padding: 0.5rem 1.25rem 0.75rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.site-edit-form {
+  padding-bottom: 0.5rem;
+}
+
+/* 表单区块 */
 .form-section {
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.625rem;
+  background-color: hsl(var(--card));
+  overflow: hidden;
+}
+
+.form-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  background-color: hsl(var(--muted) / 0.25);
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.form-section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: 0.375rem;
+  flex-shrink: 0;
+}
+
+.form-icon-info {
+  background-color: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+}
+
+.form-icon-auth {
+  background-color: hsl(var(--warning) / 0.15);
+  color: hsl(var(--warning));
+}
+
+.form-icon-rss {
+  background-color: hsl(var(--success) / 0.15);
+  color: hsl(var(--success));
+}
+
+.form-icon-switch {
+  background-color: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+}
+
+.form-icon-rate {
+  background-color: hsl(280 70% 55% / 0.12);
+  color: hsl(280 70% 55%);
 }
 
 .form-section-title {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: hsl(var(--card-foreground));
-  margin-bottom: 0.75rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid hsl(var(--border));
+}
+
+.form-section-body {
+  padding: 0.75rem 0.875rem;
 }
 
 .form-grid-2 {
@@ -869,24 +1080,151 @@ onMounted(fetchSites);
   gap: 0.75rem;
 }
 
+/* 提示文字 */
+.form-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  margin-top: 0.5rem;
+  line-height: 1.5;
+}
+
+.form-hint .iconify {
+  margin-top: 0.125rem;
+  flex-shrink: 0;
+}
+
+/* 高级选项折叠 */
+.auth-advanced {
+  margin-top: 0.5rem;
+}
+
+.auth-advanced :deep(.n-collapse-item__header) {
+  font-size: 0.8125rem;
+  color: hsl(var(--muted-foreground));
+}
+
+/* 开关卡片 */
 .switch-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.75rem 1rem;
+  gap: 0.625rem;
 }
 
-.switch-item {
+.switch-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.375rem 0.5rem;
-  border-radius: 0.375rem;
-  background-color: hsl(var(--accent) / 0.3);
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--card));
+  transition: all 0.2s ease;
 }
 
-.switch-label {
+.switch-card:hover {
+  border-color: hsl(var(--primary) / 0.3);
+  background-color: hsl(var(--accent) / 0.2);
+}
+
+.switch-card-on {
+  border-color: hsl(var(--primary) / 0.4);
+  background-color: hsl(var(--primary) / 0.06);
+}
+
+.switch-card-main {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.switch-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.375rem;
+  flex-shrink: 0;
+  background-color: hsl(var(--muted) / 0.3);
+  color: hsl(var(--muted-foreground));
+  transition: all 0.2s ease;
+}
+
+.switch-card-on .switch-card-icon {
+  background-color: hsl(var(--primary) / 0.15);
+  color: hsl(var(--primary));
+}
+
+.switch-card-rss.switch-card-on .switch-card-icon {
+  background-color: hsl(var(--success) / 0.15);
+  color: hsl(var(--success));
+}
+
+.switch-card-brush.switch-card-on .switch-card-icon {
+  background-color: hsl(var(--warning) / 0.15);
+  color: hsl(var(--warning));
+}
+
+.switch-card-stat.switch-card-on .switch-card-icon {
+  background-color: hsl(var(--primary) / 0.15);
+  color: hsl(var(--primary));
+}
+
+.switch-card-parse.switch-card-on .switch-card-icon {
+  background-color: hsl(var(--success) / 0.15);
+  color: hsl(var(--success));
+}
+
+.switch-card-msg.switch-card-on .switch-card-icon {
+  background-color: hsl(var(--destructive) / 0.15);
+  color: hsl(var(--destructive));
+}
+
+.switch-card-chrome.switch-card-on .switch-card-icon {
+  background-color: hsl(185 70% 45% / 0.15);
+  color: hsl(185 70% 45%);
+}
+
+.switch-card-proxy.switch-card-on .switch-card-icon {
+  background-color: hsl(280 70% 55% / 0.15);
+  color: hsl(280 70% 55%);
+}
+
+.switch-card-subtitle.switch-card-on .switch-card-icon {
+  background-color: hsl(var(--primary) / 0.15);
+  color: hsl(var(--primary));
+}
+
+.switch-card-tag.switch-card-on .switch-card-icon {
+  background-color: hsl(var(--warning) / 0.15);
+  color: hsl(var(--warning));
+}
+
+.switch-card-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.switch-card-label {
   font-size: 0.8125rem;
+  font-weight: 500;
   color: hsl(var(--card-foreground));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.switch-card-desc {
+  font-size: 0.6875rem;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 @media (max-width: 640px) {
@@ -900,12 +1238,32 @@ onMounted(fetchSites);
   }
 
   .switch-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
   }
 
   .site-card-header {
     flex-wrap: wrap;
     gap: 0.5rem;
+  }
+
+  .site-edit-modal :deep(.n-card__content) {
+    padding: 0.5rem 0.625rem 0.5rem;
+  }
+
+  .form-section-body {
+    padding: 0.5rem 0.625rem;
+  }
+
+  .form-section-header {
+    padding: 0.5rem 0.625rem;
+  }
+
+  .switch-card {
+    padding: 0.5rem 0.625rem;
+  }
+
+  .switch-card-desc {
+    display: none;
   }
 }
 </style>

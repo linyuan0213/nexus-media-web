@@ -1,97 +1,74 @@
-name: 🐛 Bug 报告
-description: 报告问题以帮助我们改进 Nexus Media
+name: 🐞 Bug Report
+description: Report an issue with Vben Admin to help us make it better.
 title: 'Bug: '
-labels: ['bug']
+labels: ['bug: pending triage']
 
 body:
   - type: markdown
     attributes:
       value: |
-        感谢提交问题反馈！请按模板填写，信息不完整的问题可能会被关闭。
-
+        Thanks for taking the time to fill out this bug report!
   - type: dropdown
-    id: component
-    attributes:
-      label: 问题组件
-      description: 问题出现在哪个部分？
-      options:
-        - 后端 API / 服务
-        - 前端 Web UI
-        - Docker 部署
-        - 插件
-        - 其他
-    validations:
-      required: true
-
-  - type: input
     id: version
     attributes:
-      label: 版本号
-      description: 你使用的 Nexus Media 版本
-      placeholder: v3.8.0
-    validations:
-      required: true
-
-  - type: dropdown
-    id: environment
-    attributes:
-      label: 部署环境
+      label: Version
+      description: What version of our software are you running?
       options:
-        - Docker Compose
-        - Docker 单独部署
-        - 本地开发环境
-        - 其他
+        - Vben Admin V5
+        - Vben Admin V2
+      default: 0
     validations:
       required: true
 
   - type: textarea
-    id: description
+    id: bug-desc
     attributes:
-      label: 问题描述
-      description: 清晰描述遇到的问题
-      placeholder: 详细描述问题现象
+      label: Describe the bug?
+      description: A clear and concise description of what the bug is. If you intend to submit a PR for this issue, tell us in the description. Thanks!
+      placeholder: Bug Description
     validations:
       required: true
 
   - type: textarea
-    id: reproduce
+    id: reproduction
     attributes:
-      label: 复现步骤
-      description: 如何复现这个问题
-      placeholder: |
-        1. 进入 xxx 页面
-        2. 点击 xxx
-        3. 出现错误
+      label: Reproduction
+      description: Please provide a link to [StackBlitz](https://stackblitz.com/fork/github/vitest-dev/vitest/tree/main/examples/basic?initialPath=__vitest__/) (you can also use [examples](https://github.com/vitest-dev/vitest/tree/main/examples)) or a github repo that can reproduce the problem you ran into. A [minimal reproduction](https://stackoverflow.com/help/minimal-reproducible-example) is required unless you are absolutely sure that the issue is obvious and the provided information is enough to understand the problem. If a report is vague (e.g. just a generic error message) and has no reproduction, it will receive a "needs reproduction" label. If no reproduction is provided after 3 days, it will be auto-closed.
+      placeholder: Reproduction
     validations:
       required: true
 
   - type: textarea
-    id: expected
+    id: system-info
     attributes:
-      label: 期望结果
-      description: 你期望发生什么
-      placeholder: 描述正确行为应该是怎样的
+      label: System Info
+      description: Output of `npx envinfo --system --npmPackages '{vue}' --binaries --browsers`
+      render: shell
+      placeholder: System, Binaries, Browsers
     validations:
       required: true
 
   - type: textarea
     id: logs
     attributes:
-      label: 相关日志或截图
-      description: |
-        后端问题请提供日志（Docker: `docker logs nexus-media`）；
-        前端问题请提供浏览器控制台报错和截图；
-        部署问题请提供 docker compose 配置（脱敏后）。
+      label: Relevant log output
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
       render: shell
 
   - type: checkboxes
     id: terms
     attributes:
-      label: 提交前确认
+      label: Validations
+      description: Before submitting the issue, please make sure you do the following
+      # description: By submitting this issue, you agree to follow our [Code of Conduct](https://example.com).
       options:
-        - label: 已搜索现有 issues，确认未重复提交
+        - label: Read the [docs](https://doc.vben.pro/)
           required: true
-        - label: 已阅读文档，确认不是配置问题
+        - label: Ensure the code is up to date. (Some issues have been fixed in the latest version)
           required: true
-        - label: 已升级到最新版本，问题仍然存在
+        - label: I have searched the [existing issues](https://github.com/vbenjs/vue-vben-admin/issues) and checked that my issue does not duplicate any existing issues.
+          required: true
+        - label: Check that this is a concrete bug. For Q&A open a [GitHub Discussion](https://github.com/vbenjs/vue-vben-admin/discussions) or join our [Discord Chat Server](https://discord.gg/8GuAdwDhj6).
+          required: true
+        - label: The provided reproduction is a [minimal reproducible example](https://stackoverflow.com/help/minimal-reproducible-example) of the bug.
           required: true
