@@ -10,13 +10,13 @@ export namespace APIKeyApi {
     name: string;
     key_prefix: string;
     status: number;
-    expires_at: string | null;
-    created_at: string | null;
-    updated_at: string | null;
-    created_by: number | null;
+    expires_at: null | string;
+    created_at: null | string;
+    updated_at: null | string;
+    created_by: null | number;
     use_count: number;
-    last_used_at: string | null;
-    description: string | null;
+    last_used_at: null | string;
+    description: null | string;
     is_expired: boolean;
     is_active: boolean;
   }
@@ -25,20 +25,20 @@ export namespace APIKeyApi {
     id: number;
     api_key_id: number;
     request_id: string;
-    request_name: string | null;
-    source_ip: string | null;
-    request_path: string | null;
-    request_method: string | null;
+    request_name: null | string;
+    source_ip: null | string;
+    request_path: null | string;
+    request_method: null | string;
     status: number;
-    response_code: number | null;
-    error_message: string | null;
-    request_at: string | null;
-    response_time_ms: number | null;
+    response_code: null | number;
+    error_message: null | string;
+    request_at: null | string;
+    response_time_ms: null | number;
   }
 
   export interface CreateAPIKeyParams {
     name: string;
-    expires_days?: number | null;
+    expires_days?: null | number;
     description?: string;
   }
 
@@ -67,15 +67,18 @@ export namespace APIKeyApi {
     name: string;
     key: string;
     prefix: string;
-    expires_at: string | null;
-    created_at: string | null;
+    expires_at: null | string;
+    created_at: null | string;
     status: number;
   }
 }
 
 /** 创建 API Key */
 export async function createAPIKeyApi(params: APIKeyApi.CreateAPIKeyParams) {
-  return requestClient.post<APIKeyApi.CreateAPIKeyResult>('/api/apikey/keys', params);
+  return requestClient.post<APIKeyApi.CreateAPIKeyResult>(
+    '/api/apikey/keys',
+    params,
+  );
 }
 
 /** 获取 API Key 列表 */
@@ -86,7 +89,10 @@ export async function listAPIKeysApi(page = 1, pageSize = 50) {
 }
 
 /** 更新 API Key */
-export async function updateAPIKeyApi(id: number, params: APIKeyApi.UpdateAPIKeyParams) {
+export async function updateAPIKeyApi(
+  id: number,
+  params: APIKeyApi.UpdateAPIKeyParams,
+) {
   return requestClient.put(`/api/apikey/keys/${id}`, params);
 }
 
@@ -96,7 +102,11 @@ export async function deleteAPIKeyApi(id: number) {
 }
 
 /** 获取 API Key 使用记录 */
-export async function listAPIKeyLogsApi(keyId: number, page = 1, pageSize = 50) {
+export async function listAPIKeyLogsApi(
+  keyId: number,
+  page = 1,
+  pageSize = 50,
+) {
   return requestClient.get<APIKeyApi.PagedResult<APIKeyApi.APIKeyLogItem>>(
     `/api/apikey/keys/${keyId}/logs?page=${page}&page_size=${pageSize}`,
   );

@@ -1,7 +1,8 @@
-import { ref } from 'vue';
-import { defineStore } from 'pinia';
-
 import type { SyncApi } from '#/api/modules/sync';
+
+import { ref } from 'vue';
+
+import { defineStore } from 'pinia';
 
 export type SyncTask = SyncApi.SyncTask;
 

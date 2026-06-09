@@ -1,21 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import type { SchedulerApi } from '#/api/modules/scheduler';
 
-import {
-  NButton,
-  NInput,
-  NSpin,
-  useMessage,
-} from 'naive-ui';
+import { computed, onMounted, ref } from 'vue';
+
 import { IconifyIcon } from '@vben/icons';
 
-import {
-  getJobsApi,
-  pauseJobApi,
-  resumeJobApi,
-  runJobApi,
-} from '#/api';
-import type { SchedulerApi } from '#/api/modules/scheduler';
+import { NButton, NInput, NSpin, useMessage } from 'naive-ui';
+
+import { getJobsApi, pauseJobApi, resumeJobApi, runJobApi } from '#/api';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 import JobCard from '#/components/scheduler/JobCard.vue';
@@ -31,9 +23,7 @@ const filteredJobs = computed(() => {
   if (!searchQuery.value.trim()) return jobs.value;
   const q = searchQuery.value.toLowerCase();
   return jobs.value.filter(
-    (j) =>
-      j.name.toLowerCase().includes(q) ||
-      j.id.toLowerCase().includes(q),
+    (j) => j.name.toLowerCase().includes(q) || j.id.toLowerCase().includes(q),
   );
 });
 
@@ -53,8 +43,8 @@ async function fetchData() {
   try {
     const res = await getJobsApi();
     jobs.value = (res || []) as SchedulerApi.JobItem[];
-  } catch (e: any) {
-    message.error(e?.message || '获取任务列表失败');
+  } catch (error: any) {
+    message.error(error?.message || '获取任务列表失败');
   } finally {
     loading.value = false;
   }
@@ -65,8 +55,8 @@ async function handleRun(id: string) {
   try {
     await runJobApi(id);
     message.success('任务已触发执行');
-  } catch (e: any) {
-    message.error(e?.message || '执行失败');
+  } catch (error: any) {
+    message.error(error?.message || '执行失败');
   } finally {
     runningId.value = '';
   }
@@ -77,8 +67,8 @@ async function handlePause(id: string) {
     await pauseJobApi(id);
     message.success('任务已暂停');
     await fetchData();
-  } catch (e: any) {
-    message.error(e?.message || '暂停失败');
+  } catch (error: any) {
+    message.error(error?.message || '暂停失败');
   }
 }
 
@@ -87,8 +77,8 @@ async function handleResume(id: string) {
     await resumeJobApi(id);
     message.success('任务已恢复');
     await fetchData();
-  } catch (e: any) {
-    message.error(e?.message || '恢复失败');
+  } catch (error: any) {
+    message.error(error?.message || '恢复失败');
   }
 }
 
@@ -155,10 +145,7 @@ onMounted(fetchData);
 
     <NSpin :show="loading">
       <!-- 任务卡片网格 -->
-      <div
-        v-if="filteredJobs.length > 0"
-        class="job-grid"
-      >
+      <div v-if="filteredJobs.length > 0" class="job-grid">
         <JobCard
           v-for="job in filteredJobs"
           :key="job.id"
@@ -173,7 +160,11 @@ onMounted(fetchData);
       <EmptyState
         v-else-if="!loading"
         title="暂无调度任务"
-        :subtitle="searchQuery ? '没有匹配的任务，请调整搜索条件' : '当前没有配置任何调度任务'"
+        :subtitle="
+          searchQuery
+            ? '没有匹配的任务，请调整搜索条件'
+            : '当前没有配置任何调度任务'
+        "
       >
         <template #icon>
           <IconifyIcon icon="lucide:clock" class="h-12 w-12 opacity-50" />
@@ -195,43 +186,43 @@ onMounted(fetchData);
   display: flex;
   flex-direction: column;
   align-items: center;
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.75rem;
-  background-color: hsl(var(--card));
   padding: 1rem;
   text-align: center;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
   transition: all 0.2s ease;
 }
 
 .stat-box:hover {
-  border-color: hsl(var(--primary) / 0.2);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  border-color: hsl(var(--primary) / 20%);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 4%);
 }
 
 .stat-box--success .stat-box-icon {
-  background-color: hsl(var(--success) / 0.12);
   color: hsl(var(--success));
+  background-color: hsl(var(--success) / 12%);
 }
 
 .stat-box--warning .stat-box-icon {
-  background-color: hsl(var(--warning) / 0.12);
   color: hsl(var(--warning));
+  background-color: hsl(var(--warning) / 12%);
 }
 
 .stat-box--info .stat-box-icon {
-  background-color: hsl(var(--primary) / 0.12);
   color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 12%);
 }
 
 .stat-box-icon {
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 0.5rem;
-  background-color: hsl(var(--accent));
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
   margin-bottom: 0.5rem;
+  background-color: hsl(var(--accent));
+  border-radius: 0.5rem;
 }
 
 .stat-icon {
@@ -242,19 +233,19 @@ onMounted(fetchData);
 .stat-box-value {
   font-size: 1.5rem;
   font-weight: 700;
-  color: hsl(var(--card-foreground));
   line-height: 1.2;
+  color: hsl(var(--card-foreground));
 }
 
 .stat-box-label {
+  margin-top: 0.25rem;
   font-size: 0.8125rem;
   color: hsl(var(--muted-foreground));
-  margin-top: 0.25rem;
 }
 
 .search-bar {
-  margin-bottom: 1.25rem;
   max-width: 400px;
+  margin-bottom: 1.25rem;
 }
 
 .job-grid {

@@ -1,5 +1,9 @@
 <script lang="ts" setup>
+import type { TransferFormData } from '#/components/media/TransferModal.vue';
+
 import { computed, h, onMounted, ref } from 'vue';
+
+import { IconifyIcon } from '@vben/icons';
 
 import {
   NButton,
@@ -13,8 +17,6 @@ import {
   useNotification,
 } from 'naive-ui';
 
-import { IconifyIcon } from '@vben/icons';
-
 import {
   deleteTransferUnknownApi,
   getUnknownListApi,
@@ -23,9 +25,8 @@ import {
 import { manualTransferUdfApi } from '#/api/modules/sync';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import IdentifyResult from '#/components/media/IdentifyResult.vue';
-import PageHeader from '#/components/page/PageHeader.vue';
 import TransferModal from '#/components/media/TransferModal.vue';
-import type { TransferFormData } from '#/components/media/TransferModal.vue';
+import PageHeader from '#/components/page/PageHeader.vue';
 import { useMediaStore } from '#/store';
 
 const mediaStore = useMediaStore();
@@ -43,11 +44,13 @@ const unknownList = computed(() => mediaStore.unknownList);
 
 // 批量选择
 const selectedIds = ref<number[]>([]);
-const allSelected = computed(() =>
-  unknownList.value.length > 0 && unknownList.value.every((item) => selectedIds.value.includes(item.id)),
+const allSelected = computed(
+  () =>
+    unknownList.value.length > 0 &&
+    unknownList.value.every((item) => selectedIds.value.includes(item.id)),
 );
-const someSelected = computed(() =>
-  selectedIds.value.length > 0 && !allSelected.value,
+const someSelected = computed(
+  () => selectedIds.value.length > 0 && !allSelected.value,
 );
 
 // 识别弹窗
@@ -93,19 +96,17 @@ function handlePageChange(page: number) {
 
 function toggleSelect(id: number) {
   const idx = selectedIds.value.indexOf(id);
-  if (idx > -1) {
-    selectedIds.value.splice(idx, 1);
-  } else {
+  if (idx === -1) {
     selectedIds.value.push(id);
+  } else {
+    selectedIds.value.splice(idx, 1);
   }
 }
 
 function toggleSelectAll() {
-  if (allSelected.value) {
-    selectedIds.value = [];
-  } else {
-    selectedIds.value = unknownList.value.map((item) => item.id);
-  }
+  selectedIds.value = allSelected.value
+    ? []
+    : unknownList.value.map((item) => item.id);
 }
 
 async function handleReIdentify() {
@@ -118,8 +119,11 @@ async function handleReIdentify() {
     await reIdentifyUnknownApi();
     notification.success({ content: '重新识别任务已提交' });
     await fetchData(1);
-  } catch (err: any) {
-    notification.error({ content: '提交失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '提交失败',
+      description: error?.message || '',
+    });
   } finally {
     reIdentifyLoading.value = false;
   }
@@ -135,8 +139,11 @@ async function handleBatchDelete() {
     notification.success({ content: '删除成功' });
     selectedIds.value = [];
     await fetchData(currentPage.value);
-  } catch (err: any) {
-    notification.error({ content: '删除失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '删除失败',
+      description: error?.message || '',
+    });
   }
 }
 
@@ -145,8 +152,11 @@ async function handleDelete(item: any) {
     await deleteTransferUnknownApi({ ids: [item.id] });
     notification.success({ content: '删除成功' });
     await fetchData(currentPage.value);
-  } catch (err: any) {
-    notification.error({ content: '删除失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '删除失败',
+      description: error?.message || '',
+    });
   }
 }
 
@@ -162,8 +172,11 @@ async function handleIdentify(item: any) {
     const res = await nameTestApi(filename);
     identifyResult.value = res || {};
     identifyShow.value = true;
-  } catch (err: any) {
-    notification.error({ content: '识别失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '识别失败',
+      description: error?.message || '',
+    });
   } finally {
     identifyLoading.value = false;
   }
@@ -200,8 +213,11 @@ async function submitTransfer(data: TransferFormData) {
     notification.success({ content: '转移任务已提交' });
     transferModalShow.value = false;
     await fetchData(currentPage.value);
-  } catch (err: any) {
-    notification.error({ content: '提交失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '提交失败',
+      description: error?.message || '',
+    });
   } finally {
     transferLoading.value = false;
   }
@@ -229,17 +245,45 @@ function getFileExt(filename?: string) {
 
 function getItemOptions() {
   return [
-    { label: '识别', key: 'identify', icon: () => h(IconifyIcon, { icon: 'lucide:scan-line', class: 'size-4' }) },
-    { label: '转移', key: 'transfer', icon: () => h(IconifyIcon, { icon: 'lucide:arrow-right-left', class: 'size-4' }) },
+    {
+      label: '识别',
+      key: 'identify',
+      icon: () => h(IconifyIcon, { icon: 'lucide:scan-line', class: 'size-4' }),
+    },
+    {
+      label: '转移',
+      key: 'transfer',
+      icon: () =>
+        h(IconifyIcon, { icon: 'lucide:arrow-right-left', class: 'size-4' }),
+    },
     { type: 'divider', key: 'd1' },
-    { label: '删除', key: 'delete', icon: () => h(IconifyIcon, { icon: 'lucide:trash-2', class: 'size-4' }), props: { style: 'color: hsl(var(--destructive))' } },
+    {
+      label: '删除',
+      key: 'delete',
+      icon: () => h(IconifyIcon, { icon: 'lucide:trash-2', class: 'size-4' }),
+      props: { style: 'color: hsl(var(--destructive))' },
+    },
   ];
 }
 
 function handleItemAction(key: string, item: any) {
-  if (key === 'identify') handleIdentify(item);
-  else if (key === 'transfer') handleTransfer(item);
-  else if (key === 'delete') handleDelete(item);
+  switch (key) {
+    case 'delete': {
+      {
+        handleDelete(item);
+        // No default
+      }
+      break;
+    }
+    case 'identify': {
+      handleIdentify(item);
+      break;
+    }
+    case 'transfer': {
+      handleTransfer(item);
+      break;
+    }
+  }
 }
 
 onMounted(() => fetchData(1));
@@ -328,7 +372,10 @@ onMounted(() => fetchData(1));
                 class="unknown-poster-wrapper flex items-center justify-center"
                 :style="{ backgroundColor: 'hsl(var(--warning) / 0.12)' }"
               >
-                <span class="text-xs font-bold" style="color: hsl(var(--warning))">
+                <span
+                  class="text-xs font-bold"
+                  style="color: hsl(var(--warning))"
+                >
                   {{ getFileExt(item.name) }}
                 </span>
               </div>
@@ -343,16 +390,28 @@ onMounted(() => fetchData(1));
                   />
                 </div>
                 <div class="unknown-path truncate" :title="item.path">
-                  <IconifyIcon icon="lucide:folder" class="size-3 inline mr-1" />
+                  <IconifyIcon
+                    icon="lucide:folder"
+                    class="size-3 inline mr-1"
+                  />
                   {{ item.path }}
                 </div>
-                <div v-if="item.to" class="unknown-dest truncate" :title="item.to">
-                  <IconifyIcon icon="lucide:arrow-right-to-line" class="size-3 inline mr-1" />
+                <div
+                  v-if="item.to"
+                  class="unknown-dest truncate"
+                  :title="item.to"
+                >
+                  <IconifyIcon
+                    icon="lucide:arrow-right-to-line"
+                    class="size-3 inline mr-1"
+                  />
                   {{ item.to }}
                 </div>
                 <div class="unknown-meta">
                   <span class="unknown-tag">未识别</span>
-                  <span class="unknown-mode">{{ getModeLabel(item.rmt_mode || item.sync_mode) }}</span>
+                  <span class="unknown-mode">{{
+                    getModeLabel(item.rmt_mode || item.sync_mode)
+                  }}</span>
                 </div>
                 <div class="unknown-footer">
                   <NDropdown
@@ -361,7 +420,10 @@ onMounted(() => fetchData(1));
                   >
                     <NButton size="tiny" text @click.stop>
                       <template #icon>
-                        <IconifyIcon icon="lucide:more-vertical" class="size-4" />
+                        <IconifyIcon
+                          icon="lucide:more-vertical"
+                          class="size-4"
+                        />
                       </template>
                     </NButton>
                   </NDropdown>
@@ -426,76 +488,78 @@ onMounted(() => fetchData(1));
 .unknown-card {
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
-  transition: box-shadow 0.2s, border-color 0.2s;
+  transition:
+    box-shadow 0.2s,
+    border-color 0.2s;
 }
 
 .unknown-card:hover {
-  box-shadow: 0 4px 16px hsl(var(--foreground) / 0.1);
-  border-color: hsl(var(--primary) / 0.25);
+  border-color: hsl(var(--primary) / 25%);
+  box-shadow: 0 4px 16px hsl(var(--foreground) / 10%);
 }
 
 .unknown-poster-wrapper {
+  flex-shrink: 0;
   width: 2.75rem;
   height: 2.75rem;
   border-radius: 0.5rem;
-  flex-shrink: 0;
 }
 
 .unknown-name {
+  margin-bottom: 0.25rem;
   font-size: 0.95rem;
   font-weight: 600;
-  color: hsl(var(--card-foreground));
   line-height: 1.4;
-  margin-bottom: 0.25rem;
+  color: hsl(var(--card-foreground));
 }
 
 .unknown-path {
-  font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
   margin-bottom: 0.125rem;
   font-family: monospace;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
   word-break: break-all;
 }
 
 .unknown-dest {
-  font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
   margin-bottom: 0.25rem;
   font-family: monospace;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
   word-break: break-all;
 }
 
 .unknown-meta {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
   gap: 0.375rem;
+  align-items: center;
   margin-bottom: 0.375rem;
 }
 
 .unknown-tag {
-  font-size: 0.7rem;
   padding: 0.125rem 0.5rem;
-  border-radius: 0.25rem;
-  background-color: hsl(var(--warning) / 0.15);
-  color: hsl(var(--warning));
+  font-size: 0.7rem;
   font-weight: 500;
+  color: hsl(var(--warning));
+  background-color: hsl(var(--warning) / 15%);
+  border-radius: 0.25rem;
 }
 
 .unknown-mode {
-  font-size: 0.7rem;
   padding: 0.125rem 0.5rem;
-  border-radius: 0.25rem;
-  background-color: hsl(var(--muted));
+  font-size: 0.7rem;
   color: hsl(var(--muted-foreground));
+  background-color: hsl(var(--muted));
+  border-radius: 0.25rem;
 }
 
 .unknown-footer {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  margin-top: 0.25rem;
   padding-top: 0.375rem;
+  margin-top: 0.25rem;
   border-top: 1px solid hsl(var(--border));
 }
 

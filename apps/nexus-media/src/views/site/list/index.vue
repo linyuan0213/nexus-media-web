@@ -1,5 +1,7 @@
 <script lang="ts" setup>
-import { ref, computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+
+import { IconifyIcon } from '@vben/icons';
 
 import {
   NButton,
@@ -9,25 +11,24 @@ import {
   NFormItem,
   NInput,
   NModal,
+  NSelect,
   NSpace,
   NSpin,
   NSwitch,
-  NSelect,
   useNotification,
 } from 'naive-ui';
 
+import { getDownloadSettingsApi } from '#/api/modules/download';
+import { getFilterGroupsApi } from '#/api/modules/filter';
 import {
   deleteSiteApi,
+  getSiteFaviconsApi,
   getSitesApi,
   saveSiteApi,
   testSiteApi,
-  getSiteFaviconsApi,
 } from '#/api/modules/site';
-import { getFilterGroupsApi } from '#/api/modules/filter';
-import { getDownloadSettingsApi } from '#/api/modules/download';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
-import { IconifyIcon } from '@vben/icons';
 import { useSiteStore } from '#/store';
 
 interface SiteForm {
@@ -60,17 +61,21 @@ interface SiteForm {
 const siteStore = useSiteStore();
 const notification = useNotification();
 const loading = ref(false);
-const testLoading = ref<number | null>(null);
+const testLoading = ref<null | number>(null);
 const activeType = ref('all');
 const editModalShow = ref(false);
 const deleteModalShow = ref(false);
 const deleteTarget = ref<any>(null);
-const editingSite = ref<SiteForm | null>(null);
+const editingSite = ref<null | SiteForm>(null);
 
 const favicons = ref<Record<string, string>>({});
 const faviconLoadFailed = ref<Record<string, boolean>>({});
-const filterGroups = ref<Array<{ label: string; value: string }>>([{ label: '默认', value: '' }]);
-const downloadSettings = ref<Array<{ label: string; value: string }>>([{ label: '默认', value: '' }]);
+const filterGroups = ref<Array<{ label: string; value: string }>>([
+  { label: '默认', value: '' },
+]);
+const downloadSettings = ref<Array<{ label: string; value: string }>>([
+  { label: '默认', value: '' },
+]);
 
 const typeTabs = [
   { label: '全部站点', value: 'all' },
@@ -95,24 +100,33 @@ async function fetchSites() {
       getFilterGroupsApi(),
       getDownloadSettingsApi(),
     ]);
-    const list = Array.isArray(sitesRes) ? sitesRes : (sitesRes?.data || []);
+    const list = Array.isArray(sitesRes) ? sitesRes : sitesRes?.data || [];
     siteStore.setSites(list);
 
     // requestClient 已自动解包 { code: 0, data: {...} }
-    const favData = (favRes && typeof favRes === 'object' && !Array.isArray(favRes)) ? favRes : (favRes?.data || {});
+    const favData =
+      favRes && typeof favRes === 'object' && !Array.isArray(favRes)
+        ? favRes
+        : favRes?.data || {};
     favicons.value = favData || {};
 
-    const fg = Array.isArray(filterRes) ? filterRes : (filterRes?.data || []);
-    filterGroups.value = [{ label: '默认', value: '' }, ...fg.map((g: any) => ({
-      label: g.name || String(g.id),
-      value: String(g.id),
-    }))];
+    const fg = Array.isArray(filterRes) ? filterRes : filterRes?.data || [];
+    filterGroups.value = [
+      { label: '默认', value: '' },
+      ...fg.map((g: any) => ({
+        label: g.name || String(g.id),
+        value: String(g.id),
+      })),
+    ];
 
-    const ds = Array.isArray(dlRes) ? dlRes : (dlRes?.data || []);
-    downloadSettings.value = [{ label: '默认', value: '' }, ...ds.map((d: any) => ({
-      label: d.name || String(d.id),
-      value: String(d.id),
-    }))];
+    const ds = Array.isArray(dlRes) ? dlRes : dlRes?.data || [];
+    downloadSettings.value = [
+      { label: '默认', value: '' },
+      ...ds.map((d: any) => ({
+        label: d.name || String(d.id),
+        value: String(d.id),
+      })),
+    ];
   } finally {
     loading.value = false;
   }
@@ -137,7 +151,7 @@ function getSiteTypeLabel(publicFlag?: boolean): string {
   return publicFlag ? 'BT' : 'PT';
 }
 
-function parseNoteBool(val?: string | boolean): boolean {
+function parseNoteBool(val?: boolean | string): boolean {
   if (typeof val === 'boolean') return val;
   return val === 'Y' || val === 'y' || val === '1';
 }
@@ -158,8 +172,7 @@ function buildNote(form: SiteForm): string {
   if (form.unread_msg_notify) note.message = 'Y';
   if (form.subtitle) note.subtitle = 'Y';
   if (form.tag) note.tag = 'Y';
-  if (form.public === 'Y') note.public = 'Y';
-  else note.public = 'N';
+  note.public = form.public === 'Y' ? 'Y' : 'N';
   if (form.rate_limit) note.rate_limit = form.rate_limit;
   if (form.rate_burst) note.rate_burst = form.rate_burst;
   return JSON.stringify(note);
@@ -197,7 +210,15 @@ function handleAdd() {
 function handleEdit(item: any) {
   const note = item.note || {};
   const isNoteStr = typeof item.note === 'string';
-  const parsedNote = isNoteStr ? (() => { try { return JSON.parse(item.note); } catch { return {}; } })() : note;
+  const parsedNote = isNoteStr
+    ? (() => {
+        try {
+          return JSON.parse(item.note);
+        } catch {
+          return {};
+        }
+      })()
+    : note;
 
   editingSite.value = {
     id: item.id,
@@ -241,10 +262,16 @@ async function handleSave() {
   try {
     const form = editingSite.value;
     const uses: string[] = [];
-    const hasAuth = !!(form.cookie || form.api_key || form.bearer_token || form.headers);
+    const hasAuth = !!(
+      form.cookie ||
+      form.api_key ||
+      form.bearer_token ||
+      form.headers
+    );
     if (form.rss_enable && form.rssurl) uses.push('D');
     if (form.brush_enable && form.rssurl && hasAuth) uses.push('S');
-    if (form.statistic_enable && (form.rssurl || form.signurl) && hasAuth) uses.push('T');
+    if (form.statistic_enable && (form.rssurl || form.signurl) && hasAuth)
+      uses.push('T');
 
     await saveSiteApi({
       id: form.id,
@@ -262,8 +289,11 @@ async function handleSave() {
     notification.success({ content: '保存成功' });
     editModalShow.value = false;
     await fetchSites();
-  } catch (err: any) {
-    notification.error({ content: '保存失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '保存失败',
+      description: error?.message || '',
+    });
   }
 }
 
@@ -278,8 +308,11 @@ async function confirmDelete() {
     await deleteSiteApi(deleteTarget.value.id);
     notification.success({ content: '删除成功' });
     await fetchSites();
-  } catch (err: any) {
-    notification.error({ content: '删除失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '删除失败',
+      description: error?.message || '',
+    });
   } finally {
     deleteModalShow.value = false;
     deleteTarget.value = null;
@@ -291,8 +324,11 @@ async function handleTest(item: any) {
   try {
     await testSiteApi(item.id);
     notification.success({ content: `「${item.name}」连接正常` });
-  } catch (err: any) {
-    notification.error({ content: `「${item.name}」连接失败`, description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: `「${item.name}」连接失败`,
+      description: error?.message || '',
+    });
   } finally {
     testLoading.value = null;
   }
@@ -339,11 +375,7 @@ onMounted(fetchSites);
 
     <NSpin :show="loading">
       <div v-if="filteredSites.length > 0" class="grid-site-card">
-        <div
-          v-for="site in filteredSites"
-          :key="site.id"
-          class="site-card"
-        >
+        <div v-for="site in filteredSites" :key="site.id" class="site-card">
           <!-- 卡片头部 -->
           <div class="site-card-header">
             <div class="site-header-left">
@@ -374,9 +406,7 @@ onMounted(fetchSites);
                     {{ getSiteTypeLabel(site.public) }}
                   </span>
                 </div>
-                <div class="site-pri">
-                    优先级: {{ site.pri }}
-                </div>
+                <div class="site-pri">优先级: {{ site.pri }}</div>
               </div>
             </div>
 
@@ -393,7 +423,13 @@ onMounted(fetchSites);
               <NButton text size="small" @click="handleEdit(site)" title="编辑">
                 <IconifyIcon icon="lucide:pencil" class="h-4 w-4" />
               </NButton>
-              <NButton text size="small" type="error" @click="handleDelete(site)" title="删除">
+              <NButton
+                text
+                size="small"
+                type="error"
+                @click="handleDelete(site)"
+                title="删除"
+              >
                 <IconifyIcon icon="lucide:trash-2" class="h-4 w-4" />
               </NButton>
             </NSpace>
@@ -406,10 +442,15 @@ onMounted(fetchSites);
               <div v-if="site.signurl" class="info-row">
                 <dt class="info-label">站点地址</dt>
                 <dd class="info-value truncate">
-                  <a :href="site.signurl" target="_blank" class="site-link">{{ site.signurl }}</a>
+                  <a :href="site.signurl" target="_blank" class="site-link">{{
+                    site.signurl
+                  }}</a>
                 </dd>
               </div>
-              <div v-if="site.cookie || site.api_key || site.bearer_token" class="info-row">
+              <div
+                v-if="site.cookie || site.api_key || site.bearer_token"
+                class="info-row"
+              >
                 <dt class="info-label">认证</dt>
                 <dd class="info-value">已配置</dd>
               </div>
@@ -419,19 +460,51 @@ onMounted(fetchSites);
               </div>
               <div v-if="(site as any).rule" class="info-row">
                 <dt class="info-label">过滤规则</dt>
-                <dd><span class="site-feature-tag site-feature-rule">{{ (site as any).rule }}</span></dd>
+                <dd>
+                  <span class="site-feature-tag site-feature-rule">{{
+                    (site as any).rule
+                  }}</span>
+                </dd>
               </div>
             </dl>
 
             <!-- 功能标签 -->
             <div class="tag-list">
-              <span v-if="site.rss_enable" class="site-feature-tag site-feature-rss">RSS订阅</span>
-              <span v-if="site.brush_enable" class="site-feature-tag site-feature-brush">刷流</span>
-              <span v-if="site.statistic_enable" class="site-feature-tag site-feature-stat">数据统计</span>
-              <span v-if="site.parse" class="site-feature-tag site-feature-parse">解析详情</span>
-              <span v-if="site.unread_msg_notify" class="site-feature-tag site-feature-msg">消息通知</span>
-              <span v-if="site.chrome" class="site-feature-tag site-feature-chrome">浏览器仿真</span>
-              <span v-if="site.proxy" class="site-feature-tag site-feature-proxy">代理</span>
+              <span
+                v-if="site.rss_enable"
+                class="site-feature-tag site-feature-rss"
+                >RSS订阅</span
+              >
+              <span
+                v-if="site.brush_enable"
+                class="site-feature-tag site-feature-brush"
+                >刷流</span
+              >
+              <span
+                v-if="site.statistic_enable"
+                class="site-feature-tag site-feature-stat"
+                >数据统计</span
+              >
+              <span
+                v-if="site.parse"
+                class="site-feature-tag site-feature-parse"
+                >解析详情</span
+              >
+              <span
+                v-if="site.unread_msg_notify"
+                class="site-feature-tag site-feature-msg"
+                >消息通知</span
+              >
+              <span
+                v-if="site.chrome"
+                class="site-feature-tag site-feature-chrome"
+                >浏览器仿真</span
+              >
+              <span
+                v-if="site.proxy"
+                class="site-feature-tag site-feature-proxy"
+                >代理</span
+              >
             </div>
           </div>
         </div>
@@ -454,7 +527,13 @@ onMounted(fetchSites);
       :bordered="false"
       :segmented="{ content: true }"
     >
-      <NForm v-if="editingSite" label-placement="left" label-width="110" size="small" class="site-edit-form">
+      <NForm
+        v-if="editingSite"
+        label-placement="left"
+        label-width="110"
+        size="small"
+        class="site-edit-form"
+      >
         <!-- 基础信息 -->
         <div class="form-section">
           <div class="form-section-header">
@@ -466,14 +545,23 @@ onMounted(fetchSites);
           <div class="form-section-body">
             <div class="form-grid-2">
               <NFormItem label="名称" required>
-                <NInput v-model:value="editingSite.name" placeholder="自定义站点名称" />
+                <NInput
+                  v-model:value="editingSite.name"
+                  placeholder="自定义站点名称"
+                />
               </NFormItem>
               <NFormItem label="优先级" required>
-                <NInput v-model:value="editingSite.pri" placeholder="1-50，越小优先级越高" />
+                <NInput
+                  v-model:value="editingSite.pri"
+                  placeholder="1-50，越小优先级越高"
+                />
               </NFormItem>
             </div>
             <NFormItem label="站点地址" required>
-              <NInput v-model:value="editingSite.signurl" placeholder="https://example.com" />
+              <NInput
+                v-model:value="editingSite.signurl"
+                placeholder="https://example.com"
+              />
             </NFormItem>
             <div class="form-grid-2">
               <NFormItem label="站点类型">
@@ -486,7 +574,11 @@ onMounted(fetchSites);
                 />
               </NFormItem>
               <NFormItem label="过滤规则">
-                <NSelect v-model:value="editingSite.rule" :options="filterGroups" clearable />
+                <NSelect
+                  v-model:value="editingSite.rule"
+                  :options="filterGroups"
+                  clearable
+                />
               </NFormItem>
             </div>
           </div>
@@ -560,11 +652,18 @@ onMounted(fetchSites);
           </div>
           <div class="form-section-body">
             <NFormItem label="RSS订阅地址">
-              <NInput v-model:value="editingSite.rssurl" placeholder="站点RSS订阅URL" />
+              <NInput
+                v-model:value="editingSite.rssurl"
+                placeholder="站点RSS订阅URL"
+              />
             </NFormItem>
             <div class="form-grid-2">
               <NFormItem label="下载设置">
-                <NSelect v-model:value="editingSite.download_setting" :options="downloadSettings" clearable />
+                <NSelect
+                  v-model:value="editingSite.download_setting"
+                  :options="downloadSettings"
+                  clearable
+                />
               </NFormItem>
             </div>
           </div>
@@ -580,7 +679,10 @@ onMounted(fetchSites);
           </div>
           <div class="form-section-body">
             <div class="switch-grid">
-              <div class="switch-card" :class="{ 'switch-card-on': editingSite.rss_enable }">
+              <div
+                class="switch-card"
+                :class="{ 'switch-card-on': editingSite.rss_enable }"
+              >
                 <div class="switch-card-main">
                   <div class="switch-card-icon switch-card-rss">
                     <IconifyIcon icon="lucide:rss" class="h-4 w-4" />
@@ -592,7 +694,10 @@ onMounted(fetchSites);
                 </div>
                 <NSwitch v-model:value="editingSite.rss_enable" size="small" />
               </div>
-              <div class="switch-card" :class="{ 'switch-card-on': editingSite.brush_enable }">
+              <div
+                class="switch-card"
+                :class="{ 'switch-card-on': editingSite.brush_enable }"
+              >
                 <div class="switch-card-main">
                   <div class="switch-card-icon switch-card-brush">
                     <IconifyIcon icon="lucide:zap" class="h-4 w-4" />
@@ -602,9 +707,15 @@ onMounted(fetchSites);
                     <span class="switch-card-desc">自动下载免费种子</span>
                   </div>
                 </div>
-                <NSwitch v-model:value="editingSite.brush_enable" size="small" />
+                <NSwitch
+                  v-model:value="editingSite.brush_enable"
+                  size="small"
+                />
               </div>
-              <div class="switch-card" :class="{ 'switch-card-on': editingSite.statistic_enable }">
+              <div
+                class="switch-card"
+                :class="{ 'switch-card-on': editingSite.statistic_enable }"
+              >
                 <div class="switch-card-main">
                   <div class="switch-card-icon switch-card-stat">
                     <IconifyIcon icon="lucide:bar-chart-3" class="h-4 w-4" />
@@ -614,9 +725,15 @@ onMounted(fetchSites);
                     <span class="switch-card-desc">上传下载做种统计</span>
                   </div>
                 </div>
-                <NSwitch v-model:value="editingSite.statistic_enable" size="small" />
+                <NSwitch
+                  v-model:value="editingSite.statistic_enable"
+                  size="small"
+                />
               </div>
-              <div class="switch-card" :class="{ 'switch-card-on': editingSite.parse }">
+              <div
+                class="switch-card"
+                :class="{ 'switch-card-on': editingSite.parse }"
+              >
                 <div class="switch-card-main">
                   <div class="switch-card-icon switch-card-parse">
                     <IconifyIcon icon="lucide:file-search" class="h-4 w-4" />
@@ -628,7 +745,10 @@ onMounted(fetchSites);
                 </div>
                 <NSwitch v-model:value="editingSite.parse" size="small" />
               </div>
-              <div class="switch-card" :class="{ 'switch-card-on': editingSite.unread_msg_notify }">
+              <div
+                class="switch-card"
+                :class="{ 'switch-card-on': editingSite.unread_msg_notify }"
+              >
                 <div class="switch-card-main">
                   <div class="switch-card-icon switch-card-msg">
                     <IconifyIcon icon="lucide:bell" class="h-4 w-4" />
@@ -638,9 +758,15 @@ onMounted(fetchSites);
                     <span class="switch-card-desc">未读消息提醒</span>
                   </div>
                 </div>
-                <NSwitch v-model:value="editingSite.unread_msg_notify" size="small" />
+                <NSwitch
+                  v-model:value="editingSite.unread_msg_notify"
+                  size="small"
+                />
               </div>
-              <div class="switch-card" :class="{ 'switch-card-on': editingSite.chrome }">
+              <div
+                class="switch-card"
+                :class="{ 'switch-card-on': editingSite.chrome }"
+              >
                 <div class="switch-card-main">
                   <div class="switch-card-icon switch-card-chrome">
                     <IconifyIcon icon="lucide:chrome" class="h-4 w-4" />
@@ -652,7 +778,10 @@ onMounted(fetchSites);
                 </div>
                 <NSwitch v-model:value="editingSite.chrome" size="small" />
               </div>
-              <div class="switch-card" :class="{ 'switch-card-on': editingSite.proxy }">
+              <div
+                class="switch-card"
+                :class="{ 'switch-card-on': editingSite.proxy }"
+              >
                 <div class="switch-card-main">
                   <div class="switch-card-icon switch-card-proxy">
                     <IconifyIcon icon="lucide:globe" class="h-4 w-4" />
@@ -664,7 +793,10 @@ onMounted(fetchSites);
                 </div>
                 <NSwitch v-model:value="editingSite.proxy" size="small" />
               </div>
-              <div class="switch-card" :class="{ 'switch-card-on': editingSite.subtitle }">
+              <div
+                class="switch-card"
+                :class="{ 'switch-card-on': editingSite.subtitle }"
+              >
                 <div class="switch-card-main">
                   <div class="switch-card-icon switch-card-subtitle">
                     <IconifyIcon icon="lucide:subtitles" class="h-4 w-4" />
@@ -676,7 +808,10 @@ onMounted(fetchSites);
                 </div>
                 <NSwitch v-model:value="editingSite.subtitle" size="small" />
               </div>
-              <div class="switch-card" :class="{ 'switch-card-on': editingSite.tag }">
+              <div
+                class="switch-card"
+                :class="{ 'switch-card-on': editingSite.tag }"
+              >
                 <div class="switch-card-main">
                   <div class="switch-card-icon switch-card-tag">
                     <IconifyIcon icon="lucide:tag" class="h-4 w-4" />
@@ -718,12 +853,18 @@ onMounted(fetchSites);
                 />
               </NFormItem>
               <NFormItem label="突发容量">
-                <NInput v-model:value="editingSite.rate_burst" placeholder="10" />
+                <NInput
+                  v-model:value="editingSite.rate_burst"
+                  placeholder="10"
+                />
               </NFormItem>
             </div>
             <div class="form-hint">
               <IconifyIcon icon="lucide:info" class="h-3 w-3" />
-              <span>速率格式：次数/单位（s=秒, m=分钟, h=小时）。PT 站点建议设置为 10/m 或更低，防止触发站点流控。</span>
+              <span
+                >速率格式：次数/单位（s=秒, m=分钟, h=小时）。PT 站点建议设置为
+                10/m 或更低，防止触发站点流控。</span
+              >
             </div>
           </div>
         </div>
@@ -731,7 +872,9 @@ onMounted(fetchSites);
       <template #footer>
         <NSpace justify="end">
           <NButton size="small" @click="editModalShow = false">取消</NButton>
-          <NButton type="primary" size="small" @click="handleSave">保存</NButton>
+          <NButton type="primary" size="small" @click="handleSave">
+            保存
+          </NButton>
         </NSpace>
       </template>
     </NModal>
@@ -754,22 +897,22 @@ onMounted(fetchSites);
 <style scoped>
 .type-tab-group {
   display: inline-flex;
-  background-color: hsl(var(--muted) / 0.4);
-  border-radius: 0.625rem;
-  padding: 0.25rem;
   gap: 0.125rem;
+  padding: 0.25rem;
+  background-color: hsl(var(--muted) / 40%);
+  border-radius: 0.625rem;
 }
 
 .type-tab-btn {
   padding: 0.375rem 1rem;
   font-size: 0.875rem;
   font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  background-color: transparent;
+  border: none;
   border-radius: 0.5rem;
   transition: all 0.2s ease;
-  background-color: transparent;
-  color: hsl(var(--muted-foreground));
-  border: none;
-  cursor: pointer;
 }
 
 .type-tab-btn:hover {
@@ -777,9 +920,9 @@ onMounted(fetchSites);
 }
 
 .type-tab-active {
-  background-color: hsl(var(--card));
   color: hsl(var(--card-foreground));
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  background-color: hsl(var(--card));
+  box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
 }
 
 /* 站点卡片网格 */
@@ -791,45 +934,45 @@ onMounted(fetchSites);
 
 /* 站点卡片 */
 .site-card {
+  overflow: hidden;
+  background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: 0.75rem;
-  background-color: hsl(var(--card));
   transition: all 0.2s ease;
-  overflow: hidden;
 }
 
 .site-card:hover {
-  border-color: hsl(var(--primary) / 0.4);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  border-color: hsl(var(--primary) / 40%);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 6%);
 }
 
 /* 卡片头部 */
 .site-card-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   padding: 1rem;
   border-bottom: 1px solid hsl(var(--border));
 }
 
 .site-header-left {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  min-width: 0;
   flex: 1;
+  gap: 0.75rem;
+  align-items: center;
+  min-width: 0;
 }
 
 .site-logo {
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 0.5rem;
-  overflow: hidden;
-  flex-shrink: 0;
-  background-color: hsl(var(--accent));
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  overflow: hidden;
+  background-color: hsl(var(--accent));
+  border-radius: 0.5rem;
 }
 
 .site-logo-img {
@@ -839,40 +982,40 @@ onMounted(fetchSites);
 }
 
 .site-logo-placeholder {
-  width: 100%;
-  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  height: 100%;
   font-size: 1rem;
   font-weight: 700;
   color: hsl(var(--primary));
 }
 
 .site-header-info {
-  min-width: 0;
   flex: 1;
+  min-width: 0;
 }
 
 .site-name-row {
   display: flex;
-  align-items: center;
   gap: 0.5rem;
+  align-items: center;
 }
 
 .site-name {
-  font-weight: 600;
-  font-size: 0.9375rem;
-  color: hsl(var(--card-foreground));
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: hsl(var(--card-foreground));
+  white-space: nowrap;
 }
 
 .site-pri {
+  margin-top: 0.125rem;
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
-  margin-top: 0.125rem;
 }
 
 /* 卡片内容 */
@@ -893,9 +1036,9 @@ onMounted(fetchSites);
 }
 
 .info-label {
+  flex-shrink: 0;
   width: 4.5rem;
   color: hsl(var(--muted-foreground));
-  flex-shrink: 0;
 }
 
 .info-value {
@@ -917,77 +1060,77 @@ onMounted(fetchSites);
   display: flex;
   flex-wrap: wrap;
   gap: 0.375rem;
-  margin-top: 0.75rem;
   padding-top: 0.75rem;
+  margin-top: 0.75rem;
   border-top: 1px solid hsl(var(--border));
 }
 
 .site-type-badge {
-  font-size: 0.75rem;
   padding: 0.125rem 0.5rem;
-  border-radius: 0.25rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  white-space: nowrap;
   line-height: 1.4;
+  white-space: nowrap;
+  border-radius: 0.25rem;
 }
 
 .site-type-pt {
-  background-color: hsl(var(--success) / 0.12);
   color: hsl(var(--success));
+  background-color: hsl(var(--success) / 12%);
 }
 
 .site-type-bt {
-  background-color: hsl(var(--warning) / 0.15);
   color: hsl(var(--warning));
+  background-color: hsl(var(--warning) / 15%);
 }
 
 .site-feature-tag {
-  font-size: 0.75rem;
   padding: 0.125rem 0.5rem;
-  border-radius: 0.25rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  white-space: nowrap;
   line-height: 1.4;
+  white-space: nowrap;
+  border-radius: 0.25rem;
 }
 
 .site-feature-rss {
-  background-color: hsla(210, 80%, 55%, 0.1);
-  color: hsl(210, 80%, 55%);
+  color: hsl(210deg 80% 55%);
+  background-color: hsl(210deg 80% 55% / 10%);
 }
 
 .site-feature-brush {
-  background-color: hsl(var(--primary) / 0.1);
   color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 10%);
 }
 
 .site-feature-stat {
-  background-color: hsl(var(--warning) / 0.15);
   color: hsl(var(--warning));
+  background-color: hsl(var(--warning) / 15%);
 }
 
 .site-feature-parse {
-  background-color: hsl(var(--success) / 0.12);
   color: hsl(var(--success));
+  background-color: hsl(var(--success) / 12%);
 }
 
 .site-feature-msg {
-  background-color: hsl(var(--success) / 0.12);
   color: hsl(var(--success));
+  background-color: hsl(var(--success) / 12%);
 }
 
 .site-feature-chrome {
-  background-color: hsla(185, 70%, 45%, 0.1);
-  color: hsl(185, 70%, 45%);
+  color: hsl(185deg 70% 45%);
+  background-color: hsl(185deg 70% 45% / 10%);
 }
 
 .site-feature-proxy {
-  background-color: hsla(280, 70%, 55%, 0.1);
-  color: hsl(280, 70%, 55%);
+  color: hsl(280deg 70% 55%);
+  background-color: hsl(280deg 70% 55% / 10%);
 }
 
 .site-feature-rule {
-  background-color: hsl(var(--warning) / 0.15);
   color: hsl(var(--warning));
+  background-color: hsl(var(--warning) / 15%);
 }
 
 /* 弹窗 */
@@ -996,8 +1139,8 @@ onMounted(fetchSites);
 }
 
 .site-edit-modal :deep(.n-card__content) {
-  padding: 0.5rem 1.25rem 0.75rem;
   max-height: 70vh;
+  padding: 0.5rem 1.25rem 0.75rem;
   overflow-y: auto;
 }
 
@@ -1008,54 +1151,54 @@ onMounted(fetchSites);
 /* 表单区块 */
 .form-section {
   margin-bottom: 0.75rem;
+  overflow: hidden;
+  background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: 0.625rem;
-  background-color: hsl(var(--card));
-  overflow: hidden;
 }
 
 .form-section-header {
   display: flex;
-  align-items: center;
   gap: 0.5rem;
+  align-items: center;
   padding: 0.625rem 0.875rem;
-  background-color: hsl(var(--muted) / 0.25);
+  background-color: hsl(var(--muted) / 25%);
   border-bottom: 1px solid hsl(var(--border));
 }
 
 .form-section-icon {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   width: 1.625rem;
   height: 1.625rem;
   border-radius: 0.375rem;
-  flex-shrink: 0;
 }
 
 .form-icon-info {
-  background-color: hsl(var(--primary) / 0.12);
   color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 12%);
 }
 
 .form-icon-auth {
-  background-color: hsl(var(--warning) / 0.15);
   color: hsl(var(--warning));
+  background-color: hsl(var(--warning) / 15%);
 }
 
 .form-icon-rss {
-  background-color: hsl(var(--success) / 0.15);
   color: hsl(var(--success));
+  background-color: hsl(var(--success) / 15%);
 }
 
 .form-icon-switch {
-  background-color: hsl(var(--primary) / 0.12);
   color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 12%);
 }
 
 .form-icon-rate {
-  background-color: hsl(280 70% 55% / 0.12);
-  color: hsl(280 70% 55%);
+  color: hsl(280deg 70% 55%);
+  background-color: hsl(280deg 70% 55% / 12%);
 }
 
 .form-section-title {
@@ -1083,17 +1226,17 @@ onMounted(fetchSites);
 /* 提示文字 */
 .form-hint {
   display: flex;
-  align-items: flex-start;
   gap: 0.375rem;
-  font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
+  align-items: flex-start;
   margin-top: 0.5rem;
+  font-size: 0.75rem;
   line-height: 1.5;
+  color: hsl(var(--muted-foreground));
 }
 
 .form-hint .iconify {
-  margin-top: 0.125rem;
   flex-shrink: 0;
+  margin-top: 0.125rem;
 }
 
 /* 高级选项折叠 */
@@ -1118,90 +1261,90 @@ onMounted(fetchSites);
   align-items: center;
   justify-content: space-between;
   padding: 0.625rem 0.75rem;
-  border-radius: 0.5rem;
-  border: 1px solid hsl(var(--border));
   background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
   transition: all 0.2s ease;
 }
 
 .switch-card:hover {
-  border-color: hsl(var(--primary) / 0.3);
-  background-color: hsl(var(--accent) / 0.2);
+  background-color: hsl(var(--accent) / 20%);
+  border-color: hsl(var(--primary) / 30%);
 }
 
 .switch-card-on {
-  border-color: hsl(var(--primary) / 0.4);
-  background-color: hsl(var(--primary) / 0.06);
+  background-color: hsl(var(--primary) / 6%);
+  border-color: hsl(var(--primary) / 40%);
 }
 
 .switch-card-main {
   display: flex;
-  align-items: center;
   gap: 0.625rem;
+  align-items: center;
   min-width: 0;
 }
 
 .switch-card-icon {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   width: 1.75rem;
   height: 1.75rem;
-  border-radius: 0.375rem;
-  flex-shrink: 0;
-  background-color: hsl(var(--muted) / 0.3);
   color: hsl(var(--muted-foreground));
+  background-color: hsl(var(--muted) / 30%);
+  border-radius: 0.375rem;
   transition: all 0.2s ease;
 }
 
 .switch-card-on .switch-card-icon {
-  background-color: hsl(var(--primary) / 0.15);
   color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 15%);
 }
 
 .switch-card-rss.switch-card-on .switch-card-icon {
-  background-color: hsl(var(--success) / 0.15);
   color: hsl(var(--success));
+  background-color: hsl(var(--success) / 15%);
 }
 
 .switch-card-brush.switch-card-on .switch-card-icon {
-  background-color: hsl(var(--warning) / 0.15);
   color: hsl(var(--warning));
+  background-color: hsl(var(--warning) / 15%);
 }
 
 .switch-card-stat.switch-card-on .switch-card-icon {
-  background-color: hsl(var(--primary) / 0.15);
   color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 15%);
 }
 
 .switch-card-parse.switch-card-on .switch-card-icon {
-  background-color: hsl(var(--success) / 0.15);
   color: hsl(var(--success));
+  background-color: hsl(var(--success) / 15%);
 }
 
 .switch-card-msg.switch-card-on .switch-card-icon {
-  background-color: hsl(var(--destructive) / 0.15);
   color: hsl(var(--destructive));
+  background-color: hsl(var(--destructive) / 15%);
 }
 
 .switch-card-chrome.switch-card-on .switch-card-icon {
-  background-color: hsl(185 70% 45% / 0.15);
-  color: hsl(185 70% 45%);
+  color: hsl(185deg 70% 45%);
+  background-color: hsl(185deg 70% 45% / 15%);
 }
 
 .switch-card-proxy.switch-card-on .switch-card-icon {
-  background-color: hsl(280 70% 55% / 0.15);
-  color: hsl(280 70% 55%);
+  color: hsl(280deg 70% 55%);
+  background-color: hsl(280deg 70% 55% / 15%);
 }
 
 .switch-card-subtitle.switch-card-on .switch-card-icon {
-  background-color: hsl(var(--primary) / 0.15);
   color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 15%);
 }
 
 .switch-card-tag.switch-card-on .switch-card-icon {
-  background-color: hsl(var(--warning) / 0.15);
   color: hsl(var(--warning));
+  background-color: hsl(var(--warning) / 15%);
 }
 
 .switch-card-info {
@@ -1211,20 +1354,20 @@ onMounted(fetchSites);
 }
 
 .switch-card-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 0.8125rem;
   font-weight: 500;
   color: hsl(var(--card-foreground));
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .switch-card-desc {
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 0.6875rem;
   color: hsl(var(--muted-foreground));
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 @media (max-width: 640px) {
@@ -1247,7 +1390,7 @@ onMounted(fetchSites);
   }
 
   .site-edit-modal :deep(.n-card__content) {
-    padding: 0.5rem 0.625rem 0.5rem;
+    padding: 0.5rem 0.625rem;
   }
 
   .form-section-body {

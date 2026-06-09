@@ -25,10 +25,10 @@ export namespace SubscriptionApi {
     filter_restype?: string;
     filter_pix?: string;
     filter_team?: string;
-    filter_rule?: string | number;
+    filter_rule?: number | string;
     filter_include?: string;
     filter_exclude?: string;
-    download_setting?: string | number;
+    download_setting?: number | string;
     rss_sites?: string[];
     search_sites?: string[];
   }
@@ -62,12 +62,16 @@ export namespace SubscriptionApi {
 
 /** 获取电影订阅 */
 export async function getMovieSubscriptionApi() {
-  return requestClient.post<SubscriptionApi.Subscription[]>('/api/subscription/movie/list');
+  return requestClient.post<SubscriptionApi.Subscription[]>(
+    '/api/subscription/movie/list',
+  );
 }
 
 /** 获取剧集订阅 */
 export async function getTvSubscriptionApi() {
-  return requestClient.post<SubscriptionApi.Subscription[]>('/api/subscription/tv/list');
+  return requestClient.post<SubscriptionApi.Subscription[]>(
+    '/api/subscription/tv/list',
+  );
 }
 
 /** 添加订阅 */
@@ -91,38 +95,59 @@ export async function getDefaultSubscriptionSettingApi(mtype: string) {
 }
 
 /** 保存默认订阅设置 */
-export async function saveDefaultSubscriptionSettingApi(mtype: string, data: Record<string, any>) {
-  return requestClient.post('/api/subscription/default_setting/save', { mtype, ...data });
+export async function saveDefaultSubscriptionSettingApi(
+  mtype: string,
+  data: Record<string, any>,
+) {
+  return requestClient.post('/api/subscription/default_setting/save', {
+    mtype,
+    ...data,
+  });
 }
 
 /** 刷新订阅 */
 export async function refreshSubscriptionApi(mtype: string, rssid?: string) {
-  return requestClient.post('/api/subscription/refresh', { type: mtype, rssid });
+  return requestClient.post('/api/subscription/refresh', {
+    type: mtype,
+    rssid,
+  });
 }
 
 /** 获取订阅详情 */
-export async function getSubscriptionDetailApi(rssid: string | number, rsstype: string) {
-  return requestClient.post('/api/subscription/detail', { rssid: String(rssid), rsstype });
+export async function getSubscriptionDetailApi(
+  rssid: number | string,
+  rsstype: string,
+) {
+  return requestClient.post('/api/subscription/detail', {
+    rssid: String(rssid),
+    rsstype,
+  });
 }
 
 /** 获取订阅历史 */
 export async function getSubscriptionHistoryApi(type?: 'movie' | 'tv') {
-  return requestClient.post<SubscriptionApi.SubscriptionHistory[]>('/api/subscription/history', { type });
+  return requestClient.post<SubscriptionApi.SubscriptionHistory[]>(
+    '/api/subscription/history',
+    { type },
+  );
 }
 
 /** 重新订阅历史 */
-export async function redoSubscriptionHistoryApi(rssid: number | string, type: 'movie' | 'tv') {
+export async function redoSubscriptionHistoryApi(
+  rssid: number | string,
+  type: 'movie' | 'tv',
+) {
   return requestClient.post('/api/subscription/history/redo', { rssid, type });
 }
 
 /** 添加订阅（从发现页触发） */
 export async function addSubscriptionMediaApi(data: {
-  name: string;
-  year?: string;
-  type: string;
   mediaid?: string;
-  season?: string;
+  name: string;
   page?: string;
+  season?: string;
+  type: string;
+  year?: string;
 }) {
   return requestClient.post('/api/subscription/add', data);
 }
@@ -130,11 +155,11 @@ export async function addSubscriptionMediaApi(data: {
 /** 取消订阅 */
 export async function removeSubscriptionApi(data: {
   name: string;
-  type: string;
-  year?: string;
+  page?: string;
   rssid?: string;
   tmdbid?: string;
-  page?: string;
+  type: string;
+  year?: string;
 }) {
   return requestClient.post('/api/subscription/remove', data);
 }
@@ -151,16 +176,22 @@ export async function truncateSubscriptionHistoryApi() {
 
 /** 获取 RSS 自动化任务列表 */
 export async function getRssAutomationApi() {
-  return requestClient.post<SubscriptionApi.RssAutomationItem[]>('/api/rss-automation/tasks');
+  return requestClient.post<SubscriptionApi.RssAutomationItem[]>(
+    '/api/rss-automation/tasks',
+  );
 }
 
 /** 添加 RSS 自动化任务 */
-export async function addRssAutomationApi(data: Partial<SubscriptionApi.RssAutomationItem>) {
+export async function addRssAutomationApi(
+  data: Partial<SubscriptionApi.RssAutomationItem>,
+) {
   return requestClient.post('/api/rss-automation/tasks/update', data);
 }
 
 /** 更新 RSS 自动化任务 */
-export async function updateRssAutomationApi(data: Partial<SubscriptionApi.RssAutomationItem>) {
+export async function updateRssAutomationApi(
+  data: Partial<SubscriptionApi.RssAutomationItem>,
+) {
   return requestClient.post('/api/rss-automation/tasks/update', data);
 }
 
@@ -171,10 +202,14 @@ export async function deleteRssAutomationApi(id: number) {
 
 /** 获取电影订阅原始项（用于日历） */
 export async function getMovieSubscriptionItemsApi() {
-  return requestClient.post<Array<{ id: string; rssid: string; name?: string }>>('/api/subscription/movie/items');
+  return requestClient.post<
+    Array<{ id: string; name?: string; rssid: string }>
+  >('/api/subscription/movie/items');
 }
 
 /** 获取剧集订阅原始项（用于日历） */
 export async function getTvSubscriptionItemsApi() {
-  return requestClient.post<Array<{ id: string; rssid: string; season?: string; name?: string }>>('/api/subscription/tv/items');
+  return requestClient.post<
+    Array<{ id: string; name?: string; rssid: string; season?: string }>
+  >('/api/subscription/tv/items');
 }

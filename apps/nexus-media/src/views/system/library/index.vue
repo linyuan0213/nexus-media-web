@@ -1,5 +1,9 @@
 <script lang="ts" setup>
-import { ref, onMounted, computed } from 'vue';
+import type { StorageApi } from '#/api/modules/storage';
+
+import { computed, onMounted, ref } from 'vue';
+
+import { IconifyIcon } from '@vben/icons';
 
 import {
   NButton,
@@ -14,20 +18,16 @@ import {
   NSpin,
   useMessage,
 } from 'naive-ui';
-import { IconifyIcon } from '@vben/icons';
 
 import {
-  getMediaLibraryConfigApi,
   addMediaLibraryPathApi,
+  getMediaLibraryConfigApi,
   removeMediaLibraryPathApi,
   updateMediaLibraryPathApi,
 } from '#/api/modules/media';
-import {
-  getStorageBackendsApi,
-} from '#/api/modules/storage';
-import type { StorageApi } from '#/api/modules/storage';
-import PageHeader from '#/components/page/PageHeader.vue';
+import { getStorageBackendsApi } from '#/api/modules/storage';
 import PathPickerModal from '#/components/media/PathPickerModal.vue';
+import PageHeader from '#/components/page/PageHeader.vue';
 
 interface SectionDef {
   key: string;
@@ -37,10 +37,25 @@ interface SectionDef {
 }
 
 const SECTIONS: SectionDef[] = [
-  { key: 'movie', label: '电影', icon: 'lucide:film', desc: '电影资源存放目录' },
+  {
+    key: 'movie',
+    label: '电影',
+    icon: 'lucide:film',
+    desc: '电影资源存放目录',
+  },
   { key: 'tv', label: '电视剧', icon: 'lucide:tv', desc: '电视剧资源存放目录' },
-  { key: 'anime', label: '动漫', icon: 'lucide:sparkles', desc: '动漫资源存放目录' },
-  { key: 'unknown', label: '未识别', icon: 'lucide:folder-question', desc: '未识别资源存放目录' },
+  {
+    key: 'anime',
+    label: '动漫',
+    icon: 'lucide:sparkles',
+    desc: '动漫资源存放目录',
+  },
+  {
+    key: 'unknown',
+    label: '未识别',
+    icon: 'lucide:folder-question',
+    desc: '未识别资源存放目录',
+  },
 ];
 
 interface PathItem {
@@ -57,7 +72,10 @@ const data = ref<SectionData[]>([]);
 const backends = ref<StorageApi.StorageBackend[]>([]);
 const backendOptions = computed(() => [
   { label: '本地', value: 'local' },
-  ...backends.value.map((b) => ({ label: `${b.name} (${b.type})`, value: String(b.id) })),
+  ...backends.value.map((b) => ({
+    label: `${b.name} (${b.type})`,
+    value: String(b.id),
+  })),
 ]);
 const loading = ref(false);
 
@@ -109,17 +127,23 @@ async function fetch() {
     data.value = SECTIONS.map((s) => {
       const pathKey = `${s.key}_path` as keyof typeof cfg;
       const backendKey = `${s.key}_backend` as keyof typeof cfg;
-      const paths = Array.isArray(cfg[pathKey]) ? (cfg[pathKey] as string[]) : (cfg[pathKey] ? [cfg[pathKey] as string] : []);
-      const backendList = Array.isArray(cfg[backendKey]) ? (cfg[backendKey] as string[]) : [];
+      const paths = Array.isArray(cfg[pathKey])
+        ? (cfg[pathKey] as string[])
+        : cfg[pathKey]
+          ? [cfg[pathKey] as string]
+          : [];
+      const backendList = Array.isArray(cfg[backendKey])
+        ? (cfg[backendKey] as string[])
+        : [];
       return {
         ...s,
         paths: paths.map((p, i) => ({
           path: p,
-          backend: (backendList[i] || 'local'),
+          backend: backendList[i] || 'local',
         })),
       };
     });
-  } catch (e) {
+  } catch {
     message.error('加载媒体库配置失败');
   } finally {
     loading.value = false;
@@ -168,7 +192,7 @@ async function save() {
     section.paths.push({ path: p, backend: m.backend });
   } else {
     const idx = section.paths.findIndex((x) => x.path === m.oldPath);
-    if (idx >= 0) {
+    if (idx !== -1) {
       await updateMediaLibraryPathApi(m.sectionKey, m.oldPath, p, m.backend);
       section.paths[idx] = { path: p, backend: m.backend };
     }
@@ -203,7 +227,10 @@ onMounted(fetch);
 
 <template>
   <div class="p-4">
-    <PageHeader title="媒体库设置" subtitle="配置电影、电视剧、动漫及未识别文件的媒体库目录">
+    <PageHeader
+      title="媒体库设置"
+      subtitle="配置电影、电视剧、动漫及未识别文件的媒体库目录"
+    >
       <template #actions>
         <NButton size="small" @click="fetch">
           <template #icon>
@@ -227,10 +254,7 @@ onMounted(fetch);
           <!-- 头部 -->
           <div class="mb-3 flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <IconifyIcon
-                :icon="section.icon"
-                class="h-5 w-5 section-icon"
-              />
+              <IconifyIcon :icon="section.icon" class="h-5 w-5 section-icon" />
               <span class="text-sm font-semibold section-label">
                 {{ section.label }}
               </span>
@@ -249,10 +273,7 @@ onMounted(fetch);
           <!-- 内容区 -->
           <div class="flex-1 flex flex-col">
             <!-- 路径列表 -->
-            <div
-              v-if="section.paths.length"
-              class="flex flex-col gap-2"
-            >
+            <div v-if="section.paths.length > 0" class="flex flex-col gap-2">
               <div
                 v-for="(item, idx) in section.paths"
                 :key="idx"
@@ -270,8 +291,15 @@ onMounted(fetch);
                     >
                       {{ item.path }}
                     </div>
-                    <div class="text-xs mt-0.5" style="color: hsl(var(--muted-foreground))">
-                      {{ backendOptions.find((b) => b.value === (item.backend || 'local'))?.label || '本地' }}
+                    <div
+                      class="text-xs mt-0.5"
+                      style="color: hsl(var(--muted-foreground))"
+                    >
+                      {{
+                        backendOptions.find(
+                          (b) => b.value === (item.backend || 'local'),
+                        )?.label || '本地'
+                      }}
                     </div>
                   </div>
                 </div>
@@ -308,21 +336,21 @@ onMounted(fetch);
               :description="`暂无 ${section.label} 目录`"
               class="flex-1 items-center justify-center py-6"
             >
-            <template #icon>
-              <IconifyIcon
-                icon="lucide:folder-open"
-                class="h-10 w-10 empty-icon"
-              />
-            </template>
-            <template #extra>
-              <NButton size="small" @click="openAdd(section.key)">
-                <template #icon>
-                  <IconifyIcon icon="lucide:plus" class="h-3.5 w-3.5" />
-                </template>
-                添加目录
-              </NButton>
-            </template>
-          </NEmpty>
+              <template #icon>
+                <IconifyIcon
+                  icon="lucide:folder-open"
+                  class="h-10 w-10 empty-icon"
+                />
+              </template>
+              <template #extra>
+                <NButton size="small" @click="openAdd(section.key)">
+                  <template #icon>
+                    <IconifyIcon icon="lucide:plus" class="h-3.5 w-3.5" />
+                  </template>
+                  添加目录
+                </NButton>
+              </template>
+            </NEmpty>
           </div>
         </NCard>
       </div>
@@ -333,7 +361,7 @@ onMounted(fetch);
       v-model:show="modal.show"
       :title="`${modal.oper === 'add' ? '新增' : '编辑'}${modal.sectionLabel}目录`"
       preset="card"
-      class="w-[520px]"
+      :style="{ width: '520px', maxWidth: '92vw' }"
     >
       <NForm label-placement="left" label-width="60">
         <NFormItem label="路径" required>
@@ -346,7 +374,12 @@ onMounted(fetch);
               <IconifyIcon icon="lucide:folder" class="h-4 w-4 input-icon" />
             </template>
             <template #suffix>
-              <NButton size="tiny" text @click="openPathPicker" title="浏览选择目录">
+              <NButton
+                size="tiny"
+                text
+                @click="openPathPicker"
+                title="浏览选择目录"
+              >
                 <template #icon>
                   <IconifyIcon icon="lucide:folder-open" class="h-4 w-4" />
                 </template>
@@ -380,7 +413,11 @@ onMounted(fetch);
       negative-text="取消"
       @positive-click="confirmDelete"
     >
-      <div>确定要删除 {{ deleteModal.sectionLabel }} 目录「{{ deleteModal.path }}」吗？</div>
+      <div>
+        确定要删除 {{ deleteModal.sectionLabel }} 目录「{{
+          deleteModal.path
+        }}」吗？
+      </div>
     </NModal>
 
     <!-- 目录选择器 -->
@@ -398,33 +435,42 @@ onMounted(fetch);
 .section-icon {
   color: hsl(var(--muted-foreground));
 }
+
 .section-label {
   color: hsl(var(--card-foreground));
 }
+
 .count-badge {
-  background-color: hsl(var(--muted));
   color: hsl(var(--muted-foreground));
-}
-.path-row {
-  border: 1px solid hsl(var(--border));
-  background-color: hsl(var(--accent));
-}
-.path-row:hover {
-  border-color: hsl(var(--border));
   background-color: hsl(var(--muted));
 }
+
+.path-row {
+  background-color: hsl(var(--accent));
+  border: 1px solid hsl(var(--border));
+}
+
+.path-row:hover {
+  background-color: hsl(var(--muted));
+  border-color: hsl(var(--border));
+}
+
 .path-icon {
   color: hsl(var(--muted-foreground));
 }
+
 .path-text {
   color: hsl(var(--card-foreground));
 }
+
 .empty-icon {
-  color: hsl(var(--muted-foreground) / 0.5);
+  color: hsl(var(--muted-foreground) / 50%);
 }
+
 .input-icon {
   color: hsl(var(--muted-foreground));
 }
+
 .hint-text {
   color: hsl(var(--muted-foreground));
 }

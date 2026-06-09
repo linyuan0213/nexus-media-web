@@ -1,11 +1,12 @@
-import { ref } from 'vue';
-import { defineStore } from 'pinia';
-
 import type {
   TransferHistoryItem,
   TransferStatisticsResult,
   UnknownItem,
 } from '#/api/modules/media';
+
+import { ref } from 'vue';
+
+import { defineStore } from 'pinia';
 
 export interface MediaItem {
   id: number;
@@ -25,7 +26,7 @@ export const useMediaStore = defineStore('media', () => {
 
   // rename module state
   const transferHistory = ref<TransferHistoryItem[]>([]);
-  const transferStatistics = ref<TransferStatisticsResult | null>(null);
+  const transferStatistics = ref<null | TransferStatisticsResult>(null);
   const unknownList = ref<UnknownItem[]>([]);
 
   function setSearchResults(results: MediaItem[]) {
@@ -44,7 +45,7 @@ export const useMediaStore = defineStore('media', () => {
     transferHistory.value = items;
   }
 
-  function setTransferStatistics(stats: TransferStatisticsResult | null) {
+  function setTransferStatistics(stats: null | TransferStatisticsResult) {
     transferStatistics.value = stats;
   }
 

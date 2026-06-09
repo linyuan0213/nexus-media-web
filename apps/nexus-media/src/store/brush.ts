@@ -1,7 +1,8 @@
-import { ref } from 'vue';
-import { defineStore } from 'pinia';
-
 import type { BrushApi } from '#/api/modules/brush';
+
+import { ref } from 'vue';
+
+import { defineStore } from 'pinia';
 
 export type BrushTask = BrushApi.BrushTask;
 

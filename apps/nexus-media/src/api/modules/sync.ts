@@ -39,7 +39,10 @@ export const SYNC_MODES = [
 
 /** 获取同步任务列表 */
 export async function getSyncTasksApi() {
-  return requestClient.post<Record<string, SyncApi.SyncTask>>('/api/sync/paths', {});
+  return requestClient.post<Record<string, SyncApi.SyncTask>>(
+    '/api/sync/paths',
+    {},
+  );
 }
 
 /** 保存同步任务 */
@@ -59,70 +62,73 @@ export async function runSyncTaskApi(sid: number | string) {
 
 /** 更新媒体库目录（add/sub） */
 export async function updateDirectoryApi(data: {
-  oper: 'add' | 'sub' | 'set';
   key: string;
-  value: string;
+  oper: 'add' | 'set' | 'sub';
   replace_value?: string;
+  value: string;
 }) {
   return requestClient.post('/api/sync/directories/update', data);
 }
 
 /** 删除识别历史记录（及文件） */
 export async function deleteTransferHistoryApi(data: {
+  flag?: '' | 'del_all' | 'del_dest' | 'del_source';
   logids: number[];
-  flag?: 'del_source' | 'del_dest' | 'del_all' | '';
 }) {
   return requestClient.post('/api/sync/history/delete', data);
 }
 
 /** 重新识别 */
 export async function reIdentifyTransferHistoryApi(data: {
-  ids: number[];
   flag?: string;
+  ids: number[];
 }) {
   return requestClient.post('/api/sync/reidentify', data);
 }
 
 /** 手动识别/转移 */
 export async function manualTransferApi(data: {
+  episode_details?: string;
+  episode_format?: string;
+  episode_offset?: string;
+  episode_part?: string;
   logid?: number;
-  unknown_id?: number;
+  min_filesize?: number;
+  season?: number;
   syncmod?: string;
   tmdb?: number;
   type?: string;
-  season?: number;
-  episode_format?: string;
-  episode_details?: string;
-  episode_part?: string;
-  episode_offset?: string;
-  min_filesize?: number;
+  unknown_id?: number;
 }) {
   return requestClient.post('/api/sync/rename', data);
 }
 
 /** 自定义识别/转移（指定输入路径） */
 export async function manualTransferUdfApi(data: {
+  episode_details?: string;
+  episode_format?: string;
+  episode_offset?: string;
+  episode_part?: string;
   inpath: string;
+  min_filesize?: number;
   outpath?: string;
+  season?: number;
   syncmod?: string;
   tmdb?: number;
   type?: string;
-  season?: number;
-  episode_format?: string;
-  episode_details?: string;
-  episode_part?: string;
-  episode_offset?: string;
-  min_filesize?: number;
 }) {
   return requestClient.post('/api/sync/rename/udf', data);
 }
 
 /** 重命名文件 */
-export async function renameFileApi(data: { path: string; name: string }) {
+export async function renameFileApi(data: { name: string; path: string }) {
   return requestClient.post('/api/sync/rename/file', data);
 }
 
 /** 删除文件 */
-export async function deleteFilesApi(data: { files: string[]; backend_id?: string }) {
+export async function deleteFilesApi(data: {
+  backend_id?: string;
+  files: string[];
+}) {
   return requestClient.post('/api/sync/files/delete', data);
 }

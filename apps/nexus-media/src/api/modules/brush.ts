@@ -24,7 +24,7 @@ export namespace BrushApi {
     rss_rule?: Record<string, any>;
     remove_rule?: Record<string, any>;
     stop_rule?: Record<string, any>;
-    rule_id?: number | null;
+    rule_id?: null | number;
     seed_size?: number;
     time_range?: string;
     total_size?: number;
@@ -87,7 +87,10 @@ export async function deleteBrushTaskApi(id: number | string) {
 }
 
 /** 启动/停止刷流任务 */
-export async function toggleBrushTaskApi(id: number | string, enabled: boolean) {
+export async function toggleBrushTaskApi(
+  id: number | string,
+  enabled: boolean,
+) {
   return requestClient.post('/api/brush/tasks/state', {
     state: enabled ? 'Y' : 'S',
     ids: [id],
@@ -101,12 +104,18 @@ export async function runBrushTaskApi(id: number | string) {
 
 /** 获取刷流任务详情 */
 export async function getBrushTaskDetailApi(id: number | string) {
-  return requestClient.post<{ task: BrushApi.BrushTask }>('/api/brush/tasks/detail', { id });
+  return requestClient.post<{ task: BrushApi.BrushTask }>(
+    '/api/brush/tasks/detail',
+    { id },
+  );
 }
 
 /** 获取刷流任务种子列表 */
 export async function getBrushTaskTorrentsApi(id: number | string) {
-  return requestClient.post<{ list: BrushApi.BrushTorrent[] }>('/api/brush/tasks/torrents', { id });
+  return requestClient.post<{ list: BrushApi.BrushTorrent[] }>(
+    '/api/brush/tasks/torrents',
+    { id },
+  );
 }
 
 // ---------- 规则模板 API ----------
@@ -118,7 +127,9 @@ export async function getBrushRulesApi() {
 
 /** 获取刷流规则详情 */
 export async function getBrushRuleDetailApi(id: number | string) {
-  return requestClient.post<BrushApi.BrushRule>('/api/brush/rules/detail', { id });
+  return requestClient.post<BrushApi.BrushRule>('/api/brush/rules/detail', {
+    id,
+  });
 }
 
 /** 保存刷流规则 */

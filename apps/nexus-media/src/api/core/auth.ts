@@ -43,10 +43,14 @@ export async function loginApi(data: AuthApi.LoginParams) {
  * 请求级别指定 responseReturn: 'data'，让拦截器提取嵌套 data
  */
 export async function refreshTokenApi() {
-  return baseRequestClient.post<AuthApi.RefreshTokenResult>('/api/auth/refresh', null, {
-    withCredentials: true,
-    responseReturn: 'data',
-  });
+  return baseRequestClient.post<AuthApi.RefreshTokenResult>(
+    '/api/auth/refresh',
+    null,
+    {
+      withCredentials: true,
+      responseReturn: 'data',
+    },
+  );
 }
 
 /**
@@ -73,8 +77,7 @@ export async function getUserInfoApi() {
 export async function getLoginWallpaperApi() {
   return baseRequestClient.get<{
     image_code: string;
-    img_title: string;
     img_link: string;
+    img_title: string;
   }>('/api/auth/wallpaper');
 }
-

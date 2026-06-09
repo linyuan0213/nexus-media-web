@@ -28,15 +28,39 @@ const logoDark = computed(() => preferences.logo.sourceDark);
 <style scoped>
 :deep(.login-background) {
   background:
-    radial-gradient(ellipse at 20% 30%, hsl(var(--primary) / 12%) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 70%, hsl(var(--accent) / 8%) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 50%, hsl(var(--primary) / 5%) 0%, transparent 70%);
+    radial-gradient(
+      ellipse at 20% 30%,
+      hsl(var(--primary) / 12%) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 80% 70%,
+      hsl(var(--accent) / 8%) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 50% 50%,
+      hsl(var(--primary) / 5%) 0%,
+      transparent 70%
+    );
 }
 
 :deep(.dark .login-background) {
   background:
-    radial-gradient(ellipse at 20% 30%, hsl(var(--primary) / 8%) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 70%, hsl(var(--accent) / 5%) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 50%, hsl(var(--primary) / 3%) 0%, transparent 70%);
+    radial-gradient(
+      ellipse at 20% 30%,
+      hsl(var(--primary) / 8%) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 80% 70%,
+      hsl(var(--accent) / 5%) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 50% 50%,
+      hsl(var(--primary) / 3%) 0%,
+      transparent 70%
+    );
 }
 </style>

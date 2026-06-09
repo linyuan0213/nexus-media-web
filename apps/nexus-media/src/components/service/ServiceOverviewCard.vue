@@ -7,7 +7,7 @@ interface Props {
   status: 'running' | 'stopped' | 'warning';
   statusText: string;
   description?: string;
-  metrics?: { label: string; value: string | number }[];
+  metrics?: { label: string; value: number | string }[];
 }
 
 withDefaults(defineProps<Props>(), {
@@ -21,12 +21,15 @@ const emit = defineEmits<{
 
 function getStatusColor(status: string): string {
   switch (status) {
-    case 'running':
+    case 'running': {
       return 'hsl(var(--success))';
-    case 'warning':
+    }
+    case 'warning': {
       return 'hsl(var(--warning))';
-    default:
+    }
+    default: {
       return 'hsl(var(--muted-foreground))';
+    }
   }
 }
 </script>
@@ -47,7 +50,7 @@ function getStatusColor(status: string): string {
           <span
             class="status-dot"
             :style="{ backgroundColor: getStatusColor(status) }"
-          />
+          ></span>
           <span class="status-text">{{ statusText }}</span>
         </div>
       </div>
@@ -57,33 +60,29 @@ function getStatusColor(status: string): string {
       {{ description }}
     </div>
 
-    <div v-if="metrics.length" class="service-card-metrics">
-      <div
-        v-for="(metric, idx) in metrics"
-        :key="idx"
-        class="metric-item"
-      >
+    <div v-if="metrics.length > 0" class="service-card-metrics">
+      <div v-for="(metric, idx) in metrics" :key="idx" class="metric-item">
         <div class="metric-value">{{ metric.value }}</div>
         <div class="metric-label">{{ metric.label }}</div>
       </div>
     </div>
 
     <div v-if="$slots.action" class="service-card-footer">
-      <slot name="action" />
+      <slot name="action"></slot>
     </div>
   </div>
 </template>
 
 <style scoped>
 .service-overview-card {
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.75rem;
-  background-color: hsl(var(--card));
-  padding: 1.25rem;
-  transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
+  padding: 1.25rem;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
 }
 
 .service-overview-card--clickable {
@@ -91,25 +90,25 @@ function getStatusColor(status: string): string {
 }
 
 .service-overview-card:hover {
-  border-color: hsl(var(--primary) / 0.3);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border-color: hsl(var(--primary) / 30%);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 5%);
 }
 
 .service-card-header {
   display: flex;
-  align-items: center;
   gap: 0.875rem;
+  align-items: center;
 }
 
 .service-card-icon {
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 0.625rem;
-  background-color: hsl(var(--accent));
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  background-color: hsl(var(--accent));
+  border-radius: 0.625rem;
 }
 
 .service-icon {
@@ -119,21 +118,21 @@ function getStatusColor(status: string): string {
 }
 
 .service-card-title-area {
-  min-width: 0;
   flex: 1;
+  min-width: 0;
 }
 
 .service-card-title {
   font-size: 1rem;
   font-weight: 600;
-  color: hsl(var(--card-foreground));
   line-height: 1.4;
+  color: hsl(var(--card-foreground));
 }
 
 .service-card-status {
   display: flex;
-  align-items: center;
   gap: 0.375rem;
+  align-items: center;
   margin-top: 0.125rem;
 }
 
@@ -150,8 +149,8 @@ function getStatusColor(status: string): string {
 
 .service-card-description {
   font-size: 0.8125rem;
-  color: hsl(var(--muted-foreground));
   line-height: 1.5;
+  color: hsl(var(--muted-foreground));
 }
 
 .service-card-metrics {
@@ -173,9 +172,9 @@ function getStatusColor(status: string): string {
 }
 
 .metric-label {
+  margin-top: 0.125rem;
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
-  margin-top: 0.125rem;
 }
 
 .service-card-footer {

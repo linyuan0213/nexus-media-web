@@ -53,18 +53,18 @@ export namespace RbacApi {
     component?: string;
     redirect?: string;
     meta: {
-      title: string;
-      icon?: string;
-      order?: number;
-      authority?: string[];
-      keepAlive?: boolean;
-      affixTab?: boolean;
-      hideInMenu?: boolean;
-      hideInTab?: boolean;
-      hideInBreadcrumb?: boolean;
       activeIcon?: string;
+      affixTab?: boolean;
+      authority?: string[];
       badge?: string;
       badgeType?: string;
+      hideInBreadcrumb?: boolean;
+      hideInMenu?: boolean;
+      hideInTab?: boolean;
+      icon?: string;
+      keepAlive?: boolean;
+      order?: number;
+      title: string;
     };
     children?: VbenMenuRoute[];
   }
@@ -85,11 +85,11 @@ export async function getUsersApi() {
 
 /** 创建用户 */
 export async function createUserApi(data: {
-  username: string;
-  password: string;
   email?: string;
   nickname?: string;
+  password: string;
   role_ids?: number[];
+  username: string;
 }) {
   return requestClient.post('/api/rbac/users/create', data);
 }
@@ -140,19 +140,23 @@ export async function getRolesApi() {
 
 /** 创建角色 */
 export async function createRoleApi(data: {
-  role_name: string;
-  role_code: string;
   description?: string;
-  role_level?: number;
-  permission_ids?: number[];
   menu_ids?: number[];
+  permission_ids?: number[];
+  role_code: string;
+  role_level?: number;
+  role_name: string;
 }) {
   return requestClient.post('/api/rbac/roles/create', data);
 }
 
 /** 更新角色 */
 export async function updateRoleApi(
-  data: Partial<RbacApi.RoleItem> & { id: number; permission_ids?: number[]; menu_ids?: number[] },
+  data: Partial<RbacApi.RoleItem> & {
+    id: number;
+    menu_ids?: number[];
+    permission_ids?: number[];
+  },
 ) {
   return requestClient.post('/api/rbac/roles/update', data);
 }
@@ -185,7 +189,9 @@ export async function createMenuApi(data: Partial<RbacApi.MenuItem>) {
 }
 
 /** 更新菜单 */
-export async function updateMenuApi(data: Partial<RbacApi.MenuItem> & { id: number }) {
+export async function updateMenuApi(
+  data: Partial<RbacApi.MenuItem> & { id: number },
+) {
   return requestClient.post('/api/rbac/menus/update', data);
 }
 
@@ -196,7 +202,7 @@ export async function deleteMenuApi(id: number) {
 
 /** 更新菜单排序 */
 export async function updateMenuSortApi(
-  menuOrders: Array<{ id: number; sort_order: number; parent_id?: number }>,
+  menuOrders: Array<{ id: number; parent_id?: number; sort_order: number }>,
 ) {
   return requestClient.post('/api/rbac/menus/sort', {
     menu_orders: menuOrders,
@@ -215,7 +221,10 @@ export async function getAllMenusForManagementApi() {
 
 /** 获取所有权限列表 */
 export async function getPermissionsApi() {
-  return requestClient.post<RbacApi.PermissionItem[]>('/api/rbac/permissions', {});
+  return requestClient.post<RbacApi.PermissionItem[]>(
+    '/api/rbac/permissions',
+    {},
+  );
 }
 
 // ---------- 权限码 ----------

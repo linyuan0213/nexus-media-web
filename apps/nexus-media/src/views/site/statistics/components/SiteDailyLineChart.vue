@@ -14,7 +14,7 @@ interface SeriesItem {
 interface Props {
   dates: string[];
   series: SeriesItem[];
-  mode?: 'upload' | 'download';
+  mode?: 'download' | 'upload';
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -117,9 +117,13 @@ onMounted(() => {
   renderEcharts(buildOption());
 });
 
-watch(() => [props.dates, props.series, props.mode], () => {
-  renderEcharts(buildOption());
-}, { deep: true });
+watch(
+  () => [props.dates, props.series, props.mode],
+  () => {
+    renderEcharts(buildOption());
+  },
+  { deep: true },
+);
 </script>
 
 <template>

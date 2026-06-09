@@ -1,15 +1,9 @@
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 
-import {
-  NButton,
-  NCard,
-  NEmpty,
-  NModal,
-  NSpace,
-  NSpin,
-} from 'naive-ui';
 import { IconifyIcon } from '@vben/icons';
+
+import { NButton, NCard, NEmpty, NModal, NSpace, NSpin } from 'naive-ui';
 
 import { getSystemStatusApi } from '#/api';
 
@@ -54,12 +48,8 @@ onMounted(fetchData);
           <NButton type="primary" @click="showMediasyncModal">
             媒体库同步
           </NButton>
-          <NButton @click="showStatisticsModal = true">
-            统计数据
-          </NButton>
-          <NButton @click="showPlayHistoryModal = true">
-            播放记录
-          </NButton>
+          <NButton @click="showStatisticsModal = true"> 统计数据 </NButton>
+          <NButton @click="showPlayHistoryModal = true"> 播放记录 </NButton>
         </NSpace>
       </div>
     </div>
@@ -70,26 +60,43 @@ onMounted(fetchData);
         <NCard class="mb-4">
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="text-center">
-              <div class="text-sm" style="color: hsl(var(--muted-foreground))">系统版本</div>
-              <div class="text-lg font-bold">{{ systemStatus?.version || '-' }}</div>
+              <div class="text-sm" style="color: hsl(var(--muted-foreground))">
+                系统版本
+              </div>
+              <div class="text-lg font-bold">
+                {{ systemStatus?.version || '-' }}
+              </div>
             </div>
             <div class="text-center">
-              <div class="text-sm" style="color: hsl(var(--muted-foreground))">运行时长</div>
-              <div class="text-lg font-bold">{{ systemStatus?.uptime || '-' }}</div>
+              <div class="text-sm" style="color: hsl(var(--muted-foreground))">
+                运行时长
+              </div>
+              <div class="text-lg font-bold">
+                {{ systemStatus?.uptime || '-' }}
+              </div>
             </div>
             <div class="text-center">
-              <div class="text-sm" style="color: hsl(var(--muted-foreground))">Python</div>
-              <div class="text-lg font-bold">{{ systemStatus?.python_version || '-' }}</div>
+              <div class="text-sm" style="color: hsl(var(--muted-foreground))">
+                Python
+              </div>
+              <div class="text-lg font-bold">
+                {{ systemStatus?.python_version || '-' }}
+              </div>
             </div>
             <div class="text-center">
-              <div class="text-sm" style="color: hsl(var(--muted-foreground))">媒体库</div>
+              <div class="text-sm" style="color: hsl(var(--muted-foreground))">
+                媒体库
+              </div>
               <div class="text-lg font-bold">{{ librarys.length }}</div>
             </div>
           </div>
         </NCard>
 
         <!-- 媒体库内容 -->
-        <div v-if="librarys.length > 0" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+        <div
+          v-if="librarys.length > 0"
+          class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6"
+        >
           <a
             v-for="library in librarys"
             :key="library.id"
@@ -104,10 +111,16 @@ onMounted(fetchData);
               style="aspect-ratio: 2/1"
               alt=""
             />
-            <div v-else class="w-full flex items-center justify-center" style="aspect-ratio: 2/1; background-color: hsl(var(--muted))">
+            <div
+              v-else
+              class="w-full flex items-center justify-center"
+              style="aspect-ratio: 2/1; background-color: hsl(var(--muted))"
+            >
               <span style="color: hsl(var(--muted-foreground))">无图片</span>
             </div>
-            <div class="m-2 text-center text-sm truncate">{{ library.name }}</div>
+            <div class="m-2 text-center text-sm truncate">
+              {{ library.name }}
+            </div>
           </a>
         </div>
 
@@ -130,14 +143,25 @@ onMounted(fetchData);
               />
               <span
                 class="absolute top-2 left-2 px-2 py-0.5 text-xs rounded-full text-white"
-                :class="resume.type === 'movie' ? 'bg-green-500' : 'bg-blue-500'"
+                :class="
+                  resume.type === 'movie' ? 'bg-green-500' : 'bg-blue-500'
+                "
               >
                 {{ resume.type }}
               </span>
-              <div v-if="resume.percent" class="absolute bottom-8 left-0 right-0 h-1" style="background-color: hsl(var(--muted))">
-                <div class="h-full bg-green-500" :style="`width: ${resume.percent}%`"></div>
+              <div
+                v-if="resume.percent"
+                class="absolute bottom-8 left-0 right-0 h-1"
+                style="background-color: hsl(var(--muted))"
+              >
+                <div
+                  class="h-full bg-green-500"
+                  :style="`width: ${resume.percent}%`"
+                ></div>
               </div>
-              <div class="m-2 text-center text-sm truncate">{{ resume.name }}</div>
+              <div class="m-2 text-center text-sm truncate">
+                {{ resume.name }}
+              </div>
             </a>
           </div>
         </div>
@@ -161,27 +185,54 @@ onMounted(fetchData);
               />
               <span
                 class="absolute top-2 left-2 px-2 py-0.5 text-xs rounded-full text-white"
-                :class="latest.type === 'movie' ? 'bg-green-500' : 'bg-blue-500'"
+                :class="
+                  latest.type === 'movie' ? 'bg-green-500' : 'bg-blue-500'
+                "
               >
                 {{ latest.type }}
               </span>
-              <div class="m-2 text-center text-sm truncate">{{ latest.name }}</div>
+              <div class="m-2 text-center text-sm truncate">
+                {{ latest.name }}
+              </div>
             </a>
           </div>
         </div>
 
-        <NEmpty v-if="librarys.length === 0 && resumes.length === 0 && latests.length === 0" description="暂无媒体库数据，请先配置媒体服务器" />
+        <NEmpty
+          v-if="
+            librarys.length === 0 &&
+            resumes.length === 0 &&
+            latests.length === 0
+          "
+          description="暂无媒体库数据，请先配置媒体服务器"
+        />
       </template>
 
-      <div v-else class="flex flex-col items-center justify-center py-20 text-center">
-        <IconifyIcon icon="lucide:server-off" class="mb-4 size-12 text-muted-foreground" />
-        <p class="text-lg font-semibold text-muted-foreground">媒体服务器连接失败！</p>
-        <p class="text-muted-foreground">当前无法连接媒体服务器获取数据，请确认 Emby/Jellyfin/Plex 配置是否正确。</p>
+      <div
+        v-else
+        class="flex flex-col items-center justify-center py-20 text-center"
+      >
+        <IconifyIcon
+          icon="lucide:server-off"
+          class="mb-4 size-12 text-muted-foreground"
+        />
+        <p class="text-lg font-semibold text-muted-foreground">
+          媒体服务器连接失败！
+        </p>
+        <p class="text-muted-foreground">
+          当前无法连接媒体服务器获取数据，请确认 Emby/Jellyfin/Plex
+          配置是否正确。
+        </p>
       </div>
     </NSpin>
 
     <!-- 媒体库同步模态框 -->
-    <NModal v-model:show="showMediaSyncModal" preset="card" title="媒体库同步" style="width: 500px">
+    <NModal
+      v-model:show="showMediaSyncModal"
+      preset="card"
+      title="媒体库同步"
+      style="width: 500px"
+    >
       <div class="text-center py-4">
         <div class="mb-3">
           <span

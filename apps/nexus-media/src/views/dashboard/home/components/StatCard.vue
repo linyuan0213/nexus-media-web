@@ -3,12 +3,12 @@ import { IconifyIcon } from '@vben/icons';
 
 interface Props {
   title: string;
-  value: string | number;
+  value: number | string;
   icon: string;
   iconColor?: string;
   iconBg?: string;
   trend?: string;
-  trendType?: 'up' | 'down' | 'neutral';
+  trendType?: 'down' | 'neutral' | 'up';
 }
 
 withDefaults(defineProps<Props>(), {
@@ -22,23 +22,25 @@ withDefaults(defineProps<Props>(), {
 <template>
   <div
     class="flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-all hover:shadow-md"
-    style="border-color: hsl(var(--border)); background: hsl(var(--card))"
+    style="background: hsl(var(--card)); border-color: hsl(var(--border))"
   >
     <div
       class="flex h-10 w-10 items-center justify-center rounded-xl"
       :style="{ background: iconBg }"
     >
-      <IconifyIcon
-        :icon="icon"
-        class="size-5"
-        :style="{ color: iconColor }"
-      />
+      <IconifyIcon :icon="icon" class="size-5" :style="{ color: iconColor }" />
     </div>
     <div class="flex flex-col gap-0.5">
-      <span class="text-xs font-medium" style="color: hsl(var(--muted-foreground))">
+      <span
+        class="text-xs font-medium"
+        style="color: hsl(var(--muted-foreground))"
+      >
         {{ title }}
       </span>
-      <span class="text-lg font-bold leading-tight" style="color: hsl(var(--card-foreground))">
+      <span
+        class="text-lg font-bold leading-tight"
+        style="color: hsl(var(--card-foreground))"
+      >
         {{ value }}
       </span>
       <span
@@ -54,7 +56,13 @@ withDefaults(defineProps<Props>(), {
         }"
       >
         <IconifyIcon
-          :icon="trendType === 'up' ? 'lucide:trending-up' : trendType === 'down' ? 'lucide:trending-down' : 'lucide:minus'"
+          :icon="
+            trendType === 'up'
+              ? 'lucide:trending-up'
+              : trendType === 'down'
+                ? 'lucide:trending-down'
+                : 'lucide:minus'
+          "
           class="size-3"
         />
         {{ trend }}

@@ -1,13 +1,29 @@
 <script lang="ts" setup>
-import { ref, watch, computed } from 'vue';
-import { useNotification, NForm, NFormItem, NSwitch, NInput, NSelect, NInputNumber, NModal, NSpin, NButton, NTooltip } from 'naive-ui';
+import { computed, ref, watch } from 'vue';
 
-import { getPluginConfigApi, savePluginConfigApi } from '#/api/modules/plugin_framework';
+import {
+  NButton,
+  NForm,
+  NFormItem,
+  NInput,
+  NInputNumber,
+  NModal,
+  NSelect,
+  NSpin,
+  NSwitch,
+  NTooltip,
+  useNotification,
+} from 'naive-ui';
+
+import {
+  getPluginConfigApi,
+  savePluginConfigApi,
+} from '#/api/modules/plugin_framework';
 import { getSitesApi } from '#/api/modules/site';
 
 const props = defineProps<{
-  show: boolean;
   plugin: any;
+  show: boolean;
 }>();
 
 const emit = defineEmits(['update:show', 'saved']);
@@ -51,8 +67,11 @@ async function loadConfig() {
         }
       }
     }
-  } catch (err: any) {
-    notification.error({ content: '加载配置失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '加载配置失败',
+      description: error?.message || '',
+    });
   } finally {
     loading.value = false;
   }
@@ -66,8 +85,11 @@ async function handleSave() {
     notification.success({ content: '保存成功' });
     emit('saved');
     visible.value = false;
-  } catch (err: any) {
-    notification.error({ content: '保存失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '保存失败',
+      description: error?.message || '',
+    });
   } finally {
     saving.value = false;
   }
@@ -80,9 +102,12 @@ function resolveOptions(field: any) {
   return field.options || [];
 }
 
-watch(() => props.show, (v) => {
-  if (v) loadConfig();
-});
+watch(
+  () => props.show,
+  (v) => {
+    if (v) loadConfig();
+  },
+);
 </script>
 
 <template>
@@ -99,15 +124,23 @@ watch(() => props.show, (v) => {
             <template #label>
               <NTooltip v-if="field.help" trigger="hover">
                 <template #trigger>
-                  <span class="cursor-help border-b border-dashed border-muted-foreground/50">{{ field.label }}</span>
+                  <span
+                    class="cursor-help border-b border-dashed border-muted-foreground/50"
+                    >{{ field.label }}</span
+                  >
                 </template>
-                <div class="max-w-xs whitespace-normal text-xs">{{ field.help }}</div>
+                <div class="max-w-xs whitespace-normal text-xs">
+                  {{ field.help }}
+                </div>
               </NTooltip>
               <span v-else>{{ field.label }}</span>
             </template>
 
             <!-- switch -->
-            <NSwitch v-if="field.type === 'switch'" v-model:value="config[field.key]" />
+            <NSwitch
+              v-if="field.type === 'switch'"
+              v-model:value="config[field.key]"
+            />
 
             <!-- input -->
             <NInput
@@ -134,11 +167,16 @@ watch(() => props.show, (v) => {
             />
 
             <!-- number -->
-            <NInputNumber v-else-if="field.type === 'number'" v-model:value="config[field.key]" />
+            <NInputNumber
+              v-else-if="field.type === 'number'"
+              v-model:value="config[field.key]"
+            />
 
             <!-- select -->
             <NSelect
-              v-else-if="field.type === 'select' || field.type === 'multi_select'"
+              v-else-if="
+                field.type === 'select' || field.type === 'multi_select'
+              "
               v-model:value="config[field.key]"
               :options="resolveOptions(field)"
               :multiple="field.type === 'multi_select'"
@@ -162,7 +200,9 @@ watch(() => props.show, (v) => {
     <template #footer>
       <div class="flex justify-end gap-2">
         <NButton @click="visible = false">取消</NButton>
-        <NButton type="primary" :loading="saving" @click="handleSave">保存</NButton>
+        <NButton type="primary" :loading="saving" @click="handleSave">
+          保存
+        </NButton>
       </div>
     </template>
   </NModal>

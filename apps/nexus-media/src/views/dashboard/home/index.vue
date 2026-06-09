@@ -12,6 +12,7 @@ import {
   getDashboardSystemStatusApi,
   getDashboardTransferStatsApi,
 } from '#/api';
+import { PluginSlot } from '#/plugin-framework';
 
 import DownloaderRingChart from './components/DownloaderRingChart.vue';
 import MediaPieChart from './components/MediaPieChart.vue';
@@ -20,40 +21,41 @@ import SiteRoseChart from './components/SiteRoseChart.vue';
 import StatCard from './components/StatCard.vue';
 import TransferLineChart from './components/TransferLineChart.vue';
 import WelcomeHeader from './components/WelcomeHeader.vue';
-import { PluginSlot } from '#/plugin-framework';
 
 const loading = ref(true);
 
 // 系统状态
-const systemStatus = ref<{ version: string; uptime: number }>();
+const systemStatus = ref<{ uptime: number; version: string }>();
 
 // 媒体库
 const libraryData = ref<{
-  media_counts: Record<string, number>;
   library_spaces: {
-    UsedPercent: number;
     FreeSpace: string;
-    UsedSpace: string;
     TotalSpace: string;
+    UsedPercent: number;
+    UsedSpace: string;
   };
+  media_counts: Record<string, number>;
 }>();
 
 // 入库统计
 const transferStats = ref<{
+  AnimeNums: number[];
   Labels: string[];
   MovieNums: number[];
   TvNums: number[];
-  AnimeNums: number[];
 }>();
 
 // 站点统计
-const siteStats = ref<Array<{
-  site_name: string;
-  upload: number | string;
-  download: number | string;
-  seeding_count: number;
-  bonus: number | string;
-}>>([]);
+const siteStats = ref<
+  Array<{
+    bonus: number | string;
+    download: number | string;
+    seeding_count: number;
+    site_name: string;
+    upload: number | string;
+  }>
+>([]);
 
 // 索引器统计
 const indexerStats = ref<{ stats: any[] }>();
@@ -88,7 +90,7 @@ const siteRoseData = computed(() => {
   return siteStats.value
     .filter((s) => s.seeding_count > 0)
     .map((s) => ({ name: s.site_name, value: s.seeding_count }))
-    .sort((a, b) => b.value - a.value)
+    .toSorted((a, b) => b.value - a.value)
     .slice(0, 8);
 });
 
@@ -99,8 +101,16 @@ const downloaderRingData = computed(() => {
 
 const siteBarData = computed(() => {
   const items = siteStats.value
-    .filter((s) => parseSizeToBytes(s.upload) > 0 || parseSizeToBytes(s.download) > 0)
-    .sort((a, b) => parseSizeToBytes(b.upload) + parseSizeToBytes(b.download) - parseSizeToBytes(a.upload) - parseSizeToBytes(a.download))
+    .filter(
+      (s) => parseSizeToBytes(s.upload) > 0 || parseSizeToBytes(s.download) > 0,
+    )
+    .toSorted(
+      (a, b) =>
+        parseSizeToBytes(b.upload) +
+        parseSizeToBytes(b.download) -
+        parseSizeToBytes(a.upload) -
+        parseSizeToBytes(a.download),
+    )
     .slice(0, 8);
   return {
     labels: items.map((s) => s.site_name),
@@ -118,11 +128,17 @@ const activeJobCount = computed(() => {
 });
 
 const totalUpload = computed(() => {
-  return siteStats.value.reduce((sum, s) => sum + parseSizeToBytes(s.upload), 0);
+  return siteStats.value.reduce(
+    (sum, s) => sum + parseSizeToBytes(s.upload),
+    0,
+  );
 });
 
 const totalDownload = computed(() => {
-  return siteStats.value.reduce((sum, s) => sum + parseSizeToBytes(s.download), 0);
+  return siteStats.value.reduce(
+    (sum, s) => sum + parseSizeToBytes(s.download),
+    0,
+  );
 });
 
 function parseSizeToBytes(size?: number | string): number {
@@ -130,42 +146,43 @@ function parseSizeToBytes(size?: number | string): number {
   if (typeof size === 'number') return size;
   const match = size.match(/^(\d+\.?\d*)\s*([KMGTPE]?B|TiB|GiB|MiB|KiB)?$/i);
   if (!match) return 0;
-  const num = parseFloat(match[1] || '');
+  const num = Number.parseFloat(match[1] || '');
   if (!Number.isFinite(num)) return 0;
   const unit = (match[2] || 'B').toUpperCase().replace(/IB$/, 'B');
-  const multipliers: Record<string, number> = { B: 1, KB: 1024, MB: 1024 ** 2, GB: 1024 ** 3, TB: 1024 ** 4, PB: 1024 ** 5, EB: 1024 ** 6 };
+  const multipliers: Record<string, number> = {
+    B: 1,
+    KB: 1024,
+    MB: 1024 ** 2,
+    GB: 1024 ** 3,
+    TB: 1024 ** 4,
+    PB: 1024 ** 5,
+    EB: 1024 ** 6,
+  };
   return num * (multipliers[unit] || 1);
 }
 
 function formatSize(size?: number | string) {
   const bytes = parseSizeToBytes(size);
   if (bytes <= 0) return '0 GB';
-  if (bytes >= 1024 ** 4) return `${(bytes / (1024 ** 4)).toFixed(2)} TB`;
-  if (bytes >= 1024 ** 3) return `${(bytes / (1024 ** 3)).toFixed(2)} GB`;
-  if (bytes >= 1024 ** 2) return `${(bytes / (1024 ** 2)).toFixed(2)} MB`;
+  if (bytes >= 1024 ** 4) return `${(bytes / 1024 ** 4).toFixed(2)} TB`;
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
+  if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(2)} MB`;
   return `${(bytes / 1024).toFixed(2)} KB`;
 }
 
 async function fetchData() {
   loading.value = true;
   try {
-    const [
-      sysRes,
-      libRes,
-      transferRes,
-      siteRes,
-      indexerRes,
-      brushRes,
-      jobRes,
-    ] = await Promise.all([
-      getDashboardSystemStatusApi(),
-      getDashboardLibraryApi(),
-      getDashboardTransferStatsApi(30),
-      getDashboardSiteStatsApi(),
-      getDashboardIndexerStatsApi(),
-      getDashboardBrushTasksApi(),
-      getDashboardSchedulerJobsApi(),
-    ]);
+    const [sysRes, libRes, transferRes, siteRes, indexerRes, brushRes, jobRes] =
+      await Promise.all([
+        getDashboardSystemStatusApi(),
+        getDashboardLibraryApi(),
+        getDashboardTransferStatsApi(30),
+        getDashboardSiteStatsApi(),
+        getDashboardIndexerStatsApi(),
+        getDashboardBrushTasksApi(),
+        getDashboardSchedulerJobsApi(),
+      ]);
 
     systemStatus.value = sysRes as any;
     const mc = (libRes as any)?.media_counts || {};
@@ -198,10 +215,15 @@ onMounted(fetchData);
   <div class="p-4 lg:p-6">
     <NSpin :show="loading">
       <!-- 欢迎头 -->
-      <WelcomeHeader :uptime="systemStatus?.uptime" :version="systemStatus?.version" />
+      <WelcomeHeader
+        :uptime="systemStatus?.uptime"
+        :version="systemStatus?.version"
+      />
 
       <!-- 核心指标卡片 -->
-      <div class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6 lg:gap-4">
+      <div
+        class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6 lg:gap-4"
+      >
         <StatCard
           icon="lucide:film"
           title="电影"
@@ -268,12 +290,20 @@ onMounted(fetchData);
 
       <!-- 第二行图表 -->
       <div class="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <NCard :bordered="false" :segmented="{ content: true }" title="媒体库分布">
+        <NCard
+          :bordered="false"
+          :segmented="{ content: true }"
+          title="媒体库分布"
+        >
           <MediaPieChart v-if="mediaPieData.length > 0" :data="mediaPieData" />
           <NEmpty v-else description="暂无媒体库数据" />
         </NCard>
 
-        <NCard :bordered="false" :segmented="{ content: true }" title="站点做种分布">
+        <NCard
+          :bordered="false"
+          :segmented="{ content: true }"
+          title="站点做种分布"
+        >
           <SiteRoseChart v-if="siteRoseData.length > 0" :data="siteRoseData" />
           <NEmpty v-else description="暂无站点数据" />
         </NCard>
@@ -281,12 +311,23 @@ onMounted(fetchData);
 
       <!-- 第三行图表 -->
       <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <NCard :bordered="false" :segmented="{ content: true }" title="索引器统计">
-          <DownloaderRingChart v-if="downloaderRingData.length > 0" :data="downloaderRingData" />
+        <NCard
+          :bordered="false"
+          :segmented="{ content: true }"
+          title="索引器统计"
+        >
+          <DownloaderRingChart
+            v-if="downloaderRingData.length > 0"
+            :data="downloaderRingData"
+          />
           <NEmpty v-else description="暂无索引器数据" />
         </NCard>
 
-        <NCard :bordered="false" :segmented="{ content: true }" title="站点流量排行">
+        <NCard
+          :bordered="false"
+          :segmented="{ content: true }"
+          title="站点流量排行"
+        >
           <SiteBarChart
             v-if="siteBarData.labels.length > 0"
             :labels="siteBarData.labels"

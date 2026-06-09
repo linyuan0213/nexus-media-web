@@ -1,16 +1,13 @@
 <script setup lang="ts">
+/* eslint-disable unicorn/explicit-length-check */
+import type { FilterApi } from '#/api/modules/filter';
+
 import { computed, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import {
-  NButton,
-  NTag,
-  NTooltip,
-  useNotification,
-} from 'naive-ui';
+import { NButton, NTag, NTooltip, useNotification } from 'naive-ui';
 
-import type { FilterApi } from '#/api/modules/filter';
 import {
   deleteFilterGroupApi,
   deleteFilterRuleApi,
@@ -24,15 +21,15 @@ interface Props {
 
 const props = defineProps<Props>();
 const emit = defineEmits<{
-  refresh: [];
   addRule: [groupId: number];
   editRule: [groupId: number, rule: FilterApi.FilterRuleItem];
+  refresh: [];
   share: [content: string];
   test: [groupName: string];
 }>();
 
 const notification = useNotification();
-const expandedRuleId = ref<number | null>(null);
+const expandedRuleId = ref<null | number>(null);
 
 const isDefault = computed(() => props.group.default === 'Y');
 
@@ -44,7 +41,8 @@ function getRuleSummary(rule: FilterApi.FilterRuleItem): string {
   const parts: string[] = [];
   if (rule.include?.length) parts.push(`包含 ${rule.include.length}`);
   if (rule.exclude?.length) parts.push(`排除 ${rule.exclude.length}`);
-  if (rule.size) parts.push(`大小 ${rule.size}`);
+  // eslint-disable-next-line unicorn/explicit-length-check
+  if (rule.size && Number(rule.size) > 0) parts.push(`大小 ${rule.size}`);
   if (rule.free_text) parts.push(rule.free_text);
   return parts.join(' · ') || '无过滤条件';
 }
@@ -54,18 +52,26 @@ async function handleDeleteGroup() {
     await deleteFilterGroupApi(props.group.id);
     notification.success({ content: '规则组已删除' });
     emit('refresh');
-  } catch (err: any) {
-    notification.error({ content: '删除失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '删除失败',
+      description: error?.message || '',
+    });
   }
 }
 
 async function handleToggleDefault() {
   try {
     await setDefaultFilterGroupApi(props.group.id);
-    notification.success({ content: isDefault.value ? '已取消默认' : '已设为默认' });
+    notification.success({
+      content: isDefault.value ? '已取消默认' : '已设为默认',
+    });
     emit('refresh');
-  } catch (err: any) {
-    notification.error({ content: '设置失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '设置失败',
+      description: error?.message || '',
+    });
   }
 }
 
@@ -74,8 +80,11 @@ async function handleShare() {
     const res: any = await shareFilterGroupApi(props.group.id);
     const content = res?.data || res || '';
     emit('share', String(content));
-  } catch (err: any) {
-    notification.error({ content: '分享失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '分享失败',
+      description: error?.message || '',
+    });
   }
 }
 
@@ -84,8 +93,11 @@ async function handleDeleteRule(ruleId: number, ruleName: string) {
     await deleteFilterRuleApi(ruleId);
     notification.success({ content: `规则「${ruleName}」已删除` });
     emit('refresh');
-  } catch (err: any) {
-    notification.error({ content: '删除失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '删除失败',
+      description: error?.message || '',
+    });
   }
 }
 
@@ -127,7 +139,10 @@ function handleTest() {
             <div
               v-if="isDefault"
               class="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
-              style="background: hsl(var(--warning) / 0.1); color: hsl(var(--warning))"
+              style="
+                color: hsl(var(--warning));
+                background: hsl(var(--warning) / 10%);
+              "
             >
               <IconifyIcon icon="lucide:star" class="size-3" />
               默认
@@ -135,7 +150,10 @@ function handleTest() {
             <div
               v-if="group.rules?.length"
               class="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
-              style="background: hsl(var(--accent)); color: hsl(var(--accent-foreground))"
+              style="
+                color: hsl(var(--accent-foreground));
+                background: hsl(var(--accent));
+              "
             >
               {{ group.rules.length }} 条规则
             </div>
@@ -200,7 +218,10 @@ function handleTest() {
           <div class="flex items-center gap-2 min-w-0 flex-1">
             <span
               class="inline-flex items-center justify-center min-w-[1.375rem] h-[1.375rem] px-1 rounded text-[0.6875rem] font-bold flex-shrink-0"
-              style="background: hsl(var(--primary)); color: hsl(var(--primary-foreground))"
+              style="
+                color: hsl(var(--primary-foreground));
+                background: hsl(var(--primary));
+              "
             >
               {{ rule.pri }}
             </span>
@@ -224,7 +245,10 @@ function handleTest() {
               class="size-3.5 flex-shrink-0"
               style="color: hsl(var(--muted-foreground))"
               :style="{
-                transform: expandedRuleId === rule.id ? 'rotate(180deg)' : 'rotate(0deg)',
+                transform:
+                  expandedRuleId === rule.id
+                    ? 'rotate(180deg)'
+                    : 'rotate(0deg)',
                 transition: 'transform 0.2s ease',
               }"
             />
@@ -263,7 +287,10 @@ function handleTest() {
           <div v-if="rule.include?.length" class="rule-detail-section">
             <span
               class="rule-detail-label"
-              style="color: hsl(var(--success)); background: hsl(var(--success) / 0.12)"
+              style="
+                color: hsl(var(--success));
+                background: hsl(var(--success) / 12%);
+              "
             >
               包含
             </span>
@@ -280,7 +307,10 @@ function handleTest() {
           <div v-if="rule.exclude?.length" class="rule-detail-section">
             <span
               class="rule-detail-label"
-              style="color: hsl(var(--destructive)); background: hsl(var(--destructive) / 0.12)"
+              style="
+                color: hsl(var(--destructive));
+                background: hsl(var(--destructive) / 12%);
+              "
             >
               排除
             </span>
@@ -294,16 +324,30 @@ function handleTest() {
               </code>
             </div>
           </div>
-          <div v-if="rule.size || rule.free_text" class="rule-detail-section">
+          <div
+            v-if="(rule.size && Number(rule.size) > 0) || rule.free_text"
+            class="rule-detail-section"
+          >
             <span
               class="rule-detail-label"
-              style="color: hsl(var(--warning)); background: hsl(var(--warning) / 0.12)"
+              style="
+                color: hsl(var(--warning));
+                background: hsl(var(--warning) / 12%);
+              "
             >
               限制
             </span>
             <div class="rule-detail-items">
-              <NTag v-if="rule.size" size="tiny" type="warning">大小: {{ rule.size }}</NTag>
-              <NTag v-if="rule.free_text" size="tiny" type="info">{{ rule.free_text }}</NTag>
+              <NTag
+                v-if="rule.size && Number(rule.size) > 0"
+                size="tiny"
+                type="warning"
+              >
+                大小: {{ rule.size }}
+              </NTag>
+              <NTag v-if="rule.free_text" size="tiny" type="info">
+                {{ rule.free_text }}
+              </NTag>
             </div>
           </div>
         </div>
@@ -319,9 +363,14 @@ function handleTest() {
     <!-- Footer -->
     <div
       class="flex items-center justify-center px-3 py-2 border-t"
-      style="border-color: hsl(var(--border)); background: hsl(var(--accent))"
+      style="background: hsl(var(--accent)); border-color: hsl(var(--border))"
     >
-      <NButton text size="small" type="primary" @click="emit('addRule', group.id)">
+      <NButton
+        text
+        size="small"
+        type="primary"
+        @click="emit('addRule', group.id)"
+      >
         <template #icon>
           <IconifyIcon icon="lucide:plus" class="size-3.5" />
         </template>
@@ -333,36 +382,40 @@ function handleTest() {
 
 <style scoped>
 .filter-group-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: calc(var(--radius) - 2px);
-  display: flex;
-  flex-direction: column;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
-  overflow: hidden;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
 }
+
 .filter-group-card:hover {
-  box-shadow: 0 4px 12px hsl(var(--foreground) / 0.08);
+  box-shadow: 0 4px 12px hsl(var(--foreground) / 8%);
   transform: translateY(-1px);
 }
 
 .filter-group-header {
   display: flex;
   flex-wrap: wrap;
+  gap: 0.5rem;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 0.5rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid hsl(var(--border));
 }
 
 .filter-group-actions {
   display: flex;
-  align-items: center;
   gap: 0.5rem;
+  align-items: center;
   opacity: 0.6;
   transition: opacity 0.15s ease;
 }
+
 .filter-group-card:hover .filter-group-actions {
   opacity: 1;
 }
@@ -370,12 +423,14 @@ function handleTest() {
 /* Rules list with scroll */
 .rules-list {
   max-height: 320px;
-  overflow-y: auto;
   padding: 0.5rem;
+  overflow-y: auto;
 }
+
 .rules-list::-webkit-scrollbar {
   width: 4px;
 }
+
 .rules-list::-webkit-scrollbar-thumb {
   background-color: hsl(var(--border));
   border-radius: 2px;
@@ -390,13 +445,15 @@ function handleTest() {
 
 /* Rule row */
 .rule-row {
+  cursor: pointer;
   border-radius: calc(var(--radius) - 2px);
   transition: background-color 0.15s ease;
-  cursor: pointer;
 }
+
 .rule-row:hover {
   background-color: hsl(var(--accent));
 }
+
 .rule-row--expanded {
   background-color: hsl(var(--muted));
 }
@@ -404,44 +461,45 @@ function handleTest() {
 .rule-row-main {
   position: relative;
   display: flex;
-  align-items: center;
   gap: 0.5rem;
+  align-items: center;
   padding: 0.5rem 0.625rem;
   padding-right: 2rem;
 }
 
 .rule-summary {
   display: flex;
-  align-items: center;
-  gap: 0.375rem;
   flex: 0 1 auto;
+  gap: 0.375rem;
+  align-items: center;
   min-width: 0;
-  margin-left: auto;
   padding-left: 0.5rem;
+  margin-left: auto;
 }
 
 .rule-summary-text {
-  font-size: 0.6875rem;
-  white-space: nowrap;
   max-width: 100px;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 0.6875rem;
+  white-space: nowrap;
 }
 
 .rule-actions {
   position: absolute;
-  right: 0.5rem;
   top: 50%;
-  transform: translateY(-50%);
+  right: 0.5rem;
   display: flex;
-  align-items: center;
   gap: 0.5rem;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  background: hsl(var(--accent));
+  align-items: center;
   padding: 0 0.25rem;
+  background: hsl(var(--accent));
   border-radius: calc(var(--radius) - 2px);
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 0.15s ease;
 }
+
 .rule-row:hover .rule-actions {
   opacity: 1;
 }
@@ -449,16 +507,17 @@ function handleTest() {
 /* Expanded detail */
 .rule-detail {
   padding: 0.5rem 0.625rem 0.75rem 2.25rem;
-  border-top: 1px dashed hsl(var(--border));
   margin: 0 0.5rem;
-  animation: detailSlideIn 0.15s ease;
+  border-top: 1px dashed hsl(var(--border));
+  animation: detail-slide-in 0.15s ease;
 }
 
-@keyframes detailSlideIn {
+@keyframes detail-slide-in {
   from {
     opacity: 0;
     transform: translateY(-4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -467,39 +526,41 @@ function handleTest() {
 
 .rule-detail-section {
   display: flex;
-  align-items: flex-start;
   gap: 0.5rem;
+  align-items: flex-start;
   margin-bottom: 0.375rem;
 }
+
 .rule-detail-section:last-child {
   margin-bottom: 0;
 }
 
 .rule-detail-label {
+  flex-shrink: 0;
+  padding: 0.125rem 0.375rem;
+  margin-top: 0.125rem;
   font-size: 0.6875rem;
   font-weight: 600;
-  padding: 0.125rem 0.375rem;
   border-radius: calc(var(--radius) - 2px);
-  flex-shrink: 0;
-  margin-top: 0.125rem;
 }
 
 .rule-detail-items {
   display: flex;
+  flex: 1;
   flex-wrap: wrap;
   gap: 0.25rem;
-  flex: 1;
 }
 
 .rule-detail-code {
-  font-size: 0.6875rem;
-  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
-  color: hsl(var(--card-foreground));
-  background-color: hsl(var(--muted));
   padding: 0.125rem 0.375rem;
-  border-radius: calc(var(--radius) - 2px);
-  word-break: break-all;
+  font-family:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.6875rem;
   line-height: 1.4;
+  color: hsl(var(--card-foreground));
+  word-break: break-all;
+  background-color: hsl(var(--muted));
+  border-radius: calc(var(--radius) - 2px);
 }
 
 /* Mobile adjustments */
@@ -507,18 +568,21 @@ function handleTest() {
   .rule-row-main {
     padding-right: 0.625rem;
   }
+
   .rule-summary-text {
     display: none;
   }
+
   .rule-actions {
     position: static;
-    right: auto;
     top: auto;
-    transform: none;
-    opacity: 1;
-    background: transparent;
+    right: auto;
     padding: 0;
+    background: transparent;
+    opacity: 1;
+    transform: none;
   }
+
   .filter-group-actions {
     opacity: 1;
   }

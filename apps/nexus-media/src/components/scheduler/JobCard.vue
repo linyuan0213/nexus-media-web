@@ -1,14 +1,11 @@
 <script setup lang="ts">
+import type { SchedulerApi } from '#/api/modules/scheduler';
+
 import { computed } from 'vue';
 
-import {
-  NButton,
-  NTag,
-  NSpace,
-} from 'naive-ui';
 import { IconifyIcon } from '@vben/icons';
 
-import type { SchedulerApi } from '#/api/modules/scheduler';
+import { NButton, NSpace, NTag } from 'naive-ui';
 
 interface Props {
   job: SchedulerApi.JobItem;
@@ -20,9 +17,9 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  run: [id: string];
   pause: [id: string];
   resume: [id: string];
+  run: [id: string];
 }>();
 
 const statusType = computed(() => {
@@ -39,7 +36,7 @@ const statusText = computed(() => {
 function formatDateTime(dateStr?: string): string {
   if (!dateStr) return '-';
   const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
+  if (Number.isNaN(d.getTime())) return dateStr;
   const pad = (n: number) => n.toString().padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
@@ -62,7 +59,9 @@ const triggerDisplay = computed(() => {
   return t.type || '-';
 });
 
-const formattedNextRun = computed(() => formatDateTime(props.job.next_run_time));
+const formattedNextRun = computed(() =>
+  formatDateTime(props.job.next_run_time),
+);
 
 const successRate = computed(() => {
   const stats = props.job.statistics;
@@ -88,7 +87,7 @@ const isRunning = computed(() => props.runningId === props.job.id);
       </div>
       <NTag :type="statusType" size="small" round>
         <template #icon>
-          <span class="status-dot" :class="`status-dot--${statusType}`" />
+          <span class="status-dot" :class="`status-dot--${statusType}`"></span>
         </template>
         {{ statusText }}
       </NTag>
@@ -103,14 +102,18 @@ const isRunning = computed(() => props.runningId === props.job.id);
             <IconifyIcon icon="lucide:zap" class="meta-icon" />
             触发器
           </div>
-          <div class="meta-value" :title="triggerDisplay">{{ triggerDisplay }}</div>
+          <div class="meta-value" :title="triggerDisplay">
+            {{ triggerDisplay }}
+          </div>
         </div>
         <div class="job-meta-item job-meta-item--wide">
           <div class="meta-label">
             <IconifyIcon icon="lucide:calendar-clock" class="meta-icon" />
             下次执行
           </div>
-          <div class="meta-value" :title="formattedNextRun">{{ formattedNextRun }}</div>
+          <div class="meta-value" :title="formattedNextRun">
+            {{ formattedNextRun }}
+          </div>
         </div>
       </div>
 
@@ -120,29 +123,41 @@ const isRunning = computed(() => props.runningId === props.job.id);
           <span class="stat-num">{{ job.statistics.total_runs }}</span>
           <span class="stat-label">总执行</span>
         </div>
-        <div class="stat-divider" />
+        <div class="stat-divider"></div>
         <div class="stat-item">
-          <span class="stat-num stat-num--success">{{ job.statistics.success_count }}</span>
+          <span class="stat-num stat-num--success">{{
+            job.statistics.success_count
+          }}</span>
           <span class="stat-label">成功</span>
         </div>
-        <div class="stat-divider" />
+        <div class="stat-divider"></div>
         <div class="stat-item">
-          <span class="stat-num stat-num--error">{{ job.statistics.failure_count }}</span>
+          <span class="stat-num stat-num--error">{{
+            job.statistics.failure_count
+          }}</span>
           <span class="stat-label">失败</span>
         </div>
-        <div class="stat-divider" />
+        <div class="stat-divider"></div>
         <div v-if="successRate !== null" class="stat-item">
           <span
             class="stat-num"
-            :class="successRate >= 90 ? 'stat-num--success' : successRate >= 70 ? 'stat-num--warning' : 'stat-num--error'"
+            :class="
+              successRate >= 90
+                ? 'stat-num--success'
+                : successRate >= 70
+                  ? 'stat-num--warning'
+                  : 'stat-num--error'
+            "
           >
             {{ successRate }}%
           </span>
           <span class="stat-label">成功率</span>
         </div>
-        <div v-if="job.statistics.avg_duration" class="stat-divider" />
+        <div v-if="job.statistics.avg_duration" class="stat-divider"></div>
         <div v-if="job.statistics.avg_duration" class="stat-item">
-          <span class="stat-num">{{ job.statistics.avg_duration.toFixed(1) }}s</span>
+          <span class="stat-num"
+            >{{ job.statistics.avg_duration.toFixed(1) }}s</span
+          >
           <span class="stat-label">平均耗时</span>
         </div>
       </div>
@@ -198,47 +213,47 @@ const isRunning = computed(() => props.runningId === props.job.id);
 
 <style scoped>
 .job-card {
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.75rem;
-  background-color: hsl(var(--card));
-  transition: all 0.2s ease;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
 }
 
 .job-card:hover {
-  border-color: hsl(var(--primary) / 0.3);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  border-color: hsl(var(--primary) / 30%);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 6%);
   transform: translateY(-1px);
 }
 
 .job-card-header {
   display: flex;
+  gap: 0.75rem;
   align-items: center;
   justify-content: space-between;
   padding: 0.875rem 1rem;
   border-bottom: 1px solid hsl(var(--border));
-  gap: 0.75rem;
 }
 
 .job-header-left {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  min-width: 0;
   flex: 1;
+  gap: 0.75rem;
+  align-items: center;
+  min-width: 0;
 }
 
 .job-icon {
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 0.5rem;
-  background-color: hsl(var(--accent));
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  background-color: hsl(var(--accent));
+  border-radius: 0.5rem;
 }
 
 .job-icon-svg {
@@ -254,23 +269,23 @@ const isRunning = computed(() => props.runningId === props.job.id);
 .job-name {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: hsl(var(--card-foreground));
   line-height: 1.3;
+  color: hsl(var(--card-foreground));
 }
 
 .job-id {
-  font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
   margin-top: 0.125rem;
   font-family: monospace;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
 }
 
 .status-dot {
   display: inline-block;
   width: 0.375rem;
   height: 0.375rem;
-  border-radius: 50%;
   margin-right: 0.25rem;
+  border-radius: 50%;
 }
 
 .status-dot--success {
@@ -282,11 +297,11 @@ const isRunning = computed(() => props.runningId === props.job.id);
 }
 
 .job-card-body {
-  padding: 0.875rem 1rem;
-  flex: 1;
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 0.75rem;
+  padding: 0.875rem 1rem;
 }
 
 .job-meta-row {
@@ -297,8 +312,8 @@ const isRunning = computed(() => props.runningId === props.job.id);
 
 .job-meta-item {
   display: flex;
-  align-items: center;
   gap: 0.5rem;
+  align-items: center;
   min-width: 0;
 }
 
@@ -308,11 +323,11 @@ const isRunning = computed(() => props.runningId === props.job.id);
 
 .meta-label {
   display: flex;
-  align-items: center;
+  flex-shrink: 0;
   gap: 0.25rem;
+  align-items: center;
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
-  flex-shrink: 0;
 }
 
 .meta-icon {
@@ -321,32 +336,32 @@ const isRunning = computed(() => props.runningId === props.job.id);
 }
 
 .meta-value {
-  font-size: 0.8125rem;
-  color: hsl(var(--card-foreground));
-  font-weight: 500;
-  word-break: break-all;
-  text-align: right;
-  min-width: 0;
   flex: 1;
+  min-width: 0;
   margin-left: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: hsl(var(--card-foreground));
+  text-align: right;
+  word-break: break-all;
 }
 
 .job-stats-bar {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 0.75rem;
-  border-radius: 0.5rem;
-  background-color: hsl(var(--accent) / 0.4);
   flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.625rem 0.75rem;
+  background-color: hsl(var(--accent) / 40%);
+  border-radius: 0.5rem;
 }
 
 .stat-item {
   display: flex;
+  flex: 1;
   flex-direction: column;
   align-items: center;
   min-width: 3rem;
-  flex: 1;
 }
 
 .stat-divider {
@@ -358,8 +373,8 @@ const isRunning = computed(() => props.runningId === props.job.id);
 .stat-num {
   font-size: 0.9375rem;
   font-weight: 700;
-  color: hsl(var(--card-foreground));
   line-height: 1.2;
+  color: hsl(var(--card-foreground));
 }
 
 .stat-num--success {
@@ -375,32 +390,32 @@ const isRunning = computed(() => props.runningId === props.job.id);
 }
 
 .stat-label {
+  margin-top: 0.125rem;
   font-size: 0.6875rem;
   color: hsl(var(--muted-foreground));
-  margin-top: 0.125rem;
 }
 
 .job-last-error {
   display: flex;
-  align-items: flex-start;
   gap: 0.5rem;
+  align-items: flex-start;
   padding: 0.5rem 0.625rem;
+  background-color: hsl(var(--destructive) / 8%);
   border-radius: 0.375rem;
-  background-color: hsl(var(--destructive) / 0.08);
 }
 
 .error-icon {
+  flex-shrink: 0;
   width: 0.875rem;
   height: 0.875rem;
-  color: hsl(var(--destructive));
-  flex-shrink: 0;
   margin-top: 0.125rem;
+  color: hsl(var(--destructive));
 }
 
 .error-text {
   font-size: 0.75rem;
-  color: hsl(var(--destructive));
   line-height: 1.4;
+  color: hsl(var(--destructive));
   word-break: break-all;
 }
 
@@ -408,8 +423,8 @@ const isRunning = computed(() => props.runningId === props.job.id);
   display: flex;
   justify-content: flex-end;
   padding: 0.625rem 1rem;
+  background-color: hsl(var(--accent) / 20%);
   border-top: 1px solid hsl(var(--border));
-  background-color: hsl(var(--accent) / 0.2);
 }
 
 @media (max-width: 640px) {

@@ -1,23 +1,23 @@
 <script lang="ts" setup>
-import { ref, onMounted, watch, computed } from 'vue';
+import type { SubscribeConfirmItem } from '#/components/subscribe/SubscribeConfirmModal.vue';
+import type { SubscribeEditItem } from '#/components/subscribe/SubscribeEditModal.vue';
+
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import {
-  NButton,
-  NModal,
-  NProgress,
-  NSpin,
-  useNotification,
-} from 'naive-ui';
 import { IconifyIcon } from '@vben/icons';
 
+import { NButton, NModal, NProgress, NSpin, useNotification } from 'naive-ui';
+
 import { getRecommendApi, webSearchApi } from '#/api';
-import { addSubscriptionMediaApi, addSubscriptionApi } from '#/api/modules/subscription';
-import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.vue';
-import type { SubscribeConfirmItem } from '#/components/subscribe/SubscribeConfirmModal.vue';
-import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
-import type { SubscribeEditItem } from '#/components/subscribe/SubscribeEditModal.vue';
+import {
+  addSubscriptionApi,
+  addSubscriptionMediaApi,
+} from '#/api/modules/subscription';
+import { getProgressApi } from '#/api/modules/system';
 import PageHeader from '#/components/page/PageHeader.vue';
+import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.vue';
+import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
 
 interface RecommendItem {
   id: string;
@@ -49,7 +49,7 @@ const notification = useNotification();
 
 const loadingMap = ref<Record<string, boolean>>({});
 const categoryItems = ref<Record<string, RecommendItem[]>>({});
-const hoveredId = ref<string | null>(null);
+const hoveredId = ref<null | string>(null);
 
 // 单页滚动加载状态
 const singlePage = ref(1);
@@ -63,15 +63,15 @@ const searchModalVisible = ref(false);
 const searchModalTitle = ref('');
 const searchModalProgress = ref(0);
 const searchModalText = ref('请稍候...');
-let searchProgressTimer: ReturnType<typeof setInterval> | null = null;
+let searchProgressTimer: null | ReturnType<typeof setInterval> = null;
 
 // 订阅确认弹窗
 const subscribeConfirmShow = ref(false);
-const subscribeConfirmItem = ref<SubscribeConfirmItem | null>(null);
+const subscribeConfirmItem = ref<null | SubscribeConfirmItem>(null);
 const subscribeConfirmPending = ref(false);
 
 const subscribeEditShow = ref(false);
-const subscribeEditItem = ref<SubscribeEditItem | null>(null);
+const subscribeEditItem = ref<null | SubscribeEditItem>(null);
 
 function startSearchProgressPoll() {
   stopSearchProgressPoll();
@@ -99,8 +99,6 @@ function stopSearchProgressPoll() {
     searchProgressTimer = null;
   }
 }
-
-import { getProgressApi } from '#/api/modules/system';
 
 // 各页面分类配置（key 用 route.name，不受父菜单 path 变化影响）
 const pageCategories: Record<string, CategoryConfig[]> = {
@@ -175,7 +173,7 @@ async function loadCategory(cfg: CategoryConfig) {
       page: 1,
       ...(cfg.week ? { week: cfg.week } : {}),
     } as any);
-    const list = Array.isArray(res) ? res : (res?.data || []);
+    const list = Array.isArray(res) ? res : res?.data || [];
     categoryItems.value[key] = list;
   } finally {
     loadingMap.value[key] = false;
@@ -203,7 +201,7 @@ async function loadSingle(reset = false) {
       subtype: cfg.subtype,
       page: singlePage.value,
     });
-    const list = Array.isArray(res) ? res : (res?.data || []);
+    const list = Array.isArray(res) ? res : res?.data || [];
     const existing = categoryItems.value[key] || [];
     categoryItems.value[key] = [...existing, ...list];
     if (list.length === 0) singleHasMore.value = false;
@@ -251,13 +249,18 @@ async function handleSearch(item: RecommendItem, e: Event) {
     const checkAndNavigate = setInterval(() => {
       if (!searchModalVisible.value) {
         clearInterval(checkAndNavigate);
-        router.push(`/media/search?s=${encodeURIComponent(item.title)}&from=discovery`);
+        router.push(
+          `/media/search?s=${encodeURIComponent(item.title)}&from=discovery`,
+        );
       }
     }, 500);
-  } catch (err: any) {
+  } catch (error: any) {
     stopSearchProgressPoll();
     searchModalVisible.value = false;
-    notification.error({ content: '搜索失败', description: err?.message || '未知错误' });
+    notification.error({
+      content: '搜索失败',
+      description: error?.message || '未知错误',
+    });
   }
 }
 
@@ -299,7 +302,10 @@ async function handleConfirmSubscribe(seasons: number[], _autoMode: boolean) {
           season: String(season),
         });
       }
-      notification.success({ content: '订阅成功', description: `${item.title} 已订阅 ${seasons.length} 季` });
+      notification.success({
+        content: '订阅成功',
+        description: `${item.title} 已订阅 ${seasons.length} 季`,
+      });
     } else {
       const res: any = await addSubscriptionMediaApi({
         name: item.title,
@@ -307,15 +313,29 @@ async function handleConfirmSubscribe(seasons: number[], _autoMode: boolean) {
         type: typeParam,
         mediaid: String(item.id),
       });
-      const success = res?.code === 0 || res?.success || res?.rssid || res?.msg?.includes('成功') || !res;
+      const success =
+        res?.code === 0 ||
+        res?.success ||
+        res?.rssid ||
+        res?.msg?.includes('成功') ||
+        !res;
       if (success) {
-        notification.success({ content: '订阅成功', description: res?.msg || `${item.title} 已添加订阅` });
+        notification.success({
+          content: '订阅成功',
+          description: res?.msg || `${item.title} 已添加订阅`,
+        });
       } else {
-        notification.error({ content: '订阅失败', description: res?.msg || '未知错误' });
+        notification.error({
+          content: '订阅失败',
+          description: res?.msg || '未知错误',
+        });
       }
     }
-  } catch (err: any) {
-    notification.error({ content: '订阅失败', description: err?.message || '未知错误' });
+  } catch (error: any) {
+    notification.error({
+      content: '订阅失败',
+      description: error?.message || '未知错误',
+    });
   } finally {
     subscribeConfirmPending.value = false;
   }
@@ -338,20 +358,30 @@ function handleEditSubscribe() {
 async function handleConfirmEdit(data: Record<string, any>) {
   try {
     await addSubscriptionApi(data);
-    notification.success({ content: '订阅成功', description: `${data.name} 已添加订阅` });
-  } catch (err: any) {
-    notification.error({ content: '订阅失败', description: err?.message || '未知错误' });
+    notification.success({
+      content: '订阅成功',
+      description: `${data.name} 已添加订阅`,
+    });
+  } catch (error: any) {
+    notification.error({
+      content: '订阅失败',
+      description: error?.message || '未知错误',
+    });
   }
 }
 
 // subscribe modal usage (template end) already added in previous diff
 
-watch(() => route.path, () => {
-  categoryItems.value = {};
-  singlePage.value = 1;
-  singleHasMore.value = true;
-  loadAll();
-}, { immediate: true });
+watch(
+  () => route.path,
+  () => {
+    categoryItems.value = {};
+    singlePage.value = 1;
+    singleHasMore.value = true;
+    loadAll();
+  },
+  { immediate: true },
+);
 
 function setupInfiniteScroll() {
   if (observer) {
@@ -359,12 +389,20 @@ function setupInfiniteScroll() {
     observer = null;
   }
   if (!singleConfig.value || !sentinelRef.value) return;
-  observer = new IntersectionObserver((entries) => {
-    if (entries[0]?.isIntersecting && !loadingMap.value['single'] && !singleLoadingMore.value && singleHasMore.value) {
-      singlePage.value += 1;
-      loadSingle();
-    }
-  }, { rootMargin: '100px' });
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (
+        entries[0]?.isIntersecting &&
+        !loadingMap.value.single &&
+        !singleLoadingMore.value &&
+        singleHasMore.value
+      ) {
+        singlePage.value += 1;
+        loadSingle();
+      }
+    },
+    { rootMargin: '100px' },
+  );
   observer.observe(sentinelRef.value);
 }
 
@@ -378,9 +416,7 @@ onMounted(() => {
   <div class="p-4">
     <PageHeader :title="pageTitle" subtitle="探索热门电影和剧集">
       <template #actions>
-        <NButton @click="loadAll()">
-          刷新
-        </NButton>
+        <NButton @click="loadAll()"> 刷新 </NButton>
       </template>
     </PageHeader>
 
@@ -396,7 +432,17 @@ onMounted(() => {
           <NButton
             text
             size="small"
-            @click="router.push({ name: 'DiscoveryRecommend', query: { type: cfg.type, subtype: cfg.subtype, week: cfg.week || '', title: cfg.title } })"
+            @click="
+              router.push({
+                name: 'DiscoveryRecommend',
+                query: {
+                  type: cfg.type,
+                  subtype: cfg.subtype,
+                  week: cfg.week || '',
+                  title: cfg.title,
+                },
+              })
+            "
           >
             更多 >
           </NButton>
@@ -404,26 +450,36 @@ onMounted(() => {
 
         <NSpin :show="loadingMap[`${cfg.subtype}_${cfg.week || ''}`]">
           <div
-            v-if="(categoryItems[`${cfg.subtype}_${cfg.week || ''}`] || []).length > 0"
+            v-if="
+              (categoryItems[`${cfg.subtype}_${cfg.week || ''}`] || []).length >
+              0
+            "
             class="flex gap-4 overflow-x-auto pb-2 px-1"
-            style="scroll-snap-type: x mandatory;"
+            style="scroll-snap-type: x mandatory"
           >
             <div
               v-for="item in categoryItems[`${cfg.subtype}_${cfg.week || ''}`]"
               :key="item.id"
               class="flex-shrink-0 cursor-pointer relative rounded-lg overflow-hidden shadow-sm hover:shadow-md transition"
-              style="width: 160px; scroll-snap-align: start;"
+              style="width: 160px; scroll-snap-align: start"
               @click="handleCardClick(item)"
               @mouseenter="hoveredId = item.id"
               @mouseleave="hoveredId = null"
             >
               <!-- 海报 -->
-              <div style="aspect-ratio: 2/3;" class="bg-gray-100 dark:bg-gray-800">
+              <div
+                style="aspect-ratio: 2/3"
+                class="bg-gray-100 dark:bg-gray-800"
+              >
                 <img
                   :src="getImgUrl(item.image)"
                   class="w-full h-full object-cover"
                   alt=""
-                  @error="(e: any) => { e.target.src = '/static/img/no-image.png'; }"
+                  @error="
+                    (e: any) => {
+                      e.target.src = '/static/img/no-image.png';
+                    }
+                  "
                 />
               </div>
 
@@ -431,7 +487,10 @@ onMounted(() => {
               <span
                 v-if="item.media_type || item.type"
                 class="absolute top-1.5 left-1.5 text-[10px] px-1.5 py-0.5 rounded"
-                :style="{ backgroundColor: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }"
+                :style="{
+                  backgroundColor: 'hsl(var(--primary))',
+                  color: 'hsl(var(--primary-foreground))',
+                }"
               >
                 {{ item.media_type || item.type }}
               </span>
@@ -448,9 +507,19 @@ onMounted(() => {
                 <span
                   v-if="item.fav === '2'"
                   class="rounded-full p-0.5 flex items-center justify-center"
-                  :style="{ backgroundColor: 'hsl(var(--success))', color: 'hsl(var(--primary-foreground))' }"
+                  :style="{
+                    backgroundColor: 'hsl(var(--success))',
+                    color: 'hsl(var(--primary-foreground))',
+                  }"
                 >
-                  <IconifyIcon icon="lucide:check" :style="{ width: '12px', height: '12px', color: 'hsl(var(--primary-foreground))' }" />
+                  <IconifyIcon
+                    icon="lucide:check"
+                    :style="{
+                      width: '12px',
+                      height: '12px',
+                      color: 'hsl(var(--primary-foreground))',
+                    }"
+                  />
                 </span>
               </div>
 
@@ -460,9 +529,18 @@ onMounted(() => {
                 class="absolute inset-0 bg-background/80 flex flex-col justify-between p-2"
               >
                 <div class="text-foreground">
-                  <div v-if="item.year" class="text-xs font-semibold">{{ item.year }}</div>
-                  <h4 class="text-sm font-bold mt-0.5 line-clamp-2">{{ item.title }}</h4>
-                  <p v-if="item.overview" class="text-xs mt-1 line-clamp-3 opacity-90">{{ item.overview }}</p>
+                  <div v-if="item.year" class="text-xs font-semibold">
+                    {{ item.year }}
+                  </div>
+                  <h4 class="text-sm font-bold mt-0.5 line-clamp-2">
+                    {{ item.title }}
+                  </h4>
+                  <p
+                    v-if="item.overview"
+                    class="text-xs mt-1 line-clamp-3 opacity-90"
+                  >
+                    {{ item.overview }}
+                  </p>
                 </div>
                 <div class="flex justify-between items-center">
                   <button
@@ -472,13 +550,19 @@ onMounted(() => {
                     <IconifyIcon icon="lucide:search" class="size-[18px]" />
                   </button>
                   <button
-                    :class="item.fav === '1' ? 'text-destructive' : 'text-foreground hover:text-destructive/80'"
+                    :class="
+                      item.fav === '1'
+                        ? 'text-destructive'
+                        : 'text-foreground hover:text-destructive/80'
+                    "
                     @click="(e) => handleSubscribe(item, e)"
                   >
                     <IconifyIcon
                       icon="lucide:heart"
                       class="size-[18px]"
-                      :style="{ fill: item.fav === '1' ? 'currentColor' : 'none' }"
+                      :style="{
+                        fill: item.fav === '1' ? 'currentColor' : 'none',
+                      }"
                     />
                   </button>
                 </div>
@@ -492,26 +576,30 @@ onMounted(() => {
 
     <!-- 单列表页：豆瓣电影/电视剧/TMDB -->
     <template v-else>
-      <NSpin :show="loadingMap['single']">
+      <NSpin :show="loadingMap.single">
         <div
-          v-if="(categoryItems['single'] || []).length > 0"
+          v-if="(categoryItems.single || []).length > 0"
           class="grid gap-4"
-          style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));"
+          style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr))"
         >
           <div
-            v-for="item in categoryItems['single']"
+            v-for="item in categoryItems.single"
             :key="item.id"
             class="cursor-pointer relative rounded-lg overflow-hidden shadow-sm hover:shadow-md transition"
             @click="handleCardClick(item)"
             @mouseenter="hoveredId = item.id"
             @mouseleave="hoveredId = null"
           >
-            <div style="aspect-ratio: 2/3;" class="bg-muted">
+            <div style="aspect-ratio: 2/3" class="bg-muted">
               <img
                 :src="getImgUrl(item.image)"
                 class="w-full h-full object-cover"
                 alt=""
-                @error="(e: any) => { e.target.src = '/static/img/no-image.png'; }"
+                @error="
+                  (e: any) => {
+                    e.target.src = '/static/img/no-image.png';
+                  }
+                "
               />
             </div>
 
@@ -519,7 +607,10 @@ onMounted(() => {
             <span
               v-if="item.media_type || item.type"
               class="absolute top-1.5 left-1.5 text-[10px] px-1.5 py-0.5 rounded"
-              :style="{ backgroundColor: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }"
+              :style="{
+                backgroundColor: 'hsl(var(--primary))',
+                color: 'hsl(var(--primary-foreground))',
+              }"
             >
               {{ item.media_type || item.type }}
             </span>
@@ -535,9 +626,19 @@ onMounted(() => {
               <span
                 v-if="item.fav === '2'"
                 class="rounded-full p-0.5 flex items-center justify-center"
-                :style="{ backgroundColor: 'hsl(var(--success))', color: 'hsl(var(--primary-foreground))' }"
+                :style="{
+                  backgroundColor: 'hsl(var(--success))',
+                  color: 'hsl(var(--primary-foreground))',
+                }"
               >
-                <IconifyIcon icon="lucide:check" :style="{ width: '12px', height: '12px', color: 'hsl(var(--primary-foreground))' }" />
+                <IconifyIcon
+                  icon="lucide:check"
+                  :style="{
+                    width: '12px',
+                    height: '12px',
+                    color: 'hsl(var(--primary-foreground))',
+                  }"
+                />
               </span>
             </div>
 
@@ -546,9 +647,18 @@ onMounted(() => {
               class="absolute inset-0 bg-background/80 flex flex-col justify-between p-2"
             >
               <div class="text-foreground">
-                <div v-if="item.year" class="text-xs font-semibold">{{ item.year }}</div>
-                <h4 class="text-sm font-bold mt-0.5 line-clamp-2">{{ item.title }}</h4>
-                <p v-if="item.overview" class="text-xs mt-1 line-clamp-3 opacity-90">{{ item.overview }}</p>
+                <div v-if="item.year" class="text-xs font-semibold">
+                  {{ item.year }}
+                </div>
+                <h4 class="text-sm font-bold mt-0.5 line-clamp-2">
+                  {{ item.title }}
+                </h4>
+                <p
+                  v-if="item.overview"
+                  class="text-xs mt-1 line-clamp-3 opacity-90"
+                >
+                  {{ item.overview }}
+                </p>
               </div>
               <div class="flex justify-between items-center">
                 <button
@@ -558,25 +668,41 @@ onMounted(() => {
                   <IconifyIcon icon="lucide:search" class="size-[18px]" />
                 </button>
                 <button
-                  :class="item.fav === '1' ? 'text-destructive' : 'text-foreground hover:text-destructive/80'"
+                  :class="
+                    item.fav === '1'
+                      ? 'text-destructive'
+                      : 'text-foreground hover:text-destructive/80'
+                  "
                   @click="(e) => handleSubscribe(item, e)"
                 >
                   <IconifyIcon
                     icon="lucide:heart"
                     class="size-[18px]"
-                    :style="{ fill: item.fav === '1' ? 'currentColor' : 'none' }"
+                    :style="{
+                      fill: item.fav === '1' ? 'currentColor' : 'none',
+                    }"
                   />
                 </button>
               </div>
             </div>
           </div>
         </div>
-        <div v-else class="text-center text-muted-foreground py-12">暂无数据</div>
+        <div v-else class="text-center text-muted-foreground py-12">
+          暂无数据
+        </div>
       </NSpin>
       <!-- 无限滚动哨兵 -->
-      <div v-if="!isRankOrBangumi" ref="sentinelRef" class="h-8 w-full flex items-center justify-center mt-4">
+      <div
+        v-if="!isRankOrBangumi"
+        ref="sentinelRef"
+        class="h-8 w-full flex items-center justify-center mt-4"
+      >
         <NSpin v-if="singleLoadingMore" size="small" />
-        <span v-else-if="!singleHasMore && (categoryItems['single'] || []).length > 0" class="text-sm text-muted-foreground">已加载全部</span>
+        <span
+          v-else-if="!singleHasMore && (categoryItems.single || []).length > 0"
+          class="text-sm text-muted-foreground"
+          >已加载全部</span
+        >
       </div>
     </template>
 
@@ -622,14 +748,15 @@ onMounted(() => {
 <style scoped>
 .line-clamp-2 {
   display: -webkit-box;
+  overflow: hidden;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  overflow: hidden;
 }
+
 .line-clamp-3 {
   display: -webkit-box;
+  overflow: hidden;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 </style>

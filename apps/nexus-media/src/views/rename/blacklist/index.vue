@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import { onMounted, ref } from 'vue';
 
+import { IconifyIcon } from '@vben/icons';
+
 import {
   NButton,
   NCard,
@@ -15,8 +17,6 @@ import {
   NSpin,
   useNotification,
 } from 'naive-ui';
-
-import { IconifyIcon } from '@vben/icons';
 
 import {
   addTmdbBlacklistApi,
@@ -96,8 +96,11 @@ async function submitAdd() {
     notification.success({ content: '已添加到黑名单' });
     addModalShow.value = false;
     await fetchData(currentPage.value);
-  } catch (err: any) {
-    notification.error({ content: '添加失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '添加失败',
+      description: error?.message || '',
+    });
   } finally {
     addLoading.value = false;
   }
@@ -111,8 +114,11 @@ async function handleDelete(item: any) {
     });
     notification.success({ content: '已删除' });
     await fetchData(currentPage.value);
-  } catch (err: any) {
-    notification.error({ content: '删除失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '删除失败',
+      description: error?.message || '',
+    });
   }
 }
 
@@ -121,8 +127,11 @@ async function handleClear() {
     await clearTmdbBlacklistApi();
     notification.success({ content: '黑名单已清空' });
     await fetchData(1);
-  } catch (err: any) {
-    notification.error({ content: '清空失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '清空失败',
+      description: error?.message || '',
+    });
   }
 }
 
@@ -160,7 +169,11 @@ onMounted(() => fetchData(1));
             @keyup.enter="handleSearch"
           >
             <template #prefix>
-              <IconifyIcon icon="lucide:search" class="size-4" style="color: hsl(var(--muted-foreground));" />
+              <IconifyIcon
+                icon="lucide:search"
+                class="size-4"
+                style="color: hsl(var(--muted-foreground))"
+              />
             </template>
           </NInput>
           <NButton @click="fetchData(currentPage)">
@@ -209,7 +222,7 @@ onMounted(() => fetchData(1));
                 v-if="item.poster_path"
                 :src="getPosterUrl(item.poster_path)"
                 class="blacklist-poster"
-                onerror="this.src='/static/img/no-image.png'"
+                onerror="this.src = '/static/img/no-image.png';"
               />
               <div
                 v-else
@@ -218,7 +231,7 @@ onMounted(() => fetchData(1));
                 <IconifyIcon
                   icon="lucide:image-off"
                   class="size-5"
-                  style="color: hsl(var(--muted-foreground));"
+                  style="color: hsl(var(--muted-foreground))"
                 />
               </div>
 
@@ -226,7 +239,9 @@ onMounted(() => fetchData(1));
                 <div class="flex items-start justify-between gap-2">
                   <div class="blacklist-title truncate" :title="item.title">
                     {{ item.title || '-' }}
-                    <span v-if="item.year" class="blacklist-year">({{ item.year }})</span>
+                    <span v-if="item.year" class="blacklist-year"
+                      >({{ item.year }})</span
+                    >
                   </div>
                   <NPopconfirm @positive-click="handleDelete(item)">
                     <template #trigger>
@@ -243,7 +258,11 @@ onMounted(() => fetchData(1));
                 <div class="blacklist-meta">
                   <span class="blacklist-tag">
                     <IconifyIcon
-                      :icon="item.media_type === 'movie' ? 'lucide:film' : 'lucide:tv'"
+                      :icon="
+                        item.media_type === 'movie'
+                          ? 'lucide:film'
+                          : 'lucide:tv'
+                      "
                       class="size-3 inline mr-1"
                     />
                     {{ item.media_type }}
@@ -254,12 +273,19 @@ onMounted(() => fetchData(1));
                     class="blacklist-link"
                     @click.stop
                   >
-                    <IconifyIcon icon="lucide:external-link" class="size-3 inline mr-1" />
+                    <IconifyIcon
+                      icon="lucide:external-link"
+                      class="size-3 inline mr-1"
+                    />
                     TMDB {{ item.tmdb_id }}
                   </a>
                 </div>
 
-                <div v-if="hasNote(item.note)" class="blacklist-note truncate" :title="item.note">
+                <div
+                  v-if="hasNote(item.note)"
+                  class="blacklist-note truncate"
+                  :title="item.note"
+                >
                   {{ item.note }}
                 </div>
               </div>
@@ -277,11 +303,7 @@ onMounted(() => fetchData(1));
         </div>
       </div>
 
-      <EmptyState
-        v-else
-        title="黑名单为空"
-        subtitle="没有屏蔽的 TMDB 条目"
-      >
+      <EmptyState v-else title="黑名单为空" subtitle="没有屏蔽的 TMDB 条目">
         <template #icon>
           <IconifyIcon
             icon="lucide:shield-check"
@@ -305,12 +327,15 @@ onMounted(() => fetchData(1));
       v-model:show="addModalShow"
       title="添加黑名单"
       preset="card"
-      style="width: 400px; max-width: 90vw;"
+      style="width: 400px; max-width: 90vw"
       :mask-closable="false"
     >
       <NForm label-placement="left" label-width="80">
         <NFormItem label="TMDB ID" required>
-          <NInput v-model:value="addForm.tmdb_id" placeholder="请输入 TMDB ID" />
+          <NInput
+            v-model:value="addForm.tmdb_id"
+            placeholder="请输入 TMDB ID"
+          />
         </NFormItem>
         <NFormItem label="媒体类型" required>
           <NSelect
@@ -323,7 +348,9 @@ onMounted(() => fetchData(1));
       <template #footer>
         <NSpace justify="end">
           <NButton @click="addModalShow = false">取消</NButton>
-          <NButton type="primary" :loading="addLoading" @click="submitAdd">确定</NButton>
+          <NButton type="primary" :loading="addLoading" @click="submitAdd">
+            确定
+          </NButton>
         </NSpace>
       </template>
     </NModal>
@@ -340,58 +367,60 @@ onMounted(() => fetchData(1));
 .blacklist-card {
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
-  transition: box-shadow 0.2s, border-color 0.2s;
+  transition:
+    box-shadow 0.2s,
+    border-color 0.2s;
 }
 
 .blacklist-card:hover {
-  box-shadow: 0 4px 16px hsl(var(--foreground) / 0.1);
-  border-color: hsl(var(--primary) / 0.25);
+  border-color: hsl(var(--primary) / 25%);
+  box-shadow: 0 4px 16px hsl(var(--foreground) / 10%);
 }
 
 .blacklist-poster {
+  flex-shrink: 0;
   width: 3.5rem;
   height: 5rem;
-  border-radius: 0.375rem;
   object-fit: cover;
-  flex-shrink: 0;
+  border-radius: 0.375rem;
 }
 
 .blacklist-poster-placeholder {
+  flex-shrink: 0;
   width: 3.5rem;
   height: 5rem;
-  border-radius: 0.375rem;
   background-color: hsl(var(--muted));
-  flex-shrink: 0;
+  border-radius: 0.375rem;
 }
 
 .blacklist-title {
   font-size: 0.95rem;
   font-weight: 600;
-  color: hsl(var(--card-foreground));
   line-height: 1.4;
+  color: hsl(var(--card-foreground));
 }
 
 .blacklist-year {
-  font-size: 0.8rem;
-  color: hsl(var(--muted-foreground));
-  font-weight: 400;
   margin-left: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: hsl(var(--muted-foreground));
 }
 
 .blacklist-meta {
   display: flex;
-  align-items: center;
   gap: 0.5rem;
+  align-items: center;
   margin-top: 0.375rem;
 }
 
 .blacklist-tag {
-  font-size: 0.7rem;
   padding: 0.125rem 0.5rem;
-  border-radius: 0.25rem;
-  background-color: hsl(var(--primary) / 0.12);
-  color: hsl(var(--primary));
+  font-size: 0.7rem;
   font-weight: 500;
+  color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 12%);
+  border-radius: 0.25rem;
 }
 
 .blacklist-link {
@@ -406,10 +435,10 @@ onMounted(() => fetchData(1));
 }
 
 .blacklist-note {
-  font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
-  line-height: 1.4;
   margin-top: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: hsl(var(--muted-foreground));
 }
 
 @media (max-width: 640px) {

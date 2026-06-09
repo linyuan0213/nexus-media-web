@@ -1,22 +1,22 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue';
 
+import { IconifyIcon } from '@vben/icons';
+
 import {
   NButton,
   NCard,
+  NDataTable,
   NForm,
   NFormItem,
   NInput,
   NModal,
+  NSelect,
   NSpace,
   NSpin,
-  NSelect,
   NTag,
-  NDataTable,
   useMessage,
 } from 'naive-ui';
-
-import { IconifyIcon } from '@vben/icons';
 
 import {
   autoRemoveTorrentsApi,
@@ -30,7 +30,7 @@ import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 
 interface RemoveTask {
-  id: string | number;
+  id: number | string;
   name: string;
   downloader: string;
   downloader_name: string;
@@ -38,16 +38,16 @@ interface RemoveTask {
   only_nexus_media: number;
   samedata: number;
   action: number;
-    config: {
-      ratio: number;
-      seeding_time: number;
-      upload_avs: number;
-      size: number[];
-      tags: string[];
-      savepath_key: string;
-      tracker_key: string;
-      filter_status: string[];
-    };
+  config: {
+    filter_status: string[];
+    ratio: number;
+    savepath_key: string;
+    seeding_time: number;
+    size: number[];
+    tags: string[];
+    tracker_key: string;
+    upload_avs: number;
+  };
   interval: number;
   enabled: number;
 }
@@ -82,14 +82,14 @@ const filterStatusInput = ref('');
 const sizeInput = ref('');
 
 const deleteModalShow = ref(false);
-const deleteTarget = ref<RemoveTask | null>(null);
+const deleteTarget = ref<null | RemoveTask>(null);
 
 const previewModalShow = ref(false);
 const previewLoading = ref(false);
 const previewTorrents = ref<any[]>([]);
 const previewTargetName = ref('');
 
-const expandedIds = ref<Set<string | number>>(new Set());
+const expandedIds = ref<Set<number | string>>(new Set());
 
 const taskList = computed(() => tasks.value);
 
@@ -109,17 +109,19 @@ async function fetchData() {
     const tasksDict = (tasksRes as any)?.data || tasksRes || {};
     tasks.value = Object.values(tasksDict);
     const dlDict = (downloadersRes as any)?.data || downloadersRes || {};
-    downloaders.value = Object.entries(dlDict).map(([id, v]: [string, any]) => ({
-      id,
-      name: v.name || '',
-      type: v.type || '',
-    }));
+    downloaders.value = Object.entries(dlDict).map(
+      ([id, v]: [string, any]) => ({
+        id,
+        name: v.name || '',
+        type: v.type || '',
+      }),
+    );
   } finally {
     loading.value = false;
   }
 }
 
-function toggleExpand(id: string | number) {
+function toggleExpand(id: number | string) {
   if (expandedIds.value.has(id)) {
     expandedIds.value.delete(id);
   } else {
@@ -168,7 +170,10 @@ function handleEdit(task: RemoveTask) {
   };
   tagInput.value = task.config?.tags?.join(';') || '';
   filterStatusInput.value = task.config?.filter_status?.join(';') || '';
-  sizeInput.value = task.config?.size?.length === 2 ? `${task.config.size[0]}-${task.config.size[1]}` : '';
+  sizeInput.value =
+    task.config?.size?.length === 2
+      ? `${task.config.size[0]}-${task.config.size[1]}`
+      : '';
   editModalShow.value = true;
 }
 
@@ -212,8 +217,8 @@ async function handleSave() {
     message.success('保存成功');
     editModalShow.value = false;
     await fetchData();
-  } catch (e: any) {
-    message.error(e?.message || '保存失败');
+  } catch (error: any) {
+    message.error(error?.message || '保存失败');
   } finally {
     editLoading.value = false;
   }
@@ -241,8 +246,8 @@ async function handlePreview(task: RemoveTask) {
   try {
     const res = (await getRemoveTorrentsApi(task.id)) as any;
     previewTorrents.value = res?.data || res || [];
-  } catch (e: any) {
-    message.error(e?.message || '获取预览失败');
+  } catch (error: any) {
+    message.error(error?.message || '获取预览失败');
   } finally {
     previewLoading.value = false;
   }
@@ -253,8 +258,8 @@ async function handleRunNow(task: RemoveTask) {
     await autoRemoveTorrentsApi(task.id);
     message.success('任务执行完成');
     await fetchData();
-  } catch (e: any) {
-    message.error(e?.message || '执行失败');
+  } catch (error: any) {
+    message.error(error?.message || '执行失败');
   }
 }
 
@@ -313,39 +318,24 @@ onMounted(fetchData);
               <span
                 class="status-dot"
                 :class="task.enabled ? 'status-active' : 'status-inactive'"
-              />
+              ></span>
               <span class="task-name truncate">{{ task.name }}</span>
-              <NTag
-                :type="actionMap[task.action]?.type as any"
-                size="tiny"
-              >
+              <NTag :type="actionMap[task.action]?.type as any" size="tiny">
                 {{ actionMap[task.action]?.label }}
               </NTag>
             </div>
             <div class="flex items-center gap-1">
-              <NButton
-                size="tiny"
-                text
-                @click="handleRunNow(task)"
-              >
+              <NButton size="tiny" text @click="handleRunNow(task)">
                 <template #icon>
                   <IconifyIcon icon="lucide:zap" class="size-4" />
                 </template>
               </NButton>
-              <NButton
-                size="tiny"
-                text
-                @click="handlePreview(task)"
-              >
+              <NButton size="tiny" text @click="handlePreview(task)">
                 <template #icon>
                   <IconifyIcon icon="lucide:eye" class="size-4" />
                 </template>
               </NButton>
-              <NButton
-                size="tiny"
-                text
-                @click="handleEdit(task)"
-              >
+              <NButton size="tiny" text @click="handleEdit(task)">
                 <template #icon>
                   <IconifyIcon icon="lucide:pencil" class="size-4" />
                 </template>
@@ -360,11 +350,7 @@ onMounted(fetchData);
                   <IconifyIcon icon="lucide:trash-2" class="size-4" />
                 </template>
               </NButton>
-              <NButton
-                size="tiny"
-                text
-                @click="toggleExpand(task.id)"
-              >
+              <NButton size="tiny" text @click="toggleExpand(task.id)">
                 <template #icon>
                   <IconifyIcon
                     :icon="
@@ -379,15 +365,14 @@ onMounted(fetchData);
             </div>
           </div>
 
-          <div
-            v-if="expandedIds.has(task.id)"
-            class="task-detail"
-          >
+          <div v-if="expandedIds.has(task.id)" class="task-detail">
             <div class="detail-grid">
               <div class="detail-item">
                 <div class="detail-label">下载器</div>
                 <div class="detail-value">
-                  <NTag size="tiny" type="info">{{ task.downloader_name }}</NTag>
+                  <NTag size="tiny" type="info">
+                    {{ task.downloader_name }}
+                  </NTag>
                 </div>
               </div>
               <div class="detail-item">
@@ -411,28 +396,39 @@ onMounted(fetchData);
               <div class="detail-item">
                 <div class="detail-label">分享率</div>
                 <div class="detail-value">
-                  <span v-if="task.config?.ratio">{{ task.config.ratio }} +</span>
+                  <span v-if="task.config?.ratio"
+                    >{{ task.config.ratio }} +</span
+                  >
                   <span v-else class="detail-muted">-</span>
                 </div>
               </div>
               <div class="detail-item">
                 <div class="detail-label">做种时间</div>
                 <div class="detail-value">
-                  <span v-if="task.config?.seeding_time">{{ task.config.seeding_time }} 小时 +</span>
+                  <span v-if="task.config?.seeding_time"
+                    >{{ task.config.seeding_time }} 小时 +</span
+                  >
                   <span v-else class="detail-muted">-</span>
                 </div>
               </div>
               <div class="detail-item">
                 <div class="detail-label">平均上传速度</div>
                 <div class="detail-value">
-                  <span v-if="task.config?.upload_avs">{{ task.config.upload_avs }} KB/s -</span>
+                  <span v-if="task.config?.upload_avs"
+                    >{{ task.config.upload_avs }} KB/s -</span
+                  >
                   <span v-else class="detail-muted">-</span>
                 </div>
               </div>
               <div class="detail-item">
                 <div class="detail-label">大小范围</div>
                 <div class="detail-value">
-                  <span v-if="task.config?.size?.length === 2">{{ task.config.size[0] }}-{{ task.config.size[1] }} GB</span>
+                  <span v-if="task.config?.size?.length === 2"
+                    >{{ task.config.size[0] }}-{{
+                      task.config.size[1]
+                    }}
+                    GB</span
+                  >
                   <span v-else class="detail-muted">-</span>
                 </div>
               </div>
@@ -442,7 +438,9 @@ onMounted(fetchData);
               >
                 <div class="detail-label">保存路径关键词</div>
                 <div class="detail-value">
-                  <NTag size="tiny" type="warning">{{ task.config.savepath_key }}</NTag>
+                  <NTag size="tiny" type="warning">
+                    {{ task.config.savepath_key }}
+                  </NTag>
                 </div>
               </div>
               <div
@@ -451,7 +449,9 @@ onMounted(fetchData);
               >
                 <div class="detail-label">tracker关键词</div>
                 <div class="detail-value">
-                  <NTag size="tiny" type="warning">{{ task.config.tracker_key }}</NTag>
+                  <NTag size="tiny" type="warning">
+                    {{ task.config.tracker_key }}
+                  </NTag>
                 </div>
               </div>
               <div
@@ -466,7 +466,9 @@ onMounted(fetchData);
                     size="tiny"
                     type="info"
                     class="mr-1"
-                  >{{ st }}</NTag>
+                  >
+                    {{ st }}
+                  </NTag>
                 </div>
               </div>
               <div
@@ -480,7 +482,9 @@ onMounted(fetchData);
                     :key="tag"
                     size="tiny"
                     class="mr-1"
-                  >{{ tag }}</NTag>
+                  >
+                    {{ tag }}
+                  </NTag>
                 </div>
               </div>
             </div>
@@ -516,7 +520,7 @@ onMounted(fetchData);
       v-model:show="editModalShow"
       :title="editing.id ? '编辑删种任务' : '新增删种任务'"
       preset="card"
-      class="w-[720px]"
+      :style="{ width: '720px', maxWidth: '92vw' }"
     >
       <NForm label-placement="top">
         <div class="grid grid-cols-2 gap-3">
@@ -526,7 +530,9 @@ onMounted(fetchData);
           <NFormItem label="下载器" required>
             <NSelect
               v-model:value="editing.downloader"
-              :options="downloaders.map((d) => ({ label: d.name, value: d.id }))"
+              :options="
+                downloaders.map((d) => ({ label: d.name, value: d.id }))
+              "
               placeholder="请选择"
               clearable
             />
@@ -579,10 +585,7 @@ onMounted(fetchData);
             />
           </NFormItem>
           <NFormItem label="种子大小（GB）">
-            <NInput
-              v-model:value="sizeInput"
-              placeholder="如 1-10"
-            />
+            <NInput v-model:value="sizeInput" placeholder="如 1-10" />
           </NFormItem>
         </div>
         <div class="grid grid-cols-3 gap-3">
@@ -607,10 +610,7 @@ onMounted(fetchData);
         </div>
         <div class="grid grid-cols-3 gap-3">
           <NFormItem label="标签">
-            <NInput
-              v-model:value="tagInput"
-              placeholder="多个标签用;分隔"
-            />
+            <NInput v-model:value="tagInput" placeholder="多个标签用;分隔" />
           </NFormItem>
           <NFormItem label="保存路径关键词">
             <NInput
@@ -663,7 +663,7 @@ onMounted(fetchData);
       v-model:show="previewModalShow"
       :title="`预处理种子列表 - ${previewTargetName}`"
       preset="card"
-      class="w-[640px]"
+      :style="{ width: '640px', maxWidth: '92vw' }"
     >
       <NSpin :show="previewLoading">
         <NDataTable
@@ -698,22 +698,22 @@ onMounted(fetchData);
 }
 
 .task-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
 }
 
 .task-header {
   display: flex;
+  gap: 0.5rem;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
 }
 
 .status-dot {
   display: inline-block;
+  flex-shrink: 0;
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  flex-shrink: 0;
 }
 
 .status-active {
@@ -731,8 +731,8 @@ onMounted(fetchData);
 }
 
 .task-detail {
-  margin-top: 0.75rem;
   padding-top: 0.75rem;
+  margin-top: 0.75rem;
   border-top: 1px solid hsl(var(--border));
 }
 
@@ -744,8 +744,8 @@ onMounted(fetchData);
 
 .detail-item {
   display: flex;
-  align-items: baseline;
   gap: 0.5rem;
+  align-items: baseline;
 }
 
 .detail-item-wide {
@@ -753,10 +753,10 @@ onMounted(fetchData);
 }
 
 .detail-label {
-  font-size: 0.8rem;
-  color: hsl(var(--muted-foreground));
   flex-shrink: 0;
   min-width: 5rem;
+  font-size: 0.8rem;
+  color: hsl(var(--muted-foreground));
 }
 
 .detail-value {

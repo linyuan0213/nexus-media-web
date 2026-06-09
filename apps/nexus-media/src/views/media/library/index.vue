@@ -1,5 +1,7 @@
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
+
+import { IconifyIcon } from '@vben/icons';
 
 import {
   NButton,
@@ -10,12 +12,8 @@ import {
   NSpin,
   NTag,
 } from 'naive-ui';
-import { IconifyIcon } from '@vben/icons';
 
-import {
-  getLibraryHomeApi,
-  getLibraryHistoryApi,
-} from '#/api';
+import { getLibraryHistoryApi, getLibraryHomeApi } from '#/api';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 
@@ -110,7 +108,7 @@ async function showHistory() {
   historyLoading.value = true;
   try {
     const res = await getLibraryHistoryApi();
-    historyList.value = Array.isArray(res) ? res : (res?.data || []);
+    historyList.value = Array.isArray(res) ? res : res?.data || [];
   } finally {
     historyLoading.value = false;
   }
@@ -130,10 +128,16 @@ function getTypeLabel(type: string) {
 
 function replaceLocalhost(url?: string) {
   if (!url) return '';
-  if (url.startsWith('http://127.0.0.1') || url.startsWith('https://127.0.0.1')) {
+  if (
+    url.startsWith('http://127.0.0.1') ||
+    url.startsWith('https://127.0.0.1')
+  ) {
     return url.replace(/127\.0\.0\.1:\d+/, window.location.host);
   }
-  if (url.startsWith('http://localhost') || url.startsWith('https://localhost')) {
+  if (
+    url.startsWith('http://localhost') ||
+    url.startsWith('https://localhost')
+  ) {
     return url.replace(/localhost:\d+/, window.location.host);
   }
   return url;
@@ -147,7 +151,11 @@ onMounted(fetchData);
     <PageHeader title="我的媒体库">
       <template #actions>
         <NSpace>
-          <NButton type="primary" :disabled="!serverSuccess" @click="handleSync">
+          <NButton
+            type="primary"
+            :disabled="!serverSuccess"
+            @click="handleSync"
+          >
             <template #icon>
               <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
             </template>
@@ -193,14 +201,17 @@ onMounted(fetchData);
                 v-if="lib.image"
                 :src="lib.image"
                 class="w-100 object-cover"
-                style="aspect-ratio: 2/1;"
+                style="aspect-ratio: 2/1"
                 alt=""
               />
-              <div v-else-if="lib.image_list && lib.image_list.length" class="relative">
+              <div
+                v-else-if="lib.image_list && lib.image_list.length > 0"
+                class="relative"
+              >
                 <img
                   :src="lib.image_list[0]"
                   class="w-100 object-cover"
-                  style="aspect-ratio: 2/1;"
+                  style="aspect-ratio: 2/1"
                   alt=""
                 />
               </div>
@@ -225,7 +236,7 @@ onMounted(fetchData);
               <img
                 :src="item.image || '/static/img/no-image.png'"
                 class="w-100 object-cover"
-                style="aspect-ratio: 2/1;"
+                style="aspect-ratio: 2/1"
                 alt=""
               />
               <span
@@ -234,10 +245,18 @@ onMounted(fetchData);
               >
                 {{ getTypeLabel(item.type) }}
               </span>
-              <div v-if="item.percent" class="absolute bottom-0 left-0 right-0 h-1 bg-gray-200">
-                <div class="h-full bg-green-500" :style="{ width: `${item.percent}%` }" />
+              <div
+                v-if="item.percent"
+                class="absolute bottom-0 left-0 right-0 h-1 bg-gray-200"
+              >
+                <div
+                  class="h-full bg-green-500"
+                  :style="{ width: `${item.percent}%` }"
+                ></div>
               </div>
-              <div class="m-2 text-center text-sm truncate">{{ item.name }}</div>
+              <div class="m-2 text-center text-sm truncate">
+                {{ item.name }}
+              </div>
             </a>
           </div>
         </div>
@@ -258,7 +277,7 @@ onMounted(fetchData);
               <img
                 :src="item.image || '/static/img/no-image.png'"
                 class="w-100 object-cover"
-                style="aspect-ratio: 2/3;"
+                style="aspect-ratio: 2/3"
                 alt=""
               />
               <span
@@ -267,17 +286,19 @@ onMounted(fetchData);
               >
                 {{ getTypeLabel(item.type) }}
               </span>
-              <div class="m-2 text-center text-sm truncate">{{ item.name }}</div>
+              <div class="m-2 text-center text-sm truncate">
+                {{ item.name }}
+              </div>
             </a>
           </div>
         </div>
 
         <!-- 无数据 -->
-        <div v-if="libraries.length === 0 && !loading && serverSuccess" class="mt-8">
-          <EmptyState
-            title="暂无媒体库"
-            subtitle="请配置媒体服务器后同步"
-          />
+        <div
+          v-if="libraries.length === 0 && !loading && serverSuccess"
+          class="mt-8"
+        >
+          <EmptyState title="暂无媒体库" subtitle="请配置媒体服务器后同步" />
         </div>
       </template>
     </NSpin>
@@ -287,20 +308,37 @@ onMounted(fetchData);
       v-model:show="syncModalShow"
       title="媒体库同步"
       preset="card"
-      class="w-[480px]"
+      :style="{ width: '480px', maxWidth: '92vw' }"
       :closable="!syncing"
       :mask-closable="!syncing"
     >
       <div class="text-center mb-4">
-        <div class="w-16 h-16 rounded-full bg-gray-100 mx-auto mb-3 flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+        <div
+          class="w-16 h-16 rounded-full bg-gray-100 mx-auto mb-3 flex items-center justify-center"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="32"
+            height="32"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <rect width="20" height="16" x="2" y="4" rx="2" />
+            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+          </svg>
         </div>
         <div class="font-medium">媒体服务器</div>
-        <div class="text-sm text-gray-500 mt-1">{{ syncing ? '同步中...' : '准备就绪' }}</div>
+        <div class="text-sm text-gray-500 mt-1">
+          {{ syncing ? '同步中...' : '准备就绪' }}
+        </div>
       </div>
 
       <details class="m-3">
-        <summary class="cursor-pointer text-sm text-gray-600">媒体库列表</summary>
+        <summary class="cursor-pointer text-sm text-gray-600">
+          媒体库列表
+        </summary>
         <div class="mt-2 space-y-2">
           <NCheckbox
             v-for="lib in libraries"
@@ -318,13 +356,15 @@ onMounted(fetchData);
           <div
             class="h-full bg-green-500 transition-all duration-300"
             :style="{ width: `${syncProgress}%` }"
-          />
+          ></div>
         </div>
       </div>
 
       <template #footer>
         <NSpace justify="center">
-          <NButton :disabled="syncing" @click="syncModalShow = false">关闭</NButton>
+          <NButton :disabled="syncing" @click="syncModalShow = false">
+            关闭
+          </NButton>
           <NButton type="primary" :loading="syncing" @click="startMediaSync">
             {{ syncing ? '同步中...' : '开始同步' }}
           </NButton>
@@ -337,17 +377,25 @@ onMounted(fetchData);
       v-model:show="historyModalShow"
       title="播放记录"
       preset="card"
-      class="w-[720px]"
+      :style="{ width: '720px', maxWidth: '92vw' }"
     >
       <NSpin :show="historyLoading">
-        <div v-if="historyList.length > 0" class="space-y-3 max-h-[500px] overflow-auto">
+        <div
+          v-if="historyList.length > 0"
+          class="space-y-3 max-h-[500px] overflow-auto"
+        >
           <div
             v-for="(item, idx) in historyList"
             :key="idx"
             class="flex items-center gap-3 p-2 rounded hover:bg-gray-50"
           >
-            <div class="w-10 h-10 rounded flex items-center justify-center flex-shrink-0"
-              :class="item.type === 'PL' ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'"
+            <div
+              class="w-10 h-10 rounded flex items-center justify-center flex-shrink-0"
+              :class="
+                item.type === 'PL'
+                  ? 'bg-primary/10 text-primary'
+                  : 'bg-muted/30 text-muted-foreground'
+              "
             >
               <IconifyIcon
                 :icon="item.type === 'PL' ? 'lucide:play' : 'lucide:log-in'"
@@ -358,7 +406,10 @@ onMounted(fetchData);
               <div class="font-medium truncate">{{ item.event }}</div>
               <div class="text-sm text-gray-500">{{ item.date }}</div>
             </div>
-            <NTag size="small" :type="item.type === 'PL' ? 'primary' : 'default'">
+            <NTag
+              size="small"
+              :type="item.type === 'PL' ? 'primary' : 'default'"
+            >
               {{ item.type === 'PL' ? '播放' : '登录' }}
             </NTag>
           </div>
@@ -376,19 +427,25 @@ onMounted(fetchData);
       v-model:show="statsModalShow"
       title="统计数据"
       preset="card"
-      class="w-[480px]"
+      :style="{ width: '480px', maxWidth: '92vw' }"
     >
       <div class="grid grid-cols-3 gap-4">
         <NCard size="small">
-          <div class="text-2xl font-bold text-primary">{{ statsData.MediaCount?.MovieCount || 0 }}</div>
+          <div class="text-2xl font-bold text-primary">
+            {{ statsData.MediaCount?.MovieCount || 0 }}
+          </div>
           <div class="text-sm text-gray-500">电影数量</div>
         </NCard>
         <NCard size="small">
-          <div class="text-2xl font-bold text-primary">{{ statsData.MediaCount?.SeriesCount || 0 }}</div>
+          <div class="text-2xl font-bold text-primary">
+            {{ statsData.MediaCount?.SeriesCount || 0 }}
+          </div>
           <div class="text-sm text-gray-500">剧集数量</div>
         </NCard>
         <NCard size="small">
-          <div class="text-2xl font-bold text-primary">{{ statsData.MediaCount?.EpisodeCount || 0 }}</div>
+          <div class="text-2xl font-bold text-primary">
+            {{ statsData.MediaCount?.EpisodeCount || 0 }}
+          </div>
           <div class="text-sm text-gray-500">总集数</div>
         </NCard>
       </div>
@@ -402,18 +459,24 @@ onMounted(fetchData);
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 0.75rem;
 }
+
 .grid-media-card {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 0.75rem;
 }
+
 .card-link-pop {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
+
 .card-link-pop:hover {
+  box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
+
 .truncate {
   overflow: hidden;
   text-overflow: ellipsis;

@@ -91,9 +91,13 @@ onMounted(() => {
   renderEcharts(buildOption() as any);
 });
 
-watch(() => [props.labels, props.movieData, props.tvData, props.animeData], () => {
-  renderEcharts(buildOption() as any);
-}, { deep: true });
+watch(
+  () => [props.labels, props.movieData, props.tvData, props.animeData],
+  () => {
+    renderEcharts(buildOption() as any);
+  },
+  { deep: true },
+);
 </script>
 
 <template>

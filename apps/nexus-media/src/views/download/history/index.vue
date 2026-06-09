@@ -1,9 +1,17 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue';
 
-import { NButton, NCard, NSpin, NSpace, NPagination, NTooltip, useMessage } from 'naive-ui';
-
 import { IconifyIcon } from '@vben/icons';
+
+import {
+  NButton,
+  NCard,
+  NPagination,
+  NSpace,
+  NSpin,
+  NTooltip,
+  useMessage,
+} from 'naive-ui';
 
 import { getDownloadHistoryApi } from '#/api';
 import EmptyState from '#/components/empty/EmptyState.vue';
@@ -26,7 +34,10 @@ async function fetchData(page = 1) {
     const res = (await getDownloadHistoryApi(page, pageSize.value)) as any;
     const list = Array.isArray(res) ? res : res?.data || [];
     downloadStore.setHistory(list);
-    total.value = list.length >= pageSize.value ? page * pageSize.value + 1 : page * pageSize.value;
+    total.value =
+      list.length >= pageSize.value
+        ? page * pageSize.value + 1
+        : page * pageSize.value;
   } finally {
     loading.value = false;
   }
@@ -143,7 +154,9 @@ onMounted(() => fetchData(1));
                   {{ item.overview }}
                 </div>
                 <div class="history-footer">
-                  <span v-if="item.site" class="history-site">{{ item.site }}</span>
+                  <span v-if="item.site" class="history-site">{{
+                    item.site
+                  }}</span>
                   <NSpace align="center" size="small">
                     <NButton
                       v-if="item.enclosure"
@@ -156,7 +169,9 @@ onMounted(() => fetchData(1));
                       </template>
                       复制链接
                     </NButton>
-                    <span class="history-date">{{ formatDate(item.date) }}</span>
+                    <span class="history-date">{{
+                      formatDate(item.date)
+                    }}</span>
                   </NSpace>
                 </div>
               </div>
@@ -191,7 +206,9 @@ onMounted(() => fetchData(1));
             <div class="history-list-info">
               <NTooltip :show-arrow="false">
                 <template #trigger>
-                  <div class="history-list-title truncate">{{ item.title }}</div>
+                  <div class="history-list-title truncate">
+                    {{ item.title }}
+                  </div>
                 </template>
                 {{ item.title }}
               </NTooltip>
@@ -199,7 +216,9 @@ onMounted(() => fetchData(1));
                 <span v-if="item.year">{{ item.year }}</span>
                 <span v-if="item.media_type">{{ item.media_type }}</span>
                 <span v-if="item.vote">评分 {{ item.vote }}</span>
-                <span v-if="item.site" class="history-site">{{ item.site }}</span>
+                <span v-if="item.site" class="history-site">{{
+                  item.site
+                }}</span>
               </div>
             </div>
 
@@ -250,25 +269,25 @@ onMounted(() => fetchData(1));
 <style scoped>
 .header-row {
   display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 1rem;
-  gap: 1rem;
-  flex-wrap: wrap;
 }
 
 .page-title {
+  margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
-  color: hsl(var(--foreground));
   line-height: 1.4;
-  margin: 0;
+  color: hsl(var(--foreground));
 }
 
 .toolbar-actions {
   display: flex;
-  align-items: center;
   gap: 0.25rem;
+  align-items: center;
 }
 
 /* ===== Grid View ===== */
@@ -279,14 +298,14 @@ onMounted(() => fetchData(1));
 }
 
 .history-card {
+  overflow: hidden;
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   transition: box-shadow 0.2s;
-  overflow: hidden;
 }
 
 .history-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
 }
 
 .history-poster-wrapper {
@@ -307,26 +326,26 @@ onMounted(() => fetchData(1));
 }
 
 .history-title {
+  margin-bottom: 0.375rem;
   font-size: 1rem;
   font-weight: 500;
-  color: hsl(var(--card-foreground));
   line-height: 1.4;
-  margin-bottom: 0.375rem;
+  color: hsl(var(--card-foreground));
 }
 
 .history-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  margin-bottom: 0.375rem;
   font-size: 0.8rem;
   color: hsl(var(--muted-foreground));
-  margin-bottom: 0.375rem;
 }
 
 .history-torrent {
+  margin-bottom: 0.5rem;
   font-size: 0.8rem;
   color: hsl(var(--muted-foreground));
-  margin-bottom: 0.5rem;
 }
 
 .history-footer {
@@ -345,70 +364,70 @@ onMounted(() => fetchData(1));
 
 .history-list-item {
   display: flex;
-  align-items: center;
   gap: 0.75rem;
+  align-items: center;
   padding: 0.75rem 1rem;
+  overflow: hidden;
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
   transition: box-shadow 0.2s;
-  overflow: hidden;
 }
 
 .history-list-item:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
 }
 
 .history-list-poster {
+  flex-shrink: 0;
   width: 40px;
   height: 50px;
   object-fit: cover;
-  flex-shrink: 0;
   background-color: hsl(var(--muted));
 }
 
 .history-list-poster-placeholder {
+  flex-shrink: 0;
   width: 40px;
   height: 50px;
-  flex-shrink: 0;
   background-color: hsl(var(--muted));
 }
 
 .history-list-info {
-  min-width: 0;
   flex: 1;
+  min-width: 0;
 }
 
 .history-list-title {
+  margin-bottom: 0.25rem;
   font-size: 0.9375rem;
   font-weight: 500;
-  color: hsl(var(--card-foreground));
   line-height: 1.4;
-  margin-bottom: 0.25rem;
+  color: hsl(var(--card-foreground));
 }
 
 .history-list-meta {
   display: flex;
-  align-items: center;
   gap: 0.5rem;
+  align-items: center;
   font-size: 0.8rem;
   color: hsl(var(--muted-foreground));
 }
 
 .history-list-actions {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
   flex-shrink: 0;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 /* ===== Common ===== */
 .history-site {
-  font-size: 0.75rem;
   padding: 0.125rem 0.5rem;
-  border-radius: 9999px;
-  background-color: hsl(var(--accent));
+  font-size: 0.75rem;
   color: hsl(var(--accent-foreground));
+  background-color: hsl(var(--accent));
+  border-radius: 9999px;
 }
 
 .history-date {
@@ -430,8 +449,8 @@ onMounted(() => fetchData(1));
   }
 
   .history-list-item {
-    padding: 0.625rem;
     gap: 0.5rem;
+    padding: 0.625rem;
   }
 
   .history-list-poster,

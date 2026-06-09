@@ -1,7 +1,8 @@
-import { ref, computed } from 'vue';
-import { defineStore } from 'pinia';
-
 import type { FilterApi } from '#/api/modules/filter';
+
+import { computed, ref } from 'vue';
+
+import { defineStore } from 'pinia';
 
 export type FilterRule = FilterApi.FilterRule;
 export type FilterRuleGroup = FilterApi.FilterRuleGroup;

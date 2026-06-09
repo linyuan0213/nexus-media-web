@@ -57,8 +57,8 @@ async function handleAvatarUpload(event: Event) {
       userStore.setUserInfo(data);
       message.success('头像更新成功');
     }
-  } catch (e: any) {
-    message.error(e?.message || '上传失败');
+  } catch (error: any) {
+    message.error(error?.message || '上传失败');
   } finally {
     target.value = '';
   }

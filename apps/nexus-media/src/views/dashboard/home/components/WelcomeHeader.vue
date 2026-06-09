@@ -41,8 +41,8 @@ const currentDate = computed(() => {
 
 const uptimeText = computed(() => {
   const s = props.uptime || 0;
-  const days = Math.floor(s / 86400);
-  const hours = Math.floor((s % 86400) / 3600);
+  const days = Math.floor(s / 86_400);
+  const hours = Math.floor((s % 86_400) / 3600);
   const mins = Math.floor((s % 3600) / 60);
   if (days > 0) return `${days}天 ${hours}小时`;
   if (hours > 0) return `${hours}小时 ${mins}分钟`;
@@ -53,7 +53,7 @@ const uptimeText = computed(() => {
 <template>
   <div
     class="mb-6 flex flex-col items-start justify-between gap-4 rounded-2xl border p-5 sm:flex-row sm:items-center"
-    style="border-color: hsl(var(--border)); background: hsl(var(--card))"
+    style="background: hsl(var(--card)); border-color: hsl(var(--border))"
   >
     <!-- 左侧：头像 + 问候 -->
     <div class="flex items-center gap-4">
@@ -75,7 +75,10 @@ const uptimeText = computed(() => {
         />
       </div>
       <div>
-        <h2 class="text-lg font-semibold" style="color: hsl(var(--card-foreground))">
+        <h2
+          class="text-lg font-semibold"
+          style="color: hsl(var(--card-foreground))"
+        >
           {{ greeting }}, {{ userName }}
         </h2>
         <p class="mt-0.5 text-sm" style="color: hsl(var(--muted-foreground))">
@@ -92,7 +95,9 @@ const uptimeText = computed(() => {
           class="size-4"
           style="color: hsl(var(--muted-foreground))"
         />
-        <span class="text-sm" style="color: hsl(var(--muted-foreground))">{{ currentDate }}</span>
+        <span class="text-sm" style="color: hsl(var(--muted-foreground))">{{
+          currentDate
+        }}</span>
       </div>
       <div class="flex items-center gap-2">
         <IconifyIcon

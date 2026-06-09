@@ -1,12 +1,22 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { NButton, NSpin, NTag, useMessage } from 'naive-ui';
+
 import { IconifyIcon } from '@vben/icons';
 
+import { NButton, NSpin, NTag, useMessage } from 'naive-ui';
+
+import {
+  getMediaDetailApi,
+  getRecommendationsApi,
+  getSimilarApi,
+  webSearchApi,
+} from '#/api/modules/media';
+import {
+  addSubscriptionMediaApi,
+  removeSubscriptionApi,
+} from '#/api/modules/subscription';
 import PageHeader from '#/components/page/PageHeader.vue';
-import { getMediaDetailApi, getSimilarApi, getRecommendationsApi, webSearchApi } from '#/api/modules/media';
-import { addSubscriptionMediaApi, removeSubscriptionApi } from '#/api/modules/subscription';
 
 const route = useRoute();
 const router = useRouter();
@@ -31,7 +41,10 @@ const mediaType = computed(() => {
 function replaceLocalhost(url?: any) {
   if (!url) return '';
   const s = String(url);
-  return s.replace(/^(https?:\/\/)(127\.0\.0\.1|localhost)(:\d+)?/, window.location.origin);
+  return s.replace(
+    /^(https?:\/\/)(127\.0\.0\.1|localhost)(:\d+)?/,
+    window.location.origin,
+  );
 }
 
 async function loadDetail() {
@@ -56,8 +69,8 @@ async function loadDetail() {
       message.error('无法查询到TMDB媒体信息');
       router.back();
     }
-  } catch (e: any) {
-    message.error(e?.message || '加载详情失败');
+  } catch (error: any) {
+    message.error(error?.message || '加载详情失败');
   } finally {
     loading.value = false;
   }
@@ -72,9 +85,9 @@ async function loadSimilar() {
       tmdbid: String(tid),
       page: 1,
     });
-    similar.value = Array.isArray(res) ? res : (res?.Items || []);
-  } catch (e: any) {
-    console.error('[similar] error:', e);
+    similar.value = Array.isArray(res) ? res : res?.Items || [];
+  } catch (error: any) {
+    console.error('[similar] error:', error);
   }
 }
 
@@ -87,9 +100,9 @@ async function loadRecommends() {
       tmdbid: String(tid),
       page: 1,
     });
-    recommends.value = Array.isArray(res) ? res : (res?.Items || []);
-  } catch (e: any) {
-    console.error('[recommends] error:', e);
+    recommends.value = Array.isArray(res) ? res : res?.Items || [];
+  } catch (error: any) {
+    console.error('[recommends] error:', error);
   }
 }
 
@@ -188,11 +201,13 @@ watch([() => route.query.id, () => route.query.type], () => {
             <div
               v-if="detail.background || detail.backdrop"
               class="absolute inset-0 bg-cover bg-center"
-              :style="{ backgroundImage: `url(${replaceLocalhost(detail.background || detail.backdrop)})` }"
+              :style="{
+                backgroundImage: `url(${replaceLocalhost(detail.background || detail.backdrop)})`,
+              }"
             >
-              <div class="absolute inset-0 bg-black/60" />
+              <div class="absolute inset-0 bg-black/60"></div>
             </div>
-            <div v-else class="absolute inset-0 bg-gray-800" />
+            <div v-else class="absolute inset-0 bg-gray-800"></div>
 
             <div class="relative flex flex-col gap-4 p-4 md:flex-row md:p-6">
               <!-- 海报 -->
@@ -202,33 +217,73 @@ watch([() => route.query.id, () => route.query.type], () => {
                 class="mx-auto h-56 w-36 rounded-lg object-cover shadow-lg sm:h-72 sm:w-48 md:mx-0"
                 alt="poster"
               />
-              <div v-else class="mx-auto h-56 w-36 rounded-lg bg-gray-700 sm:h-72 sm:w-48 md:mx-0" />
+              <div
+                v-else
+                class="mx-auto h-56 w-36 rounded-lg bg-gray-700 sm:h-72 sm:w-48 md:mx-0"
+              ></div>
 
               <!-- 信息 -->
               <div class="flex flex-1 flex-col justify-end text-white">
                 <div class="mb-2">
-                  <NTag v-if="fav === '2'" type="success" size="small">已入库</NTag>
+                  <NTag v-if="fav === '2'" type="success" size="small">
+                    已入库
+                  </NTag>
                 </div>
                 <h1 class="mb-1 text-xl font-bold sm:text-2xl md:text-3xl">
                   {{ detail.title }}
-                  <span v-if="detail.year" class="text-base font-normal opacity-80 sm:text-xl">({{ detail.year }})</span>
+                  <span
+                    v-if="detail.year"
+                    class="text-base font-normal opacity-80 sm:text-xl"
+                    >({{ detail.year }})</span
+                  >
                 </h1>
-                <div class="mb-4 flex flex-wrap gap-x-2 gap-y-1 text-xs opacity-80 sm:text-sm">
+                <div
+                  class="mb-4 flex flex-wrap gap-x-2 gap-y-1 text-xs opacity-80 sm:text-sm"
+                >
                   <span v-if="detail.runtime">{{ detail.runtime }}</span>
-                  <span v-if="detail.genres" class="before:content-['|'] before:mr-2 before:text-white/30">{{ detail.genres }}</span>
-                  <span v-if="seasons.length" class="before:content-['|'] before:mr-2 before:text-white/30">共 {{ seasons.length }} 季</span>
-                  <span v-if="detail.link" class="before:content-['|'] before:mr-2 before:text-white/30">
+                  <span
+                    v-if="detail.genres"
+                    class="before:content-['|'] before:mr-2 before:text-white/30"
+                    >{{ detail.genres }}</span
+                  >
+                  <span
+                    v-if="seasons.length > 0"
+                    class="before:content-['|'] before:mr-2 before:text-white/30"
+                    >共 {{ seasons.length }} 季</span
+                  >
+                  <span
+                    v-if="detail.link"
+                    class="before:content-['|'] before:mr-2 before:text-white/30"
+                  >
                     TMDB:
-                    <a :href="detail.link" target="_blank" class="text-primary-foreground hover:underline">{{ detail.tmdbid }}</a>
+                    <a
+                      :href="detail.link"
+                      target="_blank"
+                      class="text-primary-foreground hover:underline"
+                      >{{ detail.tmdbid }}</a
+                    >
                   </span>
-                  <span v-if="detail.douban_link" class="before:content-['|'] before:mr-2 before:text-white/30">
+                  <span
+                    v-if="detail.douban_link"
+                    class="before:content-['|'] before:mr-2 before:text-white/30"
+                  >
                     豆瓣:
-                    <a :href="detail.douban_link" target="_blank" class="text-primary-foreground hover:underline">{{ detail.douban_id }}</a>
+                    <a
+                      :href="detail.douban_link"
+                      target="_blank"
+                      class="text-primary-foreground hover:underline"
+                      >{{ detail.douban_id }}</a
+                    >
                   </span>
                 </div>
 
                 <div class="flex flex-wrap gap-2">
-                  <NButton type="primary" size="small" :loading="searching" @click="handleSearch">
+                  <NButton
+                    type="primary"
+                    size="small"
+                    :loading="searching"
+                    @click="handleSearch"
+                  >
                     <IconifyIcon icon="lucide:search" class="mr-1 size-4" />
                     搜索资源
                   </NButton>
@@ -272,18 +327,30 @@ watch([() => route.query.id, () => route.query.type], () => {
               </div>
 
               <!-- 演职人员 -->
-              <div v-if="detail.crews && detail.crews.length" class="rounded-lg bg-card p-4 shadow-sm">
+              <div
+                v-if="detail.crews && detail.crews.length > 0"
+                class="rounded-lg bg-card p-4 shadow-sm"
+              >
                 <h2 class="mb-3 text-lg font-bold">演职人员</h2>
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div
+                  class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+                >
                   <div v-for="(item, idx) in detail.crews" :key="idx">
-                    <h3 class="font-bold">{{ item && Object.keys(item)[0] }}</h3>
-                    <p class="text-sm text-muted-foreground">{{ item && Object.values(item)[0] }}</p>
+                    <h3 class="font-bold">
+                      {{ item && Object.keys(item)[0] }}
+                    </h3>
+                    <p class="text-sm text-muted-foreground">
+                      {{ item && Object.values(item)[0] }}
+                    </p>
                   </div>
                 </div>
               </div>
 
               <!-- 季集 -->
-              <div v-if="seasons.length" class="rounded-lg bg-card p-4 shadow-sm">
+              <div
+                v-if="seasons.length > 0"
+                class="rounded-lg bg-card p-4 shadow-sm"
+              >
                 <h2 class="mb-3 text-lg font-bold">季集</h2>
                 <div class="space-y-2">
                   <div
@@ -292,9 +359,15 @@ watch([() => route.query.id, () => route.query.type], () => {
                     class="flex items-center justify-between rounded border p-3 dark:border-border"
                   >
                     <div>
-                      <div class="font-bold">{{ season.name || `第 ${season.season_number} 季` }}</div>
+                      <div class="font-bold">
+                        {{ season.name || `第 ${season.season_number} 季` }}
+                      </div>
                       <div class="text-xs text-muted-foreground">
-                        {{ season.episode_count ? `共 ${season.episode_count} 集` : '' }}
+                        {{
+                          season.episode_count
+                            ? `共 ${season.episode_count} 集`
+                            : ''
+                        }}
                         {{ season.air_date ? ` | ${season.air_date}` : '' }}
                       </div>
                     </div>
@@ -304,9 +377,14 @@ watch([() => route.query.id, () => route.query.type], () => {
               </div>
 
               <!-- 类似影片 -->
-              <div v-if="similar.length" class="rounded-lg bg-card p-4 shadow-sm">
+              <div
+                v-if="similar.length > 0"
+                class="rounded-lg bg-card p-4 shadow-sm"
+              >
                 <h2 class="mb-3 text-lg font-bold">类似</h2>
-                <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                <div
+                  class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+                >
                   <div
                     v-for="item in similar"
                     :key="item.id || item.tmdbid"
@@ -319,17 +397,26 @@ watch([() => route.query.id, () => route.query.type], () => {
                       alt=""
                     />
                     <div class="p-2">
-                      <div class="truncate text-sm font-medium">{{ item.title }}</div>
-                      <div class="text-xs text-muted-foreground">{{ item.year }}</div>
+                      <div class="truncate text-sm font-medium">
+                        {{ item.title }}
+                      </div>
+                      <div class="text-xs text-muted-foreground">
+                        {{ item.year }}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
 
               <!-- 推荐影片 -->
-              <div v-if="recommends.length" class="rounded-lg bg-card p-4 shadow-sm">
+              <div
+                v-if="recommends.length > 0"
+                class="rounded-lg bg-card p-4 shadow-sm"
+              >
                 <h2 class="mb-3 text-lg font-bold">推荐</h2>
-                <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                <div
+                  class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+                >
                   <div
                     v-for="item in recommends"
                     :key="item.id || item.tmdbid"
@@ -342,8 +429,12 @@ watch([() => route.query.id, () => route.query.type], () => {
                       alt=""
                     />
                     <div class="p-2">
-                      <div class="truncate text-sm font-medium">{{ item.title }}</div>
-                      <div class="text-xs text-muted-foreground">{{ item.year }}</div>
+                      <div class="truncate text-sm font-medium">
+                        {{ item.title }}
+                      </div>
+                      <div class="text-xs text-muted-foreground">
+                        {{ item.year }}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -352,14 +443,21 @@ watch([() => route.query.id, () => route.query.type], () => {
 
             <!-- 右侧：Facts -->
             <div class="lg:col-span-1">
-              <div v-if="detail.fact && detail.fact.length" class="rounded-lg bg-card p-4 shadow-sm">
+              <div
+                v-if="detail.fact && detail.fact.length > 0"
+                class="rounded-lg bg-card p-4 shadow-sm"
+              >
                 <div
                   v-for="(item, idx) in detail.fact"
                   :key="idx"
                   class="flex justify-between border-b py-2 last:border-0 dark:border-border"
                 >
-                  <span class="font-medium">{{ item && Object.keys(item)[0] }}</span>
-                  <span class="text-right text-sm text-muted-foreground">{{ item && Object.values(item)[0] }}</span>
+                  <span class="font-medium">{{
+                    item && Object.keys(item)[0]
+                  }}</span>
+                  <span class="text-right text-sm text-muted-foreground">{{
+                    item && Object.values(item)[0]
+                  }}</span>
                 </div>
               </div>
             </div>
@@ -367,7 +465,10 @@ watch([() => route.query.id, () => route.query.type], () => {
         </template>
 
         <!-- 无数据 -->
-        <div v-else-if="!loading" class="flex flex-col items-center gap-4 py-12 text-center text-muted-foreground">
+        <div
+          v-else-if="!loading"
+          class="flex flex-col items-center gap-4 py-12 text-center text-muted-foreground"
+        >
           <span>未找到媒体信息</span>
           <NButton size="small" @click="router.push({ name: 'Dashboard' })">
             返回首页
@@ -385,12 +486,12 @@ watch([() => route.query.id, () => route.query.type], () => {
 }
 
 .subscribe-btn-unsub {
-  background-color: rgba(255, 255, 255, 0.9) !important;
   color: #1f2937 !important;
+  background-color: rgb(255 255 255 / 90%) !important;
   border-color: transparent !important;
 }
 
 .subscribe-btn-unsub:hover {
-  background-color: rgba(255, 255, 255, 1) !important;
+  background-color: rgb(255 255 255 / 100%) !important;
 }
 </style>

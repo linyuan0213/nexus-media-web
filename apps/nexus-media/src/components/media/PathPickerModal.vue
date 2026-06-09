@@ -1,26 +1,20 @@
 <script lang="ts" setup>
-import { computed, ref, watch } from 'vue';
+import type { StorageApi } from '#/api/modules/storage';
 
-import {
-  NButton,
-  NEmpty,
-  NModal,
-  NSelect,
-  NSpace,
-  NSpin,
-} from 'naive-ui';
+import { computed, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
+import { NButton, NEmpty, NModal, NSelect, NSpace, NSpin } from 'naive-ui';
+
 import { getDirListApi } from '#/api/modules/media';
 import { getStorageBackendsApi } from '#/api/modules/storage';
-import type { StorageApi } from '#/api/modules/storage';
 
 const props = defineProps<{
+  initialBackendId?: string;
+  initialPath?: string;
   show: boolean;
   title?: string;
-  initialPath?: string;
-  initialBackendId?: string;
 }>();
 
 const emit = defineEmits<{
@@ -31,21 +25,27 @@ const emit = defineEmits<{
 const loading = ref(false);
 const currentPath = ref('');
 const currentBackendId = ref('local');
-const dirList = ref<Array<{ name: string; path: string; is_dir: boolean }>>([]);
+const dirList = ref<Array<{ is_dir: boolean; name: string; path: string }>>([]);
 const backends = ref<StorageApi.StorageBackend[]>([]);
 
 const backendOptions = computed(() => [
   { label: '本地', value: 'local' },
-  ...backends.value.map((b) => ({ label: `${b.name} (${b.type})`, value: String(b.id) })),
+  ...backends.value.map((b) => ({
+    label: `${b.name} (${b.type})`,
+    value: String(b.id),
+  })),
 ]);
 
 const breadcrumbs = computed(() => {
   if (!currentPath.value || currentPath.value === '/') return [];
-  const parts = currentPath.value.replace(/\\/g, '/').split('/').filter(Boolean);
+  const parts = currentPath.value
+    .replaceAll('\\', '/')
+    .split('/')
+    .filter(Boolean);
   const items: Array<{ name: string; path: string }> = [];
   let acc = '';
   for (const part of parts) {
-    acc = acc ? `${acc}/${part}` : '/' + part;
+    acc = acc ? `${acc}/${part}` : `/${part}`;
     items.push({ name: part, path: acc });
   }
   return items;
@@ -63,11 +63,15 @@ async function fetchBackends() {
 async function fetchDirList(path?: string) {
   loading.value = true;
   try {
-    const res = await getDirListApi(path, 'HIDE_FILES_FILTER', currentBackendId.value);
+    const res = await getDirListApi(
+      path,
+      'HIDE_FILES_FILTER',
+      currentBackendId.value,
+    );
     if (Array.isArray(res)) {
       dirList.value = res
         .filter((a: any) => a.is_dir)
-        .sort((a: any, b: any) => a.name.localeCompare(b.name));
+        .toSorted((a: any, b: any) => a.name.localeCompare(b.name));
       currentPath.value = path || '';
     }
   } catch {
@@ -82,10 +86,10 @@ function navigateTo(path: string) {
 }
 
 function goUp() {
-  const norm = currentPath.value.replace(/\\/g, '/');
+  const norm = currentPath.value.replaceAll('\\', '/');
   const parts = norm.split('/').filter(Boolean);
   parts.pop();
-  const parent = parts.length > 0 ? '/' + parts.join('/') : '/';
+  const parent = parts.length > 0 ? `/${parts.join('/')}` : '/';
   navigateTo(parent === '/' ? '' : parent);
 }
 
@@ -161,22 +165,33 @@ watch(
 
       <!-- 当前路径显示 -->
       <div class="picker-current-path">
-        <IconifyIcon icon="lucide:folder" class="size-4" style="color: hsl(var(--warning))" />
+        <IconifyIcon
+          icon="lucide:folder"
+          class="size-4"
+          style="color: hsl(var(--warning))"
+        />
         <span class="path-text">{{ currentPath || '根目录' }}</span>
       </div>
 
       <!-- 目录列表 -->
       <NSpin :show="loading" class="picker-list-wrapper">
-        <div v-if="dirList.length" class="picker-list">
+        <div v-if="dirList.length > 0" class="picker-list">
           <div
             v-for="item in dirList"
             :key="item.path"
             class="picker-item"
             @click="navigateTo(item.path)"
           >
-            <IconifyIcon icon="lucide:folder" class="size-5" style="color: hsl(var(--warning))" />
+            <IconifyIcon
+              icon="lucide:folder"
+              class="size-5"
+              style="color: hsl(var(--warning))"
+            />
             <span class="picker-item-name">{{ item.name }}</span>
-            <IconifyIcon icon="lucide:chevron-right" class="size-4 picker-item-arrow" />
+            <IconifyIcon
+              icon="lucide:chevron-right"
+              class="size-4 picker-item-arrow"
+            />
           </div>
         </div>
         <NEmpty v-else description="暂无目录" size="small" class="py-4" />
@@ -207,24 +222,24 @@ watch(
 
 .picker-toolbar {
   display: flex;
-  align-items: center;
   gap: 8px;
+  align-items: center;
 }
 
 .picker-breadcrumb {
   display: flex;
-  align-items: center;
   flex-wrap: wrap;
   gap: 2px;
-  font-size: 13px;
-  padding: 4px 0;
+  align-items: center;
   min-height: 24px;
+  padding: 4px 0;
+  font-size: 13px;
 }
 
 .breadcrumb-root,
 .breadcrumb-item {
-  cursor: pointer;
   color: hsl(var(--muted-foreground));
+  cursor: pointer;
   transition: color 0.2s;
 }
 
@@ -234,23 +249,23 @@ watch(
 }
 
 .breadcrumb-active {
-  color: hsl(var(--foreground));
   font-weight: 500;
+  color: hsl(var(--foreground));
 }
 
 .breadcrumb-separator {
-  color: hsl(var(--muted-foreground));
   padding: 0 2px;
+  color: hsl(var(--muted-foreground));
 }
 
 .picker-current-path {
   display: flex;
-  align-items: center;
   gap: 6px;
+  align-items: center;
   padding: 6px 8px;
-  border-radius: 6px;
   font-size: 13px;
   background: hsl(var(--accent));
+  border-radius: 6px;
 }
 
 .path-text {
@@ -273,12 +288,12 @@ watch(
 
 .picker-item {
   display: flex;
-  align-items: center;
   gap: 8px;
+  align-items: center;
   padding: 8px 12px;
   cursor: pointer;
+  border-bottom: 1px solid hsl(var(--border) / 50%);
   transition: background 0.15s;
-  border-bottom: 1px solid hsl(var(--border) / 0.5);
 }
 
 .picker-item:last-child {
@@ -291,16 +306,16 @@ watch(
 
 .picker-item-name {
   flex: 1;
-  font-size: 14px;
-  color: hsl(var(--foreground));
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 14px;
+  color: hsl(var(--foreground));
   white-space: nowrap;
 }
 
 .picker-item-arrow {
-  color: hsl(var(--muted-foreground));
   flex-shrink: 0;
+  color: hsl(var(--muted-foreground));
 }
 
 .picker-footer {

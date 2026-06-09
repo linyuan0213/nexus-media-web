@@ -1,31 +1,41 @@
 <script lang="ts" setup>
-import { ref, computed, h, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
+import {
+  computed,
+  h,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from 'vue';
+
+import { IconifyIcon } from '@vben/icons';
+import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 
 import {
   NButton,
   NCard,
+  NDataTable,
+  NModal,
+  NSelect,
   NSpace,
   NSpin,
   NTag,
-  NDataTable,
-  NSelect,
-  NModal,
   useNotification,
 } from 'naive-ui';
 
 import {
-  getSiteStatisticsApi,
-  getSiteHistoryApi,
-  getSiteFaviconsApi,
   getSiteActivityApi,
   getSiteDailyHistoryApi,
+  getSiteFaviconsApi,
+  getSiteHistoryApi,
+  getSiteStatisticsApi,
   refreshSiteStatisticsApi,
 } from '#/api/modules/site';
-import SiteDailyLineChart from './components/SiteDailyLineChart.vue';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
-import { IconifyIcon } from '@vben/icons';
-import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
+
+import SiteDailyLineChart from './components/SiteDailyLineChart.vue';
 import SiteLogo from './SiteLogo.vue';
 
 interface StatisticsItem {
@@ -46,8 +56,11 @@ const screenWidth = ref(window.innerWidth);
 const isMobile = computed(() => screenWidth.value < 768);
 const statistics = ref<StatisticsItem[]>([]);
 const historyData = ref<[string, number, number][]>([]);
-const dailyData = ref<{ dates: string[]; series: Array<{ name: string; upload: number[]; download: number[] }> }>({ dates: [], series: [] });
-const dailyMode = ref<'upload' | 'download'>('upload');
+const dailyData = ref<{
+  dates: string[];
+  series: Array<{ download: number[]; name: string; upload: number[] }>;
+}>({ dates: [], series: [] });
+const dailyMode = ref<'download' | 'upload'>('upload');
 const favicons = ref<Record<string, string>>({});
 const sortBy = ref('');
 const refreshing = ref(false);
@@ -65,9 +78,12 @@ const { renderEcharts: renderRose } = useEcharts(chartRoseRef);
 const siteDetailModalShow = ref(false);
 const siteDetailName = ref('');
 const siteDetailLoading = ref(false);
-const siteActivityData = ref<[number, number, number, number, number, number][]>([]);
+const siteActivityData = ref<
+  [number, number, number, number, number, number][]
+>([]);
 const chartDetailRef = ref<any>(null);
-const renderDetail: (option: any) => void = useEcharts(chartDetailRef).renderEcharts;
+const renderDetail: (option: any) => void =
+  useEcharts(chartDetailRef).renderEcharts;
 
 const sortOptions = [
   { label: '默认排序', value: '' },
@@ -99,9 +115,15 @@ async function handleRefresh() {
   refreshing.value = true;
   try {
     await refreshSiteStatisticsApi();
-    notification.success({ content: '站点数据刷新已启动', description: '数据正在后台刷新中，请稍候重新查看' });
-  } catch (err: any) {
-    notification.error({ content: '刷新失败', description: err?.message || '' });
+    notification.success({
+      content: '站点数据刷新已启动',
+      description: '数据正在后台刷新中，请稍候重新查看',
+    });
+  } catch (error: any) {
+    notification.error({
+      content: '刷新失败',
+      description: error?.message || '',
+    });
   } finally {
     refreshing.value = false;
   }
@@ -110,9 +132,15 @@ async function handleRefresh() {
 async function handleRefreshSite(siteName: string) {
   try {
     await refreshSiteStatisticsApi([siteName]);
-    notification.success({ content: `${siteName} 刷新已启动`, description: '数据正在后台刷新中，请稍候重新查看' });
-  } catch (err: any) {
-    notification.error({ content: '刷新失败', description: err?.message || '' });
+    notification.success({
+      content: `${siteName} 刷新已启动`,
+      description: '数据正在后台刷新中，请稍候重新查看',
+    });
+  } catch (error: any) {
+    notification.error({
+      content: '刷新失败',
+      description: error?.message || '',
+    });
   }
 }
 
@@ -124,24 +152,27 @@ async function fetchSiteActivity(name: string) {
     siteActivityData.value = dataset.length > 1 ? dataset.slice(1) : [];
     await nextTick();
     renderDetailChart();
-  } catch (err: any) {
-    notification.error({ content: '获取站点统计失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '获取站点统计失败',
+      description: error?.message || '',
+    });
   } finally {
     siteDetailLoading.value = false;
   }
 }
 
 function renderDetailChart() {
-  if (!siteActivityData.value.length) return;
-  const dates = siteActivityData.value.map(i => {
+  if (siteActivityData.value.length === 0) return;
+  const dates = siteActivityData.value.map((i) => {
     const d = new Date(i[0]);
     return `${d.getMonth() + 1}/${d.getDate()}`;
   });
-  const uploads = siteActivityData.value.map(i => i[1]);
-  const downloads = siteActivityData.value.map(i => i[2]);
-  const bonuses = siteActivityData.value.map(i => i[3]);
-  const seedings = siteActivityData.value.map(i => i[4]);
-  const seedingSizes = siteActivityData.value.map(i => i[5]);
+  const uploads = siteActivityData.value.map((i) => i[1]);
+  const downloads = siteActivityData.value.map((i) => i[2]);
+  const bonuses = siteActivityData.value.map((i) => i[3]);
+  const seedings = siteActivityData.value.map((i) => i[4]);
+  const seedingSizes = siteActivityData.value.map((i) => i[5]);
   const colors = getThemeColors();
 
   renderDetail({
@@ -152,7 +183,8 @@ function renderDetailChart() {
         params.forEach((p: any) => {
           let val = p.value;
           if (p.seriesName === '做种体积') val = formatSize(val);
-          else if (p.seriesName !== '做种数' && p.seriesName !== '积分') val = formatSize(val);
+          else if (p.seriesName !== '做种数' && p.seriesName !== '积分')
+            val = formatSize(val);
           result += `<div style="display:flex;align-items:center;gap:6px">
             <span style="width:8px;height:8px;border-radius:50%;background:${p.color}"></span>
             <span>${p.seriesName}: ${val}</span>
@@ -193,7 +225,9 @@ function renderDetailChart() {
           color: getThemeColor('--muted-foreground'),
           formatter: (value: number) => formatSize(value),
         },
-        splitLine: { lineStyle: { color: getThemeColor('--border'), type: 'dashed' } },
+        splitLine: {
+          lineStyle: { color: getThemeColor('--border'), type: 'dashed' },
+        },
       },
       {
         type: 'value',
@@ -287,58 +321,68 @@ function getColumns(isMobile: boolean): any[] {
       title: '上传',
       key: 'upload',
       width: isMobile ? 90 : 110,
-      sorter: (a: StatisticsItem, b: StatisticsItem) => parseSize(a.upload) - parseSize(b.upload),
+      sorter: (a: StatisticsItem, b: StatisticsItem) =>
+        parseSize(a.upload) - parseSize(b.upload),
     },
     {
       title: '下载',
       key: 'download',
       width: isMobile ? 90 : 110,
-      sorter: (a: StatisticsItem, b: StatisticsItem) => parseSize(a.download) - parseSize(b.download),
+      sorter: (a: StatisticsItem, b: StatisticsItem) =>
+        parseSize(a.download) - parseSize(b.download),
     },
     {
       title: '分享率',
       key: 'ratio',
       width: isMobile ? 75 : 90,
       render(row: StatisticsItem) {
-        const ratio = parseFloat(row.ratio);
+        const ratio = Number.parseFloat(row.ratio);
         let type: any = 'default';
         if (ratio >= 5) type = 'success';
         else if (ratio >= 1) type = 'warning';
         else if (ratio > 0) type = 'error';
-          return h(NTag, { size: 'small', type }, () => row.ratio);
-        },
-        sorter: (a: StatisticsItem, b: StatisticsItem) => parseFloat(a.ratio) - parseFloat(b.ratio),
+        return h(NTag, { size: 'small', type }, () => row.ratio);
       },
+      sorter: (a: StatisticsItem, b: StatisticsItem) =>
+        Number.parseFloat(a.ratio) - Number.parseFloat(b.ratio),
+    },
     {
       title: '做种',
       key: 'seeding_count',
       width: isMobile ? 70 : 85,
-      sorter: (a: StatisticsItem, b: StatisticsItem) => (a.seeding_count || 0) - (b.seeding_count || 0),
+      sorter: (a: StatisticsItem, b: StatisticsItem) =>
+        (a.seeding_count || 0) - (b.seeding_count || 0),
     },
   ];
 
-  const extraColumns = isMobile ? [] : [
-    {
-      title: '做种大小',
-      key: 'seeding_size',
-      width: 110,
-    },
-    {
-      title: '魔力值',
-      key: 'bonus',
-      width: 100,
-      sorter: (a: StatisticsItem, b: StatisticsItem) => parseFloat(a.bonus) - parseFloat(b.bonus),
-    },
-    {
-      title: '消息',
-      key: 'message_count',
-      width: 70,
-      render(row: StatisticsItem) {
-        if (!row.message_count) return h('span', { class: 'text-muted' }, '-');
-        return h(NTag, { size: 'small', type: 'error' }, () => String(row.message_count));
-      },
-    },
-  ];
+  const extraColumns = isMobile
+    ? []
+    : [
+        {
+          title: '做种大小',
+          key: 'seeding_size',
+          width: 110,
+        },
+        {
+          title: '魔力值',
+          key: 'bonus',
+          width: 100,
+          sorter: (a: StatisticsItem, b: StatisticsItem) =>
+            Number.parseFloat(a.bonus) - Number.parseFloat(b.bonus),
+        },
+        {
+          title: '消息',
+          key: 'message_count',
+          width: 70,
+          render(row: StatisticsItem) {
+            if (!row.message_count)
+              return h('span', { class: 'text-muted' }, '-');
+            return h(NTag, { size: 'small', type: 'error' }, () =>
+              String(row.message_count),
+            );
+          },
+        },
+      ];
 
   return [
     ...baseColumns,
@@ -350,22 +394,36 @@ function getColumns(isMobile: boolean): any[] {
       fixed: 'right' as const,
       render(row: StatisticsItem) {
         return h('div', { class: 'flex items-center gap-1' }, [
-          h(NButton, {
-            text: true,
-            size: 'small',
-            onClick: () => handleRefreshSite(row.site_name),
-            title: '刷新站点数据',
-          }, () => [
-            h(IconifyIcon, { icon: 'lucide:refresh-cw', class: 'h-3.5 w-3.5' }),
-          ]),
-          h(NButton, {
-            text: true,
-            size: 'small',
-            onClick: () => handleOpenSiteDetail(row),
-            title: '查看统计趋势',
-          }, () => [
-            h(IconifyIcon, { icon: 'lucide:line-chart', class: 'h-3.5 w-3.5' }),
-          ]),
+          h(
+            NButton,
+            {
+              text: true,
+              size: 'small',
+              onClick: () => handleRefreshSite(row.site_name),
+              title: '刷新站点数据',
+            },
+            () => [
+              h(IconifyIcon, {
+                icon: 'lucide:refresh-cw',
+                class: 'h-3.5 w-3.5',
+              }),
+            ],
+          ),
+          h(
+            NButton,
+            {
+              text: true,
+              size: 'small',
+              onClick: () => handleOpenSiteDetail(row),
+              title: '查看统计趋势',
+            },
+            () => [
+              h(IconifyIcon, {
+                icon: 'lucide:line-chart',
+                class: 'h-3.5 w-3.5',
+              }),
+            ],
+          ),
         ]);
       },
     },
@@ -374,41 +432,62 @@ function getColumns(isMobile: boolean): any[] {
 
 const columns = computed(() => getColumns(isMobile.value));
 
-function parseSize(sizeInput: string | number): number {
+function parseSize(sizeInput: number | string): number {
   if (sizeInput == null) return 0;
   if (typeof sizeInput === 'number') return sizeInput;
   const match = String(sizeInput).match(/^(\d+(?:\.\d+)?)\s*(TB|GB|MB|KB|B)/i);
   if (!match) return 0;
-  const val = parseFloat(match[1]!);
+  const val = Number.parseFloat(match[1]!);
   const unit = match[2]!.toUpperCase();
-  const units: Record<string, number> = { TB: 1024 ** 4, GB: 1024 ** 3, MB: 1024 ** 2, KB: 1024, B: 1 };
+  const units: Record<string, number> = {
+    TB: 1024 ** 4,
+    GB: 1024 ** 3,
+    MB: 1024 ** 2,
+    KB: 1024,
+    B: 1,
+  };
   return val * (units[unit] || 1);
 }
 
 function formatSize(bytes: number): string {
   if (bytes <= 0) return '0 B';
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const i = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1,
+  );
   return `${(bytes / 1024 ** i).toFixed(2)} ${units[i]}`;
 }
 
-function parseNumber(val: string | number): number {
+function parseNumber(val: number | string): number {
   if (typeof val === 'number') return val;
   if (!val) return 0;
-  const n = parseFloat(val);
-  return isNaN(n) ? 0 : n;
+  const n = Number.parseFloat(val);
+  return Number.isNaN(n) ? 0 : n;
 }
 
 const summary = computed(() => {
   const items = statistics.value;
-  if (!items.length) return null;
+  if (items.length === 0) return null;
   const totalUpload = items.reduce((sum, i) => sum + parseSize(i.upload), 0);
-  const totalDownload = items.reduce((sum, i) => sum + parseSize(i.download), 0);
-  const totalSeeding = items.reduce((sum, i) => sum + (i.seeding_count || 0), 0);
+  const totalDownload = items.reduce(
+    (sum, i) => sum + parseSize(i.download),
+    0,
+  );
+  const totalSeeding = items.reduce(
+    (sum, i) => sum + (i.seeding_count || 0),
+    0,
+  );
   const totalBonus = items.reduce((sum, i) => sum + parseNumber(i.bonus), 0);
-  const totalMessages = items.reduce((sum, i) => sum + (i.message_count || 0), 0);
-  const avgRatio = items.reduce((sum, i) => sum + parseNumber(i.ratio), 0) / items.length;
-  const activeSites = items.filter(i => parseSize(i.upload) > 0 || parseSize(i.download) > 0).length;
+  const totalMessages = items.reduce(
+    (sum, i) => sum + (i.message_count || 0),
+    0,
+  );
+  const avgRatio =
+    items.reduce((sum, i) => sum + parseNumber(i.ratio), 0) / items.length;
+  const activeSites = items.filter(
+    (i) => parseSize(i.upload) > 0 || parseSize(i.download) > 0,
+  ).length;
 
   return {
     total: items.length,
@@ -428,7 +507,13 @@ function getThemeColor(varName: string): string {
   return val ? `hsl(${val})` : '';
 }
 
-function getThemeColors(): { success: string; warning: string; primary: string; destructive: string; muted: string } {
+function getThemeColors(): {
+  destructive: string;
+  muted: string;
+  primary: string;
+  success: string;
+  warning: string;
+} {
   return {
     success: getThemeColor('--success'),
     warning: getThemeColor('--warning'),
@@ -441,10 +526,14 @@ function getThemeColors(): { success: string; warning: string; primary: string; 
 const sortedStatistics = computed(() => {
   const items = [...statistics.value];
   if (!sortBy.value) return items;
-  return items.sort((a, b) => {
+  return items.toSorted((a, b) => {
     const field = sortBy.value;
     let av: number, bv: number;
-    if (field === 'upload' || field === 'download' || field === 'seeding_size') {
+    if (
+      field === 'upload' ||
+      field === 'download' ||
+      field === 'seeding_size'
+    ) {
       av = parseSize((a as any)[field]);
       bv = parseSize((b as any)[field]);
     } else if (field === 'ratio' || field === 'bonus') {
@@ -467,16 +556,24 @@ async function fetchData() {
       getSiteDailyHistoryApi({ days: 30 }),
       getSiteFaviconsApi(),
     ]);
-    statistics.value = Array.isArray(statsRes) ? statsRes : (statsRes?.data || []);
+    statistics.value = Array.isArray(statsRes)
+      ? statsRes
+      : statsRes?.data || [];
     const hdata = historyRes?.dataset || [];
     historyData.value = hdata.length > 1 ? hdata.slice(1) : [];
     dailyData.value = dailyRes || { dates: [], series: [] };
-    const favData = (typeof favRes === 'object' && !Array.isArray(favRes)) ? favRes : (favRes?.data || {});
+    const favData =
+      typeof favRes === 'object' && !Array.isArray(favRes)
+        ? favRes
+        : favRes?.data || {};
     favicons.value = favData;
     await nextTick();
     renderAllCharts();
-  } catch (err: any) {
-    notification.error({ content: '获取数据失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '获取数据失败',
+      description: error?.message || '',
+    });
   } finally {
     loading.value = false;
   }
@@ -490,10 +587,10 @@ function renderAllCharts() {
 }
 
 function renderBarChart() {
-  if (!statistics.value.length) return;
-  const sites = statistics.value.map(i => i.site_name);
-  const uploads = statistics.value.map(i => parseSize(i.upload));
-  const downloads = statistics.value.map(i => parseSize(i.download));
+  if (statistics.value.length === 0) return;
+  const sites = statistics.value.map((i) => i.site_name);
+  const uploads = statistics.value.map((i) => parseSize(i.upload));
+  const downloads = statistics.value.map((i) => parseSize(i.download));
   const colors = getThemeColors();
 
   renderBar({
@@ -541,7 +638,9 @@ function renderBarChart() {
         color: getThemeColor('--muted-foreground'),
         formatter: (value: number) => formatSize(value),
       },
-      splitLine: { lineStyle: { color: getThemeColor('--border'), type: 'dashed' } },
+      splitLine: {
+        lineStyle: { color: getThemeColor('--border'), type: 'dashed' },
+      },
     },
     series: [
       {
@@ -563,13 +662,13 @@ function renderBarChart() {
 }
 
 function renderPieChart() {
-  if (!statistics.value.length) return;
+  if (statistics.value.length === 0) return;
   const data = statistics.value
-    .map(i => ({ name: i.site_name, value: parseSize(i.upload) }))
-    .filter(i => i.value > 0)
-    .sort((a, b) => b.value - a.value);
+    .map((i) => ({ name: i.site_name, value: parseSize(i.upload) }))
+    .filter((i) => i.value > 0)
+    .toSorted((a, b) => b.value - a.value);
 
-  if (!data.length) return;
+  if (data.length === 0) return;
 
   renderPie({
     tooltip: {
@@ -624,10 +723,10 @@ function renderPieChart() {
 }
 
 function renderTrendChart() {
-  if (!historyData.value.length) return;
-  const sites = historyData.value.map(i => i[0]);
-  const uploads = historyData.value.map(i => i[1]);
-  const downloads = historyData.value.map(i => i[2]);
+  if (historyData.value.length === 0) return;
+  const sites = historyData.value.map((i) => i[0]);
+  const uploads = historyData.value.map((i) => i[1]);
+  const downloads = historyData.value.map((i) => i[2]);
   const colors = getThemeColors();
 
   renderTrend({
@@ -675,7 +774,9 @@ function renderTrendChart() {
         color: getThemeColor('--muted-foreground'),
         formatter: (value: number) => formatSize(value),
       },
-      splitLine: { lineStyle: { color: getThemeColor('--border'), type: 'dashed' } },
+      splitLine: {
+        lineStyle: { color: getThemeColor('--border'), type: 'dashed' },
+      },
     },
     series: [
       {
@@ -697,13 +798,13 @@ function renderTrendChart() {
 }
 
 function renderRoseChart() {
-  if (!statistics.value.length) return;
+  if (statistics.value.length === 0) return;
   const data = statistics.value
-    .map(i => ({ name: i.site_name, value: i.seeding_count || 0 }))
-    .filter(i => i.value > 0)
-    .sort((a, b) => b.value - a.value);
+    .map((i) => ({ name: i.site_name, value: i.seeding_count || 0 }))
+    .filter((i) => i.value > 0)
+    .toSorted((a, b) => b.value - a.value);
 
-  if (!data.length) return;
+  if (data.length === 0) return;
 
   renderRose({
     tooltip: {
@@ -810,14 +911,18 @@ onBeforeUnmount(() => {
         <div class="stat-icon stat-icon-primary">
           <IconifyIcon icon="lucide:arrow-up" class="h-5 w-5" />
         </div>
-        <div class="stat-value stat-primary">{{ formatSize(summary.upload) }}</div>
+        <div class="stat-value stat-primary">
+          {{ formatSize(summary.upload) }}
+        </div>
         <div class="stat-label">总上传</div>
       </NCard>
       <NCard size="small" class="stat-card">
         <div class="stat-icon stat-icon-warning">
           <IconifyIcon icon="lucide:arrow-down" class="h-5 w-5" />
         </div>
-        <div class="stat-value stat-warning">{{ formatSize(summary.download) }}</div>
+        <div class="stat-value stat-warning">
+          {{ formatSize(summary.download) }}
+        </div>
         <div class="stat-label">总下载</div>
       </NCard>
       <NCard size="small" class="stat-card">
@@ -908,11 +1013,15 @@ onBeforeUnmount(() => {
                 <button
                   :class="{ active: dailyMode === 'upload' }"
                   @click="dailyMode = 'upload'"
-                >上传</button>
+                >
+                  上传
+                </button>
                 <button
                   :class="{ active: dailyMode === 'download' }"
                   @click="dailyMode = 'download'"
-                >下载</button>
+                >
+                  下载
+                </button>
               </div>
             </div>
           </template>
@@ -955,7 +1064,8 @@ onBeforeUnmount(() => {
       v-model:show="siteDetailModalShow"
       :title="`${siteDetailName} - 统计趋势`"
       preset="card"
-      class="w-full max-w-[900px]"
+      class="w-full max-"
+      :style="{ width: '900px', maxWidth: '900px' }"
       :bordered="false"
       :segmented="{ content: true }"
     >
@@ -982,9 +1092,9 @@ onBeforeUnmount(() => {
 }
 
 .stat-card {
-  text-align: center;
   position: relative;
   overflow: hidden;
+  text-align: center;
 }
 
 .stat-card :deep(.n-card__content) {
@@ -997,47 +1107,47 @@ onBeforeUnmount(() => {
   justify-content: center;
   width: 2.25rem;
   height: 2.25rem;
-  border-radius: 0.5rem;
-  background-color: hsl(var(--accent));
-  color: hsl(var(--primary));
   margin-bottom: 0.5rem;
+  color: hsl(var(--primary));
+  background-color: hsl(var(--accent));
+  border-radius: 0.5rem;
 }
 
 .stat-icon-success {
-  background-color: hsl(var(--success) / 0.15);
   color: hsl(var(--success));
+  background-color: hsl(var(--success) / 15%);
 }
 
 .stat-icon-warning {
-  background-color: hsl(var(--warning) / 0.15);
   color: hsl(var(--warning));
+  background-color: hsl(var(--warning) / 15%);
 }
 
 .stat-icon-primary {
-  background-color: hsl(var(--primary) / 0.15);
   color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 15%);
 }
 
 .stat-icon-info {
-  background-color: hsl(var(--primary) / 0.1);
   color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 10%);
 }
 
 .stat-icon-purple {
-  background-color: hsl(var(--primary) / 0.1);
   color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 10%);
 }
 
 .stat-icon-error {
-  background-color: hsl(var(--destructive) / 0.15);
   color: hsl(var(--destructive));
+  background-color: hsl(var(--destructive) / 15%);
 }
 
 .stat-value {
   font-size: 1.25rem;
   font-weight: 700;
-  color: hsl(var(--card-foreground));
   line-height: 1.2;
+  color: hsl(var(--card-foreground));
 }
 
 .stat-success {
@@ -1065,18 +1175,18 @@ onBeforeUnmount(() => {
 }
 
 .stat-label {
+  margin-top: 0.25rem;
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
-  margin-top: 0.25rem;
 }
 
 .chart-row {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
-  margin-bottom: 1rem;
   width: 100%;
   max-width: 100%;
+  margin-bottom: 1rem;
 }
 
 .chart-card :deep(.n-card__content) {
@@ -1099,53 +1209,53 @@ onBeforeUnmount(() => {
 
 .chart-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
   flex-wrap: wrap;
   gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  overflow: hidden;
   font-size: 0.875rem;
   font-weight: 600;
   color: hsl(var(--card-foreground));
-  overflow: hidden;
 }
 
 .chart-header > span,
 .chart-header > div:first-child {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  min-width: 0;
 }
 
 .mode-toggle {
   display: flex;
   gap: 0;
-  border-radius: 0.375rem;
   overflow: hidden;
   border: 1px solid hsl(var(--border));
+  border-radius: 0.375rem;
 }
 
 .mode-toggle button {
   padding: 0.125rem 0.625rem;
   font-size: 0.75rem;
   font-weight: 500;
-  background: hsl(var(--card));
   color: hsl(var(--muted-foreground));
-  border: none;
   cursor: pointer;
+  background: hsl(var(--card));
+  border: none;
   transition: all 0.2s;
 }
 
 .mode-toggle button.active {
-  background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
+  background: hsl(var(--primary));
 }
 
 /* 站点表格中的 logo */
 .site-cell {
   display: flex;
-  align-items: center;
   gap: 0.75rem;
+  align-items: center;
 }
 
 .site-cell-name {

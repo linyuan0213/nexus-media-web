@@ -51,7 +51,7 @@ function handleImageError(e: Event) {
                 <div
                   class="progress-bar-tblr-fill"
                   :style="{ width: `${progress}%` }"
-                />
+                ></div>
               </div>
             </div>
             <div v-if="size" class="text-xs text-gray-500">{{ size }}</div>
@@ -59,7 +59,7 @@ function handleImageError(e: Event) {
         </div>
       </div>
       <div class="flex-shrink-0 flex gap-1">
-        <slot name="actions" />
+        <slot name="actions"></slot>
       </div>
     </div>
   </div>
@@ -71,6 +71,6 @@ function handleImageError(e: Event) {
 }
 
 .torrent-card:hover {
-  box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0.25rem 0.5rem rgb(0 0 0 / 10%);
 }
 </style>

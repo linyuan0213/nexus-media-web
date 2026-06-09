@@ -1,33 +1,35 @@
 <script lang="ts" setup>
-import { ref, onMounted, computed } from 'vue';
-import {
-  NButton,
-  NCard,
-  NForm,
-  NFormItem,
-  NInput,
-  NModal,
-  NSpace,
-  NSpin,
-  NSelect,
-  NCheckbox,
-  useMessage,
-  NTooltip,
-  NGrid,
-  NGridItem,
-  NSwitch,
-  NBadge,
-} from 'naive-ui';
+import { computed, onMounted, ref } from 'vue';
+
 import { IconifyIcon } from '@vben/icons';
 
 import {
+  NBadge,
+  NButton,
+  NCard,
+  NCheckbox,
+  NForm,
+  NFormItem,
+  NGrid,
+  NGridItem,
+  NInput,
+  NModal,
+  NSelect,
+  NSpace,
+  NSpin,
+  NSwitch,
+  NTooltip,
+  useMessage,
+} from 'naive-ui';
+
+import {
+  deleteMessageClientApi,
   getMessageClientApi,
   getMessageClientConfigApi,
   getMessageClientDefaultTemplatesApi,
-  updateMessageClientApi,
-  deleteMessageClientApi,
-  testMessageClientApi,
   sendCustomMessageApi,
+  testMessageClientApi,
+  updateMessageClientApi,
 } from '#/api';
 import PageHeader from '#/components/page/PageHeader.vue';
 
@@ -62,7 +64,9 @@ const editingType = ref('');
 const editingConfig = ref<Record<string, any>>({});
 const editingSwitchs = ref<string[]>([]);
 const editingTemplateMap = ref<Record<string, any>>({});
-const defaultTemplates = ref<Record<string, { title: string; text: string }>>({});
+const defaultTemplates = ref<Record<string, { text: string; title: string }>>(
+  {},
+);
 function channelIcon(type?: string): string {
   return type ? `/static/img/message/${type}.png` : '';
 }
@@ -76,17 +80,27 @@ const customImage = ref('');
 const customClients = ref<string[]>([]);
 
 const clientList = computed(() => Object.values(clients.value));
-const enabledClients = computed(() => clientList.value.filter((c) => c.enabled === 1));
+const enabledClients = computed(() =>
+  clientList.value.filter((c) => c.enabled === 1),
+);
 
 function getSwitchColorClass(swid: string): string {
-  if (swid.includes('download')) return 'bg-blue-100 text-blue-700 border-blue-200';
-  if (swid.includes('transfer')) return 'bg-orange-100 text-orange-700 border-orange-200';
-  if (swid.includes('rss')) return 'bg-indigo-100 text-indigo-700 border-indigo-200';
-  if (swid.includes('site')) return 'bg-purple-100 text-purple-700 border-purple-200';
-  if (swid.includes('brush')) return 'bg-pink-100 text-pink-700 border-pink-200';
-  if (swid.includes('ptrefresh')) return 'bg-teal-100 text-teal-700 border-teal-200';
-  if (swid.includes('torrent') || swid.includes('auto_remove')) return 'bg-green-100 text-green-700 border-green-200';
-  if (swid.includes('mediaserver')) return 'bg-sky-100 text-sky-700 border-sky-200';
+  if (swid.includes('download'))
+    return 'bg-blue-100 text-blue-700 border-blue-200';
+  if (swid.includes('transfer'))
+    return 'bg-orange-100 text-orange-700 border-orange-200';
+  if (swid.includes('rss'))
+    return 'bg-indigo-100 text-indigo-700 border-indigo-200';
+  if (swid.includes('site'))
+    return 'bg-purple-100 text-purple-700 border-purple-200';
+  if (swid.includes('brush'))
+    return 'bg-pink-100 text-pink-700 border-pink-200';
+  if (swid.includes('ptrefresh'))
+    return 'bg-teal-100 text-teal-700 border-teal-200';
+  if (swid.includes('torrent') || swid.includes('auto_remove'))
+    return 'bg-green-100 text-green-700 border-green-200';
+  if (swid.includes('mediaserver'))
+    return 'bg-sky-100 text-sky-700 border-sky-200';
   return 'bg-gray-100 text-gray-700 border-gray-200';
 }
 
@@ -123,9 +137,9 @@ async function fetchData() {
     if (tpl && typeof tpl === 'object' && !Array.isArray(tpl)) {
       defaultTemplates.value = tpl;
     }
-  } catch (e: any) {
-    console.error('fetchData error:', e);
-    message.error(e?.message || '获取配置失败');
+  } catch (error: any) {
+    console.error('fetchData error:', error);
+    message.error(error?.message || '获取配置失败');
   } finally {
     loading.value = false;
   }
@@ -163,7 +177,8 @@ function handleEdit(row: MessageClient) {
   editingConfig.value = {};
   const conf = channels.value[row.type]?.config || {};
   for (const [key, field] of Object.entries(conf)) {
-    editingConfig.value[key] = row.config?.[key] ?? (field.type === 'switch' ? 0 : '');
+    editingConfig.value[key] =
+      row.config?.[key] ?? (field.type === 'switch' ? 0 : '');
   }
   editingSwitchs.value = row.switchs || [];
   // 解析模板 JSON 到表单
@@ -189,15 +204,15 @@ function handleReset() {
 }
 
 function toggleSwitch(swid: string) {
-  if (editingSwitchs.value.includes(swid)) {
-    editingSwitchs.value = editingSwitchs.value.filter((s) => s !== swid);
-  } else {
-    editingSwitchs.value = [...editingSwitchs.value, swid];
-  }
+  editingSwitchs.value = editingSwitchs.value.includes(swid)
+    ? editingSwitchs.value.filter((s) => s !== swid)
+    : [...editingSwitchs.value, swid];
 }
 
 function selectAllSwitchs() {
-  editingSwitchs.value = [...new Set([...editingSwitchs.value, ...Object.keys(switchs.value)])];
+  editingSwitchs.value = [
+    ...new Set([...editingSwitchs.value, ...Object.keys(switchs.value)]),
+  ];
 }
 
 function clearSwitchs() {
@@ -211,7 +226,7 @@ async function handleSave() {
     return;
   }
   // 自动组装模板 JSON
-  const templates: Record<string, { title: string; text: string }> = {};
+  const templates: Record<string, { text: string; title: string }> = {};
   for (const [k, v] of Object.entries(editingTemplateMap.value)) {
     if (v.title?.trim() || v.text?.trim()) {
       templates[k] = { title: v.title.trim(), text: v.text.trim() };
@@ -231,8 +246,8 @@ async function handleSave() {
     editModalShow.value = false;
     message.success('保存成功');
     await fetchData();
-  } catch (e: any) {
-    message.error(e?.message || '保存失败');
+  } catch (error: any) {
+    message.error(error?.message || '保存失败');
   }
 }
 
@@ -249,18 +264,21 @@ async function handleDelete() {
     editModalShow.value = false;
     message.success('删除成功');
     await fetchData();
-  } catch (e: any) {
-    message.error(e?.message || '删除失败');
+  } catch (error: any) {
+    message.error(error?.message || '删除失败');
   }
 }
 
 async function handleTest() {
   testLoading.value = true;
   try {
-    await testMessageClientApi(editingType.value, JSON.stringify(editingConfig.value));
+    await testMessageClientApi(
+      editingType.value,
+      JSON.stringify(editingConfig.value),
+    );
     message.success('测试成功');
-  } catch (e: any) {
-    message.error(e?.message || '测试失败');
+  } catch (error: any) {
+    message.error(error?.message || '测试失败');
   } finally {
     testLoading.value = false;
   }
@@ -310,8 +328,8 @@ async function sendCustomMessage() {
     });
     customModalShow.value = false;
     message.success('消息已发送');
-  } catch (e: any) {
-    message.error(e?.message || '发送失败');
+  } catch (error: any) {
+    message.error(error?.message || '发送失败');
   }
 }
 
@@ -329,7 +347,11 @@ onMounted(fetchData);
             </template>
             新增消息通知
           </NButton>
-          <NButton v-if="enabledClients.length" type="info" @click="showCustomMessage">
+          <NButton
+            v-if="enabledClients.length > 0"
+            type="info"
+            @click="showCustomMessage"
+          >
             <template #icon>
               <IconifyIcon icon="lucide:send" class="w-4 h-4" />
             </template>
@@ -340,7 +362,10 @@ onMounted(fetchData);
     </PageHeader>
 
     <NSpin :show="loading">
-      <div v-if="clientList.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div
+        v-if="clientList.length > 0"
+        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+      >
         <NCard
           v-for="item in clientList"
           :key="item.id"
@@ -349,14 +374,21 @@ onMounted(fetchData);
           @click="handleEdit(item)"
         >
           <div class="flex items-start gap-3">
-            <div class="relative w-12 h-12 rounded-xl flex-shrink-0 border overflow-hidden">
+            <div
+              class="relative w-12 h-12 rounded-xl flex-shrink-0 border overflow-hidden"
+            >
               <img
                 :src="channels[item.type]?.icon_url || channelIcon(item.type)"
                 class="absolute inset-0 z-10 w-full h-full object-contain"
-                @error="($event.target as HTMLElement).style.display='none'"
+                @error="($event.target as HTMLElement).style.display = 'none'"
               />
-              <div class="w-full h-full flex items-center justify-center bg-muted">
-                <IconifyIcon icon="lucide:message-square" class="size-5 text-muted-foreground" />
+              <div
+                class="w-full h-full flex items-center justify-center bg-muted"
+              >
+                <IconifyIcon
+                  icon="lucide:message-square"
+                  class="size-5 text-muted-foreground"
+                />
               </div>
             </div>
             <div class="flex-1 min-w-0">
@@ -364,13 +396,18 @@ onMounted(fetchData);
                 <span
                   class="inline-block w-2 h-2 rounded-full flex-shrink-0"
                   :class="item.enabled === 1 ? 'bg-green-500' : 'bg-gray-400'"
-                />
+                ></span>
                 <span class="font-medium truncate">{{ item.name }}</span>
               </div>
               <div class="text-xs text-gray-400 mt-0.5">
                 {{ channels[item.type]?.name || item.type }}
               </div>
-              <div v-if="channels[item.type]?.search_type && item.interactive === 1" class="mt-1">
+              <div
+                v-if="
+                  channels[item.type]?.search_type && item.interactive === 1
+                "
+                class="mt-1"
+              >
                 <NBadge value="交互" type="success" size="small" />
               </div>
               <div class="flex flex-wrap gap-1 mt-2">
@@ -396,10 +433,15 @@ onMounted(fetchData);
         </NCard>
       </div>
 
-      <div v-else class="flex flex-col items-center justify-center py-20 text-gray-400">
+      <div
+        v-else
+        class="flex flex-col items-center justify-center py-20 text-gray-400"
+      >
         <IconifyIcon icon="lucide:bell-off" class="w-16 h-16 mb-4 opacity-50" />
         <div class="text-lg font-medium">没有通知渠道</div>
-        <div class="text-sm mt-1">没有添加任何消息通知渠道，请点击上方按钮新增</div>
+        <div class="text-sm mt-1">
+          没有添加任何消息通知渠道，请点击上方按钮新增
+        </div>
       </div>
     </NSpin>
 
@@ -408,7 +450,7 @@ onMounted(fetchData);
       v-model:show="editModalShow"
       :title="editingClient.id ? '编辑消息通知' : '新增消息通知'"
       preset="card"
-      class="w-[720px]"
+      :style="{ width: '720px', maxWidth: '92vw' }"
     >
       <NForm label-placement="left" :label-width="120">
         <NGrid :cols="3" :x-gap="16">
@@ -448,17 +490,26 @@ onMounted(fetchData);
               v-for="(conf, key) in channels"
               :key="key"
               class="flex flex-col items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md"
-              :class="editingType === key ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-200 hover:border-blue-300'"
+              :class="
+                editingType === key
+                  ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                  : 'border-gray-200 hover:border-blue-300'
+              "
               @click="editingType = key"
             >
               <div class="relative w-10 h-10 rounded-lg border overflow-hidden">
                 <img
                   :src="conf.icon_url || channelIcon(key)"
                   class="absolute inset-0 z-10 w-full h-full object-contain"
-                  @error="($event.target as HTMLElement).style.display='none'"
+                  @error="($event.target as HTMLElement).style.display = 'none'"
                 />
-                <div class="w-full h-full flex items-center justify-center bg-muted">
-                  <IconifyIcon icon="lucide:message-square" class="size-4 text-muted-foreground" />
+                <div
+                  class="w-full h-full flex items-center justify-center bg-muted"
+                >
+                  <IconifyIcon
+                    icon="lucide:message-square"
+                    class="size-4 text-muted-foreground"
+                  />
                 </div>
               </div>
               <span class="text-xs font-medium">{{ conf.name }}</span>
@@ -481,7 +532,12 @@ onMounted(fetchData);
                   <NSelect
                     v-else-if="field.type === 'select'"
                     v-model:value="editingConfig[field.id]"
-                    :options="Object.entries(field.options || {}).map(([k, v]) => ({ label: v as string, value: k }))"
+                    :options="
+                      Object.entries(field.options || {}).map(([k, v]) => ({
+                        label: v as string,
+                        value: k,
+                      }))
+                    "
                   />
                   <NInput
                     v-else-if="field.type === 'textarea'"
@@ -510,7 +566,12 @@ onMounted(fetchData);
               <NSelect
                 v-else-if="field.type === 'select'"
                 v-model:value="editingConfig[field.id]"
-                :options="Object.entries(field.options || {}).map(([k, v]) => ({ label: v as string, value: k }))"
+                :options="
+                  Object.entries(field.options || {}).map(([k, v]) => ({
+                    label: v as string,
+                    value: k,
+                  }))
+                "
               />
               <NInput
                 v-else-if="field.type === 'textarea'"
@@ -543,7 +604,12 @@ onMounted(fetchData);
               {{ sw.name }}
             </NButton>
             <div class="flex gap-2 ml-auto">
-              <NButton size="tiny" text type="primary" @click="selectAllSwitchs">
+              <NButton
+                size="tiny"
+                text
+                type="primary"
+                @click="selectAllSwitchs"
+              >
                 全选
               </NButton>
               <NButton size="tiny" text type="primary" @click="clearSwitchs">
@@ -560,11 +626,19 @@ onMounted(fetchData);
               v-for="(sw, swid) in switchs"
               :key="swid"
               class="border rounded-lg p-3"
-              :class="editingSwitchs.includes(swid) ? 'border-blue-300 bg-blue-50/30' : 'border-gray-200 opacity-60'"
+              :class="
+                editingSwitchs.includes(swid)
+                  ? 'border-blue-300 bg-blue-50/30'
+                  : 'border-gray-200 opacity-60'
+              "
             >
               <div class="flex items-center justify-between mb-2">
                 <span class="font-medium text-sm">{{ sw.name }}</span>
-                <span v-if="!editingSwitchs.includes(swid)" class="text-xs text-gray-400">未启用推送</span>
+                <span
+                  v-if="!editingSwitchs.includes(swid)"
+                  class="text-xs text-gray-400"
+                  >未启用推送</span
+                >
               </div>
               <div class="space-y-2">
                 <NInput
@@ -602,7 +676,12 @@ onMounted(fetchData);
     </NModal>
 
     <!-- 删除确认弹窗 -->
-    <NModal v-model:show="deleteConfirmShow" preset="dialog" title="确认删除" type="warning">
+    <NModal
+      v-model:show="deleteConfirmShow"
+      preset="dialog"
+      title="确认删除"
+      type="warning"
+    >
       <div>确定要删除 "{{ editingClient.name }}" 吗？此操作不可恢复。</div>
       <template #action>
         <NSpace>
@@ -613,7 +692,12 @@ onMounted(fetchData);
     </NModal>
 
     <!-- 发送自定义消息弹窗 -->
-    <NModal v-model:show="customModalShow" title="发送自定义消息" preset="card" class="w-[600px]">
+    <NModal
+      v-model:show="customModalShow"
+      title="发送自定义消息"
+      preset="card"
+      :style="{ width: '600px', maxWidth: '92vw' }"
+    >
       <NForm label-placement="left" :label-width="100">
         <NFormItem label="标题" required>
           <NInput v-model:value="customTitle" placeholder="消息标题" />
@@ -622,7 +706,12 @@ onMounted(fetchData);
           <NInput v-model:value="customImage" placeholder="图片URL（可选）" />
         </NFormItem>
         <NFormItem label="内容">
-          <NInput v-model:value="customText" type="textarea" :rows="4" placeholder="消息内容（可选）" />
+          <NInput
+            v-model:value="customText"
+            type="textarea"
+            :rows="4"
+            placeholder="消息内容（可选）"
+          />
         </NFormItem>
         <NFormItem label="消息服务">
           <div class="flex flex-wrap gap-2 items-center">
@@ -630,15 +719,27 @@ onMounted(fetchData);
               v-for="client in enabledClients"
               :key="client.id"
               :checked="customClients.includes(String(client.id))"
-              @update:checked="(v: boolean) => toggleCustomClient(String(client.id), v)"
+              @update:checked="
+                (v: boolean) => toggleCustomClient(String(client.id), v)
+              "
             >
               {{ client.name }}
             </NCheckbox>
             <div class="flex gap-2 ml-auto">
-              <NButton size="tiny" text type="primary" @click="selectAllCustomClients">
+              <NButton
+                size="tiny"
+                text
+                type="primary"
+                @click="selectAllCustomClients"
+              >
                 全选
               </NButton>
-              <NButton size="tiny" text type="primary" @click="clearCustomClients">
+              <NButton
+                size="tiny"
+                text
+                type="primary"
+                @click="clearCustomClients"
+              >
                 清空
               </NButton>
             </div>

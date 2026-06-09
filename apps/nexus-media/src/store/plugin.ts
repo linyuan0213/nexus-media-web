@@ -1,7 +1,8 @@
-import { ref } from 'vue';
-import { defineStore } from 'pinia';
-
 import type { PluginApi } from '#/api/modules/plugin';
+
+import { ref } from 'vue';
+
+import { defineStore } from 'pinia';
 
 export type PluginItem = PluginApi.PluginItem;
 

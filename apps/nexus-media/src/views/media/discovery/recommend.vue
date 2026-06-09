@@ -1,16 +1,22 @@
 <script lang="ts" setup>
-import { ref, onMounted, watch } from 'vue';
+import type { SubscribeConfirmItem } from '#/components/subscribe/SubscribeConfirmModal.vue';
+import type { SubscribeEditItem } from '#/components/subscribe/SubscribeEditModal.vue';
+
+import { onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { NSpin, useNotification } from 'naive-ui';
+
 import { IconifyIcon } from '@vben/icons';
 
+import { NSpin, useNotification } from 'naive-ui';
+
 import { getRecommendApi, webSearchApi } from '#/api';
-import { addSubscriptionMediaApi, addSubscriptionApi } from '#/api/modules/subscription';
-import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.vue';
-import type { SubscribeConfirmItem } from '#/components/subscribe/SubscribeConfirmModal.vue';
-import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
-import type { SubscribeEditItem } from '#/components/subscribe/SubscribeEditModal.vue';
+import {
+  addSubscriptionApi,
+  addSubscriptionMediaApi,
+} from '#/api/modules/subscription';
 import PageHeader from '#/components/page/PageHeader.vue';
+import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.vue';
+import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
 
 interface RecommendItem {
   id: string;
@@ -38,15 +44,15 @@ const loading = ref(false);
 const loadingMore = ref(false);
 const currentPage = ref(1);
 const hasMore = ref(true);
-const hoveredId = ref<string | null>(null);
+const hoveredId = ref<null | string>(null);
 
 // 订阅确认弹窗
 const subscribeConfirmShow = ref(false);
-const subscribeConfirmItem = ref<SubscribeConfirmItem | null>(null);
+const subscribeConfirmItem = ref<null | SubscribeConfirmItem>(null);
 const subscribeConfirmPending = ref(false);
 
 const subscribeEditShow = ref(false);
-const subscribeEditItem = ref<SubscribeEditItem | null>(null);
+const subscribeEditItem = ref<null | SubscribeEditItem>(null);
 
 const pageTitle = ref(String(route.query.title || '更多推荐'));
 const queryType = ref(String(route.query.type || ''));
@@ -63,7 +69,7 @@ async function loadItems(page: number, append = false) {
       page,
       ...(queryWeek.value ? { week: queryWeek.value } : {}),
     } as any);
-    const list = Array.isArray(res) ? res : (res?.data || []);
+    const list = Array.isArray(res) ? res : res?.data || [];
     if (append) {
       items.value.push(...list);
     } else {
@@ -97,9 +103,14 @@ async function handleSearch(item: RecommendItem, e: Event) {
       tmdbid: item.id,
       media_type: item.media_type || item.type,
     });
-    router.push(`/media/search?s=${encodeURIComponent(item.title)}&from=discovery`);
-  } catch (err: any) {
-    notification.error({ content: '搜索失败', description: err?.message || '未知错误' });
+    router.push(
+      `/media/search?s=${encodeURIComponent(item.title)}&from=discovery`,
+    );
+  } catch (error: any) {
+    notification.error({
+      content: '搜索失败',
+      description: error?.message || '未知错误',
+    });
   }
 }
 
@@ -140,7 +151,10 @@ async function handleConfirmSubscribe(seasons: number[], _autoMode: boolean) {
           season: String(season),
         });
       }
-      notification.success({ content: '订阅成功', description: `${item.title} 已订阅 ${seasons.length} 季` });
+      notification.success({
+        content: '订阅成功',
+        description: `${item.title} 已订阅 ${seasons.length} 季`,
+      });
     } else {
       const res: any = await addSubscriptionMediaApi({
         name: item.title,
@@ -148,15 +162,29 @@ async function handleConfirmSubscribe(seasons: number[], _autoMode: boolean) {
         type: typeParam,
         mediaid: String(item.id),
       });
-      const success = res?.code === 0 || res?.success || res?.rssid || res?.msg?.includes('成功') || !res;
+      const success =
+        res?.code === 0 ||
+        res?.success ||
+        res?.rssid ||
+        res?.msg?.includes('成功') ||
+        !res;
       if (success) {
-        notification.success({ content: '订阅成功', description: res?.msg || `${item.title} 已添加订阅` });
+        notification.success({
+          content: '订阅成功',
+          description: res?.msg || `${item.title} 已添加订阅`,
+        });
       } else {
-        notification.error({ content: '订阅失败', description: res?.msg || '未知错误' });
+        notification.error({
+          content: '订阅失败',
+          description: res?.msg || '未知错误',
+        });
       }
     }
-  } catch (err: any) {
-    notification.error({ content: '订阅失败', description: err?.message || '未知错误' });
+  } catch (error: any) {
+    notification.error({
+      content: '订阅失败',
+      description: error?.message || '未知错误',
+    });
   } finally {
     subscribeConfirmPending.value = false;
   }
@@ -179,9 +207,15 @@ function handleEditSubscribe() {
 async function handleConfirmEdit(data: Record<string, any>) {
   try {
     await addSubscriptionApi(data);
-    notification.success({ content: '订阅成功', description: `${data.name} 已添加订阅` });
-  } catch (err: any) {
-    notification.error({ content: '订阅失败', description: err?.message || '未知错误' });
+    notification.success({
+      content: '订阅成功',
+      description: `${data.name} 已添加订阅`,
+    });
+  } catch (error: any) {
+    notification.error({
+      content: '订阅失败',
+      description: error?.message || '未知错误',
+    });
   }
 }
 
@@ -197,26 +231,38 @@ let observer: IntersectionObserver | null = null;
 onMounted(() => {
   loadItems(1);
   if (sentinelRef.value) {
-    observer = new IntersectionObserver((entries) => {
-      if (entries[0]?.isIntersecting && !loading.value && !loadingMore.value && hasMore.value) {
-        currentPage.value += 1;
-        loadItems(currentPage.value, true);
-      }
-    }, { rootMargin: '100px' });
+    observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries[0]?.isIntersecting &&
+          !loading.value &&
+          !loadingMore.value &&
+          hasMore.value
+        ) {
+          currentPage.value += 1;
+          loadItems(currentPage.value, true);
+        }
+      },
+      { rootMargin: '100px' },
+    );
     observer.observe(sentinelRef.value);
   }
 });
 
-watch(() => route.query, () => {
-  pageTitle.value = String(route.query.title || '更多推荐');
-  queryType.value = String(route.query.type || '');
-  querySubtype.value = String(route.query.subtype || '');
-  queryWeek.value = String(route.query.week || '');
-  items.value = [];
-  currentPage.value = 1;
-  hasMore.value = true;
-  loadItems(1);
-}, { deep: true });
+watch(
+  () => route.query,
+  () => {
+    pageTitle.value = String(route.query.title || '更多推荐');
+    queryType.value = String(route.query.type || '');
+    querySubtype.value = String(route.query.subtype || '');
+    queryWeek.value = String(route.query.week || '');
+    items.value = [];
+    currentPage.value = 1;
+    hasMore.value = true;
+    loadItems(1);
+  },
+  { deep: true },
+);
 </script>
 
 <template>
@@ -226,7 +272,7 @@ watch(() => route.query, () => {
       <div
         v-if="items.length > 0"
         class="grid gap-4 mt-4"
-        style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));"
+        style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr))"
       >
         <div
           v-for="item in items"
@@ -236,18 +282,26 @@ watch(() => route.query, () => {
           @mouseenter="hoveredId = item.id"
           @mouseleave="hoveredId = null"
         >
-          <div style="aspect-ratio: 2/3;" class="bg-muted">
+          <div style="aspect-ratio: 2/3" class="bg-muted">
             <img
               :src="getImgUrl(item.image)"
               class="w-full h-full object-cover"
               alt=""
-              @error="(e: any) => { e.target.src = '/static/img/no-image.png'; }"
+              @error="
+                (e: any) => {
+                  e.target.src = '/static/img/no-image.png';
+                }
+              "
             />
           </div>
           <span
             v-if="item.media_type || item.type"
             class="absolute top-1.5 left-1.5 text-white text-[10px] px-1.5 py-0.5 rounded"
-            :class="(item.media_type || item.type) === 'movie' ? 'bg-primary' : 'bg-accent'"
+            :class="
+              (item.media_type || item.type) === 'movie'
+                ? 'bg-primary'
+                : 'bg-accent'
+            "
           >
             {{ item.media_type || item.type }}
           </span>
@@ -263,7 +317,11 @@ watch(() => route.query, () => {
               v-if="item.fav === '2'"
               class="bg-success rounded-full p-0.5 flex items-center justify-center"
             >
-              <IconifyIcon icon="lucide:check" class="text-white" style="width: 12px; height: 12px;" />
+              <IconifyIcon
+                icon="lucide:check"
+                class="text-white"
+                style="width: 12px; height: 12px"
+              />
             </span>
           </div>
           <div
@@ -271,9 +329,18 @@ watch(() => route.query, () => {
             class="absolute inset-0 bg-background/80 flex flex-col justify-between p-2"
           >
             <div class="text-foreground">
-              <div v-if="item.year" class="text-xs font-semibold">{{ item.year }}</div>
-              <h4 class="text-sm font-bold mt-0.5 line-clamp-2">{{ item.title }}</h4>
-              <p v-if="item.overview" class="text-xs mt-1 line-clamp-3 opacity-90">{{ item.overview }}</p>
+              <div v-if="item.year" class="text-xs font-semibold">
+                {{ item.year }}
+              </div>
+              <h4 class="text-sm font-bold mt-0.5 line-clamp-2">
+                {{ item.title }}
+              </h4>
+              <p
+                v-if="item.overview"
+                class="text-xs mt-1 line-clamp-3 opacity-90"
+              >
+                {{ item.overview }}
+              </p>
             </div>
             <div class="flex justify-between items-center">
               <button
@@ -283,7 +350,11 @@ watch(() => route.query, () => {
                 <IconifyIcon icon="lucide:search" class="size-[18px]" />
               </button>
               <button
-                :class="item.fav === '1' ? 'text-destructive' : 'text-foreground hover:text-destructive/80'"
+                :class="
+                  item.fav === '1'
+                    ? 'text-destructive'
+                    : 'text-foreground hover:text-destructive/80'
+                "
                 @click="(e) => handleSubscribe(item, e)"
               >
                 <IconifyIcon
@@ -296,11 +367,20 @@ watch(() => route.query, () => {
           </div>
         </div>
       </div>
-      <div v-else-if="!loading" class="text-center text-muted-foreground py-12">暂无数据</div>
+      <div v-else-if="!loading" class="text-center text-muted-foreground py-12">
+        暂无数据
+      </div>
     </NSpin>
-    <div ref="sentinelRef" class="h-8 w-full flex items-center justify-center mt-4">
+    <div
+      ref="sentinelRef"
+      class="h-8 w-full flex items-center justify-center mt-4"
+    >
       <NSpin v-if="loadingMore" size="small" />
-      <span v-else-if="!hasMore && items.length > 0" class="text-sm text-muted-foreground">已加载全部</span>
+      <span
+        v-else-if="!hasMore && items.length > 0"
+        class="text-sm text-muted-foreground"
+        >已加载全部</span
+      >
     </div>
 
     <!-- 订阅确认弹窗 -->
@@ -323,14 +403,15 @@ watch(() => route.query, () => {
 <style scoped>
 .line-clamp-2 {
   display: -webkit-box;
+  overflow: hidden;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  overflow: hidden;
 }
+
 .line-clamp-3 {
   display: -webkit-box;
+  overflow: hidden;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 </style>

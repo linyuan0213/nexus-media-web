@@ -4,13 +4,7 @@ import { ref } from 'vue';
 import { IconifyIcon } from '@vben/icons';
 import { useUserStore } from '@vben/stores';
 
-import {
-  NButton,
-  NForm,
-  NFormItem,
-  NInput,
-  useMessage,
-} from 'naive-ui';
+import { NButton, NForm, NFormItem, NInput, useMessage } from 'naive-ui';
 
 import { resetPasswordApi } from '#/api';
 
@@ -48,11 +42,15 @@ async function handleSubmit() {
 
   loading.value = true;
   try {
-    await resetPasswordApi(userId, form.value.newPassword, form.value.oldPassword);
+    await resetPasswordApi(
+      userId,
+      form.value.newPassword,
+      form.value.oldPassword,
+    );
     message.success('密码修改成功');
     form.value = { oldPassword: '', newPassword: '', confirmPassword: '' };
-  } catch (e: any) {
-    message.error(e?.message || '密码修改失败');
+  } catch (error: any) {
+    message.error(error?.message || '密码修改失败');
   } finally {
     loading.value = false;
   }
@@ -69,7 +67,11 @@ async function handleSubmit() {
           placeholder="请输入旧密码"
         >
           <template #prefix>
-            <IconifyIcon icon="lucide:key-round" class="size-4" style="color: hsl(var(--muted-foreground))" />
+            <IconifyIcon
+              icon="lucide:key-round"
+              class="size-4"
+              style="color: hsl(var(--muted-foreground))"
+            />
           </template>
         </NInput>
       </NFormItem>
@@ -81,7 +83,11 @@ async function handleSubmit() {
           placeholder="请输入新密码"
         >
           <template #prefix>
-            <IconifyIcon icon="lucide:lock" class="size-4" style="color: hsl(var(--muted-foreground))" />
+            <IconifyIcon
+              icon="lucide:lock"
+              class="size-4"
+              style="color: hsl(var(--muted-foreground))"
+            />
           </template>
         </NInput>
       </NFormItem>
@@ -93,7 +99,11 @@ async function handleSubmit() {
           placeholder="请再次输入新密码"
         >
           <template #prefix>
-            <IconifyIcon icon="lucide:check-circle" class="size-4" style="color: hsl(var(--muted-foreground))" />
+            <IconifyIcon
+              icon="lucide:check-circle"
+              class="size-4"
+              style="color: hsl(var(--muted-foreground))"
+            />
           </template>
         </NInput>
       </NFormItem>

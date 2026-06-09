@@ -1,10 +1,12 @@
 <script lang="ts" setup>
-import { ref, onMounted, computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
 import {
   NButton,
+  NCheckbox,
+  NCheckboxGroup,
   NForm,
   NFormItem,
   NInput,
@@ -13,21 +15,19 @@ import {
   NSpace,
   NSpin,
   NSwitch,
-  NTabs,
   NTabPane,
-  NCheckbox,
-  NCheckboxGroup,
-  NTree,
+  NTabs,
   NTooltip,
+  NTree,
   useMessage,
 } from 'naive-ui';
 
 import {
   createRoleApi,
   deleteRoleApi,
+  getAllMenusForManagementApi,
   getPermissionsApi,
   getRolesApi,
-  getAllMenusForManagementApi,
   updateRoleApi,
 } from '#/api';
 import PageHeader from '#/components/page/PageHeader.vue';
@@ -62,16 +62,18 @@ const menuTree = ref<MenuTreeNode[]>([]);
 const loading = ref(false);
 const editModalShow = ref(false);
 const deleteModalShow = ref(false);
-const deleteTarget = ref<RoleItem | null>(null);
-const editingRole = ref<Partial<RoleItem> & { permission_ids?: number[]; menu_ids?: number[] }>({});
+const deleteTarget = ref<null | RoleItem>(null);
+const editingRole = ref<
+  Partial<RoleItem> & { menu_ids?: number[]; permission_ids?: number[] }
+>({});
 
 async function fetchData() {
   loading.value = true;
   try {
     const res: any = await getRolesApi();
     roles.value = res?.data ?? res ?? [];
-  } catch (e: any) {
-    message.error(e?.message || '获取角色列表失败');
+  } catch (error: any) {
+    message.error(error?.message || '获取角色列表失败');
   } finally {
     loading.value = false;
   }
@@ -100,7 +102,8 @@ function buildMenuTree(nodes: any[]): MenuTreeNode[] {
   for (const node of nodes) {
     const child: MenuTreeNode = {
       key: node.id,
-      label: node.menu_name || node.meta?.title || node.name || node.menu_code || '',
+      label:
+        node.menu_name || node.meta?.title || node.name || node.menu_code || '',
     };
     if (node.children?.length) {
       child.children = buildMenuTree(node.children);
@@ -121,7 +124,9 @@ async function fetchMenus() {
 }
 
 const sortedRoles = computed(() => {
-  return [...roles.value].sort((a, b) => (a.role_level ?? 100) - (b.role_level ?? 100));
+  return [...roles.value].toSorted(
+    (a, b) => (a.role_level ?? 100) - (b.role_level ?? 100),
+  );
 });
 
 function handleAdd() {
@@ -167,8 +172,8 @@ async function handleSave() {
     }
     editModalShow.value = false;
     await fetchData();
-  } catch (e: any) {
-    message.error(e?.message || '操作失败');
+  } catch (error: any) {
+    message.error(error?.message || '操作失败');
   }
 }
 
@@ -185,8 +190,8 @@ async function handleDelete() {
     deleteModalShow.value = false;
     deleteTarget.value = null;
     await fetchData();
-  } catch (e: any) {
-    message.error(e?.message || '删除失败');
+  } catch (error: any) {
+    message.error(error?.message || '删除失败');
   }
 }
 
@@ -247,17 +252,29 @@ onMounted(() => {
                   <div
                     v-if="item.status === 1"
                     class="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
-                    style="background: hsl(var(--success) / 0.1); color: hsl(var(--success))"
+                    style="
+                      color: hsl(var(--success));
+                      background: hsl(var(--success) / 10%);
+                    "
                   >
-                    <span class="size-1.5 rounded-full" style="background: hsl(var(--success))" />
+                    <span
+                      class="size-1.5 rounded-full"
+                      style="background: hsl(var(--success))"
+                    ></span>
                     启用
                   </div>
                   <div
                     v-else
                     class="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
-                    style="background: hsl(var(--destructive) / 0.1); color: hsl(var(--destructive))"
+                    style="
+                      color: hsl(var(--destructive));
+                      background: hsl(var(--destructive) / 10%);
+                    "
                   >
-                    <span class="size-1.5 rounded-full" style="background: hsl(var(--destructive))" />
+                    <span
+                      class="size-1.5 rounded-full"
+                      style="background: hsl(var(--destructive))"
+                    ></span>
                     禁用
                   </div>
                 </div>
@@ -282,28 +299,48 @@ onMounted(() => {
             <div class="flex flex-wrap gap-2">
               <div
                 class="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border"
-                style="background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); border-color: hsl(var(--border))"
+                style="
+                  color: hsl(var(--accent-foreground));
+                  background: hsl(var(--accent));
+                  border-color: hsl(var(--border));
+                "
               >
                 <IconifyIcon icon="lucide:layers" class="size-3" />
                 级别 {{ item.role_level }}
               </div>
               <div
                 class="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border"
-                style="background: hsl(var(--primary) / 0.12); color: hsl(var(--primary)); border-color: hsl(var(--primary) / 0.25)"
+                style="
+                  color: hsl(var(--primary));
+                  background: hsl(var(--primary) / 12%);
+                  border-color: hsl(var(--primary) / 25%);
+                "
               >
                 <IconifyIcon icon="lucide:key" class="size-3" />
                 {{ item.permissions?.length || 0 }} 权限
               </div>
               <div
                 class="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border"
-                style="background: hsl(var(--info) / 0.15); color: hsl(var(--foreground)); border-color: hsl(var(--info) / 0.35)"
+                style="
+                  color: hsl(var(--foreground));
+                  background: hsl(var(--info) / 15%);
+                  border-color: hsl(var(--info) / 35%);
+                "
               >
-                <IconifyIcon icon="lucide:layout-grid" class="size-3" style="color: hsl(var(--info))" />
+                <IconifyIcon
+                  icon="lucide:layout-grid"
+                  class="size-3"
+                  style="color: hsl(var(--info))"
+                />
                 {{ item.menus?.length || 0 }} 菜单
               </div>
               <div
                 class="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border"
-                style="background: hsl(var(--warning) / 0.12); color: hsl(var(--warning)); border-color: hsl(var(--warning) / 0.3)"
+                style="
+                  color: hsl(var(--warning));
+                  background: hsl(var(--warning) / 12%);
+                  border-color: hsl(var(--warning) / 30%);
+                "
               >
                 <IconifyIcon icon="lucide:users" class="size-3" />
                 {{ item.users_count || 0 }} 用户
@@ -328,7 +365,12 @@ onMounted(() => {
             </NTooltip>
             <NTooltip>
               <template #trigger>
-                <NButton text size="small" type="error" @click="confirmDelete(item)">
+                <NButton
+                  text
+                  size="small"
+                  type="error"
+                  @click="confirmDelete(item)"
+                >
                   <template #icon>
                     <IconifyIcon icon="lucide:trash-2" class="size-4" />
                   </template>
@@ -373,18 +415,23 @@ onMounted(() => {
       v-model:show="editModalShow"
       :title="editingRole.id ? '编辑角色' : '新增角色'"
       preset="card"
-      class="w-[640px]"
-      :style="{ maxHeight: '80vh' }"
+      :style="{ width: '640px', maxWidth: '92vw', maxHeight: '80vh' }"
     >
       <NTabs type="line">
         <NTabPane tab="基本信息" name="basic">
           <NForm label-placement="top">
             <div class="grid grid-cols-2 gap-3">
               <NFormItem label="角色名称" required>
-                <NInput v-model:value="editingRole.role_name" placeholder="角色名称" />
+                <NInput
+                  v-model:value="editingRole.role_name"
+                  placeholder="角色名称"
+                />
               </NFormItem>
               <NFormItem label="角色代码" required>
-                <NInput v-model:value="editingRole.role_code" placeholder="如: admin, user" />
+                <NInput
+                  v-model:value="editingRole.role_code"
+                  placeholder="如: admin, user"
+                />
               </NFormItem>
             </div>
             <NFormItem label="描述">
@@ -419,14 +466,17 @@ onMounted(() => {
 
         <NTabPane tab="权限配置" name="permissions">
           <div
-            v-if="permissionGroups.length"
+            v-if="permissionGroups.length > 0"
             class="space-y-4 max-h-[50vh] overflow-y-auto pr-2"
           >
             <div
               v-for="group in permissionGroups"
               :key="group.module"
               class="rounded-lg border p-3"
-              style="background: hsl(var(--card)); border-color: hsl(var(--border))"
+              style="
+                background: hsl(var(--card));
+                border-color: hsl(var(--border));
+              "
             >
               <div
                 class="text-xs font-semibold mb-2 uppercase tracking-wide"
@@ -458,9 +508,12 @@ onMounted(() => {
 
         <NTabPane tab="菜单配置" name="menus">
           <div
-            v-if="menuTree.length"
+            v-if="menuTree.length > 0"
             class="rounded-lg border p-3 max-h-[50vh] overflow-y-auto"
-            style="background: hsl(var(--card)); border-color: hsl(var(--border))"
+            style="
+              background: hsl(var(--card));
+              border-color: hsl(var(--border));
+            "
           >
             <NTree
               v-model:checked-keys="editingRole.menu_ids"

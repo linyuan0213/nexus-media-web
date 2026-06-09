@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, onMounted, computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 import { useUserStore } from '@vben/stores';
@@ -58,9 +58,11 @@ const editModalShow = ref(false);
 const resetPwdModalShow = ref(false);
 const deleteModalShow = ref(false);
 const userStore = useUserStore();
-const deleteTarget = ref<UserItem | null>(null);
-const editingUser = ref<Partial<UserItem> & { password?: string; role_ids?: number[] }>({});
-const resetPwdTarget = ref<{ id: number; nickname: string } | null>(null);
+const deleteTarget = ref<null | UserItem>(null);
+const editingUser = ref<
+  Partial<UserItem> & { password?: string; role_ids?: number[] }
+>({});
+const resetPwdTarget = ref<null | { id: number; nickname: string }>(null);
 const newPassword = ref('');
 const oldPassword = ref('');
 
@@ -69,8 +71,8 @@ async function fetchData() {
   try {
     const res: any = await getUsersApi();
     users.value = res?.data ?? res ?? [];
-  } catch (e: any) {
-    message.error(e?.message || '获取用户列表失败');
+  } catch (error: any) {
+    message.error(error?.message || '获取用户列表失败');
   } finally {
     loading.value = false;
   }
@@ -90,7 +92,7 @@ async function fetchRoles() {
 }
 
 const sortedUsers = computed(() => {
-  return [...users.value].sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+  return [...users.value].toSorted((a, b) => (a.id ?? 0) - (b.id ?? 0));
 });
 
 function handleAdd() {
@@ -141,8 +143,8 @@ async function handleSave() {
     }
     editModalShow.value = false;
     await fetchData();
-  } catch (e: any) {
-    message.error(e?.message || '操作失败');
+  } catch (error: any) {
+    message.error(error?.message || '操作失败');
   }
 }
 
@@ -159,8 +161,8 @@ async function handleDelete() {
     deleteModalShow.value = false;
     deleteTarget.value = null;
     await fetchData();
-  } catch (e: any) {
-    message.error(e?.message || '删除失败');
+  } catch (error: any) {
+    message.error(error?.message || '删除失败');
   }
 }
 
@@ -195,8 +197,8 @@ async function handleResetPassword() {
     resetPwdTarget.value = null;
     newPassword.value = '';
     oldPassword.value = '';
-  } catch (e: any) {
-    message.error(e?.message || '重置失败');
+  } catch (error: any) {
+    message.error(error?.message || '重置失败');
   }
 }
 
@@ -217,8 +219,8 @@ async function handleAvatarUpload(event: Event) {
       editingUser.value.avatar = url;
       message.success('头像上传成功');
     }
-  } catch (e: any) {
-    message.error(e?.message || '上传失败');
+  } catch (error: any) {
+    message.error(error?.message || '上传失败');
   } finally {
     target.value = '';
   }
@@ -249,11 +251,7 @@ onMounted(() => {
         v-if="users.length > 0"
         class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-5"
       >
-        <div
-          v-for="item in sortedUsers"
-          :key="item.id"
-          class="user-card"
-        >
+        <div v-for="item in sortedUsers" :key="item.id" class="user-card">
           <!-- 顶部头像+状态 -->
           <div class="user-card-top">
             <div class="relative">
@@ -263,21 +261,23 @@ onMounted(() => {
                 class="user-avatar"
                 alt="avatar"
               />
-              <div
-                v-else
-                class="user-avatar user-avatar--fallback"
-              >
+              <div v-else class="user-avatar user-avatar--fallback">
                 <span class="user-avatar-letter">
-                  {{ item.nickname?.charAt(0)?.toUpperCase()
-                    || item.username?.charAt(0)?.toUpperCase()
-                    || '?' }}
+                  {{
+                    item.nickname?.charAt(0)?.toUpperCase() ||
+                    item.username?.charAt(0)?.toUpperCase() ||
+                    '?'
+                  }}
                 </span>
               </div>
               <div
                 v-if="item.status === 1"
                 class="user-status-dot user-status-dot--online"
-              />
-              <div v-else class="user-status-dot user-status-dot--offline" />
+              ></div>
+              <div
+                v-else
+                class="user-status-dot user-status-dot--offline"
+              ></div>
             </div>
           </div>
 
@@ -346,7 +346,12 @@ onMounted(() => {
               </NTooltip>
               <NTooltip>
                 <template #trigger>
-                  <NButton text size="tiny" type="error" @click="confirmDelete(item)">
+                  <NButton
+                    text
+                    size="tiny"
+                    type="error"
+                    @click="confirmDelete(item)"
+                  >
                     <IconifyIcon icon="lucide:trash-2" class="size-3.5" />
                   </NButton>
                 </template>
@@ -378,7 +383,8 @@ onMounted(() => {
       v-model:show="editModalShow"
       :title="editingUser.id ? '编辑用户' : '新增用户'"
       preset="card"
-      class="w-[520px] edit-modal"
+      class="edit-modal"
+      :style="{ width: '520px', maxWidth: '92vw' }"
     >
       <!-- 头像区域 -->
       <div class="edit-modal-header">
@@ -390,9 +396,11 @@ onMounted(() => {
               alt="avatar"
             />
             <span v-else>
-              {{ editingUser.nickname?.charAt(0)?.toUpperCase()
-                || editingUser.username?.charAt(0)?.toUpperCase()
-                || '?' }}
+              {{
+                editingUser.nickname?.charAt(0)?.toUpperCase() ||
+                editingUser.username?.charAt(0)?.toUpperCase() ||
+                '?'
+              }}
             </span>
 
             <label class="edit-modal-avatar-upload">
@@ -420,37 +428,40 @@ onMounted(() => {
             <IconifyIcon icon="lucide:user" class="size-4" />
             基本信息
           </div>
-          
+
           <div class="grid grid-cols-2 gap-3">
             <NFormItem label="用户名" required>
-              <NInput
-                v-model:value="editingUser.username"
-                placeholder="用户名"
-              >
+              <NInput v-model:value="editingUser.username" placeholder="用户名">
                 <template #prefix>
-                  <IconifyIcon icon="lucide:at-sign" class="size-4" style="color: hsl(var(--muted-foreground))" />
+                  <IconifyIcon
+                    icon="lucide:at-sign"
+                    class="size-4"
+                    style="color: hsl(var(--muted-foreground))"
+                  />
                 </template>
               </NInput>
             </NFormItem>
             <NFormItem label="昵称" required>
-              <NInput
-                v-model:value="editingUser.nickname"
-                placeholder="昵称"
-              >
+              <NInput v-model:value="editingUser.nickname" placeholder="昵称">
                 <template #prefix>
-                  <IconifyIcon icon="lucide:smile" class="size-4" style="color: hsl(var(--muted-foreground))" />
+                  <IconifyIcon
+                    icon="lucide:smile"
+                    class="size-4"
+                    style="color: hsl(var(--muted-foreground))"
+                  />
                 </template>
               </NInput>
             </NFormItem>
           </div>
-          
+
           <NFormItem label="邮箱">
-            <NInput
-              v-model:value="editingUser.email"
-              placeholder="邮箱地址"
-            >
+            <NInput v-model:value="editingUser.email" placeholder="邮箱地址">
               <template #prefix>
-                <IconifyIcon icon="lucide:mail" class="size-4" style="color: hsl(var(--muted-foreground))" />
+                <IconifyIcon
+                  icon="lucide:mail"
+                  class="size-4"
+                  style="color: hsl(var(--muted-foreground))"
+                />
               </template>
             </NInput>
           </NFormItem>
@@ -462,7 +473,7 @@ onMounted(() => {
             <IconifyIcon icon="lucide:shield" class="size-4" />
             安全设置
           </div>
-          
+
           <NFormItem label="密码" required>
             <NInput
               v-model:value="editingUser.password"
@@ -470,7 +481,11 @@ onMounted(() => {
               placeholder="设置登录密码"
             >
               <template #prefix>
-                <IconifyIcon icon="lucide:key-round" class="size-4" style="color: hsl(var(--muted-foreground))" />
+                <IconifyIcon
+                  icon="lucide:key-round"
+                  class="size-4"
+                  style="color: hsl(var(--muted-foreground))"
+                />
               </template>
             </NInput>
           </NFormItem>
@@ -482,7 +497,7 @@ onMounted(() => {
             <IconifyIcon icon="lucide:sliders-horizontal" class="size-4" />
             权限配置
           </div>
-          
+
           <div class="grid grid-cols-2 gap-3">
             <NFormItem label="状态">
               <div class="flex items-center gap-3 py-2">
@@ -493,7 +508,12 @@ onMounted(() => {
                 />
                 <span
                   class="text-sm"
-                  :style="{ color: editingUser.status === 1 ? 'hsl(var(--success))' : 'hsl(var(--muted-foreground))' }"
+                  :style="{
+                    color:
+                      editingUser.status === 1
+                        ? 'hsl(var(--success))'
+                        : 'hsl(var(--muted-foreground))',
+                  }"
                 >
                   {{ editingUser.status === 1 ? '账号已启用' : '账号已禁用' }}
                 </span>
@@ -510,7 +530,7 @@ onMounted(() => {
           </div>
         </div>
       </NForm>
-      
+
       <template #footer>
         <NSpace justify="end">
           <NButton @click="editModalShow = false">取消</NButton>
@@ -534,10 +554,13 @@ onMounted(() => {
       @positive-click="handleResetPassword"
     >
       <p v-if="resetPwdTarget" class="mb-3">
-        为用户 <strong style="color: hsl(var(--foreground))">{{ resetPwdTarget.nickname }}</strong> 设置新密码：
+        为用户
+        <strong style="color: hsl(var(--foreground))">{{
+          resetPwdTarget.nickname
+        }}</strong>
+        设置新密码：
       </p>
-      <div class="space-y-3"
-      >
+      <div class="space-y-3">
         <NInput
           v-if="isResetSelf"
           v-model:value="oldPassword"
@@ -563,7 +586,9 @@ onMounted(() => {
       negative-text="取消"
       @positive-click="handleDelete"
     >
-      确定要删除用户 <strong>{{ deleteTarget?.nickname || deleteTarget?.username }}</strong> 吗？
+      确定要删除用户
+      <strong>{{ deleteTarget?.nickname || deleteTarget?.username }}</strong>
+      吗？
     </NModal>
   </div>
 </template>
@@ -571,16 +596,19 @@ onMounted(() => {
 <style scoped>
 /* 用户卡片 */
 .user-card {
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
-  border-radius: calc(var(--radius) + 2px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) + 2px);
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
 }
+
 .user-card:hover {
-  box-shadow: 0 4px 12px hsl(var(--foreground) / 0.08);
+  box-shadow: 0 4px 12px hsl(var(--foreground) / 8%);
   transform: translateY(-1px);
 }
 
@@ -595,10 +623,11 @@ onMounted(() => {
 .user-avatar {
   width: 3.5rem;
   height: 3.5rem;
-  border-radius: 50%;
   object-fit: cover;
   border: 2px solid hsl(var(--border));
+  border-radius: 50%;
 }
+
 .user-avatar--fallback {
   display: flex;
   align-items: center;
@@ -606,6 +635,7 @@ onMounted(() => {
   background: hsl(var(--primary));
   border-color: hsl(var(--primary));
 }
+
 .user-avatar-letter {
   font-size: 1.125rem;
   font-weight: 700;
@@ -615,91 +645,97 @@ onMounted(() => {
 /* 在线/离线状态指示器 */
 .user-status-dot {
   position: absolute;
-  bottom: 0;
   right: 0;
+  bottom: 0;
   width: 0.75rem;
   height: 0.75rem;
-  border-radius: 50%;
   border: 2px solid hsl(var(--card));
+  border-radius: 50%;
 }
+
 .user-status-dot--online {
   background: hsl(var(--success));
 }
+
 .user-status-dot--offline {
   background: hsl(var(--muted-foreground));
 }
 
 /* 卡片主体 */
 .user-card-body {
-  flex: 1;
-  padding: 0 1rem 0.75rem;
   display: flex;
+  flex: 1;
   flex-direction: column;
   align-items: center;
+  padding: 0 1rem 0.75rem;
   text-align: center;
 }
 
 .user-name {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: hsl(var(--foreground));
   line-height: 1.4;
+  color: hsl(var(--foreground));
 }
 
 .user-username {
-  font-size: 0.75rem;
-  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
-  color: hsl(var(--muted-foreground));
   margin-top: 0.125rem;
+  font-family:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
 }
 
 .user-email {
   display: flex;
-  align-items: center;
   gap: 0.25rem;
+  align-items: center;
+  margin-top: 0.375rem;
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
-  margin-top: 0.375rem;
 }
 
 /* 角色标签 */
 .user-roles {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
   gap: 0.375rem;
+  justify-content: center;
   margin-top: 0.625rem;
 }
 
 .role-tag {
   display: inline-flex;
-  align-items: center;
   gap: 0.25rem;
+  align-items: center;
   padding: 0.25rem 0.625rem;
-  border-radius: 9999px;
   font-size: 0.6875rem;
   font-weight: 500;
   border: 1px solid;
+  border-radius: 9999px;
 }
 
 .role-tag--super {
-  background: hsl(var(--warning) / 0.12);
   color: hsl(var(--warning));
-  border-color: hsl(var(--warning) / 0.3);
+  background: hsl(var(--warning) / 12%);
+  border-color: hsl(var(--warning) / 30%);
 }
+
 .role-tag--admin {
-  background: hsl(var(--primary) / 0.12);
   color: hsl(var(--primary));
-  border-color: hsl(var(--primary) / 0.3);
+  background: hsl(var(--primary) / 12%);
+  border-color: hsl(var(--primary) / 30%);
 }
+
 .role-tag--guest {
-  background: hsl(var(--info) / 0.12);
   color: hsl(var(--info));
-  border-color: hsl(var(--info) / 0.3);
+  background: hsl(var(--info) / 12%);
+  border-color: hsl(var(--info) / 30%);
 }
+
 .role-tag--default {
-  background: hsl(var(--accent));
   color: hsl(var(--muted-foreground));
+  background: hsl(var(--accent));
   border-color: hsl(var(--border));
 }
 
@@ -709,60 +745,60 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 0.625rem 1rem;
+  background: hsl(var(--accent) / 50%);
   border-top: 1px solid hsl(var(--border));
-  background: hsl(var(--accent) / 0.5);
 }
 
 .user-last-login {
   display: flex;
-  align-items: center;
   gap: 0.375rem;
+  align-items: center;
   font-size: 0.6875rem;
   color: hsl(var(--muted-foreground));
 }
 
 .user-actions {
   display: flex;
-  align-items: center;
   gap: 0.5rem;
+  align-items: center;
 }
 
 /* 空状态 */
 .empty-state {
-  border: 1px solid hsl(var(--border));
-  border-radius: calc(var(--radius) + 2px);
-  background: hsl(var(--card));
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 3.5rem 1rem;
   margin-top: 1.25rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) + 2px);
 }
 
 .empty-icon {
-  width: 3.5rem;
-  height: 3.5rem;
-  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: hsl(var(--muted));
+  width: 3.5rem;
+  height: 3.5rem;
   margin-bottom: 1rem;
   color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted));
+  border-radius: 50%;
 }
 
 .empty-title {
+  margin-bottom: 0.25rem;
   font-size: 0.9375rem;
   font-weight: 600;
   color: hsl(var(--foreground));
-  margin-bottom: 0.25rem;
 }
 
 .empty-subtitle {
+  margin-bottom: 1rem;
   font-size: 0.8125rem;
   color: hsl(var(--muted-foreground));
-  margin-bottom: 1rem;
 }
 
 /* 编辑弹窗 */
@@ -785,10 +821,10 @@ onMounted(() => {
   position: relative;
   width: 4.5rem;
   height: 4.5rem;
-  border-radius: 50%;
   overflow: hidden;
   border: 2px solid hsl(var(--border));
-  box-shadow: 0 2px 8px hsl(var(--foreground) / 0.1);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px hsl(var(--foreground) / 10%);
 }
 
 .edit-modal-avatar img {
@@ -803,42 +839,43 @@ onMounted(() => {
   justify-content: center;
   width: 100%;
   height: 100%;
-  background: hsl(var(--primary));
   font-size: 1.375rem;
   font-weight: 700;
   color: hsl(var(--primary-foreground));
+  background: hsl(var(--primary));
 }
 
 .edit-modal-avatar-upload {
   position: absolute;
-  bottom: 0;
   right: 0;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 50%;
+  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  color: hsl(var(--foreground));
   cursor: pointer;
   background: hsl(var(--card));
   border: 1.5px solid hsl(var(--border));
-  color: hsl(var(--foreground));
+  border-radius: 50%;
   transition: all 0.15s ease;
 }
+
 .edit-modal-avatar-upload:hover {
   background: hsl(var(--accent));
   transform: scale(1.1);
 }
 
 .edit-modal-subtitle {
+  margin: 0.5rem 0 0;
   font-size: 0.875rem;
   font-weight: 500;
   color: hsl(var(--foreground));
-  margin: 0.5rem 0 0;
 }
 
 .edit-modal-form {
-  padding: 0.5rem 1.25rem 0.5rem;
+  padding: 0.5rem 1.25rem;
 }
 
 .form-section {
@@ -847,13 +884,13 @@ onMounted(() => {
 
 .form-section-title {
   display: flex;
-  align-items: center;
   gap: 0.375rem;
+  align-items: center;
+  padding-bottom: 0.375rem;
+  margin-bottom: 0.625rem;
   font-size: 0.8125rem;
   font-weight: 600;
   color: hsl(var(--foreground));
-  margin-bottom: 0.625rem;
-  padding-bottom: 0.375rem;
   border-bottom: 1px solid hsl(var(--border));
 }
 </style>

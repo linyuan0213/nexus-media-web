@@ -14,8 +14,8 @@ import {
 import { testFilterRuleApi } from '#/api/modules/filter';
 
 const props = defineProps<{
-  show: boolean;
   groupName?: string;
+  show: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -29,11 +29,11 @@ const form = ref({
   subtitle: '',
   size: '',
 });
-const result = ref<{
+const result = ref<null | {
   flag: boolean;
-  text: string;
   order: number;
-} | null>(null);
+  text: string;
+}>(null);
 
 watch(
   () => props.show,
@@ -56,8 +56,11 @@ async function handleTest() {
       rulegroup: props.groupName,
     });
     result.value = res?.data || res;
-  } catch (err: any) {
-    notification.error({ content: '测试失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '测试失败',
+      description: error?.message || '',
+    });
   } finally {
     loading.value = false;
   }
@@ -69,7 +72,7 @@ async function handleTest() {
     :show="show"
     title="测试过滤规则"
     preset="card"
-    class="w-[520px]"
+    :style="{ width: '520px', maxWidth: '92vw' }"
     :bordered="false"
     @update:show="emit('update:show', $event)"
   >
@@ -105,7 +108,7 @@ async function handleTest() {
               ? 'hsl(var(--success))'
               : 'hsl(var(--destructive))',
           }"
-        />
+        ></span>
         <span
           class="font-medium text-sm"
           :style="{
@@ -136,7 +139,9 @@ async function handleTest() {
     <template #footer>
       <NSpace justify="end">
         <NButton @click="emit('update:show', false)">关闭</NButton>
-        <NButton type="primary" :loading="loading" @click="handleTest">测试</NButton>
+        <NButton type="primary" :loading="loading" @click="handleTest">
+          测试
+        </NButton>
       </NSpace>
     </template>
   </NModal>

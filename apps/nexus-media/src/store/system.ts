@@ -1,4 +1,5 @@
 import { ref } from 'vue';
+
 import { defineStore } from 'pinia';
 
 export interface SystemStatus {
@@ -14,7 +15,7 @@ export interface LogItem {
 }
 
 export const useSystemStore = defineStore('system', () => {
-  const status = ref<SystemStatus | null>(null);
+  const status = ref<null | SystemStatus>(null);
   const logs = ref<LogItem[]>([]);
   const loading = ref(false);
 

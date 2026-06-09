@@ -2,9 +2,9 @@
 import { ref } from 'vue';
 
 const props = defineProps<{
-  src: string;
   fallback: string;
   name: string;
+  src: string;
   url?: string;
 }>();
 
@@ -38,15 +38,15 @@ function handleClick() {
 
 <style scoped>
 .site-logo {
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 0.5rem;
-  overflow: hidden;
-  flex-shrink: 0;
-  background-color: hsl(var(--accent));
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  overflow: hidden;
+  background-color: hsl(var(--accent));
+  border-radius: 0.5rem;
 }
 
 .site-logo.cursor-pointer {
@@ -65,11 +65,11 @@ function handleClick() {
 }
 
 .site-logo-placeholder {
-  width: 100%;
-  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  height: 100%;
   font-size: 1rem;
   font-weight: 700;
   color: hsl(var(--primary));

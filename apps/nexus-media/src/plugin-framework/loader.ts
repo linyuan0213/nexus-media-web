@@ -1,15 +1,16 @@
+import type { Component } from 'vue';
 /**
  * PluginLoader - 插件前端加载器
  * 负责动态加载插件 UMD 包、注册组件、注入路由和插槽
  */
 import type { RouteRecordRaw } from 'vue-router';
 
-import { h, reactive, type Component } from 'vue';
+import { h, reactive } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { router } from '#/router';
 import { requestClient } from '#/api/request';
+import { router } from '#/router';
 
 const PLUGIN_API_BASE = '/api/plugin-framework';
 
@@ -21,7 +22,16 @@ const loadedScripts = new Set<string>();
 
 /** 插槽注册表: slotTarget -> { pluginId, componentName, name, icon, color }[] */
 const slotRegistry = reactive<
-  Record<string, Array<{ pluginId: string; componentName: string; name: string; icon: string; color?: string }>>
+  Record<
+    string,
+    Array<{
+      color?: string;
+      componentName: string;
+      icon: string;
+      name: string;
+      pluginId: string;
+    }>
+  >
 >({});
 
 /** 插件路由注册表 */
@@ -34,16 +44,16 @@ export interface PluginManifestFrontend {
   enabled: boolean;
   frontend: {
     routes: Array<{
-      path: string;
       component: string;
-      title: string;
       icon: string;
       menu: boolean;
+      path: string;
+      title: string;
     }>;
     slots: Array<{
-      target: string;
-      position: string;
       component: string;
+      position: string;
+      target: string;
     }>;
   };
 }
@@ -51,22 +61,41 @@ export interface PluginManifestFrontend {
 /**
  * 插件组件加载失败的占位页面
  */
-const PluginErrorComponent = (props: { pluginId?: string; componentName?: string }) =>
-  h('div', {
-    style: {
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '4rem 1rem',
-      color: 'hsl(var(--muted-foreground))',
+const PluginErrorComponent = (props: {
+  componentName?: string;
+  pluginId?: string;
+}) =>
+  h(
+    'div',
+    {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '4rem 1rem',
+        color: 'hsl(var(--muted-foreground))',
+      },
     },
-  }, [
-    h('div', { style: { fontSize: '1.25rem', marginBottom: '0.5rem', fontWeight: 600 } }, '插件组件加载失败'),
-    h('div', { style: { fontSize: '0.875rem' } },
-      `插件 ${props.pluginId || ''} 的组件 ${props.componentName || ''} 加载失败，请检查插件是否已正确安装或 UMD 包是否存在。`
-    ),
-  ]);
+    [
+      h(
+        'div',
+        {
+          style: {
+            fontSize: '1.25rem',
+            marginBottom: '0.5rem',
+            fontWeight: 600,
+          },
+        },
+        '插件组件加载失败',
+      ),
+      h(
+        'div',
+        { style: { fontSize: '0.875rem' } },
+        `插件 ${props.pluginId || ''} 的组件 ${props.componentName || ''} 加载失败，请检查插件是否已正确安装或 UMD 包是否存在。`,
+      ),
+    ],
+  );
 
 /**
  * 加载插件 UMD 脚本
@@ -79,19 +108,24 @@ function loadScript(src: string): Promise<void> {
     const script = document.createElement('script');
     script.src = src;
     script.async = true;
-    script.onload = () => {
+    script.addEventListener('load', () => {
       loadedScripts.add(src);
       resolve();
-    };
-    script.onerror = () => reject(new Error(`加载脚本失败: ${src}`));
-    document.head.appendChild(script);
+    });
+    script.addEventListener('error', () =>
+      reject(new Error(`加载脚本失败: ${src}`)),
+    );
+    document.head.append(script);
   });
 }
 
 /**
  * 从全局 window 对象获取插件暴露的组件
  */
-function getPluginComponent(pluginId: string, componentName: string): Component | null {
+function getPluginComponent(
+  pluginId: string,
+  componentName: string,
+): Component | null {
   const globalKey = `__PLUGIN_${pluginId}__`;
   const pluginModule = (window as any)[globalKey];
   if (!pluginModule) return null;
@@ -102,10 +136,13 @@ function getPluginComponent(pluginId: string, componentName: string): Component 
 /**
  * 获取插件组件（优先缓存）
  */
-export function getComponent(pluginId: string, componentName: string): Component | null {
+export function getComponent(
+  pluginId: string,
+  componentName: string,
+): Component | null {
   const cacheKey = `${pluginId}::${componentName}`;
   if (loadedComponents.has(cacheKey)) {
-    return loadedComponents.get(cacheKey)!;
+    return loadedComponents.get(cacheKey) as Component;
   }
   const comp = getPluginComponent(pluginId, componentName);
   if (comp) {
@@ -122,8 +159,10 @@ function registerPluginRoutes(plugin: PluginManifestFrontend) {
   const basePath = `/plugin/${plugin.id}`;
 
   for (const route of plugin.frontend.routes) {
-    const fullPath = route.path.startsWith('/') ? route.path : `${basePath}/${route.path}`;
-    const routeName = `Plugin_${plugin.id}_${route.path.replace(/\//g, '_')}`;
+    const fullPath = route.path.startsWith('/')
+      ? route.path
+      : `${basePath}/${route.path}`;
+    const routeName = `Plugin_${plugin.id}_${route.path.replaceAll('/', '_')}`;
 
     const routeDef: RouteRecordRaw = {
       name: routeName,
@@ -140,7 +179,7 @@ function registerPluginRoutes(plugin: PluginManifestFrontend) {
 
   if (routes.length > 0) {
     // 确保 Plugin 父路由存在
-    let pluginParent = router.getRoutes().find((r) => r.name === 'Plugin');
+    const pluginParent = router.getRoutes().find((r) => r.name === 'Plugin');
     if (!pluginParent) {
       router.addRoute('Root', {
         name: 'Plugin',
@@ -157,7 +196,10 @@ function registerPluginRoutes(plugin: PluginManifestFrontend) {
       router.addRoute('Plugin', r);
     }
     pluginRoutes.set(plugin.id, routes);
-    console.log(`[PluginLoader] 插件 ${plugin.id} 路由已注册:`, routes.map((r) => r.path));
+    console.warn(
+      `[PluginLoader] 插件 ${plugin.id} 路由已注册:`,
+      routes.map((r) => r.path),
+    );
     // 菜单由后端 RBAC 统一管理，前端不再手动注入 accessMenus
   }
 }
@@ -165,7 +207,10 @@ function registerPluginRoutes(plugin: PluginManifestFrontend) {
 /**
  * 动态加载插件组件（用于路由懒加载）
  */
-async function loadPluginComponent(pluginId: string, componentName: string): Promise<Component> {
+async function loadPluginComponent(
+  pluginId: string,
+  componentName: string,
+): Promise<Component> {
   const comp = getComponent(pluginId, componentName);
   if (comp) return comp;
 
@@ -182,8 +227,11 @@ async function loadPluginComponent(pluginId: string, componentName: string): Pro
 
     const loaded = getComponent(pluginId, componentName);
     if (loaded) return loaded;
-  } catch (e) {
-    console.error(`[PluginLoader] 加载插件组件失败 ${pluginId}/${componentName}:`, e);
+  } catch (error) {
+    console.error(
+      `[PluginLoader] 加载插件组件失败 ${pluginId}/${componentName}:`,
+      error,
+    );
   }
 
   // 返回占位组件，避免 Vue Router 报 missing component
@@ -197,14 +245,14 @@ function registerPluginSlots(plugin: PluginManifestFrontend) {
   for (const slot of plugin.frontend.slots || []) {
     if (!slot.target || !slot.component) continue;
     const list = slotRegistry[slot.target] || [];
-    if (!list.find((s) => s.pluginId === plugin.id)) {
+    if (!list.some((s) => s.pluginId === plugin.id)) {
       list.push({
         pluginId: plugin.id,
         componentName: slot.component,
         name: plugin.name,
-        // @ts-ignore
+        // @ts-expect-error plugin manifest may have optional icon
         icon: plugin.icon || 'lucide:puzzle',
-        // @ts-ignore
+        // @ts-expect-error plugin manifest may have optional color
         color: plugin.color,
       });
       slotRegistry[slot.target] = list;
@@ -215,7 +263,9 @@ function registerPluginSlots(plugin: PluginManifestFrontend) {
 /**
  * 加载单个插件的前端资源
  */
-export async function loadPluginFrontend(plugin: PluginManifestFrontend): Promise<void> {
+export async function loadPluginFrontend(
+  plugin: PluginManifestFrontend,
+): Promise<void> {
   if (!plugin.enabled) return;
 
   try {
@@ -228,12 +278,12 @@ export async function loadPluginFrontend(plugin: PluginManifestFrontend): Promis
       if (!(window as any).Vue) {
         const vueModule = await import('vue');
         (window as any).Vue = vueModule;
-        console.log('[PluginLoader] window.Vue 已动态注入');
+        console.warn('[PluginLoader] window.Vue 已动态注入');
       }
       // 暴露 IconifyIcon 组件供插件 UMD 使用
       if (!(window as any).IconifyIcon) {
         (window as any).IconifyIcon = IconifyIcon;
-        console.log('[PluginLoader] window.IconifyIcon 已动态注入');
+        console.warn('[PluginLoader] window.IconifyIcon 已动态注入');
       }
 
       const umdUrl = `${PLUGIN_API_BASE}/plugins/${plugin.id}/assets/frontend/index.umd.js`;
@@ -246,7 +296,10 @@ export async function loadPluginFrontend(plugin: PluginManifestFrontend): Promis
         console.error(`[PluginLoader] UMD 加载后全局变量未注册: ${globalKey}`);
         return;
       }
-      console.log(`[PluginLoader] 插件 ${plugin.id} UMD 加载成功，暴露的组件:`, Object.keys(module));
+      console.warn(
+        `[PluginLoader] 插件 ${plugin.id} UMD 加载成功，暴露的组件:`,
+        Object.keys(module),
+      );
     }
 
     // 注册路由
@@ -257,10 +310,13 @@ export async function loadPluginFrontend(plugin: PluginManifestFrontend): Promis
     // 注册插槽
     if (plugin.frontend.slots?.length > 0) {
       registerPluginSlots(plugin);
-      console.log(`[PluginLoader] 插件 ${plugin.id} 插槽已注册:`, plugin.frontend.slots.map(s => s.target));
+      console.warn(
+        `[PluginLoader] 插件 ${plugin.id} 插槽已注册:`,
+        plugin.frontend.slots.map((s) => s.target),
+      );
     }
-  } catch (e) {
-    console.error(`[PluginLoader] 加载插件前端失败 ${plugin.id}:`, e);
+  } catch (error) {
+    console.error(`[PluginLoader] 加载插件前端失败 ${plugin.id}:`, error);
   }
 }
 
@@ -272,15 +328,17 @@ let _pluginsLoaded = false;
 export async function loadAllPluginFrontends(): Promise<void> {
   if (_pluginsLoaded) return;
   try {
-    const plugins: PluginManifestFrontend[] = await requestClient.get(`${PLUGIN_API_BASE}/plugins`);
+    const plugins: PluginManifestFrontend[] = await requestClient.get(
+      `${PLUGIN_API_BASE}/plugins`,
+    );
     for (const plugin of plugins) {
       if (plugin.enabled) {
         await loadPluginFrontend(plugin);
       }
     }
     _pluginsLoaded = true;
-  } catch (e) {
-    console.error('[PluginLoader] 获取插件列表失败:', e);
+  } catch (error) {
+    console.error('[PluginLoader] 获取插件列表失败:', error);
   }
 }
 
@@ -338,7 +396,7 @@ export function unloadPluginFrontend(pluginId: string): void {
 
   // 移除全局模块
   const globalKey = `__PLUGIN_${pluginId}__`;
-  delete (window as any)[globalKey];
+  Reflect.deleteProperty(window as any, globalKey);
 }
 
 export default {

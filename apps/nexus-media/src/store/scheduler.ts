@@ -1,7 +1,8 @@
-import { ref } from 'vue';
-import { defineStore } from 'pinia';
-
 import type { SchedulerApi } from '#/api/modules/scheduler';
+
+import { ref } from 'vue';
+
+import { defineStore } from 'pinia';
 
 export type SchedulerJob = SchedulerApi.JobItem;
 

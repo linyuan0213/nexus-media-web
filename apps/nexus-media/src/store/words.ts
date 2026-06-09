@@ -1,7 +1,8 @@
-import { ref } from 'vue';
-import { defineStore } from 'pinia';
-
 import type { WordsApi } from '#/api/modules/words';
+
+import { ref } from 'vue';
+
+import { defineStore } from 'pinia';
 
 export type WordItem = WordsApi.WordItem;
 export type WordGroup = WordsApi.WordGroup;

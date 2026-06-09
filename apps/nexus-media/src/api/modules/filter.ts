@@ -39,8 +39,8 @@ export async function getFilterRulesApi() {
 /** 获取过滤规则组（后端统一返回在 /api/filter/rules 中） */
 export async function getFilterGroupsApi() {
   return requestClient.post<{
-    ruleGroups: FilterApi.FilterRuleGroup[];
     initRules: FilterApi.FilterRuleGroup[];
+    ruleGroups: FilterApi.FilterRuleGroup[];
   }>('/api/filter/rules');
 }
 
@@ -55,7 +55,10 @@ export async function deleteFilterRuleApi(id: number | string) {
 }
 
 /** 新增过滤规则组 */
-export async function addFilterGroupApi(data: { name: string; default?: string }) {
+export async function addFilterGroupApi(data: {
+  default?: string;
+  name: string;
+}) {
   return requestClient.post('/api/filter/groups/add', data);
 }
 
@@ -66,14 +69,14 @@ export async function deleteFilterGroupApi(id: number | string) {
 
 /** 新增/编辑过滤规则 */
 export async function addFilterRuleApi(data: {
-  rule_id?: number;
   group_id?: number;
+  rule_exclude?: string;
+  rule_free?: string;
+  rule_id?: number;
+  rule_include?: string;
   rule_name?: string;
   rule_pri?: string;
-  rule_include?: string;
-  rule_exclude?: string;
   rule_sizelimit?: string;
-  rule_free?: string;
 }) {
   return requestClient.post('/api/filter/rules/add', data);
 }
@@ -103,19 +106,22 @@ export async function restoreFilterGroupApi(data: {
 
 /** 测试过滤规则 */
 export async function testFilterRuleApi(data: {
-  title: string;
-  subtitle?: string;
-  size?: string;
   rulegroup?: string;
+  size?: string;
+  subtitle?: string;
+  title: string;
 }) {
   return requestClient.post<{
     flag: boolean;
-    text: string;
     order: number;
+    text: string;
   }>('/api/filter/rules/test', data);
 }
 
 /** 获取规则详情 */
-export async function getFilterRuleDetailApi(groupid?: number, ruleid?: number) {
+export async function getFilterRuleDetailApi(
+  groupid?: number,
+  ruleid?: number,
+) {
   return requestClient.post('/api/filter/rules/detail', { groupid, ruleid });
 }

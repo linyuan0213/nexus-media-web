@@ -56,10 +56,16 @@ export async function togglePluginApi(id: string, enabled: boolean) {
 
 /** 获取插件配置 */
 export async function getPluginConfigApi(id: string) {
-  return requestClient.post<PluginApi.PluginConfig>('/api/plugin/plugins/state', { id });
+  return requestClient.post<PluginApi.PluginConfig>(
+    '/api/plugin/plugins/state',
+    { id },
+  );
 }
 
 /** 保存插件配置 */
-export async function savePluginConfigApi(id: string, config: PluginApi.PluginConfig) {
+export async function savePluginConfigApi(
+  id: string,
+  config: PluginApi.PluginConfig,
+) {
   return requestClient.post('/api/plugin/plugins/config', { id, config });
 }

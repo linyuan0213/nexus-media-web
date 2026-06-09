@@ -18,8 +18,8 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  'update:show': [value: boolean];
   success: [];
+  'update:show': [value: boolean];
 }>();
 
 const loading = ref(false);
@@ -47,7 +47,7 @@ async function handleSubmit() {
     });
     emit('update:show', false);
     emit('success');
-  } catch (err: any) {
+  } catch {
     // handled by caller
   } finally {
     loading.value = false;
@@ -60,7 +60,7 @@ async function handleSubmit() {
     :show="show"
     title="新增规则组"
     preset="card"
-    class="w-[480px]"
+    :style="{ width: '480px', maxWidth: '92vw' }"
     :bordered="false"
     @update:show="emit('update:show', $event)"
   >
@@ -75,7 +75,9 @@ async function handleSubmit() {
     <template #footer>
       <NSpace justify="end">
         <NButton @click="emit('update:show', false)">取消</NButton>
-        <NButton type="primary" :loading="loading" @click="handleSubmit">保存</NButton>
+        <NButton type="primary" :loading="loading" @click="handleSubmit">
+          保存
+        </NButton>
       </NSpace>
     </template>
   </NModal>

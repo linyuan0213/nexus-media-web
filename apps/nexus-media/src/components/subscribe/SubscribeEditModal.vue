@@ -1,5 +1,6 @@
 <script lang="ts" setup>
-import { ref, watch, computed } from 'vue';
+import { computed, ref, watch } from 'vue';
+
 import {
   NButton,
   NCard,
@@ -12,9 +13,13 @@ import {
   NSpace,
 } from 'naive-ui';
 
-import { getSitesApi } from '#/api/modules/site';
+import {
+  getDownloadDirsApi,
+  getDownloadSettingsApi,
+  getIndexersApi,
+} from '#/api/modules/download';
 import { getFilterRulesApi } from '#/api/modules/filter';
-import { getDownloadSettingsApi, getDownloadDirsApi, getIndexersApi } from '#/api/modules/download';
+import { getSitesApi } from '#/api/modules/site';
 
 export interface SubscribeEditItem {
   rssid?: string;
@@ -35,15 +40,15 @@ export interface SubscribeEditItem {
   filter_exclude?: string;
   download_setting?: string;
   save_path?: string;
-  total_ep?: string | number;
-  current_ep?: string | number;
+  total_ep?: number | string;
+  current_ep?: number | string;
   rss_sites?: string[];
   search_sites?: string[];
 }
 
 const props = defineProps<{
+  item: null | SubscribeEditItem;
   show: boolean;
-  item: SubscribeEditItem | null;
 }>();
 
 const emit = defineEmits<{
@@ -61,7 +66,9 @@ const downloadDirs = ref<{ label: string; value: string }[]>([]);
 const loading = ref(false);
 
 const seasonOptions = Array.from({ length: 51 }, (_, i) =>
-  i === 0 ? { label: '请选择', value: '' } : { label: `第${i}季`, value: String(i) }
+  i === 0
+    ? { label: '请选择', value: '' }
+    : { label: `第${i}季`, value: String(i) },
 );
 
 const restypeOptions = [
@@ -108,37 +115,53 @@ const form = ref({
 
 const isTv = computed(() => form.value.type === 'TV');
 
-watch(() => props.show, async (visible) => {
-  if (visible && props.item) {
-    form.value = {
-      name: props.item.name,
-      year: props.item.year || '',
-      type: props.item.type || 'TV',
-      season: props.item.season || '',
-      tmdbid: props.item.tmdbid || '',
-      image: props.item.image || '',
-      keyword: props.item.keyword || '',
-      fuzzy_match: props.item.fuzzy_match ?? false,
-      over_edition: props.item.over_edition ?? false,
-      filter_restype: props.item.filter_restype || '',
-      filter_pix: props.item.filter_pix || '',
-      filter_team: props.item.filter_team || '',
-      filter_rule: props.item.filter_rule != null && String(props.item.filter_rule) !== '0' ? String(props.item.filter_rule) : '',
-      filter_include: props.item.filter_include || '',
-      filter_exclude: props.item.filter_exclude || '',
-      download_setting: props.item.download_setting != null ? String(props.item.download_setting) : '',
-      save_path: props.item.save_path || '',
-      total_ep: props.item.total_ep != null ? String(props.item.total_ep) : '',
-      current_ep: props.item.current_ep != null ? String(props.item.current_ep) : '',
-      rss_sites: Array.isArray(props.item.rss_sites) ? [...props.item.rss_sites] : [],
-      search_sites: Array.isArray(props.item.search_sites) ? [...props.item.search_sites] : [],
-    };
-    await loadOptions();
-    if (props.item.download_setting != null) {
-      await fetchDownloadDirs();
+watch(
+  () => props.show,
+  async (visible) => {
+    if (visible && props.item) {
+      form.value = {
+        name: props.item.name,
+        year: props.item.year || '',
+        type: props.item.type || 'TV',
+        season: props.item.season || '',
+        tmdbid: props.item.tmdbid || '',
+        image: props.item.image || '',
+        keyword: props.item.keyword || '',
+        fuzzy_match: props.item.fuzzy_match ?? false,
+        over_edition: props.item.over_edition ?? false,
+        filter_restype: props.item.filter_restype || '',
+        filter_pix: props.item.filter_pix || '',
+        filter_team: props.item.filter_team || '',
+        filter_rule:
+          props.item.filter_rule != null &&
+          String(props.item.filter_rule) !== '0'
+            ? String(props.item.filter_rule)
+            : '',
+        filter_include: props.item.filter_include || '',
+        filter_exclude: props.item.filter_exclude || '',
+        download_setting:
+          props.item.download_setting == null
+            ? ''
+            : String(props.item.download_setting),
+        save_path: props.item.save_path || '',
+        total_ep:
+          props.item.total_ep == null ? '' : String(props.item.total_ep),
+        current_ep:
+          props.item.current_ep == null ? '' : String(props.item.current_ep),
+        rss_sites: Array.isArray(props.item.rss_sites)
+          ? [...props.item.rss_sites]
+          : [],
+        search_sites: Array.isArray(props.item.search_sites)
+          ? [...props.item.search_sites]
+          : [],
+      };
+      await loadOptions();
+      if (props.item.download_setting != null) {
+        await fetchDownloadDirs();
+      }
     }
-  }
-});
+  },
+);
 
 async function loadOptions() {
   loading.value = true;
@@ -149,13 +172,26 @@ async function loadOptions() {
       getFilterRulesApi().catch(() => ({ data: [] })),
       getDownloadSettingsApi().catch(() => ({ data: [] })),
     ]);
-    const sites = Array.isArray(sitesRes) ? sitesRes : (sitesRes?.data || []);
-    rssSites.value = sites.filter((s: any) => s.rss).map((s: any) => ({ label: s.name, value: s.name }));
-    searchSites.value = (Array.isArray(idxRes) ? idxRes : (idxRes?.data || [])).map((i: any) => ({ label: i.name, value: i.name }));
-    const rules = Array.isArray(rulesRes) ? rulesRes : (rulesRes?.data || []);
-    filterRules.value = [{ label: '站点规则', value: '' }, ...rules.map((r: any) => ({ label: r.name || r.id, value: String(r.id) }))];
-    const ds = Array.isArray(dsRes) ? dsRes : (dsRes?.data || []);
-    downloadSettings.value = [{ label: '站点设置', value: '' }, ...ds.map((d: any) => ({ label: d.name || d.id, value: String(d.id) }))];
+    const sites = Array.isArray(sitesRes) ? sitesRes : sitesRes?.data || [];
+    rssSites.value = sites
+      .filter((s: any) => s.rss)
+      .map((s: any) => ({ label: s.name, value: s.name }));
+    searchSites.value = (
+      Array.isArray(idxRes) ? idxRes : idxRes?.data || []
+    ).map((i: any) => ({ label: i.name, value: i.name }));
+    const rules = Array.isArray(rulesRes) ? rulesRes : rulesRes?.data || [];
+    filterRules.value = [
+      { label: '站点规则', value: '' },
+      ...rules.map((r: any) => ({
+        label: r.name || r.id,
+        value: String(r.id),
+      })),
+    ];
+    const ds = Array.isArray(dsRes) ? dsRes : dsRes?.data || [];
+    downloadSettings.value = [
+      { label: '站点设置', value: '' },
+      ...ds.map((d: any) => ({ label: d.name || d.id, value: String(d.id) })),
+    ];
   } finally {
     loading.value = false;
   }
@@ -165,9 +201,14 @@ async function fetchDownloadDirs() {
   try {
     const sid = form.value.download_setting || undefined;
     const res: any = await getDownloadDirsApi(sid);
-    const dirs = Array.isArray(res) ? res : (res?.data || []);
-    downloadDirs.value = [{ label: '请选择', value: '' }, ...dirs.map((d: any) => ({ label: d.name || d, value: d.path || d }))];
-  } catch { /* ignore */ }
+    const dirs = Array.isArray(res) ? res : res?.data || [];
+    downloadDirs.value = [
+      { label: '请选择', value: '' },
+      ...dirs.map((d: any) => ({ label: d.name || d, value: d.path || d })),
+    ];
+  } catch {
+    /* ignore */
+  }
 }
 
 function isAllSelected(type: string) {
@@ -177,7 +218,10 @@ function isAllSelected(type: string) {
 }
 
 function toggleAllSites(type: string, checked: boolean) {
-  const all = type === 'rss' ? rssSites.value.map(s => s.value) : searchSites.value.map(s => s.value);
+  const all =
+    type === 'rss'
+      ? rssSites.value.map((s) => s.value)
+      : searchSites.value.map((s) => s.value);
   if (type === 'rss') {
     form.value.rss_sites = checked ? [...all] : [];
   } else {
@@ -210,8 +254,12 @@ function handleConfirm() {
   };
   if (isTv.value) {
     data.season = form.value.season || undefined;
-    data.total_ep = form.value.total_ep ? Number(form.value.total_ep) : undefined;
-    data.current_ep = form.value.current_ep ? Number(form.value.current_ep) : undefined;
+    data.total_ep = form.value.total_ep
+      ? Number(form.value.total_ep)
+      : undefined;
+    data.current_ep = form.value.current_ep
+      ? Number(form.value.current_ep)
+      : undefined;
   }
   if (isEdit.value && props.item?.rssid) {
     data.rssid = props.item.rssid;
@@ -232,13 +280,23 @@ function getImgUrl(src?: string) {
     @update:show="(v) => emit('update:show', v)"
     preset="card"
     :title="`${isEdit ? '编辑' : '新增'}订阅 - ${item?.name || ''}`"
-    style="width: 720px; max-width: 90vw; max-height: 90vh;"
+    style="width: 720px; max-width: 90vw; max-height: 90vh"
     :bordered="false"
   >
     <div v-if="item" class="space-y-4">
       <!-- 顶部信息栏 -->
       <div class="flex items-center gap-4 mb-5 pb-4 border-b border-gray-100">
-        <img :src="getImgUrl(item.image)" class="rounded-lg shadow" style="width: 60px; aspect-ratio: 2/3; object-fit: cover; flex-shrink: 0" alt="" />
+        <img
+          :src="getImgUrl(item.image)"
+          class="rounded-lg shadow"
+          style="
+            flex-shrink: 0;
+            width: 60px;
+            aspect-ratio: 2/3;
+            object-fit: cover;
+          "
+          alt=""
+        />
         <div class="min-w-0">
           <h4 class="font-bold text-base truncate">{{ form.name }}</h4>
           <p class="text-gray-400 text-sm mt-0.5">{{ form.year }}</p>
@@ -250,46 +308,130 @@ function getImgUrl(src?: string) {
           <NInput v-model:value="form.keyword" placeholder="留空使用TMDB数据" />
         </NFormItem>
         <div class="grid grid-cols-3 gap-3">
-          <NFormItem v-if="isTv" label="季"><NSelect v-model:value="form.season" :options="seasonOptions" /></NFormItem>
-          <NFormItem v-if="isTv" label="总集数"><NInput v-model:value="form.total_ep" placeholder="可留空" /></NFormItem>
-          <NFormItem v-if="isTv" label="开始集数"><NInput v-model:value="form.current_ep" placeholder="开始订阅集数" /></NFormItem>
+          <NFormItem v-if="isTv" label="季">
+            <NSelect v-model:value="form.season" :options="seasonOptions" />
+          </NFormItem>
+          <NFormItem v-if="isTv" label="总集数">
+            <NInput v-model:value="form.total_ep" placeholder="可留空" />
+          </NFormItem>
+          <NFormItem v-if="isTv" label="开始集数">
+            <NInput
+              v-model:value="form.current_ep"
+              placeholder="开始订阅集数"
+            />
+          </NFormItem>
         </div>
         <div class="grid grid-cols-3 gap-3">
-          <NFormItem label="模糊匹配"><NCheckbox v-model:checked="form.fuzzy_match">开启</NCheckbox></NFormItem>
-          <NFormItem label="洗版"><NCheckbox v-model:checked="form.over_edition">开启</NCheckbox></NFormItem>
+          <NFormItem label="模糊匹配">
+            <NCheckbox v-model:checked="form.fuzzy_match"> 开启 </NCheckbox>
+          </NFormItem>
+          <NFormItem label="洗版">
+            <NCheckbox v-model:checked="form.over_edition"> 开启 </NCheckbox>
+          </NFormItem>
           <NFormItem />
         </div>
         <div class="grid grid-cols-3 gap-3">
-          <NFormItem label="质量"><NSelect v-model:value="form.filter_restype" :options="restypeOptions" /></NFormItem>
-          <NFormItem label="分辨率"><NSelect v-model:value="form.filter_pix" :options="pixOptions" /></NFormItem>
-          <NFormItem label="制作组"><NInput v-model:value="form.filter_team" placeholder="支持正则" /></NFormItem>
+          <NFormItem label="质量">
+            <NSelect
+              v-model:value="form.filter_restype"
+              :options="restypeOptions"
+            />
+          </NFormItem>
+          <NFormItem label="分辨率">
+            <NSelect v-model:value="form.filter_pix" :options="pixOptions" />
+          </NFormItem>
+          <NFormItem label="制作组">
+            <NInput v-model:value="form.filter_team" placeholder="支持正则" />
+          </NFormItem>
         </div>
         <div class="grid grid-cols-2 gap-3">
-          <NFormItem label="包含"><NInput v-model:value="form.filter_include" placeholder="关键字或正则" /></NFormItem>
-          <NFormItem label="排除"><NInput v-model:value="form.filter_exclude" placeholder="关键字或正则" /></NFormItem>
+          <NFormItem label="包含">
+            <NInput
+              v-model:value="form.filter_include"
+              placeholder="关键字或正则"
+            />
+          </NFormItem>
+          <NFormItem label="排除">
+            <NInput
+              v-model:value="form.filter_exclude"
+              placeholder="关键字或正则"
+            />
+          </NFormItem>
         </div>
         <div class="grid grid-cols-2 gap-3">
-          <NFormItem label="过滤规则"><NSelect v-model:value="form.filter_rule" :options="filterRules" /></NFormItem>
-          <NFormItem label="下载设置"><NSelect v-model:value="form.download_setting" :options="downloadSettings" @update:value="fetchDownloadDirs" /></NFormItem>
+          <NFormItem label="过滤规则">
+            <NSelect v-model:value="form.filter_rule" :options="filterRules" />
+          </NFormItem>
+          <NFormItem label="下载设置">
+            <NSelect
+              v-model:value="form.download_setting"
+              :options="downloadSettings"
+              @update:value="fetchDownloadDirs"
+            />
+          </NFormItem>
         </div>
-        <NFormItem label="保存路径"><NSelect v-model:value="form.save_path" :options="downloadDirs" /></NFormItem>
+        <NFormItem label="保存路径">
+          <NSelect v-model:value="form.save_path" :options="downloadDirs" />
+        </NFormItem>
         <NFormItem label="订阅站点">
           <NCard size="small" :bordered="true" class="site-card">
-            <div class="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
-              <NCheckbox :checked="isAllSelected('rss')" @update:checked="v => toggleAllSites('rss', v)">全选</NCheckbox>
+            <div
+              class="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100"
+            >
+              <NCheckbox
+                :checked="isAllSelected('rss')"
+                @update:checked="(v) => toggleAllSites('rss', v)"
+              >
+                全选
+              </NCheckbox>
             </div>
             <div class="flex flex-wrap gap-x-4 gap-y-2">
-              <NCheckbox v-for="site in rssSites" :key="site.value" :checked="form.rss_sites.includes(site.value)" @update:checked="(v: boolean) => { const set = new Set(form.rss_sites); if (v) set.add(site.value); else set.delete(site.value); form.rss_sites = Array.from(set); }">{{ site.label }}</NCheckbox>
+              <NCheckbox
+                v-for="site in rssSites"
+                :key="site.value"
+                :checked="form.rss_sites.includes(site.value)"
+                @update:checked="
+                  (v: boolean) => {
+                    const set = new Set(form.rss_sites);
+                    if (v) set.add(site.value);
+                    else set.delete(site.value);
+                    form.rss_sites = Array.from(set);
+                  }
+                "
+              >
+                {{ site.label }}
+              </NCheckbox>
             </div>
           </NCard>
         </NFormItem>
         <NFormItem label="搜索站点">
           <NCard size="small" :bordered="true" class="site-card">
-            <div class="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
-              <NCheckbox :checked="isAllSelected('search')" @update:checked="v => toggleAllSites('search', v)">全选</NCheckbox>
+            <div
+              class="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100"
+            >
+              <NCheckbox
+                :checked="isAllSelected('search')"
+                @update:checked="(v) => toggleAllSites('search', v)"
+              >
+                全选
+              </NCheckbox>
             </div>
             <div class="flex flex-wrap gap-x-4 gap-y-2">
-              <NCheckbox v-for="site in searchSites" :key="site.value" :checked="form.search_sites.includes(site.value)" @update:checked="(v: boolean) => { const set = new Set(form.search_sites); if (v) set.add(site.value); else set.delete(site.value); form.search_sites = Array.from(set); }">{{ site.label }}</NCheckbox>
+              <NCheckbox
+                v-for="site in searchSites"
+                :key="site.value"
+                :checked="form.search_sites.includes(site.value)"
+                @update:checked="
+                  (v: boolean) => {
+                    const set = new Set(form.search_sites);
+                    if (v) set.add(site.value);
+                    else set.delete(site.value);
+                    form.search_sites = Array.from(set);
+                  }
+                "
+              >
+                {{ site.label }}
+              </NCheckbox>
             </div>
           </NCard>
         </NFormItem>
@@ -297,8 +439,12 @@ function getImgUrl(src?: string) {
 
       <div class="flex justify-end">
         <NSpace>
-          <NButton size="small" @click="emit('update:show', false)">取消</NButton>
-          <NButton type="primary" size="small" @click="handleConfirm">保存</NButton>
+          <NButton size="small" @click="emit('update:show', false)">
+            取消
+          </NButton>
+          <NButton type="primary" size="small" @click="handleConfirm">
+            保存
+          </NButton>
         </NSpace>
       </div>
     </div>

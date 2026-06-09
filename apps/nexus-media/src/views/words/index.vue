@@ -1,29 +1,31 @@
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
+
+import { IconifyIcon } from '@vben/icons';
+
 import {
   NButton,
   NFormItem,
   NInput,
   NModal,
+  NSelect,
   NSpace,
   NSpin,
-  NSelect,
   NSwitch,
   NTooltip,
   useMessage,
 } from 'naive-ui';
-import { IconifyIcon } from '@vben/icons';
 
 import {
-  getWordGroupsApi,
-  saveWordApi,
-  toggleWordsApi,
-  deleteWordApi,
   addWordGroupApi,
+  analyseImportCodeApi,
+  deleteWordApi,
   deleteWordGroupApi,
   exportWordsApi,
-  analyseImportCodeApi,
+  getWordGroupsApi,
   importWordsApi,
+  saveWordApi,
+  toggleWordsApi,
 } from '#/api';
 import PageHeader from '#/components/page/PageHeader.vue';
 
@@ -89,18 +91,26 @@ const typeLabelMap: Record<string, string> = {
 };
 
 const typeStyleMap: Record<string, { bg: string; color: string }> = {
-  '1': { bg: 'hsl(var(--destructive) / 0.1)', color: 'hsl(var(--destructive))' },
+  '1': {
+    bg: 'hsl(var(--destructive) / 0.1)',
+    color: 'hsl(var(--destructive))',
+  },
   '2': { bg: 'hsl(var(--primary) / 0.1)', color: 'hsl(var(--primary))' },
   '3': { bg: 'hsl(var(--warning) / 0.1)', color: 'hsl(var(--warning))' },
   '4': { bg: 'hsl(var(--success) / 0.1)', color: 'hsl(var(--success))' },
 };
 
-function getWordTypeLabel(type: string | number) {
+function getWordTypeLabel(type: number | string) {
   return typeLabelMap[String(type)] || String(type);
 }
 
-function getWordTypeStyle(type: string | number) {
-  return typeStyleMap[String(type)] || { bg: 'hsl(var(--muted))', color: 'hsl(var(--foreground))' };
+function getWordTypeStyle(type: number | string) {
+  return (
+    typeStyleMap[String(type)] || {
+      bg: 'hsl(var(--muted))',
+      color: 'hsl(var(--foreground))',
+    }
+  );
 }
 
 async function fetchData() {
@@ -112,8 +122,8 @@ async function fetchData() {
     addingIds.value.clear();
     editForms.value = {};
     addForms.value = {};
-  } catch (e: any) {
-    message.error(e?.message || '获取识别词失败');
+  } catch (error: any) {
+    message.error(error?.message || '获取识别词失败');
   } finally {
     loading.value = false;
   }
@@ -125,8 +135,8 @@ function showAddGroup() {
 }
 
 async function handleAddGroup() {
-  const id = parseInt(groupForm.value.tmdb_id);
-  if (!id || isNaN(id)) {
+  const id = Number.parseInt(groupForm.value.tmdb_id);
+  if (!id || Number.isNaN(id)) {
     message.error('请输入有效的 TMDB ID');
     return;
   }
@@ -135,8 +145,8 @@ async function handleAddGroup() {
     groupModal.value = false;
     message.success('添加成功');
     await fetchData();
-  } catch (e: any) {
-    message.error(e?.message || '添加失败');
+  } catch (error: any) {
+    message.error(error?.message || '添加失败');
   }
 }
 
@@ -146,11 +156,11 @@ async function handleDeleteGroup(gid: string) {
     return;
   }
   try {
-    await deleteWordGroupApi(parseInt(gid));
+    await deleteWordGroupApi(Number.parseInt(gid));
     message.success('删除成功');
     await fetchData();
-  } catch (e: any) {
-    message.error(e?.message || '删除失败');
+  } catch (error: any) {
+    message.error(error?.message || '删除失败');
   }
 }
 
@@ -174,7 +184,7 @@ async function handleSaveEdit(groupId: string, wordId: number) {
   try {
     await saveWordApi({
       id: wordId,
-      gid: parseInt(groupId),
+      gid: Number.parseInt(groupId),
       group_type: groups.value.find((g) => g.id === groupId)?.type || '1',
       new_replaced: f.replaced || '',
       new_replace: f.replace || '',
@@ -191,8 +201,8 @@ async function handleSaveEdit(groupId: string, wordId: number) {
     delete editForms.value[key];
     message.success('保存成功');
     await fetchData();
-  } catch (e: any) {
-    message.error(e?.message || '保存失败');
+  } catch (error: any) {
+    message.error(error?.message || '保存失败');
   }
 }
 
@@ -200,7 +210,7 @@ function startAdd(group: WordGroup) {
   const tempId = `new_${Date.now()}`;
   addingIds.value.add(tempId);
   addForms.value[tempId] = {
-    gid: parseInt(group.id),
+    gid: Number.parseInt(group.id),
     group_id: group.id,
     replaced: '',
     replace: '',
@@ -248,8 +258,8 @@ async function handleSaveAdd(tempId: string) {
     delete addForms.value[tempId];
     message.success('添加成功');
     await fetchData();
-  } catch (e: any) {
-    message.error(e?.message || '添加失败');
+  } catch (error: any) {
+    message.error(error?.message || '添加失败');
   }
 }
 
@@ -260,8 +270,8 @@ async function handleToggleWord(word: WordItem) {
     await toggleWordsApi([idInfo], flag);
     message.success(flag === 'enable' ? '已启用' : '已停用');
     await fetchData();
-  } catch (e: any) {
-    message.error(e?.message || '操作失败');
+  } catch (error: any) {
+    message.error(error?.message || '操作失败');
   }
 }
 
@@ -270,8 +280,8 @@ async function handleDeleteWord(word: WordItem) {
     await deleteWordApi([`${word.group_id}_${word.id}`]);
     message.success('删除成功');
     await fetchData();
-  } catch (e: any) {
-    message.error(e?.message || '删除失败');
+  } catch (error: any) {
+    message.error(error?.message || '删除失败');
   }
 }
 
@@ -286,8 +296,8 @@ async function handleAnalyseImport() {
     importPreview.value = data.groups || [];
     importNote.value = data.note_string || '';
     selectedImportIds.value = [];
-  } catch (e: any) {
-    message.error(e?.message || '解析失败');
+  } catch (error: any) {
+    message.error(error?.message || '解析失败');
   }
 }
 
@@ -297,12 +307,15 @@ async function handleImport() {
     return;
   }
   try {
-    await importWordsApi(importCode.value.trim(), selectedImportIds.value.join('@'));
+    await importWordsApi(
+      importCode.value.trim(),
+      selectedImportIds.value.join('@'),
+    );
     importModal.value = false;
     message.success('导入成功');
     await fetchData();
-  } catch (e: any) {
-    message.error(e?.message || '导入失败');
+  } catch (error: any) {
+    message.error(error?.message || '导入失败');
   }
 }
 
@@ -316,8 +329,8 @@ async function handleExport(group: WordGroup) {
     const res: any = await exportWordsApi(idsInfo);
     exportCode.value = res?.data ?? res;
     exportModal.value = true;
-  } catch (e: any) {
-    message.error(e?.message || '导出失败');
+  } catch (error: any) {
+    message.error(error?.message || '导出失败');
   }
 }
 
@@ -374,7 +387,11 @@ onMounted(fetchData);
           >
             <div class="flex items-center gap-3 min-w-0">
               <IconifyIcon
-                :icon="collapsedGroups.has(group.id) ? 'lucide:chevron-right' : 'lucide:chevron-down'"
+                :icon="
+                  collapsedGroups.has(group.id)
+                    ? 'lucide:chevron-right'
+                    : 'lucide:chevron-down'
+                "
                 class="size-5 flex-shrink-0"
                 style="color: hsl(var(--muted-foreground))"
               />
@@ -388,13 +405,20 @@ onMounted(fetchData);
               >
                 {{ group.name }}
               </a>
-              <span v-else class="font-semibold text-sm truncate" style="color: hsl(var(--foreground))">
+              <span
+                v-else
+                class="font-semibold text-sm truncate"
+                style="color: hsl(var(--foreground))"
+              >
                 {{ group.name }}
               </span>
               <div
                 v-if="group.seasons"
                 class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
-                style="background: hsl(var(--info) / 0.1); color: hsl(var(--info))"
+                style="
+                  color: hsl(var(--info));
+                  background: hsl(var(--info) / 10%);
+                "
               >
                 {{ group.seasons }} 季
               </div>
@@ -405,7 +429,11 @@ onMounted(fetchData);
                 <template #trigger>
                   <NButton text size="tiny" @click.stop="startAdd(group)">
                     <template #icon>
-                      <IconifyIcon icon="lucide:plus" class="size-4" style="color: hsl(var(--primary))" />
+                      <IconifyIcon
+                        icon="lucide:plus"
+                        class="size-4"
+                        style="color: hsl(var(--primary))"
+                      />
                     </template>
                   </NButton>
                 </template>
@@ -415,7 +443,11 @@ onMounted(fetchData);
                 <template #trigger>
                   <NButton text size="tiny" @click.stop="handleExport(group)">
                     <template #icon>
-                      <IconifyIcon icon="lucide:download" class="size-4" style="color: hsl(var(--muted-foreground))" />
+                      <IconifyIcon
+                        icon="lucide:download"
+                        class="size-4"
+                        style="color: hsl(var(--muted-foreground))"
+                      />
                     </template>
                   </NButton>
                 </template>
@@ -423,7 +455,12 @@ onMounted(fetchData);
               </NTooltip>
               <NTooltip v-if="group.id !== '-1'">
                 <template #trigger>
-                  <NButton text size="tiny" type="error" @click.stop="handleDeleteGroup(group.id)">
+                  <NButton
+                    text
+                    size="tiny"
+                    type="error"
+                    @click.stop="handleDeleteGroup(group.id)"
+                  >
                     <template #icon>
                       <IconifyIcon icon="lucide:trash-2" class="size-4" />
                     </template>
@@ -440,17 +477,34 @@ onMounted(fetchData);
             <div class="hidden md:block px-4 pb-4">
               <div
                 class="grid gap-2 px-3 py-2 text-xs font-medium border-b"
-                style="grid-template-columns: 70px 1fr 1fr 60px 70px 70px 44px 44px 72px; border-color: hsl(var(--border))"
+                style="
+                  grid-template-columns: 70px 1fr 1fr 60px 70px 70px 44px 44px 72px;
+                  border-color: hsl(var(--border));
+                "
               >
                 <span style="color: hsl(var(--muted-foreground))">类型</span>
-                <span style="color: hsl(var(--muted-foreground))">被替换词</span>
+                <span style="color: hsl(var(--muted-foreground))"
+                  >被替换词</span
+                >
                 <span style="color: hsl(var(--muted-foreground))">替换词</span>
                 <span style="color: hsl(var(--muted-foreground))">偏移</span>
                 <span style="color: hsl(var(--muted-foreground))">前定位</span>
                 <span style="color: hsl(var(--muted-foreground))">后定位</span>
-                <span class="text-center" style="color: hsl(var(--muted-foreground))">正则</span>
-                <span class="text-center" style="color: hsl(var(--muted-foreground))">状态</span>
-                <span class="text-center" style="color: hsl(var(--muted-foreground))">操作</span>
+                <span
+                  class="text-center"
+                  style="color: hsl(var(--muted-foreground))"
+                  >正则</span
+                >
+                <span
+                  class="text-center"
+                  style="color: hsl(var(--muted-foreground))"
+                  >状态</span
+                >
+                <span
+                  class="text-center"
+                  style="color: hsl(var(--muted-foreground))"
+                  >操作</span
+                >
               </div>
 
               <!-- 现有词 -->
@@ -458,37 +512,74 @@ onMounted(fetchData);
                 v-for="word in group.words"
                 :key="word.id"
                 class="rounded-lg transition-colors"
-                :class="editingIds.has(`${group.id}_${word.id}`)
-                  ? ''
-                  : 'hover:bg-muted/50'"
-                :style="editingIds.has(`${group.id}_${word.id}`)
-                  ? 'background: hsl(var(--accent) / 0.3); box-shadow: inset 0 0 0 1px hsl(var(--border))'
-                  : ''"
+                :class="
+                  editingIds.has(`${group.id}_${word.id}`)
+                    ? ''
+                    : 'hover:bg-muted/50'
+                "
+                :style="
+                  editingIds.has(`${group.id}_${word.id}`)
+                    ? 'background: hsl(var(--accent) / 0.3); box-shadow: inset 0 0 0 1px hsl(var(--border))'
+                    : ''
+                "
               >
                 <!-- 展示模式 -->
                 <div
                   v-if="!editingIds.has(`${group.id}_${word.id}`)"
                   class="grid gap-2 px-3 py-2 items-center text-sm"
-                  style="grid-template-columns: 70px 1fr 1fr 60px 70px 70px 44px 44px 72px;"
+                  style="
+                    grid-template-columns: 70px 1fr 1fr 60px 70px 70px 44px 44px 72px;
+                  "
                 >
                   <div
                     class="flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium"
-                    :style="{ background: getWordTypeStyle(word.type).bg, color: getWordTypeStyle(word.type).color }"
+                    :style="{
+                      background: getWordTypeStyle(word.type).bg,
+                      color: getWordTypeStyle(word.type).color,
+                    }"
                   >
                     {{ getWordTypeLabel(word.type) }}
                   </div>
-                  <span class="truncate" :title="word.replaced" style="color: hsl(var(--foreground))">{{ word.replaced || '-' }}</span>
-                  <span class="truncate" :title="word.replace" style="color: hsl(var(--foreground))">{{ word.replace || '-' }}</span>
-                  <span class="truncate" style="color: hsl(var(--muted-foreground))">{{ word.offset || '-' }}</span>
-                  <span class="truncate" style="color: hsl(var(--muted-foreground))">{{ word.front || '-' }}</span>
-                  <span class="truncate" style="color: hsl(var(--muted-foreground))">{{ word.back || '-' }}</span>
+                  <span
+                    class="truncate"
+                    :title="word.replaced"
+                    style="color: hsl(var(--foreground))"
+                    >{{ word.replaced || '-' }}</span
+                  >
+                  <span
+                    class="truncate"
+                    :title="word.replace"
+                    style="color: hsl(var(--foreground))"
+                    >{{ word.replace || '-' }}</span
+                  >
+                  <span
+                    class="truncate"
+                    style="color: hsl(var(--muted-foreground))"
+                    >{{ word.offset || '-' }}</span
+                  >
+                  <span
+                    class="truncate"
+                    style="color: hsl(var(--muted-foreground))"
+                    >{{ word.front || '-' }}</span
+                  >
+                  <span
+                    class="truncate"
+                    style="color: hsl(var(--muted-foreground))"
+                    >{{ word.back || '-' }}</span
+                  >
                   <div class="text-center">
                     <span
                       v-if="word.regex === 1"
                       class="text-xs font-medium"
                       style="color: hsl(var(--warning))"
-                    >是</span>
-                    <span v-else class="text-xs" style="color: hsl(var(--muted-foreground) / 0.5)">-</span>
+                      >是</span
+                    >
+                    <span
+                      v-else
+                      class="text-xs"
+                      style="color: hsl(var(--muted-foreground) / 50%)"
+                      >-</span
+                    >
                   </div>
                   <div class="flex justify-center">
                     <NSwitch
@@ -502,7 +593,11 @@ onMounted(fetchData);
                       <template #trigger>
                         <NButton text size="tiny" @click="startEdit(word)">
                           <template #icon>
-                            <IconifyIcon icon="lucide:pencil" class="size-3.5" style="color: hsl(var(--primary))" />
+                            <IconifyIcon
+                              icon="lucide:pencil"
+                              class="size-3.5"
+                              style="color: hsl(var(--primary))"
+                            />
                           </template>
                         </NButton>
                       </template>
@@ -510,9 +605,17 @@ onMounted(fetchData);
                     </NTooltip>
                     <NTooltip>
                       <template #trigger>
-                        <NButton text size="tiny" type="error" @click="handleDeleteWord(word)">
+                        <NButton
+                          text
+                          size="tiny"
+                          type="error"
+                          @click="handleDeleteWord(word)"
+                        >
                           <template #icon>
-                            <IconifyIcon icon="lucide:trash-2" class="size-3.5" />
+                            <IconifyIcon
+                              icon="lucide:trash-2"
+                              class="size-3.5"
+                            />
                           </template>
                         </NButton>
                       </template>
@@ -525,13 +628,15 @@ onMounted(fetchData);
                 <div
                   v-else
                   class="grid gap-2 px-3 py-2 items-center"
-                  style="grid-template-columns: 70px 1fr 1fr 60px 70px 70px 44px 44px 72px;"
+                  style="
+                    grid-template-columns: 70px 1fr 1fr 60px 70px 70px 44px 44px 72px;
+                  "
                 >
                   <NSelect
                     v-model:value="editForms[`${group.id}_${word.id}`].type"
                     size="small"
                     :options="typeOptions"
-                    style="min-width: 70px;"
+                    style="min-width: 70px"
                   />
                   <NInput
                     v-model:value="editForms[`${group.id}_${word.id}`].replaced"
@@ -568,17 +673,28 @@ onMounted(fetchData);
                   </div>
                   <div class="flex justify-center">
                     <NSwitch
-                      v-model:value="editForms[`${group.id}_${word.id}`].enabled"
+                      v-model:value="
+                        editForms[`${group.id}_${word.id}`].enabled
+                      "
                       size="small"
                       :checked-value="1"
                       :unchecked-value="0"
                     />
                   </div>
                   <div class="flex items-center justify-center gap-1">
-                    <NButton text size="tiny" type="primary" @click="handleSaveEdit(group.id, word.id)">
+                    <NButton
+                      text
+                      size="tiny"
+                      type="primary"
+                      @click="handleSaveEdit(group.id, word.id)"
+                    >
                       <IconifyIcon icon="lucide:check" class="size-3.5" />
                     </NButton>
-                    <NButton text size="tiny" @click="cancelEdit(group.id, word.id)">
+                    <NButton
+                      text
+                      size="tiny"
+                      @click="cancelEdit(group.id, word.id)"
+                    >
                       <IconifyIcon icon="lucide:x" class="size-3.5" />
                     </NButton>
                   </div>
@@ -587,22 +703,48 @@ onMounted(fetchData);
 
               <!-- 新增行 -->
               <div
-                v-for="tempId in Array.from(addingIds).filter((id) => addForms[id]?.group_id === group.id)"
+                v-for="tempId in Array.from(addingIds).filter(
+                  (id) => addForms[id]?.group_id === group.id,
+                )"
                 :key="tempId"
                 class="grid gap-2 px-3 py-2 items-center rounded-lg"
-                style="grid-template-columns: 70px 1fr 1fr 60px 70px 70px 44px 44px 72px; background: hsl(var(--accent) / 0.3); box-shadow: inset 0 0 0 1px hsl(var(--border))"
+                style="
+                  grid-template-columns: 70px 1fr 1fr 60px 70px 70px 44px 44px 72px;
+                  background: hsl(var(--accent) / 30%);
+                  box-shadow: inset 0 0 0 1px hsl(var(--border));
+                "
               >
                 <NSelect
                   v-model:value="addForms[tempId].type"
                   size="small"
                   :options="typeOptions"
-                  style="min-width: 70px;"
+                  style="min-width: 70px"
                 />
-                <NInput v-model:value="addForms[tempId].replaced" size="small" placeholder="被替换词" />
-                <NInput v-model:value="addForms[tempId].replace" size="small" placeholder="替换词" />
-                <NInput v-model:value="addForms[tempId].offset" size="small" placeholder="偏移" />
-                <NInput v-model:value="addForms[tempId].front" size="small" placeholder="前定位" />
-                <NInput v-model:value="addForms[tempId].back" size="small" placeholder="后定位" />
+                <NInput
+                  v-model:value="addForms[tempId].replaced"
+                  size="small"
+                  placeholder="被替换词"
+                />
+                <NInput
+                  v-model:value="addForms[tempId].replace"
+                  size="small"
+                  placeholder="替换词"
+                />
+                <NInput
+                  v-model:value="addForms[tempId].offset"
+                  size="small"
+                  placeholder="偏移"
+                />
+                <NInput
+                  v-model:value="addForms[tempId].front"
+                  size="small"
+                  placeholder="前定位"
+                />
+                <NInput
+                  v-model:value="addForms[tempId].back"
+                  size="small"
+                  placeholder="后定位"
+                />
                 <div class="text-center">
                   <NSwitch
                     v-model:value="addForms[tempId].regex"
@@ -620,7 +762,12 @@ onMounted(fetchData);
                   />
                 </div>
                 <div class="flex items-center justify-center gap-1">
-                  <NButton text size="tiny" type="primary" @click="handleSaveAdd(tempId)">
+                  <NButton
+                    text
+                    size="tiny"
+                    type="primary"
+                    @click="handleSaveAdd(tempId)"
+                  >
                     <IconifyIcon icon="lucide:check" class="size-3.5" />
                   </NButton>
                   <NButton text size="tiny" @click="cancelAdd(tempId)">
@@ -631,7 +778,12 @@ onMounted(fetchData);
 
               <!-- 空提示 -->
               <div
-                v-if="!group.words?.length && !Array.from(addingIds).some((id) => addForms[id]?.group_id === group.id)"
+                v-if="
+                  !group.words?.length &&
+                  !Array.from(addingIds).some(
+                    (id) => addForms[id]?.group_id === group.id,
+                  )
+                "
                 class="text-center py-6 text-sm"
                 style="color: hsl(var(--muted-foreground))"
               >
@@ -658,7 +810,10 @@ onMounted(fetchData);
                   <div class="flex items-center justify-between">
                     <div
                       class="px-2.5 py-0.5 rounded-full text-xs font-medium"
-                      :style="{ background: getWordTypeStyle(word.type).bg, color: getWordTypeStyle(word.type).color }"
+                      :style="{
+                        background: getWordTypeStyle(word.type).bg,
+                        color: getWordTypeStyle(word.type).color,
+                      }"
                     >
                       {{ getWordTypeLabel(word.type) }}
                     </div>
@@ -670,10 +825,19 @@ onMounted(fetchData);
                       />
                       <NButton text size="tiny" @click="startEdit(word)">
                         <template #icon>
-                          <IconifyIcon icon="lucide:pencil" class="size-3.5" style="color: hsl(var(--primary))" />
+                          <IconifyIcon
+                            icon="lucide:pencil"
+                            class="size-3.5"
+                            style="color: hsl(var(--primary))"
+                          />
                         </template>
                       </NButton>
-                      <NButton text size="tiny" type="error" @click="handleDeleteWord(word)">
+                      <NButton
+                        text
+                        size="tiny"
+                        type="error"
+                        @click="handleDeleteWord(word)"
+                      >
                         <template #icon>
                           <IconifyIcon icon="lucide:trash-2" class="size-3.5" />
                         </template>
@@ -682,26 +846,59 @@ onMounted(fetchData);
                   </div>
                   <div class="grid grid-cols-2 gap-2 text-sm">
                     <div>
-                      <span class="text-xs" style="color: hsl(var(--muted-foreground))">被替换: </span>
-                      <span style="color: hsl(var(--foreground))">{{ word.replaced || '-' }}</span>
-                    </div>
-                    <div>
-                      <span class="text-xs" style="color: hsl(var(--muted-foreground))">替换: </span>
-                      <span style="color: hsl(var(--foreground))">{{ word.replace || '-' }}</span>
-                    </div>
-                    <div>
-                      <span class="text-xs" style="color: hsl(var(--muted-foreground))">偏移: </span>
-                      <span style="color: hsl(var(--foreground))">{{ word.offset || '-' }}</span>
-                    </div>
-                    <div>
-                      <span class="text-xs" style="color: hsl(var(--muted-foreground))">正则: </span>
                       <span
-                        :style="word.regex === 1 ? { color: 'hsl(var(--warning))' } : { color: 'hsl(var(--muted-foreground))' }"
-                      >{{ word.regex === 1 ? '是' : '-' }}</span>
+                        class="text-xs"
+                        style="color: hsl(var(--muted-foreground))"
+                        >被替换:
+                      </span>
+                      <span style="color: hsl(var(--foreground))">{{
+                        word.replaced || '-'
+                      }}</span>
+                    </div>
+                    <div>
+                      <span
+                        class="text-xs"
+                        style="color: hsl(var(--muted-foreground))"
+                        >替换:
+                      </span>
+                      <span style="color: hsl(var(--foreground))">{{
+                        word.replace || '-'
+                      }}</span>
+                    </div>
+                    <div>
+                      <span
+                        class="text-xs"
+                        style="color: hsl(var(--muted-foreground))"
+                        >偏移:
+                      </span>
+                      <span style="color: hsl(var(--foreground))">{{
+                        word.offset || '-'
+                      }}</span>
+                    </div>
+                    <div>
+                      <span
+                        class="text-xs"
+                        style="color: hsl(var(--muted-foreground))"
+                        >正则:
+                      </span>
+                      <span
+                        :style="
+                          word.regex === 1
+                            ? { color: 'hsl(var(--warning))' }
+                            : { color: 'hsl(var(--muted-foreground))' }
+                        "
+                        >{{ word.regex === 1 ? '是' : '-' }}</span
+                      >
                     </div>
                     <div class="col-span-2">
-                      <span class="text-xs" style="color: hsl(var(--muted-foreground))">定位: </span>
-                      <span style="color: hsl(var(--foreground))">{{ word.front || '-' }} / {{ word.back || '-' }}</span>
+                      <span
+                        class="text-xs"
+                        style="color: hsl(var(--muted-foreground))"
+                        >定位:
+                      </span>
+                      <span style="color: hsl(var(--foreground))"
+                        >{{ word.front || '-' }} / {{ word.back || '-' }}</span
+                      >
                     </div>
                   </div>
                 </div>
@@ -715,12 +912,16 @@ onMounted(fetchData);
                   />
                   <div class="grid grid-cols-2 gap-2">
                     <NInput
-                      v-model:value="editForms[`${group.id}_${word.id}`].replaced"
+                      v-model:value="
+                        editForms[`${group.id}_${word.id}`].replaced
+                      "
                       size="small"
                       placeholder="被替换词"
                     />
                     <NInput
-                      v-model:value="editForms[`${group.id}_${word.id}`].replace"
+                      v-model:value="
+                        editForms[`${group.id}_${word.id}`].replace
+                      "
                       size="small"
                       placeholder="替换词"
                     />
@@ -732,9 +933,15 @@ onMounted(fetchData);
                       placeholder="偏移"
                     />
                     <div class="flex items-center justify-center gap-2">
-                      <span class="text-xs" style="color: hsl(var(--muted-foreground))">正则</span>
+                      <span
+                        class="text-xs"
+                        style="color: hsl(var(--muted-foreground))"
+                        >正则</span
+                      >
                       <NSwitch
-                        v-model:value="editForms[`${group.id}_${word.id}`].regex"
+                        v-model:value="
+                          editForms[`${group.id}_${word.id}`].regex
+                        "
                         size="small"
                         :checked-value="1"
                         :unchecked-value="0"
@@ -755,19 +962,34 @@ onMounted(fetchData);
                   </div>
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
-                      <span class="text-xs" style="color: hsl(var(--muted-foreground))">启用</span>
+                      <span
+                        class="text-xs"
+                        style="color: hsl(var(--muted-foreground))"
+                        >启用</span
+                      >
                       <NSwitch
-                        v-model:value="editForms[`${group.id}_${word.id}`].enabled"
+                        v-model:value="
+                          editForms[`${group.id}_${word.id}`].enabled
+                        "
                         size="small"
                         :checked-value="1"
                         :unchecked-value="0"
                       />
                     </div>
                     <div class="flex items-center gap-1">
-                      <NButton text size="tiny" type="primary" @click="handleSaveEdit(group.id, word.id)">
+                      <NButton
+                        text
+                        size="tiny"
+                        type="primary"
+                        @click="handleSaveEdit(group.id, word.id)"
+                      >
                         <IconifyIcon icon="lucide:check" class="size-3.5" />
                       </NButton>
-                      <NButton text size="tiny" @click="cancelEdit(group.id, word.id)">
+                      <NButton
+                        text
+                        size="tiny"
+                        @click="cancelEdit(group.id, word.id)"
+                      >
                         <IconifyIcon icon="lucide:x" class="size-3.5" />
                       </NButton>
                     </div>
@@ -777,20 +999,45 @@ onMounted(fetchData);
 
               <!-- 新增卡片 -->
               <div
-                v-for="tempId in Array.from(addingIds).filter((id) => addForms[id]?.group_id === group.id)"
+                v-for="tempId in Array.from(addingIds).filter(
+                  (id) => addForms[id]?.group_id === group.id,
+                )"
                 :key="tempId"
                 class="rounded-lg border p-3 space-y-2"
-                style="background: hsl(var(--accent) / 0.3); border-color: hsl(var(--border))"
+                style="
+                  background: hsl(var(--accent) / 30%);
+                  border-color: hsl(var(--border));
+                "
               >
-                <NSelect v-model:value="addForms[tempId].type" size="small" :options="typeOptions" />
+                <NSelect
+                  v-model:value="addForms[tempId].type"
+                  size="small"
+                  :options="typeOptions"
+                />
                 <div class="grid grid-cols-2 gap-2">
-                  <NInput v-model:value="addForms[tempId].replaced" size="small" placeholder="被替换词" />
-                  <NInput v-model:value="addForms[tempId].replace" size="small" placeholder="替换词" />
+                  <NInput
+                    v-model:value="addForms[tempId].replaced"
+                    size="small"
+                    placeholder="被替换词"
+                  />
+                  <NInput
+                    v-model:value="addForms[tempId].replace"
+                    size="small"
+                    placeholder="替换词"
+                  />
                 </div>
                 <div class="grid grid-cols-2 gap-2">
-                  <NInput v-model:value="addForms[tempId].offset" size="small" placeholder="偏移" />
+                  <NInput
+                    v-model:value="addForms[tempId].offset"
+                    size="small"
+                    placeholder="偏移"
+                  />
                   <div class="flex items-center justify-center gap-2">
-                    <span class="text-xs" style="color: hsl(var(--muted-foreground))">正则</span>
+                    <span
+                      class="text-xs"
+                      style="color: hsl(var(--muted-foreground))"
+                      >正则</span
+                    >
                     <NSwitch
                       v-model:value="addForms[tempId].regex"
                       size="small"
@@ -800,12 +1047,24 @@ onMounted(fetchData);
                   </div>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
-                  <NInput v-model:value="addForms[tempId].front" size="small" placeholder="前定位" />
-                  <NInput v-model:value="addForms[tempId].back" size="small" placeholder="后定位" />
+                  <NInput
+                    v-model:value="addForms[tempId].front"
+                    size="small"
+                    placeholder="前定位"
+                  />
+                  <NInput
+                    v-model:value="addForms[tempId].back"
+                    size="small"
+                    placeholder="后定位"
+                  />
                 </div>
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-2">
-                    <span class="text-xs" style="color: hsl(var(--muted-foreground))">启用</span>
+                    <span
+                      class="text-xs"
+                      style="color: hsl(var(--muted-foreground))"
+                      >启用</span
+                    >
                     <NSwitch
                       v-model:value="addForms[tempId].enabled"
                       size="small"
@@ -814,7 +1073,12 @@ onMounted(fetchData);
                     />
                   </div>
                   <div class="flex items-center gap-1">
-                    <NButton text size="tiny" type="primary" @click="handleSaveAdd(tempId)">
+                    <NButton
+                      text
+                      size="tiny"
+                      type="primary"
+                      @click="handleSaveAdd(tempId)"
+                    >
                       <IconifyIcon icon="lucide:check" class="size-3.5" />
                     </NButton>
                     <NButton text size="tiny" @click="cancelAdd(tempId)">
@@ -847,7 +1111,10 @@ onMounted(fetchData);
         <p class="text-sm" style="color: hsl(var(--muted-foreground))">
           暂无识别词
         </p>
-        <p class="text-xs mt-1 mb-4" style="color: hsl(var(--muted-foreground) / 0.7)">
+        <p
+          class="text-xs mt-1 mb-4"
+          style="color: hsl(var(--muted-foreground) / 70%)"
+        >
           点击上方按钮新增词组或导入识别词
         </p>
         <NButton type="primary" @click="showAddGroup">
@@ -860,7 +1127,12 @@ onMounted(fetchData);
     </NSpin>
 
     <!-- 新增词组弹窗 -->
-    <NModal v-model:show="groupModal" title="新增识别词组" preset="card" class="w-[420px]">
+    <NModal
+      v-model:show="groupModal"
+      title="新增识别词组"
+      preset="card"
+      :style="{ width: '420px', maxWidth: '92vw' }"
+    >
       <NFormItem label="TMDB ID" required>
         <NInput v-model:value="groupForm.tmdb_id" placeholder="输入 TMDB ID" />
       </NFormItem>
@@ -882,7 +1154,12 @@ onMounted(fetchData);
     </NModal>
 
     <!-- 导入弹窗 -->
-    <NModal v-model:show="importModal" title="导入识别词" preset="card" class="w-[600px]">
+    <NModal
+      v-model:show="importModal"
+      title="导入识别词"
+      preset="card"
+      :style="{ width: '600px', maxWidth: '92vw' }"
+    >
       <NFormItem label="导入码">
         <NInput
           v-model:value="importCode"
@@ -894,7 +1171,11 @@ onMounted(fetchData);
       <NButton type="primary" @click="handleAnalyseImport">解析</NButton>
 
       <div v-if="importPreview.length > 0" class="mt-4">
-        <div v-if="importNote" class="mb-2 text-sm" style="color: hsl(var(--muted-foreground))">
+        <div
+          v-if="importNote"
+          class="mb-2 text-sm"
+          style="color: hsl(var(--muted-foreground))"
+        >
           备注: {{ importNote }}
         </div>
         <div
@@ -903,16 +1184,22 @@ onMounted(fetchData);
         >
           <div
             class="grid grid-cols-[40px_1fr_80px_100px] gap-2 px-3 py-2 text-xs font-medium border-b"
-            style="background: hsl(var(--muted) / 0.4); border-color: hsl(var(--border))"
+            style="
+              background: hsl(var(--muted) / 40%);
+              border-color: hsl(var(--border));
+            "
           >
-            <span><input
-              type="checkbox"
-              :checked="selectedImportIds.length === importPreview.length"
-              @change="(e) => {
-                selectedImportIds = (e.target as HTMLInputElement).checked
-                  ? importPreview.map((g) => g.id)
-                  : [];
-              }"
+            <span
+              ><input
+                type="checkbox"
+                :checked="selectedImportIds.length === importPreview.length"
+                @change="
+                  (e) => {
+                    selectedImportIds = (e.target as HTMLInputElement).checked
+                      ? importPreview.map((g) => g.id)
+                      : [];
+                  }
+                "
             /></span>
             <span style="color: hsl(var(--foreground))">词组</span>
             <span style="color: hsl(var(--foreground))">类型</span>
@@ -924,22 +1211,32 @@ onMounted(fetchData);
             class="grid grid-cols-[40px_1fr_80px_100px] gap-2 px-3 py-2 text-sm border-b items-center"
             style="border-color: hsl(var(--border))"
           >
-            <span><input
-              type="checkbox"
-              :value="g.id"
-              :checked="selectedImportIds.includes(g.id)"
-              @change="(e) => {
-                const checked = (e.target as HTMLInputElement).checked;
-                if (checked) {
-                  if (!selectedImportIds.includes(g.id)) selectedImportIds.push(g.id);
-                } else {
-                  selectedImportIds = selectedImportIds.filter((id) => id !== g.id);
-                }
-              }"
+            <span
+              ><input
+                type="checkbox"
+                :value="g.id"
+                :checked="selectedImportIds.includes(g.id)"
+                @change="
+                  (e) => {
+                    const checked = (e.target as HTMLInputElement).checked;
+                    if (checked) {
+                      if (!selectedImportIds.includes(g.id))
+                        selectedImportIds.push(g.id);
+                    } else {
+                      selectedImportIds = selectedImportIds.filter(
+                        (id) => id !== g.id,
+                      );
+                    }
+                  }
+                "
             /></span>
             <span style="color: hsl(var(--foreground))">{{ g.name }}</span>
-            <span style="color: hsl(var(--muted-foreground))">{{ g.type === '1' ? '电影' : '电视剧' }}</span>
-            <span style="color: hsl(var(--muted-foreground))">{{ Object.keys(g.words || {}).length }}</span>
+            <span style="color: hsl(var(--muted-foreground))">{{
+              g.type === '1' ? '电影' : '电视剧'
+            }}</span>
+            <span style="color: hsl(var(--muted-foreground))">{{
+              Object.keys(g.words || {}).length
+            }}</span>
           </div>
         </div>
       </div>
@@ -949,7 +1246,7 @@ onMounted(fetchData);
           <NButton @click="importModal = false">取消</NButton>
           <NButton
             type="primary"
-            :disabled="!selectedImportIds.length"
+            :disabled="selectedImportIds.length === 0"
             @click="handleImport"
           >
             导入
@@ -959,7 +1256,12 @@ onMounted(fetchData);
     </NModal>
 
     <!-- 导出弹窗 -->
-    <NModal v-model:show="exportModal" title="导出识别词" preset="card" class="w-[520px]">
+    <NModal
+      v-model:show="exportModal"
+      title="导出识别词"
+      preset="card"
+      :style="{ width: '520px', maxWidth: '92vw' }"
+    >
       <NFormItem label="导出码">
         <NInput v-model:value="exportCode" type="textarea" :rows="4" readonly />
       </NFormItem>

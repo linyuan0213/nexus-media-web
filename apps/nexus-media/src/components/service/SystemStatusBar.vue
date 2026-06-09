@@ -25,11 +25,7 @@ const stats = computed(() => [
 
 <template>
   <div class="system-status-bar">
-    <div
-      v-for="(stat, idx) in stats"
-      :key="idx"
-      class="status-stat-item"
-    >
+    <div v-for="(stat, idx) in stats" :key="idx" class="status-stat-item">
       <div class="status-stat-value">{{ stat.value }}</div>
       <div class="status-stat-label">{{ stat.label }}</div>
     </div>
@@ -41,38 +37,38 @@ const stats = computed(() => [
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
+  padding: 1.25rem;
+  background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: 0.75rem;
-  background-color: hsl(var(--card));
-  padding: 1.25rem;
 }
 
 .status-stat-item {
-  text-align: center;
   position: relative;
+  text-align: center;
 }
 
 .status-stat-item:not(:last-child)::after {
-  content: '';
   position: absolute;
-  right: 0;
   top: 10%;
+  right: 0;
   bottom: 10%;
   width: 1px;
+  content: '';
   background-color: hsl(var(--border));
 }
 
 .status-stat-value {
   font-size: 1.25rem;
   font-weight: 700;
-  color: hsl(var(--card-foreground));
   line-height: 1.3;
+  color: hsl(var(--card-foreground));
 }
 
 .status-stat-label {
+  margin-top: 0.25rem;
   font-size: 0.8125rem;
   color: hsl(var(--muted-foreground));
-  margin-top: 0.25rem;
 }
 
 @media (max-width: 640px) {

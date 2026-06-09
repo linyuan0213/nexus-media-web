@@ -1,32 +1,23 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 import { useUserStore } from '@vben/stores';
 
-import {
-  NButton,
-  NForm,
-  NFormItem,
-  NInput,
-  useMessage,
-} from 'naive-ui';
+import { NButton, NForm, NFormItem, NInput, useMessage } from 'naive-ui';
 
-import {
-  getUserInfoApi,
-  updateUserApi,
-} from '#/api';
+import { getUserInfoApi, updateUserApi } from '#/api';
 
 const message = useMessage();
 const userStore = useUserStore();
 
 const loading = ref(false);
 const userInfo = ref<{
-  id: number;
-  username: string;
-  nickname: string;
-  email?: string;
   avatar?: string;
+  email?: string;
+  id: number;
+  nickname: string;
+  username: string;
 }>({
   id: 0,
   username: '',
@@ -68,8 +59,8 @@ async function handleSave() {
     userStore.setUserInfo(data);
 
     message.success('保存成功');
-  } catch (e: any) {
-    message.error(e?.message || '保存失败');
+  } catch (error: any) {
+    message.error(error?.message || '保存失败');
   } finally {
     loading.value = false;
   }
@@ -88,23 +79,25 @@ onMounted(() => {
       </NFormItem>
 
       <NFormItem label="昵称">
-        <NInput
-          v-model:value="userInfo.nickname"
-          placeholder="请输入昵称"
-        >
+        <NInput v-model:value="userInfo.nickname" placeholder="请输入昵称">
           <template #prefix>
-            <IconifyIcon icon="lucide:smile" class="size-4" style="color: hsl(var(--muted-foreground))" />
+            <IconifyIcon
+              icon="lucide:smile"
+              class="size-4"
+              style="color: hsl(var(--muted-foreground))"
+            />
           </template>
         </NInput>
       </NFormItem>
 
       <NFormItem label="邮箱">
-        <NInput
-          v-model:value="userInfo.email"
-          placeholder="请输入邮箱"
-        >
+        <NInput v-model:value="userInfo.email" placeholder="请输入邮箱">
           <template #prefix>
-            <IconifyIcon icon="lucide:mail" class="size-4" style="color: hsl(var(--muted-foreground))" />
+            <IconifyIcon
+              icon="lucide:mail"
+              class="size-4"
+              style="color: hsl(var(--muted-foreground))"
+            />
           </template>
         </NInput>
       </NFormItem>

@@ -1,16 +1,12 @@
 import * as Vue from 'vue';
 import { createApp, watchEffect } from 'vue';
 
-// 暴露 Vue 到全局，供插件 UMD 使用
-(window as any).Vue = Vue;
-
 import { registerAccessDirective } from '@vben/access';
 import { registerLoadingDirective } from '@vben/common-ui';
 import { preferences } from '@vben/preferences';
 import { initStores } from '@vben/stores';
 import '@vben/styles';
 import '@vben/styles/naive';
-import './styles/tabler-theme.css';
 
 import { useTitle } from '@vueuse/core';
 
@@ -20,6 +16,11 @@ import { initComponentAdapter } from './adapter/component';
 import { initSetupVbenForm } from './adapter/form';
 import App from './app.vue';
 import { router } from './router';
+
+import './styles/tabler-theme.css';
+
+// 暴露 Vue 到全局，供插件 UMD 使用
+(window as any).Vue = Vue;
 
 async function bootstrap(namespace: string) {
   // 初始化组件适配器

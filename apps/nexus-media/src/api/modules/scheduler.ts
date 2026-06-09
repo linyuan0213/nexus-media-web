@@ -70,5 +70,8 @@ export async function resumeJobApi(id: string) {
 
 /** 获取任务日志 */
 export async function getJobLogsApi(jobId?: string, limit: number = 50) {
-  return requestClient.post<SchedulerApi.JobLog[]>('/api/scheduler/logs', { job_id: jobId, limit });
+  return requestClient.post<SchedulerApi.JobLog[]>('/api/scheduler/logs', {
+    job_id: jobId,
+    limit,
+  });
 }

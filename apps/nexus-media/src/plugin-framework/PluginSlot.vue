@@ -5,15 +5,16 @@
  */
 import { computed } from 'vue';
 
-import { NCard, NEmpty } from 'naive-ui';
 import { IconifyIcon } from '@vben/icons';
+
+import { NCard, NEmpty } from 'naive-ui';
 
 import { getSlotComponents } from '#/plugin-framework/loader';
 
 const props = defineProps<{
+  showEmpty?: boolean;
   target: string;
   title?: string;
-  showEmpty?: boolean;
 }>();
 
 const components = computed(() => {
@@ -72,38 +73,38 @@ function getIconColor(color?: string) {
 }
 
 .plugin-slot-card:hover {
+  box-shadow: 0 2px 8px hsl(var(--border) / 40%);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px hsl(var(--border) / 0.4);
 }
 
 .plugin-slot-header {
   display: flex;
-  align-items: center;
   gap: 0.5rem;
+  align-items: center;
 }
 
 .plugin-slot-icon {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   width: 1.75rem;
   height: 1.75rem;
   border-radius: 0.375rem;
-  flex-shrink: 0;
 }
 
 .plugin-slot-name {
-  font-weight: 600;
   font-size: 0.9375rem;
+  font-weight: 600;
   color: hsl(var(--card-foreground));
 }
 
 .plugin-slot-badge {
+  padding: 0.125rem 0.375rem;
   margin-left: auto;
   font-size: 0.625rem;
-  padding: 0.125rem 0.375rem;
-  border-radius: 9999px;
-  background-color: hsl(var(--muted) / 0.4);
   color: hsl(var(--muted-foreground));
+  background-color: hsl(var(--muted) / 40%);
+  border-radius: 9999px;
 }
 </style>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { NSelect, NInput } from 'naive-ui';
+
+import { NInput, NSelect } from 'naive-ui';
 
 interface OperatorOption {
   label: string;
@@ -24,14 +25,14 @@ function parseValue(raw?: string): { operator: string; value: string } {
   if (idx === -1) return { operator: '', value: raw };
   let val = raw.slice(idx + 1);
   // 兼容旧数据：自动去掉前导的 < 或 >
-  val = val.replace(/^[\u003c\u003e]/, '');
+  val = val.replace(/^[\u003C\u003E]/, '');
   return { operator: raw.slice(0, idx), value: val };
 }
 
 function buildValue(operator: string, value: string): string {
   if (!operator) return '';
-  if (!value) return operator + '#';
-  return operator + '#' + value;
+  if (!value) return `${operator}#`;
+  return `${operator}#${value}`;
 }
 
 const parsed = computed(() => parseValue(props.modelValue));
@@ -74,8 +75,8 @@ function handleValueChange(val: string) {
 }
 
 .range-operator {
-  width: 5.5rem;
   flex-shrink: 0;
+  width: 5.5rem;
 }
 
 .range-operator :deep(.n-base-selection) {

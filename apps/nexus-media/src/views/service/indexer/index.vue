@@ -1,21 +1,28 @@
 <script lang="ts" setup>
-import { ref, onMounted, computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+
+import { IconifyIcon } from '@vben/icons';
+import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
+
 import {
   NButton,
   NCard,
+  NCheckbox,
   NForm,
   NFormItem,
   NInput,
   NModal,
   NSpace,
   NSpin,
-  NCheckbox,
   useMessage,
 } from 'naive-ui';
-import { IconifyIcon } from '@vben/icons';
 
-import { saveIndexerConfigApi, getIndexerStatisticsApi, getIndexersConfigApi, testIndexerConfigApi } from '#/api';
-import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
+import {
+  getIndexersConfigApi,
+  getIndexerStatisticsApi,
+  saveIndexerConfigApi,
+  testIndexerConfigApi,
+} from '#/api';
 import PageHeader from '#/components/page/PageHeader.vue';
 
 interface IndexerConf {
@@ -31,7 +38,9 @@ function indexerIcon(type: string): string {
 
 const message = useMessage();
 const indexers = ref<Record<string, IndexerConf>>({});
-const builtinIndexers = ref<{ id: string; name: string; public: boolean }[]>([]);
+const builtinIndexers = ref<{ id: string; name: string; public: boolean }[]>(
+  [],
+);
 const searchIndexer = ref('builtin');
 const selectedSites = ref<string[]>([]);
 const loading = ref(false);
@@ -45,9 +54,15 @@ const statsDataset = ref<any[]>([]);
 const chartRef = ref<any>(null);
 const { renderEcharts } = useEcharts(chartRef);
 
-const indexerList = computed(() => Object.entries(indexers.value).map(([type, conf]) => ({ type, ...conf })));
-const privateIndexers = computed(() => builtinIndexers.value.filter((i) => !i.public));
-const publicIndexers = computed(() => builtinIndexers.value.filter((i) => i.public));
+const indexerList = computed(() =>
+  Object.entries(indexers.value).map(([type, conf]) => ({ type, ...conf })),
+);
+const privateIndexers = computed(() =>
+  builtinIndexers.value.filter((i) => !i.public),
+);
+const publicIndexers = computed(() =>
+  builtinIndexers.value.filter((i) => i.public),
+);
 
 async function fetchData() {
   loading.value = true;
@@ -68,13 +83,15 @@ async function fetchData() {
     }
     if (data.indexer_config) {
       // 预填充外部索引器配置
-      for (const [type, conf] of Object.entries(data.indexer_config as Record<string, any>)) {
+      for (const [type, conf] of Object.entries(
+        data.indexer_config as Record<string, any>,
+      )) {
         if (indexers.value[type]) {
           indexers.value[type] = { ...indexers.value[type], ...conf };
         }
       }
     }
-  } catch (e) {
+  } catch {
     message.error('获取索引器配置失败');
   } finally {
     loading.value = false;
@@ -122,8 +139,8 @@ async function handleTest(type: string) {
     }
     await testIndexerConfigApi(data);
     message.success('测试成功');
-  } catch (e: any) {
-    message.error(e?.message || '测试失败');
+  } catch (error: any) {
+    message.error(error?.message || '测试失败');
   } finally {
     testLoading.value[type] = false;
   }
@@ -136,7 +153,7 @@ async function showStats() {
     statsDataset.value = res.dataset || [];
     statsModal.value = true;
     // 渲染南丁格尔玫瑰图
-    if (statsData.value.length) {
+    if (statsData.value.length > 0) {
       setTimeout(() => {
         renderEcharts({
           tooltip: { trigger: 'item' },
@@ -160,7 +177,7 @@ async function showStats() {
         });
       }, 300);
     }
-  } catch (e) {
+  } catch {
     message.error('获取统计失败');
   }
 }
@@ -202,20 +219,36 @@ onMounted(fetchData);
           @click="openModal(item.type)"
         >
           <div class="text-center">
-            <div class="relative w-16 h-16 mx-auto rounded-full mb-3 overflow-hidden">
+            <div
+              class="relative w-16 h-16 mx-auto rounded-full mb-3 overflow-hidden"
+            >
               <img
                 :src="item.icon_url || indexerIcon(item.type)"
                 class="absolute inset-0 z-10 w-full h-full object-contain"
-                @error="($event.target as HTMLElement).style.display='none'"
+                @error="($event.target as HTMLElement).style.display = 'none'"
               />
-              <div class="w-full h-full flex items-center justify-center bg-muted">
-                <IconifyIcon icon="lucide:search" class="size-6 text-muted-foreground" />
+              <div
+                class="w-full h-full flex items-center justify-center bg-muted"
+              >
+                <IconifyIcon
+                  icon="lucide:search"
+                  class="size-6 text-muted-foreground"
+                />
               </div>
             </div>
             <div class="font-medium">{{ item.name }}</div>
-            <div class="text-sm mt-1" style="color: hsl(var(--muted-foreground))">
-              <span v-if="searchIndexer === item.type" class="inline-flex items-center gap-1">
-                <span class="w-2 h-2 rounded-full" style="background-color: hsl(var(--success))" />
+            <div
+              class="text-sm mt-1"
+              style="color: hsl(var(--muted-foreground))"
+            >
+              <span
+                v-if="searchIndexer === item.type"
+                class="inline-flex items-center gap-1"
+              >
+                <span
+                  class="w-2 h-2 rounded-full"
+                  style="background-color: hsl(var(--success))"
+                ></span>
                 正在使用
               </span>
             </div>
@@ -229,13 +262,26 @@ onMounted(fetchData);
       v-model:show="editModalShow"
       :title="indexers[editingType]?.name || '内建索引器'"
       preset="card"
-      class="w-[600px]"
+      :style="{ width: '600px', maxWidth: '92vw' }"
     >
       <div v-if="editingType === 'builtin'">
         <div class="mb-4">
           <div class="flex items-center justify-between mb-2">
             <span class="font-medium">私有站点</span>
-            <NButton size="tiny" text @click="selectedSites = [...new Set([...selectedSites, ...privateIndexers.map((i: any) => i.id)])]">全选</NButton>
+            <NButton
+              size="tiny"
+              text
+              @click="
+                selectedSites = [
+                  ...new Set([
+                    ...selectedSites,
+                    ...privateIndexers.map((i: any) => i.id),
+                  ]),
+                ]
+              "
+            >
+              全选
+            </NButton>
           </div>
           <NSpace>
             <NCheckbox
@@ -243,19 +289,35 @@ onMounted(fetchData);
               :key="site.id"
               :value="site.id"
               :checked="selectedSites.includes(site.id)"
-              @update:checked="(v: boolean) => {
-                if (v) selectedSites.push(site.id);
-                else selectedSites = selectedSites.filter(s => s !== site.id);
-              }"
+              @update:checked="
+                (v: boolean) => {
+                  if (v) selectedSites.push(site.id);
+                  else
+                    selectedSites = selectedSites.filter((s) => s !== site.id);
+                }
+              "
             >
               {{ site.name }}
             </NCheckbox>
           </NSpace>
         </div>
-        <div v-if="publicIndexers.length" class="mb-4">
+        <div v-if="publicIndexers.length > 0" class="mb-4">
           <div class="flex items-center justify-between mb-2">
             <span class="font-medium">公开站点</span>
-            <NButton size="tiny" text @click="selectedSites = [...new Set([...selectedSites, ...publicIndexers.map((i: any) => i.id)])]">全选</NButton>
+            <NButton
+              size="tiny"
+              text
+              @click="
+                selectedSites = [
+                  ...new Set([
+                    ...selectedSites,
+                    ...publicIndexers.map((i: any) => i.id),
+                  ]),
+                ]
+              "
+            >
+              全选
+            </NButton>
           </div>
           <NSpace>
             <NCheckbox
@@ -263,10 +325,13 @@ onMounted(fetchData);
               :key="site.id"
               :value="site.id"
               :checked="selectedSites.includes(site.id)"
-              @update:checked="(v: boolean) => {
-                if (v) selectedSites.push(site.id);
-                else selectedSites = selectedSites.filter(s => s !== site.id);
-              }"
+              @update:checked="
+                (v: boolean) => {
+                  if (v) selectedSites.push(site.id);
+                  else
+                    selectedSites = selectedSites.filter((s) => s !== site.id);
+                }
+              "
             >
               {{ site.name }}
             </NCheckbox>
@@ -275,29 +340,59 @@ onMounted(fetchData);
       </div>
       <div v-else>
         <NForm label-placement="left" :label-width="140">
-          <NFormItem v-for="(field, key) in indexers[editingType]?.config" :key="key" :label="field.title">
-            <NInput v-model:value="editingConfig[field.id]" :placeholder="field.placeholder" :type="field.type === 'password' ? 'password' : 'text'" />
+          <NFormItem
+            v-for="(field, key) in indexers[editingType]?.config"
+            :key="key"
+            :label="field.title"
+          >
+            <NInput
+              v-model:value="editingConfig[field.id]"
+              :placeholder="field.placeholder"
+              :type="field.type === 'password' ? 'password' : 'text'"
+            />
           </NFormItem>
         </NForm>
       </div>
       <template #footer>
         <div class="flex justify-between items-center">
-          <NButton v-if="editingType !== 'builtin'" :loading="testLoading[editingType]" @click="handleTest(editingType)">测试</NButton>
-          <span v-else />
+          <NButton
+            v-if="editingType !== 'builtin'"
+            :loading="testLoading[editingType]"
+            @click="handleTest(editingType)"
+          >
+            测试
+          </NButton>
+          <span v-else></span>
           <NSpace>
             <NButton @click="editModalShow = false">取消</NButton>
-            <NButton type="primary" @click="editingType === 'builtin' ? saveBuiltin() : handleSave()">保存</NButton>
+            <NButton
+              type="primary"
+              @click="editingType === 'builtin' ? saveBuiltin() : handleSave()"
+            >
+              保存
+            </NButton>
           </NSpace>
         </div>
       </template>
     </NModal>
 
     <!-- 统计模态框 -->
-    <NModal v-model:show="statsModal" title="索引器统计" preset="card" class="w-[600px]">
-      <div v-if="statsData.length">
+    <NModal
+      v-model:show="statsModal"
+      title="索引器统计"
+      preset="card"
+      :style="{ width: '600px', maxWidth: '92vw' }"
+    >
+      <div v-if="statsData.length > 0">
         <EchartsUI ref="chartRef" height="400px" />
       </div>
-      <div v-else class="text-center py-8" style="color: hsl(var(--muted-foreground))">暂无统计数据</div>
+      <div
+        v-else
+        class="text-center py-8"
+        style="color: hsl(var(--muted-foreground))"
+      >
+        暂无统计数据
+      </div>
     </NModal>
   </div>
 </template>

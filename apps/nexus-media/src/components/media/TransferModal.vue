@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import { ref, watch } from 'vue';
 
+import { IconifyIcon } from '@vben/icons';
+
 import {
   NButton,
   NCard,
@@ -17,8 +19,6 @@ import {
   NSpin,
 } from 'naive-ui';
 
-import { IconifyIcon } from '@vben/icons';
-
 import { searchMediaApi } from '#/api/modules/media';
 import { SYNC_MODES } from '#/api/modules/sync';
 
@@ -33,12 +33,12 @@ export interface TransferFormData {
 }
 
 const props = defineProps<{
-  show: boolean;
-  path: string;
+  loading?: boolean;
   outpath?: string;
+  path: string;
+  show: boolean;
   syncmod?: string;
   type?: string;
-  loading?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -87,7 +87,10 @@ const tmdbSearchResults = ref<any[]>([]);
 function openTmdbSearch() {
   tmdbSearchShow.value = true;
   tmdbSearchKeyword.value = form.value.path
-    ? form.value.path.split('/').pop()?.replace(/\.\w+$/, '') || ''
+    ? form.value.path
+        .split('/')
+        .pop()
+        ?.replace(/\.\w+$/, '') || ''
     : '';
   tmdbSearchResults.value = [];
 }
@@ -126,14 +129,19 @@ function getImgUrl(url?: string) {
       :show="props.show"
       title="转移"
       preset="card"
-      style="width: 560px; max-width: 92vw;"
+      style="width: 560px; max-width: 92vw"
       :bordered="false"
       segmented
       @update:show="handleClose"
     >
       <NForm label-placement="left" label-width="80">
         <NFormItem label="输入路径">
-          <NInput v-model:value="form.path" readonly size="small" :title="form.path" />
+          <NInput
+            v-model:value="form.path"
+            readonly
+            size="small"
+            :title="form.path"
+          />
         </NFormItem>
         <NFormItem label="输出路径">
           <NInput
@@ -159,7 +167,7 @@ function getImgUrl(url?: string) {
           </NFormItem>
         </div>
         <NFormItem label="TMDB ID">
-          <NSpace align="center" :wrap="false" style="width: 100%;">
+          <NSpace align="center" :wrap="false" style="width: 100%">
             <NInputNumber
               v-model:value="form.tmdb"
               placeholder="自动识别"
@@ -167,7 +175,7 @@ function getImgUrl(url?: string) {
               :show-button="false"
               clearable
               size="small"
-              style="flex: 1;"
+              style="flex: 1"
             />
             <NButton size="small" @click="openTmdbSearch">
               <template #icon>
@@ -208,7 +216,7 @@ function getImgUrl(url?: string) {
       v-model:show="tmdbSearchShow"
       title="查询 TMDB ID"
       preset="card"
-      style="width: 560px; max-width: 92vw;"
+      style="width: 560px; max-width: 92vw"
       :bordered="false"
       segmented
     >
@@ -218,7 +226,7 @@ function getImgUrl(url?: string) {
             v-model:value="tmdbSearchKeyword"
             placeholder="输入名称查询"
             size="small"
-            style="width: 320px;"
+            style="width: 320px"
             @keyup.enter="handleTmdbSearch"
           />
           <NButton
@@ -234,10 +242,7 @@ function getImgUrl(url?: string) {
           </NButton>
         </NSpace>
         <NSpin :show="tmdbSearchLoading">
-          <div
-            v-if="tmdbSearchResults.length > 0"
-            class="tmdb-result-grid"
-          >
+          <div v-if="tmdbSearchResults.length > 0" class="tmdb-result-grid">
             <NCard
               v-for="media in tmdbSearchResults"
               :key="media.id"
@@ -253,7 +258,9 @@ function getImgUrl(url?: string) {
                   :src="getImgUrl(media.image || media.poster)"
                   class="tmdb-poster rounded"
                   alt=""
-                  @error="(e: any) => (e.target.src = '/static/img/no-image.png')"
+                  @error="
+                    (e: any) => (e.target.src = '/static/img/no-image.png')
+                  "
                 />
                 <div
                   v-else
@@ -262,18 +269,17 @@ function getImgUrl(url?: string) {
                   <IconifyIcon
                     icon="lucide:image"
                     class="size-6"
-                    style="color: hsl(var(--muted-foreground));"
+                    style="color: hsl(var(--muted-foreground))"
                   />
                 </div>
                 <div class="min-w-0 flex-1">
                   <div class="tmdb-title truncate">
                     {{ media.title }}
-                    <span v-if="media.year" class="tmdb-year">({{ media.year }})</span>
+                    <span v-if="media.year" class="tmdb-year"
+                      >({{ media.year }})</span
+                    >
                   </div>
-                  <div
-                    v-if="media.overview"
-                    class="tmdb-overview line-clamp-3"
-                  >
+                  <div v-if="media.overview" class="tmdb-overview line-clamp-3">
                     {{ media.overview }}
                   </div>
                 </div>
@@ -301,47 +307,47 @@ function getImgUrl(url?: string) {
 }
 
 .tmdb-result-card {
+  cursor: pointer;
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
-  cursor: pointer;
   transition: box-shadow 0.2s;
 }
 
 .tmdb-result-card:hover {
-  box-shadow: 0 2px 8px hsl(var(--foreground) / 0.08);
+  box-shadow: 0 2px 8px hsl(var(--foreground) / 8%);
 }
 
 .tmdb-poster {
+  flex-shrink: 0;
   width: 60px;
   height: 80px;
   object-fit: cover;
-  flex-shrink: 0;
   background-color: hsl(var(--muted));
 }
 
 .tmdb-poster-placeholder {
+  flex-shrink: 0;
   width: 60px;
   height: 80px;
   background-color: hsl(var(--muted));
-  flex-shrink: 0;
 }
 
 .tmdb-title {
+  margin-bottom: 0.25rem;
   font-size: 0.9rem;
   font-weight: 500;
   color: hsl(var(--card-foreground));
-  margin-bottom: 0.25rem;
 }
 
 .tmdb-year {
   font-size: 0.8rem;
-  color: hsl(var(--muted-foreground));
   font-weight: 400;
+  color: hsl(var(--muted-foreground));
 }
 
 .tmdb-overview {
   font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
   line-height: 1.4;
+  color: hsl(var(--muted-foreground));
 }
 </style>

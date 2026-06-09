@@ -1,5 +1,10 @@
 <script lang="ts" setup>
-import { ref, onMounted, computed } from 'vue';
+import type { StorageApi } from '#/api/modules/storage';
+import type { SyncApi } from '#/api/modules/sync';
+
+import { computed, onMounted, ref } from 'vue';
+
+import { IconifyIcon } from '@vben/icons';
 
 import {
   NButton,
@@ -8,13 +13,23 @@ import {
   NForm,
   NFormItem,
   NInput,
+  NSelect,
   NSpace,
   NSpin,
   NSwitch,
-  NSelect,
   NTooltip,
 } from 'naive-ui';
-import { IconifyIcon } from '@vben/icons';
+
+import { getStorageBackendsApi } from '#/api/modules/storage';
+import {
+  deleteSyncTaskApi,
+  getSyncTasksApi,
+  runSyncTaskApi,
+  saveSyncTaskApi,
+  SYNC_MODES,
+} from '#/api/modules/sync';
+import PathPickerModal from '#/components/media/PathPickerModal.vue';
+import PageHeader from '#/components/page/PageHeader.vue';
 
 const windowWidth = ref(window.innerWidth);
 const isMobile = computed(() => windowWidth.value < 640);
@@ -25,21 +40,6 @@ function onResize() {
 onMounted(() => {
   window.addEventListener('resize', onResize);
 });
-
-import {
-  deleteSyncTaskApi,
-  getSyncTasksApi,
-  runSyncTaskApi,
-  saveSyncTaskApi,
-  SYNC_MODES,
-} from '#/api/modules/sync';
-import type { SyncApi } from '#/api/modules/sync';
-import {
-  getStorageBackendsApi,
-} from '#/api/modules/storage';
-import type { StorageApi } from '#/api/modules/storage';
-import PageHeader from '#/components/page/PageHeader.vue';
-import PathPickerModal from '#/components/media/PathPickerModal.vue';
 
 interface SyncTask extends SyncApi.SyncTask {}
 
@@ -53,7 +53,10 @@ const tasks = ref<SyncTask[]>([]);
 const backends = ref<StorageApi.StorageBackend[]>([]);
 const backendOptions = computed(() => [
   { label: '本地', value: 'local' },
-  ...backends.value.map((b) => ({ label: `${b.name} (${b.type})`, value: String(b.id) })),
+  ...backends.value.map((b) => ({
+    label: `${b.name} (${b.type})`,
+    value: String(b.id),
+  })),
 ]);
 const loading = ref(false);
 
@@ -62,16 +65,21 @@ const syncGroups = computed<SyncGroup[]>(() => {
   for (const t of tasks.value) {
     const key = t.source || t.from || '';
     if (!map.has(key)) map.set(key, []);
-    map.get(key)!.push(t);
+    const list = map.get(key);
+    if (list) {
+      list.push(t);
+    }
   }
-  return Array.from(map.entries()).map(([source, items]) => ({
+  return [...map.entries()].map(([source, items]) => ({
     source,
     src_backend: items[0]?.src_backend || 'local',
     items,
   }));
 });
 
-const enabledCount = computed(() => tasks.value.filter((t) => t.enabled).length);
+const enabledCount = computed(
+  () => tasks.value.filter((t) => t.enabled).length,
+);
 
 // 抽屉
 const drawer = ref({
@@ -96,11 +104,15 @@ const drawer = ref({
 const pathPicker = ref({
   show: false,
   title: '选择目录',
-  targetField: 'source' as 'source' | 'dest' | 'unknown',
+  targetField: 'source' as 'dest' | 'source' | 'unknown',
 });
 
-function openPathPicker(field: 'source' | 'dest' | 'unknown') {
-  const titles = { source: '选择源目录', dest: '选择目的目录', unknown: '选择未识别目录' };
+function openPathPicker(field: 'dest' | 'source' | 'unknown') {
+  const titles = {
+    source: '选择源目录',
+    dest: '选择目的目录',
+    unknown: '选择未识别目录',
+  };
   pathPicker.value = {
     show: true,
     title: titles[field],
@@ -126,7 +138,7 @@ async function fetch() {
       getSyncTasksApi(),
       getStorageBackendsApi(),
     ]);
-    const dict = (res as unknown) as Record<string, SyncTask> || {};
+    const dict = (res as unknown as Record<string, SyncTask>) || {};
     tasks.value = Object.values(dict);
     backends.value = backendRes.items || [];
   } finally {
@@ -261,22 +273,31 @@ onMounted(fetch);
       style="background: hsl(var(--card)); border-color: hsl(var(--border))"
     >
       <div class="flex items-center gap-2">
-        <IconifyIcon icon="lucide:folder-sync" class="size-4" style="color: hsl(var(--primary))" />
+        <IconifyIcon
+          icon="lucide:folder-sync"
+          class="size-4"
+          style="color: hsl(var(--primary))"
+        />
         <span style="color: hsl(var(--muted-foreground))">
-          共 <strong style="color: hsl(var(--foreground))">{{ tasks.length }}</strong> 个同步目录
+          共
+          <strong style="color: hsl(var(--foreground))">{{
+            tasks.length
+          }}</strong>
+          个同步目录
         </span>
       </div>
       <div class="flex items-center gap-2">
-        <span class="size-1.5 rounded-full bg-success" />
+        <span class="size-1.5 rounded-full bg-success"></span>
         <span style="color: hsl(var(--muted-foreground))">
-          <strong style="color: hsl(var(--success))">{{ enabledCount }}</strong> 个正在监控
+          <strong style="color: hsl(var(--success))">{{ enabledCount }}</strong>
+          个正在监控
         </span>
       </div>
     </div>
 
     <NSpin :show="loading" class="mt-5">
       <div
-        v-if="syncGroups.length"
+        v-if="syncGroups.length > 0"
         class="grid grid-cols-1 gap-4 lg:grid-cols-2"
       >
         <div
@@ -316,7 +337,10 @@ onMounted(fetch);
                 >
                   {{ group.source || '未命名' }}
                 </h3>
-                <p class="text-xs mt-0.5" style="color: hsl(var(--muted-foreground))">
+                <p
+                  class="text-xs mt-0.5"
+                  style="color: hsl(var(--muted-foreground))"
+                >
                   {{ group.items.length }} 个同步配置
                 </p>
               </div>
@@ -336,9 +360,15 @@ onMounted(fetch);
             >
               <span
                 class="size-1.5 rounded-full"
-                :class="group.items.some((i: any) => i.enabled) ? 'bg-success' : 'bg-muted-foreground'"
-              />
-              {{ group.items.some((i: any) => i.enabled) ? '监控中' : '已停用' }}
+                :class="
+                  group.items.some((i: any) => i.enabled)
+                    ? 'bg-success'
+                    : 'bg-muted-foreground'
+                "
+              ></span>
+              {{
+                group.items.some((i: any) => i.enabled) ? '监控中' : '已停用'
+              }}
             </div>
           </div>
 
@@ -347,25 +377,35 @@ onMounted(fetch);
             <div
               v-for="(item, idx) in group.items"
               :key="item.id"
-              class="px-5 py-2.5 flex items-center justify-between gap-3"
-              :style="idx % 2 === 0 ? '' : 'background: hsl(var(--muted) / 0.15)'"
-              :class="['group', 'hover:bg-accent/30']"
+              class="px-5 py-2.5 flex items-center justify-between gap-3 group hover:bg-accent/30"
+              :style="
+                idx % 2 === 0 ? '' : 'background: hsl(var(--muted) / 0.15)'
+              "
             >
               <div class="flex items-center gap-3 flex-1 min-w-0">
                 <!-- 固定宽度的标签区域，保证目的目录对齐 -->
-                  <div class="flex items-center gap-2 flex-shrink-0">
+                <div class="flex items-center gap-2 flex-shrink-0">
                   <!-- 后端标签 -->
                   <span
                     class="inline-flex items-center justify-center px-2 py-0.5 rounded-md text-xs font-semibold text-center"
                     style="width: 80px"
                     :style="backendTagStyle(item.dst_backend || 'local')"
                   >
-                    {{ backendOptions.find((b: any) => b.value === (item.dst_backend || 'local'))?.label || '本地' }}
+                    {{
+                      backendOptions.find(
+                        (b: any) => b.value === (item.dst_backend || 'local'),
+                      )?.label || '本地'
+                    }}
                   </span>
                   <!-- 同步方式 -->
                   <span
                     class="text-xs px-1.5 py-0.5 rounded font-medium text-center"
-                    style="background: hsl(var(--accent)); color: hsl(var(--muted-foreground)); width: 56px; display: inline-block;"
+                    style="
+                      display: inline-block;
+                      width: 56px;
+                      color: hsl(var(--muted-foreground));
+                      background: hsl(var(--accent));
+                    "
                   >
                     {{ modeLabel(item.operation || item.syncmod || item.mode) }}
                   </span>
@@ -374,8 +414,12 @@ onMounted(fetch);
                 <span
                   v-if="item.enabled"
                   class="size-1.5 rounded-full bg-success flex-shrink-0"
-                />
-                <span v-else class="size-1.5 rounded-full flex-shrink-0" style="visibility: hidden" />
+                ></span>
+                <span
+                  v-else
+                  class="size-1.5 rounded-full flex-shrink-0"
+                  style="visibility: hidden"
+                ></span>
                 <!-- 目的目录 -->
                 <span
                   class="text-sm truncate font-mono flex-1"
@@ -385,7 +429,9 @@ onMounted(fetch);
                   {{ item.to || item.target || '自动' }}
                 </span>
               </div>
-              <div class="flex items-center gap-1 flex-shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">
+              <div
+                class="flex items-center gap-1 flex-shrink-0 opacity-60 group-hover:opacity-100 transition-opacity"
+              >
                 <NTooltip>
                   <template #trigger>
                     <NButton size="tiny" text @click="handleRun(item)">
@@ -404,7 +450,12 @@ onMounted(fetch);
                 </NTooltip>
                 <NTooltip>
                   <template #trigger>
-                    <NButton size="tiny" text type="error" @click="handleDelete(item)">
+                    <NButton
+                      size="tiny"
+                      text
+                      type="error"
+                      @click="handleDelete(item)"
+                    >
                       <IconifyIcon icon="lucide:trash-2" class="size-4" />
                     </NButton>
                   </template>
@@ -476,11 +527,19 @@ onMounted(fetch);
               clearable
             >
               <template #prefix>
-                <IconifyIcon icon="lucide:folder-input" class="size-4" style="color: hsl(var(--muted-foreground))" />
+                <IconifyIcon
+                  icon="lucide:folder-input"
+                  class="size-4"
+                  style="color: hsl(var(--muted-foreground))"
+                />
               </template>
               <template #suffix>
-                <NButton size="tiny" text @click="openPathPicker('source')"
-                  title="浏览选择目录">
+                <NButton
+                  size="tiny"
+                  text
+                  @click="openPathPicker('source')"
+                  title="浏览选择目录"
+                >
                   <template #icon>
                     <IconifyIcon icon="lucide:folder-open" class="size-4" />
                   </template>
@@ -497,11 +556,19 @@ onMounted(fetch);
                 clearable
               >
                 <template #prefix>
-                  <IconifyIcon icon="lucide:folder-output" class="size-4" style="color: hsl(var(--muted-foreground))" />
+                  <IconifyIcon
+                    icon="lucide:folder-output"
+                    class="size-4"
+                    style="color: hsl(var(--muted-foreground))"
+                  />
                 </template>
                 <template #suffix>
-                  <NButton size="tiny" text @click="openPathPicker('dest')"
-                    title="浏览选择目录">
+                  <NButton
+                    size="tiny"
+                    text
+                    @click="openPathPicker('dest')"
+                    title="浏览选择目录"
+                  >
                     <template #icon>
                       <IconifyIcon icon="lucide:folder-open" class="size-4" />
                     </template>
@@ -516,11 +583,19 @@ onMounted(fetch);
                 clearable
               >
                 <template #prefix>
-                  <IconifyIcon icon="lucide:folder-x" class="size-4" style="color: hsl(var(--muted-foreground))" />
+                  <IconifyIcon
+                    icon="lucide:folder-x"
+                    class="size-4"
+                    style="color: hsl(var(--muted-foreground))"
+                  />
                 </template>
                 <template #suffix>
-                  <NButton size="tiny" text @click="openPathPicker('unknown')"
-                    title="浏览选择目录">
+                  <NButton
+                    size="tiny"
+                    text
+                    @click="openPathPicker('unknown')"
+                    title="浏览选择目录"
+                  >
                     <template #icon>
                       <IconifyIcon icon="lucide:folder-open" class="size-4" />
                     </template>
@@ -540,10 +615,16 @@ onMounted(fetch);
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <NFormItem label="源后端">
-              <NSelect v-model:value="drawer.form.src_backend" :options="backendOptions" />
+              <NSelect
+                v-model:value="drawer.form.src_backend"
+                :options="backendOptions"
+              />
             </NFormItem>
             <NFormItem label="目标后端">
-              <NSelect v-model:value="drawer.form.dst_backend" :options="backendOptions" />
+              <NSelect
+                v-model:value="drawer.form.dst_backend"
+                :options="backendOptions"
+              />
             </NFormItem>
           </div>
 
@@ -554,7 +635,9 @@ onMounted(fetch);
                 :checked-value="1"
                 :unchecked-value="0"
               />
-              <span class="text-sm" style="color: hsl(var(--foreground))">兼容模式</span>
+              <span class="text-sm" style="color: hsl(var(--foreground))"
+                >兼容模式</span
+              >
             </div>
             <div class="flex items-center gap-2">
               <NSwitch
@@ -562,7 +645,9 @@ onMounted(fetch);
                 :checked-value="1"
                 :unchecked-value="0"
               />
-              <span class="text-sm" style="color: hsl(var(--foreground))">识别重命名</span>
+              <span class="text-sm" style="color: hsl(var(--foreground))"
+                >识别重命名</span
+              >
             </div>
             <div class="flex items-center gap-2">
               <NSwitch
@@ -570,16 +655,26 @@ onMounted(fetch);
                 :checked-value="1"
                 :unchecked-value="0"
               />
-              <span class="text-sm" style="color: hsl(var(--foreground))">开启同步</span>
+              <span class="text-sm" style="color: hsl(var(--foreground))"
+                >开启同步</span
+              >
             </div>
           </div>
 
           <div
             class="mt-4 rounded-lg p-3 text-xs flex items-start gap-2"
-            style="background: hsl(var(--accent)); color: hsl(var(--muted-foreground))"
+            style="
+              color: hsl(var(--muted-foreground));
+              background: hsl(var(--accent));
+            "
           >
-            <IconifyIcon icon="lucide:info" class="size-4 flex-shrink-0 mt-0.5" />
-            <span>硬链接要求源目录和目的目录在同一磁盘分区；移动模式会影响做种，请谨慎使用</span>
+            <IconifyIcon
+              icon="lucide:info"
+              class="size-4 flex-shrink-0 mt-0.5"
+            />
+            <span
+              >硬链接要求源目录和目的目录在同一磁盘分区；移动模式会影响做种，请谨慎使用</span
+            >
           </div>
         </NForm>
 
@@ -603,7 +698,9 @@ onMounted(fetch);
       :title="pathPicker.title"
       :initial-path="drawer.form[pathPicker.targetField]"
       :initial-backend-id="
-        pathPicker.targetField === 'source' ? drawer.form.src_backend : drawer.form.dst_backend
+        pathPicker.targetField === 'source'
+          ? drawer.form.src_backend
+          : drawer.form.dst_backend
       "
       @confirm="handlePathConfirm"
     />

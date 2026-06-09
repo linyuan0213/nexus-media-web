@@ -36,7 +36,22 @@ const tabsValue = defineModel<string>('modelValue');
             />
             <label class="profile-avatar-upload">
               <slot name="avatar-upload">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"
+                  />
+                  <circle cx="12" cy="13" r="3" />
+                </svg>
               </slot>
             </label>
           </div>
@@ -76,20 +91,21 @@ const tabsValue = defineModel<string>('modelValue');
 
 .profile-avatar-upload {
   position: absolute;
-  bottom: 0;
   right: 0;
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 50%;
+  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  color: hsl(var(--foreground));
   cursor: pointer;
   background: hsl(var(--card));
   border: 2px solid hsl(var(--border));
-  color: hsl(var(--foreground));
+  border-radius: 50%;
   transition: all 0.15s ease;
 }
+
 .profile-avatar-upload:hover {
   background: hsl(var(--accent));
   transform: scale(1.1);

@@ -37,7 +37,9 @@ function handleImageError(e: Event) {
 </script>
 
 <template>
-  <div class="media-card overflow-hidden rounded cursor-pointer tbl-card tbl-card-hover">
+  <div
+    class="media-card overflow-hidden rounded cursor-pointer tbl-card tbl-card-hover"
+  >
     <div class="relative">
       <img
         :src="poster || fallbackImage"
@@ -67,19 +69,23 @@ function handleImageError(e: Event) {
           <div
             class="progress-bar-tblr-fill"
             :style="{ width: `${progress}%` }"
-          />
+          ></div>
         </div>
       </div>
     </div>
     <div class="p-2 text-center">
-      <div class="text-sm font-semibold truncate" :title="title">{{ title }}</div>
-      <div v-if="overview" class="text-xs text-gray-500 mt-1 line-clamp-2">{{ overview }}</div>
+      <div class="text-sm font-semibold truncate" :title="title">
+        {{ title }}
+      </div>
+      <div v-if="overview" class="text-xs text-gray-500 mt-1 line-clamp-2">
+        {{ overview }}
+      </div>
       <div v-if="extra" class="text-xs text-gray-500 mt-1">{{ extra }}</div>
       <div v-if="status" class="text-xs mt-1">
         <span
           class="inline-block w-2 h-2 rounded-full mr-1"
           :class="status === 'active' ? 'bg-green-500' : 'bg-gray-400'"
-        />
+        ></span>
         {{ status }}
       </div>
     </div>

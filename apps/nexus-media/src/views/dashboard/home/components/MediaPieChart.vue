@@ -77,9 +77,13 @@ onMounted(() => {
   renderEcharts(buildOption() as any);
 });
 
-watch(() => props.data, () => {
-  renderEcharts(buildOption() as any);
-}, { deep: true });
+watch(
+  () => props.data,
+  () => {
+    renderEcharts(buildOption() as any);
+  },
+  { deep: true },
+);
 </script>
 
 <template>

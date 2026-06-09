@@ -94,9 +94,13 @@ onMounted(() => {
   renderEcharts(buildOption() as any);
 });
 
-watch(() => [props.labels, props.uploadData, props.downloadData], () => {
-  renderEcharts(buildOption() as any);
-}, { deep: true });
+watch(
+  () => [props.labels, props.uploadData, props.downloadData],
+  () => {
+    renderEcharts(buildOption() as any);
+  },
+  { deep: true },
+);
 </script>
 
 <template>

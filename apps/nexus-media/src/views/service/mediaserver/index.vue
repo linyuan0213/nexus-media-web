@@ -1,5 +1,8 @@
 <script lang="ts" setup>
-import { ref, onMounted, computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+
+import { IconifyIcon } from '@vben/icons';
+
 import {
   NButton,
   NCard,
@@ -13,9 +16,12 @@ import {
   NTooltip,
   useMessage,
 } from 'naive-ui';
-import { IconifyIcon } from '@vben/icons';
 
-import { saveMediaServerConfigApi, getMediaServersConfigApi, testMediaServerApi } from '#/api';
+import {
+  getMediaServersConfigApi,
+  saveMediaServerConfigApi,
+  testMediaServerApi,
+} from '#/api';
 import PageHeader from '#/components/page/PageHeader.vue';
 
 interface MediaServerConf {
@@ -37,7 +43,9 @@ const editModalShow = ref(false);
 const editingType = ref('');
 const editingConfig = ref<Record<string, any>>({});
 
-const serverList = computed(() => Object.entries(servers.value).map(([type, conf]) => ({ type, ...conf })));
+const serverList = computed(() =>
+  Object.entries(servers.value).map(([type, conf]) => ({ type, ...conf })),
+);
 
 async function fetchData() {
   loading.value = true;
@@ -48,7 +56,9 @@ async function fetchData() {
       servers.value = data.mediaserver_conf;
     }
     if (data.servers) {
-      for (const [name, srv] of Object.entries(data.servers as Record<string, any>)) {
+      for (const [name, srv] of Object.entries(
+        data.servers as Record<string, any>,
+      )) {
         serverConfigs.value[name] = {
           ...srv.config,
           enabled: srv.enabled,
@@ -56,7 +66,7 @@ async function fetchData() {
         };
       }
     }
-  } catch (e) {
+  } catch {
     message.error('获取媒体服务器配置失败');
   } finally {
     loading.value = false;
@@ -70,7 +80,8 @@ function openModal(type: string) {
   const conf = servers.value[type];
   if (conf?.config) {
     Object.entries(conf.config).forEach(([key, field]: [string, any]) => {
-      editingConfig.value[field.id] = cfg[key] ?? (field.type === 'switch' ? 0 : '');
+      editingConfig.value[field.id] =
+        cfg[key] ?? (field.type === 'switch' ? 0 : '');
     });
   }
   editModalShow.value = true;
@@ -89,8 +100,8 @@ async function handleSave() {
     editModalShow.value = false;
     message.success('保存成功');
     await fetchData();
-  } catch (e: any) {
-    message.error(e?.message || '保存失败');
+  } catch (error: any) {
+    message.error(error?.message || '保存失败');
   }
 }
 
@@ -106,8 +117,8 @@ async function handleTest() {
     }
     await testMediaServerApi(data);
     message.success('测试成功');
-  } catch (e: any) {
-    message.error(e?.message || '测试失败');
+  } catch (error: any) {
+    message.error(error?.message || '测试失败');
   } finally {
     testLoading.value[editingType.value] = false;
   }
@@ -130,24 +141,37 @@ onMounted(fetchData);
           @click="openModal(item.type)"
         >
           <div class="text-center">
-            <div class="relative w-16 h-16 mx-auto rounded-full mb-3 overflow-hidden">
+            <div
+              class="relative w-16 h-16 mx-auto rounded-full mb-3 overflow-hidden"
+            >
               <img
                 :src="item.icon_url || mediaserverIcon(item.type)"
                 class="absolute inset-0 z-10 w-full h-full object-contain"
-                @error="($event.target as HTMLElement).style.display='none'"
+                @error="($event.target as HTMLElement).style.display = 'none'"
               />
-              <div class="w-full h-full flex items-center justify-center bg-muted">
-                <IconifyIcon icon="lucide:server" class="size-6 text-muted-foreground" />
+              <div
+                class="w-full h-full flex items-center justify-center bg-muted"
+              >
+                <IconifyIcon
+                  icon="lucide:server"
+                  class="size-6 text-muted-foreground"
+                />
               </div>
             </div>
             <div class="font-medium">{{ item.name }}</div>
             <div class="text-sm text-gray-400 mt-1">
-              <span v-if="serverConfigs[item.type]?.enabled" class="inline-flex items-center gap-1">
-                <span class="w-2 h-2 rounded-full bg-green-500" />
+              <span
+                v-if="serverConfigs[item.type]?.enabled"
+                class="inline-flex items-center gap-1"
+              >
+                <span class="w-2 h-2 rounded-full bg-green-500"></span>
                 已启用
               </span>
-              <span v-if="serverConfigs[item.type]?.is_default" class="inline-flex items-center gap-1 ml-2">
-                <span class="w-2 h-2 rounded-full bg-blue-500" />
+              <span
+                v-if="serverConfigs[item.type]?.is_default"
+                class="inline-flex items-center gap-1 ml-2"
+              >
+                <span class="w-2 h-2 rounded-full bg-blue-500"></span>
                 默认
               </span>
             </div>
@@ -161,7 +185,7 @@ onMounted(fetchData);
       v-model:show="editModalShow"
       :title="servers[editingType]?.name || '媒体服务器'"
       preset="card"
-      class="w-[600px]"
+      :style="{ width: '600px', maxWidth: '92vw' }"
     >
       <NForm label-placement="left" :label-width="140">
         <div v-for="(field, key) in servers[editingType]?.config" :key="key">
@@ -171,20 +195,38 @@ onMounted(fetchData);
                 {{ field.title }}
                 <NTooltip v-if="field.tooltip" trigger="hover">
                   <template #trigger>
-                    <IconifyIcon icon="lucide:help-circle" class="ml-1 size-4 cursor-help" style="color: hsl(var(--muted-foreground))" />
+                    <IconifyIcon
+                      icon="lucide:help-circle"
+                      class="ml-1 size-4 cursor-help"
+                      style="color: hsl(var(--muted-foreground))"
+                    />
                   </template>
-                  <div style="max-width: 320px; white-space: pre-wrap;">{{ field.tooltip }}</div>
+                  <div style="max-width: 320px; white-space: pre-wrap">
+                    {{ field.tooltip }}
+                  </div>
                 </NTooltip>
               </span>
             </template>
-            <NSwitch v-if="field.type === 'switch'" v-model:value="editingConfig[field.id]" :checked-value="1" :unchecked-value="0" />
-            <NInput v-else v-model:value="editingConfig[field.id]" :placeholder="field.placeholder" :type="field.type === 'password' ? 'password' : 'text'" />
+            <NSwitch
+              v-if="field.type === 'switch'"
+              v-model:value="editingConfig[field.id]"
+              :checked-value="1"
+              :unchecked-value="0"
+            />
+            <NInput
+              v-else
+              v-model:value="editingConfig[field.id]"
+              :placeholder="field.placeholder"
+              :type="field.type === 'password' ? 'password' : 'text'"
+            />
           </NFormItem>
         </div>
       </NForm>
       <template #footer>
         <div class="flex justify-between items-center">
-          <NButton :loading="testLoading[editingType]" @click="handleTest">测试</NButton>
+          <NButton :loading="testLoading[editingType]" @click="handleTest">
+            测试
+          </NButton>
           <NSpace>
             <NButton @click="editModalShow = false">取消</NButton>
             <NButton type="primary" @click="handleSave">保存</NButton>

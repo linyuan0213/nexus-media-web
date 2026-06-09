@@ -1,5 +1,10 @@
 <script lang="ts" setup>
+import type { StorageApi } from '#/api/modules/storage';
+import type { TransferFormData } from '#/components/media/TransferModal.vue';
+
 import { computed, h, onMounted, ref } from 'vue';
+
+import { IconifyIcon } from '@vben/icons';
 
 import {
   NButton,
@@ -12,14 +17,13 @@ import {
   NInput,
   NModal,
   NSelect,
-  NSpin,
   NSpace,
+  NSpin,
   NTooltip,
   useNotification,
 } from 'naive-ui';
 
-import { IconifyIcon } from '@vben/icons';
-
+import { findHardlinksApi } from '#/api/modules/download';
 import {
   downloadSubtitleApi,
   getDirListApi,
@@ -28,20 +32,15 @@ import {
   scrapMediaPathApi,
   searchFilesApi,
 } from '#/api/modules/media';
+import { getStorageBackendsApi } from '#/api/modules/storage';
 import {
   deleteFilesApi,
   manualTransferUdfApi,
   renameFileApi,
 } from '#/api/modules/sync';
-import {
-  getStorageBackendsApi,
-} from '#/api/modules/storage';
-import type { StorageApi } from '#/api/modules/storage';
-import { findHardlinksApi } from '#/api/modules/download';
 import IdentifyResult from '#/components/media/IdentifyResult.vue';
-import PageHeader from '#/components/page/PageHeader.vue';
 import TransferModal from '#/components/media/TransferModal.vue';
-import type { TransferFormData } from '#/components/media/TransferModal.vue';
+import PageHeader from '#/components/page/PageHeader.vue';
 
 const notification = useNotification();
 
@@ -49,9 +48,15 @@ const loading = ref(false);
 const currentPath = ref('');
 const currentBackendId = ref('local');
 const dirList = ref<any[]>([]);
-const libraryPaths = ref<Array<{ name: string; path: string; type: string; backend_id?: string }>>([]);
-const syncSourcePaths = ref<Array<{ name: string; path: string; type: string; backend_id?: string }>>([]);
-const syncDestPaths = ref<Array<{ name: string; path: string; type: string; backend_id?: string }>>([]);
+const libraryPaths = ref<
+  Array<{ backend_id?: string; name: string; path: string; type: string }>
+>([]);
+const syncSourcePaths = ref<
+  Array<{ backend_id?: string; name: string; path: string; type: string }>
+>([]);
+const syncDestPaths = ref<
+  Array<{ backend_id?: string; name: string; path: string; type: string }>
+>([]);
 const backends = ref<StorageApi.StorageBackend[]>([]);
 const backendOptions = computed(() => [
   { label: '本地', value: 'local' },
@@ -73,7 +78,9 @@ const rootBoundaries = computed(() => {
 
 function getBackendLabel(backendId?: string) {
   if (!backendId || backendId === 'local') return '本地';
-  return backends.value.find((b) => String(b.id) === backendId)?.name || backendId;
+  return (
+    backends.value.find((b) => String(b.id) === backendId)?.name || backendId
+  );
 }
 
 function getBackendTagStyle(backendId?: string) {
@@ -86,7 +93,7 @@ function getBackendTagStyle(backendId?: string) {
     { dot: 'hsl(var(--destructive))', text: 'hsl(var(--destructive))' },
     { dot: 'hsl(var(--primary))', text: 'hsl(var(--primary))' },
   ];
-  const idx = parseInt(backendId, 10) % colors.length;
+  const idx = Number.parseInt(backendId, 10) % colors.length;
   return colors[idx] || colors[0];
 }
 
@@ -119,21 +126,24 @@ const backendGroups = computed<BackendGroup[]>(() => {
     if (!byBackend.has(bid)) byBackend.set(bid, []);
     byBackend.get(bid)!.push(p);
   }
-  const sortedIds = Array.from(byBackend.keys()).sort((a, b) => {
+  const sortedIds = [...byBackend.keys()].toSorted((a, b) => {
     if (a === 'local') return -1;
     if (b === 'local') return 1;
-    return parseInt(a, 10) - parseInt(b, 10);
+    return Number.parseInt(a, 10) - Number.parseInt(b, 10);
   });
   return sortedIds.map((id) => {
     const items = byBackend.get(id)!;
     const style = getBackendTagStyle(id)!;
     const sections: TypeGroup[] = [];
-    const libs = items.filter((i) => ['movie', 'tv', 'anime'].includes(i.type));
-    if (libs.length) sections.push({ label: '媒体库', type: 'lib', items: libs });
+    const libs = items.filter((i) => ['anime', 'movie', 'tv'].includes(i.type));
+    if (libs.length > 0)
+      sections.push({ label: '媒体库', type: 'lib', items: libs });
     const srcs = items.filter((i) => i.type === 'sync');
-    if (srcs.length) sections.push({ label: '同步源', type: 'sync', items: srcs });
+    if (srcs.length > 0)
+      sections.push({ label: '同步源', type: 'sync', items: srcs });
     const dsts = items.filter((i) => i.type === 'sync_dest');
-    if (dsts.length) sections.push({ label: '同步目标', type: 'sync_dest', items: dsts });
+    if (dsts.length > 0)
+      sections.push({ label: '同步目标', type: 'sync_dest', items: dsts });
     return {
       backendId: id,
       backendName: getBackendLabel(id),
@@ -146,9 +156,9 @@ const backendGroups = computed<BackendGroup[]>(() => {
 
 const currentRoot = computed(() => {
   if (!currentPath.value) return null;
-  const norm = currentPath.value.replace(/\\/g, '/');
+  const norm = currentPath.value.replaceAll('\\', '/');
   for (const boundary of rootBoundaries.value) {
-    if (norm === boundary || norm.startsWith(boundary + '/')) {
+    if (norm === boundary || norm.startsWith(`${boundary}/`)) {
       return boundary;
     }
   }
@@ -158,53 +168,70 @@ const currentRoot = computed(() => {
 const breadcrumbs = computed(() => {
   const root = currentRoot.value;
   if (!currentPath.value || currentPath.value === '/') return [];
-  const parts = currentPath.value.replace(/\\/g, '/').split('/').filter(Boolean);
+  const parts = currentPath.value
+    .replaceAll('\\', '/')
+    .split('/')
+    .filter(Boolean);
   const items: Array<{ name: string; path: string }> = [];
   let acc = '';
   for (const part of parts) {
-    acc = acc ? `${acc}/${part}` : '/' + part;
+    acc = acc ? `${acc}/${part}` : `/${part}`;
     if (root && (acc === root || acc.length < root.length)) continue;
     items.push({ name: part, path: acc });
   }
   return items;
 });
 
-const sortKey = ref<'name' | 'size' | 'mtime' | 'ctime'>('name');
+const sortKey = ref<'ctime' | 'mtime' | 'name' | 'size'>('name');
 const sortOrder = ref<'asc' | 'desc'>('asc');
 
 const sortedDirList = computed(() => {
   const list = [...dirList.value];
-  if (sortKey.value === 'name') {
-    list.sort((a, b) => {
-      if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
-      return sortOrder.value === 'asc'
-        ? a.name.localeCompare(b.name)
-        : b.name.localeCompare(a.name);
-    });
-  } else if (sortKey.value === 'size') {
-    list.sort((a, b) => {
-      if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
-      const sa = a.size ?? -1;
-      const sb = b.size ?? -1;
-      if (sa === sb) return a.name.localeCompare(b.name);
-      return sortOrder.value === 'asc' ? sa - sb : sb - sa;
-    });
-  } else if (sortKey.value === 'mtime') {
-    list.sort((a, b) => {
-      if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
-      const ma = a.mtime ?? 0;
-      const mb = b.mtime ?? 0;
-      if (ma === mb) return a.name.localeCompare(b.name);
-      return sortOrder.value === 'asc' ? ma - mb : mb - ma;
-    });
-  } else if (sortKey.value === 'ctime') {
-    list.sort((a, b) => {
-      if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
-      const ca = a.ctime ?? 0;
-      const cb = b.ctime ?? 0;
-      if (ca === cb) return a.name.localeCompare(b.name);
-      return sortOrder.value === 'asc' ? ca - cb : cb - ca;
-    });
+  switch (sortKey.value) {
+    case 'ctime': {
+      list.sort((a, b) => {
+        if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
+        const ca = a.ctime ?? 0;
+        const cb = b.ctime ?? 0;
+        if (ca === cb) return a.name.localeCompare(b.name);
+        return sortOrder.value === 'asc' ? ca - cb : cb - ca;
+      });
+
+      break;
+    }
+    case 'mtime': {
+      list.sort((a, b) => {
+        if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
+        const ma = a.mtime ?? 0;
+        const mb = b.mtime ?? 0;
+        if (ma === mb) return a.name.localeCompare(b.name);
+        return sortOrder.value === 'asc' ? ma - mb : mb - ma;
+      });
+
+      break;
+    }
+    case 'name': {
+      list.sort((a, b) => {
+        if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
+        return sortOrder.value === 'asc'
+          ? a.name.localeCompare(b.name)
+          : b.name.localeCompare(a.name);
+      });
+
+      break;
+    }
+    case 'size': {
+      list.sort((a, b) => {
+        if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
+        const sa = a.size ?? -1;
+        const sb = b.size ?? -1;
+        if (sa === sb) return a.name.localeCompare(b.name);
+        return sortOrder.value === 'asc' ? sa - sb : sb - sa;
+      });
+
+      break;
+    }
+    // No default
   }
   return list;
 });
@@ -212,10 +239,12 @@ const sortedDirList = computed(() => {
 const filteredDirList = computed(() => {
   if (!searchKeyword.value.trim()) return sortedDirList.value;
   const kw = searchKeyword.value.trim().toLowerCase();
-  return sortedDirList.value.filter((item) => item.name.toLowerCase().includes(kw));
+  return sortedDirList.value.filter((item) =>
+    item.name.toLowerCase().includes(kw),
+  );
 });
 
-function toggleSort(key: 'name' | 'size' | 'mtime' | 'ctime') {
+function toggleSort(key: 'ctime' | 'mtime' | 'name' | 'size') {
   if (sortKey.value === key) {
     sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
   } else {
@@ -252,7 +281,11 @@ async function initLibraryPaths() {
       syncDestPaths.value = res.sync_dest_paths || [];
       defaultPath.value = res.default_path || '/';
       // 根据默认路径找到对应的 backend_id
-      const allPaths = [...libraryPaths.value, ...syncSourcePaths.value, ...syncDestPaths.value];
+      const allPaths = [
+        ...libraryPaths.value,
+        ...syncSourcePaths.value,
+        ...syncDestPaths.value,
+      ];
       const matched = allPaths.find((p) => p.path === defaultPath.value);
       if (matched?.backend_id) {
         currentBackendId.value = matched.backend_id;
@@ -261,9 +294,13 @@ async function initLibraryPaths() {
       const currentBackendPaths = allPaths.filter(
         (p) => (p.backend_id || 'local') === currentBackendId.value,
       );
-      if (defaultPath.value && defaultPath.value !== '/' && matched?.backend_id === currentBackendId.value) {
+      if (
+        defaultPath.value &&
+        defaultPath.value !== '/' &&
+        matched?.backend_id === currentBackendId.value
+      ) {
         await fetchDirList(defaultPath.value);
-      } else       if (currentBackendPaths.length > 0) {
+      } else if (currentBackendPaths.length > 0) {
         await fetchDirList(currentBackendPaths[0]!.path);
       } else {
         await fetchDirList();
@@ -277,18 +314,26 @@ async function initLibraryPaths() {
 async function fetchDirList(path?: string) {
   loading.value = true;
   try {
-    const res = await getDirListApi(path, 'HIDE_FILES_FILTER', currentBackendId.value);
+    const res = await getDirListApi(
+      path,
+      'HIDE_FILES_FILTER',
+      currentBackendId.value,
+    );
     if (Array.isArray(res)) {
-      dirList.value = res.sort((a: any, b: any) => {
+      dirList.value = res.toSorted((a: any, b: any) => {
         if (a.is_dir === b.is_dir) return a.name.localeCompare(b.name);
         return a.is_dir ? -1 : 1;
       });
       currentPath.value = path || '';
     }
-  } catch (err: any) {
-    const msg = err?.message || '';
+  } catch (error: any) {
+    const msg = error?.message || '';
     // 路径不存在时静默处理，显示空目录列表
-    if (msg.includes('No such file or directory') || msg.includes('目录不存在') || msg.includes('未找到存储后端')) {
+    if (
+      msg.includes('No such file or directory') ||
+      msg.includes('目录不存在') ||
+      msg.includes('未找到存储后端')
+    ) {
       dirList.value = [];
       currentPath.value = path || '';
     } else {
@@ -322,15 +367,15 @@ const canGoUp = computed(() => {
   if (!currentPath.value) return false;
   const root = currentRoot.value;
   if (!root) return true; // 不在任何边界内，允许自由跳转
-  return currentPath.value.replace(/\\/g, '/') !== root;
+  return currentPath.value.replaceAll('\\', '/') !== root;
 });
 
 function goUp() {
   if (!canGoUp.value) return;
-  const norm = currentPath.value.replace(/\\/g, '/');
+  const norm = currentPath.value.replaceAll('\\', '/');
   const parts = norm.split('/').filter(Boolean);
   parts.pop();
-  const parent = parts.length > 0 ? '/' + parts.join('/') : '/';
+  const parent = parts.length > 0 ? `/${parts.join('/')}` : '/';
   if (parent === '/') {
     navigateTo('');
   } else {
@@ -347,19 +392,23 @@ function handleItemClick(item: any) {
 function getFileIcon(item: any) {
   if (item.is_dir) return 'lucide:folder';
   const ext = (item.ext || '').toLowerCase();
-  if (['mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', 'm4v', 'ts'].includes(ext)) {
+  if (
+    ['avi', 'flv', 'm4v', 'mkv', 'mov', 'mp4', 'ts', 'webm', 'wmv'].includes(
+      ext,
+    )
+  ) {
     return 'lucide:film';
   }
-  if (['mp3', 'aac', 'flac', 'wav', 'ogg', 'm4a'].includes(ext)) {
+  if (['aac', 'flac', 'm4a', 'mp3', 'ogg', 'wav'].includes(ext)) {
     return 'lucide:music';
   }
-  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(ext)) {
+  if (['bmp', 'gif', 'jpeg', 'jpg', 'png', 'svg', 'webp'].includes(ext)) {
     return 'lucide:image';
   }
-  if (['srt', 'ass', 'ssa', 'vtt', 'sub'].includes(ext)) {
+  if (['ass', 'srt', 'ssa', 'sub', 'vtt'].includes(ext)) {
     return 'lucide:subtitles';
   }
-  if (['nfo', 'xml', 'json'].includes(ext)) {
+  if (['json', 'nfo', 'xml'].includes(ext)) {
     return 'lucide:file-code';
   }
   return 'lucide:file';
@@ -368,16 +417,20 @@ function getFileIcon(item: any) {
 function getFileIconColor(item: any) {
   if (item.is_dir) return 'hsl(var(--warning))';
   const ext = (item.ext || '').toLowerCase();
-  if (['mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', 'm4v', 'ts'].includes(ext)) {
+  if (
+    ['avi', 'flv', 'm4v', 'mkv', 'mov', 'mp4', 'ts', 'webm', 'wmv'].includes(
+      ext,
+    )
+  ) {
     return 'hsl(var(--primary))';
   }
-  if (['mp3', 'aac', 'flac', 'wav', 'ogg', 'm4a'].includes(ext)) {
+  if (['aac', 'flac', 'm4a', 'mp3', 'ogg', 'wav'].includes(ext)) {
     return 'hsl(var(--success))';
   }
-  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(ext)) {
+  if (['bmp', 'gif', 'jpeg', 'jpg', 'png', 'svg', 'webp'].includes(ext)) {
     return 'hsl(var(--warning))';
   }
-  if (['srt', 'ass', 'ssa', 'vtt', 'sub'].includes(ext)) {
+  if (['ass', 'srt', 'ssa', 'sub', 'vtt'].includes(ext)) {
     return 'hsl(var(--destructive))';
   }
   return 'hsl(var(--muted-foreground))';
@@ -411,8 +464,11 @@ async function handleScrap(path: string) {
   try {
     await scrapMediaPathApi(path, currentBackendId.value);
     notification.success({ content: '刮削任务已提交' });
-  } catch (err: any) {
-    notification.error({ content: '刮削失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '刮削失败',
+      description: error?.message || '',
+    });
   }
 }
 
@@ -420,8 +476,11 @@ async function handleSubtitle(item: any) {
   try {
     await downloadSubtitleApi(item.path, item.name);
     notification.success({ content: '字幕下载任务已提交' });
-  } catch (err: any) {
-    notification.error({ content: '字幕下载失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '字幕下载失败',
+      description: error?.message || '',
+    });
   }
 }
 
@@ -429,7 +488,8 @@ function formatSize(bytes?: number) {
   if (bytes == null) return '-';
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
 
@@ -444,12 +504,18 @@ const renameForm = ref({ path: '', name: '' });
 const hardlinkConfigShow = ref(false);
 const hardlinkConfigForm = ref({ path: '', dir: '' });
 const hardlinkModalShow = ref(false);
-const hardlinkResult = ref<Record<string, Array<{ file: string; filename: string; filepath: string }>>>({});
+const hardlinkResult = ref<
+  Record<string, Array<{ file: string; filename: string; filepath: string }>>
+>({});
 const hardlinkSourceFile = ref('');
 const hardlinkLoading = ref(false);
 
 const deleteModalShow = ref(false);
-const deletePayload = ref<{ path: string; name: string; is_dir: boolean } | null>(null);
+const deletePayload = ref<null | {
+  is_dir: boolean;
+  name: string;
+  path: string;
+}>(null);
 
 // identify result
 const identifyResultShow = ref(false);
@@ -480,8 +546,11 @@ async function handleGlobalSearch() {
       globalSearchReady.value = res.ready || false;
       globalSearchIndexed.value = res.indexed || 0;
     }
-  } catch (err: any) {
-    notification.error({ content: '搜索失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '搜索失败',
+      description: error?.message || '',
+    });
   } finally {
     globalSearchLoading.value = false;
   }
@@ -494,12 +563,15 @@ function clearGlobalSearch() {
 }
 
 function navigateToSearchResult(item: any) {
-  const dir = item.path?.substring(0, item.path.lastIndexOf('/')) || '/';
+  const dir =
+    item.path?.slice(0, Math.max(0, item.path.lastIndexOf('/'))) || '/';
   globalSearchMode.value = false;
   searchKeyword.value = '';
   highlightedPath.value = item.path;
   navigateTo(dir);
-  setTimeout(() => { highlightedPath.value = ''; }, 3000);
+  setTimeout(() => {
+    highlightedPath.value = '';
+  }, 3000);
 }
 
 async function handleIdentify(item: any) {
@@ -513,8 +585,11 @@ async function handleIdentify(item: any) {
     const res = await nameTestApi(filename);
     identifyResult.value = res || {};
     identifyResultShow.value = true;
-  } catch (err: any) {
-    notification.error({ content: '识别失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '识别失败',
+      description: error?.message || '',
+    });
   } finally {
     identifyLoading.value = false;
   }
@@ -539,8 +614,11 @@ async function submitTransfer(data: TransferFormData) {
     });
     notification.success({ content: '转移任务已提交' });
     transferModalShow.value = false;
-  } catch (err: any) {
-    notification.error({ content: '提交失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '提交失败',
+      description: error?.message || '',
+    });
   } finally {
     transferLoading.value = false;
   }
@@ -553,19 +631,27 @@ function openRename(item: any) {
 
 async function submitRename() {
   try {
-    await renameFileApi({ path: renameForm.value.path, name: renameForm.value.name });
+    await renameFileApi({
+      path: renameForm.value.path,
+      name: renameForm.value.name,
+    });
     notification.success({ content: '重命名成功' });
     renameModalShow.value = false;
     await fetchDirList(currentPath.value || undefined);
-  } catch (err: any) {
-    notification.error({ content: '重命名失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '重命名失败',
+      description: error?.message || '',
+    });
   }
 }
 
 function openHardlinkConfig(item: any) {
   hardlinkConfigForm.value = {
     path: item.path,
-    dir: item.path ? item.path.substring(0, item.path.lastIndexOf('/')) || '/' : '',
+    dir: item.path
+      ? item.path.slice(0, Math.max(0, item.path.lastIndexOf('/'))) || '/'
+      : '',
   };
   hardlinkConfigShow.value = true;
 }
@@ -582,15 +668,22 @@ async function submitHardlinkQuery() {
     });
     hardlinkResult.value = (res || {}) as any;
     hardlinkModalShow.value = true;
-  } catch (err: any) {
-    notification.error({ content: '查询失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '查询失败',
+      description: error?.message || '',
+    });
   } finally {
     hardlinkLoading.value = false;
   }
 }
 
 function openDelete(item: any) {
-  deletePayload.value = { path: item.path, name: item.name, is_dir: item.is_dir };
+  deletePayload.value = {
+    path: item.path,
+    name: item.name,
+    is_dir: item.is_dir,
+  };
   deleteModalShow.value = true;
 }
 
@@ -604,25 +697,58 @@ async function confirmDelete() {
     notification.success({ content: '删除成功' });
     deleteModalShow.value = false;
     await fetchDirList(currentPath.value || undefined);
-  } catch (err: any) {
-    notification.error({ content: '删除失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '删除失败',
+      description: error?.message || '',
+    });
   }
 }
 
 function getItemOptions(item: any) {
   const common = [
-    { label: '识别', key: 'identify', icon: () => h(IconifyIcon, { icon: 'lucide:scan-line', class: 'size-4' }) },
-    { label: '刮削', key: 'scrap', icon: () => h(IconifyIcon, { icon: 'lucide:sparkles', class: 'size-4' }) },
+    {
+      label: '识别',
+      key: 'identify',
+      icon: () => h(IconifyIcon, { icon: 'lucide:scan-line', class: 'size-4' }),
+    },
+    {
+      label: '刮削',
+      key: 'scrap',
+      icon: () => h(IconifyIcon, { icon: 'lucide:sparkles', class: 'size-4' }),
+    },
   ];
   const fileOnly = [
-    { label: '转移', key: 'transfer', icon: () => h(IconifyIcon, { icon: 'lucide:arrow-right-left', class: 'size-4' }) },
-    { label: '字幕', key: 'subtitle', icon: () => h(IconifyIcon, { icon: 'lucide:subtitles', class: 'size-4' }) },
-    { label: '硬链接查询', key: 'hardlink', icon: () => h(IconifyIcon, { icon: 'lucide:link', class: 'size-4' }) },
-    { label: '重命名', key: 'rename', icon: () => h(IconifyIcon, { icon: 'lucide:pencil', class: 'size-4' }) },
+    {
+      label: '转移',
+      key: 'transfer',
+      icon: () =>
+        h(IconifyIcon, { icon: 'lucide:arrow-right-left', class: 'size-4' }),
+    },
+    {
+      label: '字幕',
+      key: 'subtitle',
+      icon: () => h(IconifyIcon, { icon: 'lucide:subtitles', class: 'size-4' }),
+    },
+    {
+      label: '硬链接查询',
+      key: 'hardlink',
+      icon: () => h(IconifyIcon, { icon: 'lucide:link', class: 'size-4' }),
+    },
+    {
+      label: '重命名',
+      key: 'rename',
+      icon: () => h(IconifyIcon, { icon: 'lucide:pencil', class: 'size-4' }),
+    },
   ];
   const danger = [
     { type: 'divider', key: 'd1' },
-    { label: '删除', key: 'delete', icon: () => h(IconifyIcon, { icon: 'lucide:trash-2', class: 'size-4' }), props: { style: 'color: hsl(var(--destructive))' } },
+    {
+      label: '删除',
+      key: 'delete',
+      icon: () => h(IconifyIcon, { icon: 'lucide:trash-2', class: 'size-4' }),
+      props: { style: 'color: hsl(var(--destructive))' },
+    },
   ];
   if (item.is_dir) {
     return [...common, ...danger];
@@ -631,13 +757,39 @@ function getItemOptions(item: any) {
 }
 
 function handleItemAction(key: string, item: any) {
-  if (key === 'identify') handleIdentify(item);
-  else if (key === 'transfer') openTransfer(item);
-  else if (key === 'scrap') handleScrap(item.path);
-  else if (key === 'subtitle') handleSubtitle(item);
-  else if (key === 'hardlink') openHardlinkConfig(item);
-  else if (key === 'rename') openRename(item);
-  else if (key === 'delete') openDelete(item);
+  switch (key) {
+    case 'delete': {
+      {
+        openDelete(item);
+        // No default
+      }
+      break;
+    }
+    case 'hardlink': {
+      openHardlinkConfig(item);
+      break;
+    }
+    case 'identify': {
+      handleIdentify(item);
+      break;
+    }
+    case 'rename': {
+      openRename(item);
+      break;
+    }
+    case 'scrap': {
+      handleScrap(item.path);
+      break;
+    }
+    case 'subtitle': {
+      handleSubtitle(item);
+      break;
+    }
+    case 'transfer': {
+      openTransfer(item);
+      break;
+    }
+  }
 }
 
 onMounted(() => initLibraryPaths());
@@ -666,10 +818,18 @@ onMounted(() => initLibraryPaths());
             @clear="clearGlobalSearch"
           >
             <template #prefix>
-              <IconifyIcon icon="lucide:search" class="size-4" style="color: hsl(var(--muted-foreground));" />
+              <IconifyIcon
+                icon="lucide:search"
+                class="size-4"
+                style="color: hsl(var(--muted-foreground))"
+              />
             </template>
           </NInput>
-          <NButton v-if="globalSearchMode" size="small" @click="clearGlobalSearch">
+          <NButton
+            v-if="globalSearchMode"
+            size="small"
+            @click="clearGlobalSearch"
+          >
             <template #icon>
               <IconifyIcon icon="lucide:x" class="size-4" />
             </template>
@@ -707,7 +867,7 @@ onMounted(() => initLibraryPaths());
                 <span
                   class="sidebar-backend-dot"
                   :style="{ backgroundColor: group.dotColor }"
-                />
+                ></span>
                 <span
                   class="sidebar-backend-name"
                   :style="{ color: group.textColor }"
@@ -724,7 +884,7 @@ onMounted(() => initLibraryPaths());
                 v-for="(section, sIdx) in group.sections"
                 :key="section.type"
               >
-                <div v-if="sIdx > 0" class="sidebar-divider" />
+                <div v-if="sIdx > 0" class="sidebar-divider"></div>
                 <div class="sidebar-subtitle">{{ section.label }}</div>
                 <div class="sidebar-list">
                   <NTooltip
@@ -741,7 +901,9 @@ onMounted(() => initLibraryPaths());
                       >
                         <div
                           class="sidebar-icon"
-                          :style="{ backgroundColor: `${getLibraryColor(item.type).replace(')', ' / 0.12)')}` }"
+                          :style="{
+                            backgroundColor: `${getLibraryColor(item.type).replace(')', ' / 0.12)')}`,
+                          }"
                         >
                           <IconifyIcon
                             :icon="getLibraryIcon(item.type)"
@@ -750,7 +912,9 @@ onMounted(() => initLibraryPaths());
                           />
                         </div>
                         <div class="sidebar-info">
-                          <span class="sidebar-label truncate">{{ item.name }}</span>
+                          <span class="sidebar-label truncate">{{
+                            item.name
+                          }}</span>
                         </div>
                       </div>
                     </template>
@@ -767,7 +931,13 @@ onMounted(() => initLibraryPaths());
       <div class="main-content">
         <!-- 面包屑 -->
         <div class="breadcrumb-bar">
-          <NButton v-if="canGoUp" size="tiny" text class="breadcrumb-root" @click="goUp">
+          <NButton
+            v-if="canGoUp"
+            size="tiny"
+            text
+            class="breadcrumb-root"
+            @click="goUp"
+          >
             <IconifyIcon icon="lucide:arrow-left" class="size-4 mr-1" />
           </NButton>
           <div class="breadcrumb-path">
@@ -777,17 +947,21 @@ onMounted(() => initLibraryPaths());
               :class="{ 'breadcrumb-active': breadcrumbs.length === 0 }"
               @click="navigateTo(currentRoot)"
             >
-              {{ libraryPaths.find(p => p.path === currentRoot)?.name
-                 || syncSourcePaths.find(p => p.path === currentRoot)?.name
-                 || syncDestPaths.find(p => p.path === currentRoot)?.name
-                 || currentRoot.split('/').pop()
-                 || '根目录' }}
+              {{
+                libraryPaths.find((p) => p.path === currentRoot)?.name ||
+                syncSourcePaths.find((p) => p.path === currentRoot)?.name ||
+                syncDestPaths.find((p) => p.path === currentRoot)?.name ||
+                currentRoot.split('/').pop() ||
+                '根目录'
+              }}
             </span>
             <template v-for="(crumb, index) in breadcrumbs" :key="crumb.path">
               <span class="breadcrumb-separator">/</span>
               <span
                 class="breadcrumb-item"
-                :class="{ 'breadcrumb-active': index === breadcrumbs.length - 1 }"
+                :class="{
+                  'breadcrumb-active': index === breadcrumbs.length - 1,
+                }"
                 @click="navigateTo(crumb.path)"
               >
                 {{ crumb.name }}
@@ -797,7 +971,11 @@ onMounted(() => initLibraryPaths());
         </div>
 
         <!-- 全局搜索结果 -->
-        <NSpin v-if="globalSearchMode" :show="globalSearchLoading" class="file-list-wrapper">
+        <NSpin
+          v-if="globalSearchMode"
+          :show="globalSearchLoading"
+          class="file-list-wrapper"
+        >
           <div v-if="globalSearchResults.length > 0" class="file-list">
             <div class="file-list-header">
               <div class="file-col-name">名称</div>
@@ -845,9 +1023,17 @@ onMounted(() => initLibraryPaths());
               </div>
             </div>
           </div>
-          <NEmpty v-else-if="!globalSearchLoading" description="未找到匹配的文件" class="mt-8" />
-          <div v-if="!globalSearchReady &amp;&amp; !globalSearchLoading" class="text-sm mt-4 text-center" style="color: hsl(var(--muted-foreground))"
-            >索引构建中，已索引 {{ globalSearchIndexed }} 个文件...
+          <NEmpty
+            v-else-if="!globalSearchLoading"
+            description="未找到匹配的文件"
+            class="mt-8"
+          />
+          <div
+            v-if="!globalSearchReady &amp;&amp; !globalSearchLoading"
+            class="text-sm mt-4 text-center"
+            style="color: hsl(var(--muted-foreground))"
+          >
+            索引构建中，已索引 {{ globalSearchIndexed }} 个文件...
           </div>
         </NSpin>
 
@@ -860,7 +1046,11 @@ onMounted(() => initLibraryPaths());
                 名称
                 <IconifyIcon
                   v-if="sortKey === 'name'"
-                  :icon="sortOrder === 'asc' ? 'lucide:arrow-up' : 'lucide:arrow-down'"
+                  :icon="
+                    sortOrder === 'asc'
+                      ? 'lucide:arrow-up'
+                      : 'lucide:arrow-down'
+                  "
                   class="size-3 sort-icon"
                 />
               </div>
@@ -868,7 +1058,11 @@ onMounted(() => initLibraryPaths());
                 大小
                 <IconifyIcon
                   v-if="sortKey === 'size'"
-                  :icon="sortOrder === 'asc' ? 'lucide:arrow-up' : 'lucide:arrow-down'"
+                  :icon="
+                    sortOrder === 'asc'
+                      ? 'lucide:arrow-up'
+                      : 'lucide:arrow-down'
+                  "
                   class="size-3 sort-icon"
                 />
               </div>
@@ -876,7 +1070,11 @@ onMounted(() => initLibraryPaths());
                 修改时间
                 <IconifyIcon
                   v-if="sortKey === 'mtime'"
-                  :icon="sortOrder === 'asc' ? 'lucide:arrow-up' : 'lucide:arrow-down'"
+                  :icon="
+                    sortOrder === 'asc'
+                      ? 'lucide:arrow-up'
+                      : 'lucide:arrow-down'
+                  "
                   class="size-3 sort-icon"
                 />
               </div>
@@ -884,7 +1082,11 @@ onMounted(() => initLibraryPaths());
                 创建时间
                 <IconifyIcon
                   v-if="sortKey === 'ctime'"
-                  :icon="sortOrder === 'asc' ? 'lucide:arrow-up' : 'lucide:arrow-down'"
+                  :icon="
+                    sortOrder === 'asc'
+                      ? 'lucide:arrow-up'
+                      : 'lucide:arrow-down'
+                  "
                   class="size-3 sort-icon"
                 />
               </div>
@@ -896,7 +1098,10 @@ onMounted(() => initLibraryPaths());
               v-for="item in filteredDirList"
               :key="item.path"
               class="file-list-row"
-              :class="{ 'file-row-dir': item.is_dir, 'highlighted': item.path === highlightedPath }"
+              :class="{
+                'file-row-dir': item.is_dir,
+                highlighted: item.path === highlightedPath,
+              }"
               @click="handleItemClick(item)"
             >
               <div class="file-col-name">
@@ -913,7 +1118,9 @@ onMounted(() => initLibraryPaths());
                 </NTooltip>
               </div>
               <div class="file-col-size">
-                <span v-if="!item.is_dir" class="file-row-size">{{ formatSize(item.size) }}</span>
+                <span v-if="!item.is_dir" class="file-row-size">{{
+                  formatSize(item.size)
+                }}</span>
                 <span v-else class="file-row-type">文件夹</span>
               </div>
               <div class="file-col-mtime">
@@ -970,13 +1177,17 @@ onMounted(() => initLibraryPaths());
       v-model:show="hardlinkConfigShow"
       title="硬链接查询"
       preset="card"
-      style="width: 480px; max-width: 92vw;"
+      style="width: 480px; max-width: 92vw"
       :bordered="false"
       segmented
     >
       <NForm>
         <NFormItem label="目标文件">
-          <NInput v-model:value="hardlinkConfigForm.path" readonly size="small" />
+          <NInput
+            v-model:value="hardlinkConfigForm.path"
+            readonly
+            size="small"
+          />
         </NFormItem>
         <NFormItem label="搜索目录">
           <NInput
@@ -988,8 +1199,12 @@ onMounted(() => initLibraryPaths());
       </NForm>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <NButton size="small" @click="hardlinkConfigShow = false">取消</NButton>
-          <NButton type="primary" size="small" @click="submitHardlinkQuery">查询</NButton>
+          <NButton size="small" @click="hardlinkConfigShow = false">
+            取消
+          </NButton>
+          <NButton type="primary" size="small" @click="submitHardlinkQuery">
+            查询
+          </NButton>
         </div>
       </template>
     </NModal>
@@ -999,7 +1214,7 @@ onMounted(() => initLibraryPaths());
       v-model:show="hardlinkModalShow"
       title="硬链接查询结果"
       preset="card"
-      style="width: 520px; max-width: 92vw;"
+      style="width: 520px; max-width: 92vw"
       :bordered="false"
       segmented
     >
@@ -1013,7 +1228,9 @@ onMounted(() => initLibraryPaths());
           <!-- 硬链接结果 -->
           <div v-for="(links, name) in hardlinkResult" :key="name">
             <template v-if="links && links.length > 0">
-              <div class="hardlink-section-label">找到 {{ links.length }} 个硬链接</div>
+              <div class="hardlink-section-label">
+                找到 {{ links.length }} 个硬链接
+              </div>
               <div class="hardlink-items">
                 <div
                   v-for="link in links"
@@ -1026,7 +1243,9 @@ onMounted(() => initLibraryPaths());
               </div>
             </template>
             <template v-else>
-              <div class="hardlink-empty">未找到其他硬链接（该文件只有自身一个链接）</div>
+              <div class="hardlink-empty">
+                未找到其他硬链接（该文件只有自身一个链接）
+              </div>
             </template>
           </div>
         </div>
@@ -1071,17 +1290,17 @@ onMounted(() => initLibraryPaths());
   display: flex;
   flex: 1;
   gap: 1rem;
-  margin-top: 1rem;
   min-height: 0;
+  margin-top: 1rem;
 }
 
 /* 侧边栏 */
 .sidebar {
-  width: 200px;
-  flex-shrink: 0;
   display: flex;
+  flex-shrink: 0;
   flex-direction: column;
   gap: 1rem;
+  width: 200px;
 }
 
 .sidebar-section {
@@ -1096,11 +1315,11 @@ onMounted(() => initLibraryPaths());
 
 .sidebar-item {
   display: flex;
-  align-items: center;
   gap: 0.5rem;
+  align-items: center;
   padding: 0.5rem;
-  border-radius: 0.375rem;
   cursor: pointer;
+  border-radius: 0.375rem;
   transition: background-color 0.15s;
 }
 
@@ -1109,63 +1328,63 @@ onMounted(() => initLibraryPaths());
 }
 
 .sidebar-item.active {
-  background-color: hsl(var(--accent) / 0.6);
-  border-left: 3px solid hsl(var(--primary));
   padding-left: calc(0.5rem - 3px);
   font-weight: 600;
+  background-color: hsl(var(--accent) / 60%);
+  border-left: 3px solid hsl(var(--primary));
 }
 
 .sidebar-icon {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   width: 1.75rem;
   height: 1.75rem;
   border-radius: 0.375rem;
-  flex-shrink: 0;
 }
 
 .sidebar-info {
   display: flex;
-  align-items: center;
   flex: 1;
-  min-width: 0;
   gap: 0.5rem;
+  align-items: center;
+  min-width: 0;
 }
 
 .sidebar-label {
-  font-size: 0.875rem;
-  color: hsl(var(--card-foreground));
   flex: 1;
   min-width: 0;
+  font-size: 0.875rem;
+  color: hsl(var(--card-foreground));
 }
 
 /* 折叠面板头部 */
 .sidebar-collapse-header {
   display: flex;
-  align-items: center;
   gap: 0.5rem;
+  align-items: center;
 }
 
 .sidebar-backend-dot {
+  flex-shrink: 0;
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 50%;
-  flex-shrink: 0;
 }
 
 .sidebar-backend-name {
-  font-weight: 600;
   font-size: 0.875rem;
+  font-weight: 600;
 }
 
 .sidebar-backend-count {
-  font-size: 0.7rem;
   padding: 0.05rem 0.35rem;
-  border-radius: 9999px;
-  background: hsl(var(--muted) / 0.4);
-  color: hsl(var(--muted-foreground));
   margin-left: auto;
+  font-size: 0.7rem;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted) / 40%);
+  border-radius: 9999px;
 }
 
 /* 折叠面板内容 */
@@ -1174,39 +1393,39 @@ onMounted(() => initLibraryPaths());
 }
 
 .sidebar-subtitle {
+  padding: 0.375rem 0.5rem 0.25rem;
   font-size: 0.7rem;
   font-weight: 600;
   color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: 0.375rem 0.5rem 0.25rem;
 }
 
 .sidebar-divider {
   height: 1px;
-  background: hsl(var(--border) / 0.6);
   margin: 0.5rem 0.25rem;
+  background: hsl(var(--border) / 60%);
 }
 
 /* 主内容区 */
 .main-content {
-  flex: 1;
   display: flex;
+  flex: 1;
   flex-direction: column;
   min-width: 0;
+  overflow: hidden;
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: 0.5rem;
-  overflow: hidden;
 }
 
 .breadcrumb-bar {
   display: flex;
-  align-items: center;
   gap: 0.5rem;
+  align-items: center;
   padding: 0.625rem 1rem;
-  border-bottom: 1px solid hsl(var(--border));
   background-color: hsl(var(--card));
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .breadcrumb-root {
@@ -1215,17 +1434,17 @@ onMounted(() => initLibraryPaths());
 
 .breadcrumb-path {
   display: flex;
-  align-items: center;
   gap: 0.25rem;
+  align-items: center;
   overflow-x: auto;
   white-space: nowrap;
 }
 
 .breadcrumb-item {
+  padding: 0.125rem 0.25rem;
   font-size: 0.85rem;
   color: hsl(var(--primary));
   cursor: pointer;
-  padding: 0.125rem 0.25rem;
   border-radius: 0.25rem;
   transition: background-color 0.15s;
 }
@@ -1235,8 +1454,8 @@ onMounted(() => initLibraryPaths());
 }
 
 .breadcrumb-item.breadcrumb-active {
-  color: hsl(var(--card-foreground));
   font-weight: 500;
+  color: hsl(var(--card-foreground));
   cursor: default;
 }
 
@@ -1245,8 +1464,8 @@ onMounted(() => initLibraryPaths());
 }
 
 .breadcrumb-separator {
-  color: hsl(var(--muted-foreground));
   font-size: 0.85rem;
+  color: hsl(var(--muted-foreground));
   user-select: none;
 }
 
@@ -1270,8 +1489,8 @@ onMounted(() => initLibraryPaths());
   color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  background-color: hsl(var(--muted) / 30%);
   border-bottom: 1px solid hsl(var(--border));
-  background-color: hsl(var(--muted) / 0.3);
 }
 
 .sortable {
@@ -1294,13 +1513,13 @@ onMounted(() => initLibraryPaths());
   display: flex;
   align-items: center;
   padding: 0.625rem 1rem;
-  border-bottom: 1px solid hsl(var(--border) / 0.5);
   cursor: pointer;
+  border-bottom: 1px solid hsl(var(--border) / 50%);
   transition: background-color 0.15s;
 }
 
 .file-list-row:hover {
-  background-color: hsl(var(--accent) / 0.5);
+  background-color: hsl(var(--accent) / 50%);
 }
 
 .file-row-dir {
@@ -1308,52 +1527,52 @@ onMounted(() => initLibraryPaths());
 }
 
 .file-col-name {
-  flex: 1;
   display: flex;
-  align-items: center;
+  flex: 1;
   gap: 0.5rem;
+  align-items: center;
   min-width: 0;
 }
 
 .file-col-size {
-  width: 100px;
   flex-shrink: 0;
-  text-align: right;
-  font-size: 0.8rem;
-  color: hsl(var(--muted-foreground));
+  width: 100px;
   min-width: 0;
   overflow: hidden;
+  font-size: 0.8rem;
+  color: hsl(var(--muted-foreground));
+  text-align: right;
 }
 
 .file-col-mtime {
-  width: 140px;
   flex-shrink: 0;
-  text-align: right;
-  font-size: 0.8rem;
-  color: hsl(var(--muted-foreground));
+  width: 140px;
   min-width: 0;
   overflow: hidden;
+  font-size: 0.8rem;
+  color: hsl(var(--muted-foreground));
+  text-align: right;
 }
 
 .file-col-ctime {
-  width: 140px;
   flex-shrink: 0;
-  text-align: right;
-  font-size: 0.8rem;
-  color: hsl(var(--muted-foreground));
+  width: 140px;
   min-width: 0;
   overflow: hidden;
+  font-size: 0.8rem;
+  color: hsl(var(--muted-foreground));
+  text-align: right;
 }
 
 .file-col-actions {
-  width: 100px;
-  flex-shrink: 0;
   display: flex;
+  flex-shrink: 0;
   justify-content: flex-end;
-  opacity: 0;
-  transition: opacity 0.15s;
+  width: 100px;
   min-width: 0;
   overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.15s;
 }
 
 .file-list-row:hover .file-col-actions {
@@ -1365,9 +1584,9 @@ onMounted(() => initLibraryPaths());
 }
 
 .file-list-row.highlighted {
-  background-color: hsl(var(--warning) / 0.15);
-  border-left: 3px solid hsl(var(--warning));
   padding-left: calc(1rem - 3px);
+  background-color: hsl(var(--warning) / 15%);
+  border-left: 3px solid hsl(var(--warning));
 }
 
 .file-row-icon {
@@ -1401,24 +1620,24 @@ onMounted(() => initLibraryPaths());
 }
 
 .hardlink-section-label {
+  margin-bottom: 0.375rem;
   font-size: 0.8rem;
   font-weight: 500;
   color: hsl(var(--muted-foreground));
-  margin-bottom: 0.375rem;
 }
 
 .hardlink-source {
   padding: 0.75rem;
-  background-color: hsl(var(--accent) / 0.5);
-  border-radius: 0.5rem;
+  background-color: hsl(var(--accent) / 50%);
   border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
 }
 
 .hardlink-path {
   font-size: 0.85rem;
+  line-height: 1.4;
   color: hsl(var(--card-foreground));
   word-break: break-all;
-  line-height: 1.4;
 }
 
 .hardlink-items {
@@ -1429,34 +1648,34 @@ onMounted(() => initLibraryPaths());
 
 .hardlink-item {
   padding: 0.5rem 0.75rem;
-  background-color: hsl(var(--accent) / 0.3);
-  border-radius: 0.375rem;
+  background-color: hsl(var(--accent) / 30%);
   border: 1px solid hsl(var(--border));
+  border-radius: 0.375rem;
 }
 
 .hardlink-item-path {
   font-size: 0.75rem;
+  line-height: 1.4;
   color: hsl(var(--muted-foreground));
   word-break: break-all;
-  line-height: 1.4;
 }
 
 .hardlink-item-name {
   font-size: 0.85rem;
-  color: hsl(var(--card-foreground));
   font-weight: 500;
-  word-break: break-all;
   line-height: 1.4;
+  color: hsl(var(--card-foreground));
+  word-break: break-all;
 }
 
 .hardlink-empty {
   padding: 1rem;
-  text-align: center;
-  color: hsl(var(--muted-foreground));
   font-size: 0.875rem;
-  background-color: hsl(var(--accent) / 0.3);
-  border-radius: 0.5rem;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+  background-color: hsl(var(--accent) / 30%);
   border: 1px dashed hsl(var(--border));
+  border-radius: 0.5rem;
 }
 
 .tmdb-result-grid {
@@ -1468,48 +1687,48 @@ onMounted(() => initLibraryPaths());
 }
 
 .tmdb-result-card {
+  cursor: pointer;
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
-  cursor: pointer;
   transition: box-shadow 0.2s;
 }
 
 .tmdb-result-card:hover {
-  box-shadow: 0 2px 8px hsl(var(--foreground) / 0.08);
+  box-shadow: 0 2px 8px hsl(var(--foreground) / 8%);
 }
 
 .tmdb-poster {
+  flex-shrink: 0;
   width: 60px;
   height: 80px;
   object-fit: cover;
-  flex-shrink: 0;
   background-color: hsl(var(--muted));
 }
 
 .tmdb-poster-placeholder {
+  flex-shrink: 0;
   width: 60px;
   height: 80px;
   background-color: hsl(var(--muted));
-  flex-shrink: 0;
 }
 
 .tmdb-title {
+  margin-bottom: 0.25rem;
   font-size: 0.9rem;
   font-weight: 500;
   color: hsl(var(--card-foreground));
-  margin-bottom: 0.25rem;
 }
 
 .tmdb-year {
   font-size: 0.8rem;
-  color: hsl(var(--muted-foreground));
   font-weight: 400;
+  color: hsl(var(--muted-foreground));
 }
 
 .tmdb-overview {
   font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
   line-height: 1.4;
+  color: hsl(var(--muted-foreground));
 }
 
 @media (max-width: 768px) {

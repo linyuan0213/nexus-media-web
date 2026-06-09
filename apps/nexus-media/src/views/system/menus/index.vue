@@ -1,28 +1,28 @@
 <script lang="ts" setup>
-import { h, ref, onMounted, computed, watch } from 'vue';
-import { useRouter } from 'vue-router';
-
 import type { TreeOption } from 'naive-ui';
 
-import { useAccessStore, useUserStore } from '@vben/stores';
+import { computed, h, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
+
 import { IconifyIcon } from '@vben/icons';
+import { useAccessStore, useUserStore } from '@vben/stores';
 
 import {
   NButton,
+  NCollapse,
+  NCollapseItem,
   NDrawer,
   NDrawerContent,
   NForm,
   NFormItem,
   NInput,
   NInputNumber,
+  NPopconfirm,
   NSelect,
   NSpace,
   NSpin,
   NSwitch,
   NTree,
-  NPopconfirm,
-  NCollapse,
-  NCollapseItem,
 } from 'naive-ui';
 
 import {
@@ -32,10 +32,10 @@ import {
   updateMenuApi,
   updateMenuSortApi,
 } from '#/api';
-import { generateAccess } from '#/router/access';
-import { accessRoutes } from '#/router/routes';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
+import { generateAccess } from '#/router/access';
+import { accessRoutes } from '#/router/routes';
 
 interface MenuItem {
   id: number;
@@ -66,7 +66,9 @@ const menus = ref<MenuItem[]>([]);
 const loading = ref(false);
 const drawerShow = ref(false);
 const drawerTitle = ref('');
-const editingMenu = ref<Partial<MenuItem> & { parent_id?: string | number }>({});
+const editingMenu = ref<Partial<MenuItem> & { parent_id?: number | string }>(
+  {},
+);
 const selectedMenu = ref<MenuItem | null>(null);
 const selectedKeys = ref<string[]>([]);
 
@@ -75,7 +77,7 @@ const treeData = computed(() => buildTree(menus.value));
 function buildTree(items: MenuItem[], parentId?: number): TreeOption[] {
   return items
     .filter((item) => item.parent_id === parentId)
-    .sort((a, b) => a.sort_order - b.sort_order)
+    .toSorted((a, b) => a.sort_order - b.sort_order)
     .map((item) => ({
       key: String(item.id),
       label: item.menu_name,
@@ -87,7 +89,10 @@ function buildTree(items: MenuItem[], parentId?: number): TreeOption[] {
 function flattenTree(nodes: any[], result: MenuItem[] = []): MenuItem[] {
   for (const node of nodes) {
     const { children, ...rest } = node;
-    result.push({ ...rest, parent_id: rest.parent_id ?? undefined } as MenuItem);
+    result.push({
+      ...rest,
+      parent_id: rest.parent_id ?? undefined,
+    } as MenuItem);
     if (children?.length) flattenTree(children, result);
   }
   return result;
@@ -97,9 +102,10 @@ async function fetchData() {
   loading.value = true;
   try {
     const res = await getAllMenusForManagementApi();
-    menus.value = flattenTree((res as unknown) as any[]);
+    menus.value = flattenTree(res as unknown as any[]);
     if (selectedMenu.value) {
-      selectedMenu.value = menus.value.find((m) => m.id === selectedMenu.value!.id) || null;
+      selectedMenu.value =
+        menus.value.find((m) => m.id === selectedMenu.value!.id) || null;
     }
   } finally {
     loading.value = false;
@@ -159,11 +165,9 @@ async function handleSave() {
     parent_id: data.parent_id ? Number(data.parent_id) : undefined,
     sort_order: Number(data.sort_order) || 0,
   };
-  if (data.id) {
-    await updateMenuApi(payload as any);
-  } else {
-    await createMenuApi(payload as any);
-  }
+  await (data.id
+    ? updateMenuApi(payload as any)
+    : createMenuApi(payload as any));
   drawerShow.value = false;
   await fetchData();
   await refreshSidebarMenus();
@@ -206,7 +210,7 @@ function isMenu(item: MenuItem) {
 function findSiblingsAndIndex(
   key: string,
   nodes: TreeOption[],
-): [TreeOption[], number] | [null, null] {
+): [null, null] | [TreeOption[], number] {
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
     if (!node) continue;
@@ -220,7 +224,7 @@ function findSiblingsAndIndex(
 }
 
 /** 从树中移除指定节点（包含其子树），返回被移除的节点 */
-function removeNodeByKey(nodes: TreeOption[], key: string): TreeOption | null {
+function removeNodeByKey(nodes: TreeOption[], key: string): null | TreeOption {
   const [siblings, index] = findSiblingsAndIndex(key, nodes);
   if (siblings !== null && index !== null) {
     return siblings.splice(index, 1)[0] ?? null;
@@ -233,7 +237,7 @@ function insertNodeToTree(
   tree: TreeOption[],
   targetKey: string,
   node: TreeOption,
-  dropPosition: 'before' | 'after' | 'inside',
+  dropPosition: 'after' | 'before' | 'inside',
 ) {
   if (dropPosition === 'inside') {
     const [siblings] = findSiblingsAndIndex(targetKey, tree);
@@ -258,8 +262,12 @@ function traverseAndAssign(
   nodes: TreeOption[],
   parentId: number | undefined,
   startOrder: number,
-): Array<{ id: number; sort_order: number; parent_id: number | undefined }> {
-  const updates: Array<{ id: number; sort_order: number; parent_id: number | undefined }> = [];
+): Array<{ id: number; parent_id: number | undefined; sort_order: number }> {
+  const updates: Array<{
+    id: number;
+    parent_id: number | undefined;
+    sort_order: number;
+  }> = [];
   let order = startOrder;
   for (const node of nodes) {
     const menu = node.menu as MenuItem;
@@ -285,15 +293,15 @@ function cloneTree(nodes: TreeOption[]): TreeOption[] {
 }
 
 async function handleDrop(info: {
-  node: TreeOption;
   dragNode: TreeOption;
-  dropPosition: 'before' | 'after' | 'inside' | number;
+  dropPosition: 'after' | 'before' | 'inside' | number;
+  node: TreeOption;
 }) {
   const { node, dragNode } = info;
   if (dragNode.key === node.key) return;
 
   // Naive UI 某些版本 dropPosition 是 number：-1=before, 0=inside, 1=after
-  let dropPosition: 'before' | 'after' | 'inside';
+  let dropPosition: 'after' | 'before' | 'inside';
   if (typeof info.dropPosition === 'number') {
     if (info.dropPosition === -1) dropPosition = 'before';
     else if (info.dropPosition === 1) dropPosition = 'after';
@@ -381,13 +389,19 @@ onMounted(fetchData);
         <div class="lg:col-span-4">
           <div
             class="rounded-xl border overflow-hidden"
-            style="background: hsl(var(--card)); border-color: hsl(var(--border))"
+            style="
+              background: hsl(var(--card));
+              border-color: hsl(var(--border));
+            "
           >
             <div
               class="flex items-center justify-between px-4 py-3 border-b"
               style="border-color: hsl(var(--border))"
             >
-              <span class="text-sm font-semibold" style="color: hsl(var(--foreground))">
+              <span
+                class="text-sm font-semibold"
+                style="color: hsl(var(--foreground))"
+              >
                 菜单结构
               </span>
               <span class="text-xs" style="color: hsl(var(--muted-foreground))">
@@ -415,7 +429,10 @@ onMounted(fetchData);
           <div
             v-if="selectedMenu"
             class="rounded-xl border overflow-hidden"
-            style="background: hsl(var(--card)); border-color: hsl(var(--border))"
+            style="
+              background: hsl(var(--card));
+              border-color: hsl(var(--border));
+            "
           >
             <!-- 详情头部 -->
             <div
@@ -429,19 +446,37 @@ onMounted(fetchData);
                   style="background: hsl(var(--accent))"
                 >
                   <IconifyIcon
-                    :icon="(selectedMenu.meta?.icon || selectedMenu.icon || '') as string"
+                    :icon="
+                      (selectedMenu.meta?.icon ||
+                        selectedMenu.icon ||
+                        '') as string
+                    "
                     class="size-5"
                     style="color: hsl(var(--accent-foreground))"
                   />
                 </div>
-                <div v-else class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: hsl(var(--muted))">
-                  <IconifyIcon icon="lucide:file-text" class="size-5" style="color: hsl(var(--muted-foreground))" />
+                <div
+                  v-else
+                  class="w-10 h-10 rounded-lg flex items-center justify-center"
+                  style="background: hsl(var(--muted))"
+                >
+                  <IconifyIcon
+                    icon="lucide:file-text"
+                    class="size-5"
+                    style="color: hsl(var(--muted-foreground))"
+                  />
                 </div>
                 <div>
-                  <h3 class="text-base font-semibold" style="color: hsl(var(--foreground))">
+                  <h3
+                    class="text-base font-semibold"
+                    style="color: hsl(var(--foreground))"
+                  >
                     {{ selectedMenu.menu_name }}
                   </h3>
-                  <code class="text-xs" style="color: hsl(var(--muted-foreground))">
+                  <code
+                    class="text-xs"
+                    style="color: hsl(var(--muted-foreground))"
+                  >
                     {{ selectedMenu.menu_code }}
                   </code>
                 </div>
@@ -496,24 +531,40 @@ onMounted(fetchData);
                 >
                   <span
                     class="size-1.5 rounded-full"
-                    :class="selectedMenu.status === 1 ? 'bg-success' : 'bg-destructive'"
-                  />
+                    :class="
+                      selectedMenu.status === 1
+                        ? 'bg-success'
+                        : 'bg-destructive'
+                    "
+                  ></span>
                   {{ selectedMenu.status === 1 ? '已启用' : '已禁用' }}
                 </div>
                 <div
                   v-if="selectedMenu.hide_in_menu === 1"
                   class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
-                  style="background: hsl(var(--warning) / 0.1); color: hsl(var(--warning))"
+                  style="
+                    color: hsl(var(--warning));
+                    background: hsl(var(--warning) / 10%);
+                  "
                 >
-                  <span class="size-1.5 rounded-full bg-warning" />
+                  <span class="size-1.5 rounded-full bg-warning"></span>
                   已隐藏
                 </div>
                 <div
                   class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
-                  style="background: hsl(var(--accent)); color: hsl(var(--accent-foreground))"
+                  style="
+                    color: hsl(var(--accent-foreground));
+                    background: hsl(var(--accent));
+                  "
                 >
                   <IconifyIcon icon="lucide:layers" class="size-3" />
-                  {{ isFolder(selectedMenu) ? '目录' : isMenu(selectedMenu) ? '菜单' : '按钮' }}
+                  {{
+                    isFolder(selectedMenu)
+                      ? '目录'
+                      : isMenu(selectedMenu)
+                        ? '菜单'
+                        : '按钮'
+                  }}
                 </div>
               </div>
 
@@ -521,46 +572,72 @@ onMounted(fetchData);
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div
                   class="rounded-lg p-4"
-                  style="background: hsl(var(--muted) / 0.4)"
+                  style="background: hsl(var(--muted) / 40%)"
                 >
-                  <div class="text-xs mb-1" style="color: hsl(var(--muted-foreground))">
+                  <div
+                    class="text-xs mb-1"
+                    style="color: hsl(var(--muted-foreground))"
+                  >
                     路由路径
                   </div>
-                  <div class="text-sm font-medium font-mono" style="color: hsl(var(--foreground))">
+                  <div
+                    class="text-sm font-medium font-mono"
+                    style="color: hsl(var(--foreground))"
+                  >
                     {{ selectedMenu.path || '-' }}
                   </div>
                 </div>
                 <div
                   class="rounded-lg p-4"
-                  style="background: hsl(var(--muted) / 0.4)"
+                  style="background: hsl(var(--muted) / 40%)"
                 >
-                  <div class="text-xs mb-1" style="color: hsl(var(--muted-foreground))">
+                  <div
+                    class="text-xs mb-1"
+                    style="color: hsl(var(--muted-foreground))"
+                  >
                     组件路径
                   </div>
-                  <div class="text-sm font-medium font-mono" style="color: hsl(var(--foreground))">
+                  <div
+                    class="text-sm font-medium font-mono"
+                    style="color: hsl(var(--foreground))"
+                  >
                     {{ selectedMenu.component || '-' }}
                   </div>
                 </div>
                 <div
                   class="rounded-lg p-4"
-                  style="background: hsl(var(--muted) / 0.4)"
+                  style="background: hsl(var(--muted) / 40%)"
                 >
-                  <div class="text-xs mb-1" style="color: hsl(var(--muted-foreground))">
+                  <div
+                    class="text-xs mb-1"
+                    style="color: hsl(var(--muted-foreground))"
+                  >
                     排序权重
                   </div>
-                  <div class="text-sm font-medium" style="color: hsl(var(--foreground))">
+                  <div
+                    class="text-sm font-medium"
+                    style="color: hsl(var(--foreground))"
+                  >
                     {{ selectedMenu.sort_order }}
                   </div>
                 </div>
                 <div
                   class="rounded-lg p-4"
-                  style="background: hsl(var(--muted) / 0.4)"
+                  style="background: hsl(var(--muted) / 40%)"
                 >
-                  <div class="text-xs mb-1" style="color: hsl(var(--muted-foreground))">
+                  <div
+                    class="text-xs mb-1"
+                    style="color: hsl(var(--muted-foreground))"
+                  >
                     菜单级别
                   </div>
-                  <div class="text-sm font-medium" style="color: hsl(var(--foreground))">
-                    {{ selectedMenu.menu_level === 1 ? '一级菜单' : '二级菜单' }}
+                  <div
+                    class="text-sm font-medium"
+                    style="color: hsl(var(--foreground))"
+                  >
+                    {{
+                      selectedMenu.menu_level === 1 ? '一级菜单' : '二级菜单'
+                    }}
                   </div>
                 </div>
               </div>
@@ -569,12 +646,18 @@ onMounted(fetchData);
               <div
                 v-if="selectedMenu.permission_code"
                 class="mt-4 rounded-lg p-4"
-                style="background: hsl(var(--muted) / 0.4)"
+                style="background: hsl(var(--muted) / 40%)"
               >
-                <div class="text-xs mb-1" style="color: hsl(var(--muted-foreground))">
+                <div
+                  class="text-xs mb-1"
+                  style="color: hsl(var(--muted-foreground))"
+                >
                   权限码
                 </div>
-                <div class="text-sm font-medium font-mono" style="color: hsl(var(--foreground))">
+                <div
+                  class="text-sm font-medium font-mono"
+                  style="color: hsl(var(--foreground))"
+                >
                   {{ selectedMenu.permission_code }}
                 </div>
               </div>
@@ -585,7 +668,10 @@ onMounted(fetchData);
           <div
             v-else
             class="rounded-xl border flex flex-col items-center justify-center py-20"
-            style="background: hsl(var(--card)); border-color: hsl(var(--border))"
+            style="
+              background: hsl(var(--card));
+              border-color: hsl(var(--border));
+            "
           >
             <div
               class="w-16 h-16 rounded-full flex items-center justify-center mb-4"
@@ -606,16 +692,27 @@ onMounted(fetchData);
     </NSpin>
 
     <!-- 编辑抽屉 -->
-    <NDrawer v-model:show="drawerShow" :width="480" placement="right" :trap-focus="false">
+    <NDrawer
+      v-model:show="drawerShow"
+      :width="480"
+      placement="right"
+      :trap-focus="false"
+    >
       <NDrawerContent :title="drawerTitle" :native-scrollbar="false">
         <NForm label-placement="top" size="medium">
           <!-- 基本信息 -->
           <NFormItem label="菜单名称" required>
-            <NInput v-model:value="editingMenu.menu_name" placeholder="如：资源搜索" />
+            <NInput
+              v-model:value="editingMenu.menu_name"
+              placeholder="如：资源搜索"
+            />
           </NFormItem>
 
           <NFormItem label="菜单代码" required>
-            <NInput v-model:value="editingMenu.menu_code" placeholder="PascalCase，如 MediaSearch" />
+            <NInput
+              v-model:value="editingMenu.menu_code"
+              placeholder="PascalCase，如 MediaSearch"
+            />
           </NFormItem>
 
           <NFormItem label="父菜单">
@@ -629,10 +726,16 @@ onMounted(fetchData);
 
           <div class="grid grid-cols-2 gap-3">
             <NFormItem label="路由路径">
-              <NInput v-model:value="editingMenu.path" placeholder="如 media/search" />
+              <NInput
+                v-model:value="editingMenu.path"
+                placeholder="如 media/search"
+              />
             </NFormItem>
             <NFormItem label="组件">
-              <NInput v-model:value="editingMenu.component" placeholder="如 /media/search/index" />
+              <NInput
+                v-model:value="editingMenu.component"
+                placeholder="如 /media/search/index"
+              />
             </NFormItem>
           </div>
 
@@ -654,7 +757,11 @@ onMounted(fetchData);
               </div>
             </NFormItem>
             <NFormItem label="排序">
-              <NInputNumber v-model:value="editingMenu.sort_order" :min="0" class="w-full" />
+              <NInputNumber
+                v-model:value="editingMenu.sort_order"
+                :min="0"
+                class="w-full"
+              />
             </NFormItem>
           </div>
 
@@ -685,10 +792,16 @@ onMounted(fetchData);
           <NCollapse class="mt-2">
             <NCollapseItem title="高级配置">
               <NFormItem label="权限码">
-                <NInput v-model:value="editingMenu.permission_code" placeholder="如 search:view" />
+                <NInput
+                  v-model:value="editingMenu.permission_code"
+                  placeholder="如 search:view"
+                />
               </NFormItem>
               <NFormItem label="重定向">
-                <NInput v-model:value="editingMenu.redirect" placeholder="重定向路径" />
+                <NInput
+                  v-model:value="editingMenu.redirect"
+                  placeholder="重定向路径"
+                />
               </NFormItem>
             </NCollapseItem>
           </NCollapse>

@@ -7,7 +7,7 @@
   /* 主色 */
   --tblr-primary: #206bc4;
   --tblr-primary-rgb: 32, 107, 196;
-  --tblr-primary-light: rgba(32, 107, 196, 0.1);
+  --tblr-primary-light: rgb(32 107 196 / 10%);
 
   /* 状态色 */
   --tblr-success: #2fb344;
@@ -35,8 +35,8 @@
   --tblr-text-heading: hsl(var(--card-foreground));
 
   /* 阴影 */
-  --tblr-box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --tblr-box-shadow-card: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  --tblr-box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+  --tblr-box-shadow-card: 0 0.125rem 0.25rem rgb(0 0 0 / 7.5%);
 }
 
 /* Tabler 风格卡片 */
@@ -48,17 +48,17 @@
 }
 
 .tbl-card-hover:hover {
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 10%);
   transform: translateY(-1px);
   transition: all 0.2s ease;
 }
 
 /* 页面标题栏 */
 .page-header {
-  margin-bottom: 1rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-bottom: 1rem;
 }
 
 .page-header-title {
@@ -68,30 +68,30 @@
 }
 
 .page-header-subtitle {
-  color: var(--tblr-text-muted);
-  font-size: 0.875rem;
   margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--tblr-text-muted);
 }
 
 /* 媒体卡片网格 */
 .grid-media-card {
   display: grid;
-  gap: 0.75rem;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.75rem;
 }
 
 /* 信息卡片网格 */
 .grid-info-card {
   display: grid;
-  gap: 0.75rem;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 0.75rem;
 }
 
 /* 普通卡片网格 */
 .grid-normal-card {
   display: grid;
-  gap: 0.75rem;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.75rem;
 }
 
 /* 空状态 */
@@ -105,28 +105,28 @@
 }
 
 .empty-state-icon {
-  color: var(--tblr-text-muted);
   margin-bottom: 1rem;
+  color: var(--tblr-text-muted);
 }
 
 .empty-state-title {
+  margin-bottom: 0.5rem;
   font-size: 1.25rem;
   font-weight: 500;
   color: var(--tblr-text-heading);
-  margin-bottom: 0.5rem;
 }
 
 .empty-state-subtitle {
-  color: var(--tblr-text-muted);
   font-size: 0.875rem;
+  color: var(--tblr-text-muted);
 }
 
 /* 进度条 */
 .progress-bar-tblr {
   height: 0.375rem;
-  background-color: rgba(32, 107, 196, 0.1);
-  border-radius: 9999px;
   overflow: hidden;
+  background-color: rgb(32 107 196 / 10%);
+  border-radius: 9999px;
 }
 
 .progress-bar-tblr-fill {

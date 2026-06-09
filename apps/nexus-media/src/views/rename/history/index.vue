@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import { computed, h, onMounted, ref } from 'vue';
 
+import { IconifyIcon } from '@vben/icons';
+
 import {
   NButton,
   NCard,
@@ -20,8 +22,6 @@ import {
   NSpin,
   useNotification,
 } from 'naive-ui';
-
-import { IconifyIcon } from '@vben/icons';
 
 import {
   clearTransferHistoryApi,
@@ -50,7 +50,11 @@ const total = ref(0);
 const totalPage = ref(1);
 const clearModalShow = ref(false);
 const deleteModalShow = ref(false);
-const deletePayload = ref<{ logids: number[]; flag: string; label: string } | null>(null);
+const deletePayload = ref<null | {
+  flag: string;
+  label: string;
+  logids: number[];
+}>(null);
 const selectedIds = ref<number[]>([]);
 
 // manual identify modal
@@ -60,7 +64,7 @@ const manualForm = ref({
   logid: 0,
   path: '',
   syncmod: 'copy',
-    type: 'movie',
+  type: 'movie',
   tmdb: undefined as number | undefined,
   season: undefined as number | undefined,
   min_filesize: undefined as number | undefined,
@@ -85,7 +89,10 @@ const allSelected = computed(() => {
 });
 
 const someSelected = computed(() => {
-  return selectedIds.value.length > 0 && selectedIds.value.length < historyList.value.length;
+  return (
+    selectedIds.value.length > 0 &&
+    selectedIds.value.length < historyList.value.length
+  );
 });
 
 const statTotals = computed(() => {
@@ -144,10 +151,10 @@ async function confirmClear() {
     notification.success({ content: '所有识别记录已清空' });
     await fetchData(1);
     await fetchStatistics();
-  } catch (err: any) {
+  } catch (error: any) {
     notification.error({
       content: '清空失败',
-      description: err?.message || '',
+      description: error?.message || '',
     });
   } finally {
     clearModalShow.value = false;
@@ -156,41 +163,85 @@ async function confirmClear() {
 
 // batch selection
 function toggleSelectAll() {
-  if (allSelected.value) {
-    selectedIds.value = [];
-  } else {
-    selectedIds.value = historyList.value.map((item) => item.ID);
-  }
+  selectedIds.value = allSelected.value
+    ? []
+    : historyList.value.map((item) => item.ID);
 }
 
 function toggleSelect(id: number) {
   const idx = selectedIds.value.indexOf(id);
-  if (idx >= 0) {
-    selectedIds.value.splice(idx, 1);
-  } else {
+  if (idx === -1) {
     selectedIds.value.push(id);
+  } else {
+    selectedIds.value.splice(idx, 1);
   }
 }
 
 // single operations
 function getItemOptions(_item: any) {
   return [
-    { label: '重新识别', key: 'reidentify', icon: () => h(IconifyIcon, { icon: 'lucide:activity', class: 'size-4' }) },
-    { label: '手动识别', key: 'manual', icon: () => h(IconifyIcon, { icon: 'lucide:pencil', class: 'size-4' }) },
+    {
+      label: '重新识别',
+      key: 'reidentify',
+      icon: () => h(IconifyIcon, { icon: 'lucide:activity', class: 'size-4' }),
+    },
+    {
+      label: '手动识别',
+      key: 'manual',
+      icon: () => h(IconifyIcon, { icon: 'lucide:pencil', class: 'size-4' }),
+    },
     { type: 'divider', key: 'd1' },
-    { label: '删除记录', key: 'del_log', icon: () => h(IconifyIcon, { icon: 'lucide:eraser', class: 'size-4' }) },
-    { label: '删除源文件', key: 'del_source', icon: () => h(IconifyIcon, { icon: 'lucide:file-x', class: 'size-4' }), props: { style: 'color: hsl(var(--destructive))' } },
-    { label: '删除媒体库文件', key: 'del_dest', icon: () => h(IconifyIcon, { icon: 'lucide:library', class: 'size-4' }), props: { style: 'color: hsl(var(--destructive))' } },
-    { label: '删除源及媒体库文件', key: 'del_all', icon: () => h(IconifyIcon, { icon: 'lucide:trash-2', class: 'size-4' }), props: { style: 'color: hsl(var(--destructive))' } },
+    {
+      label: '删除记录',
+      key: 'del_log',
+      icon: () => h(IconifyIcon, { icon: 'lucide:eraser', class: 'size-4' }),
+    },
+    {
+      label: '删除源文件',
+      key: 'del_source',
+      icon: () => h(IconifyIcon, { icon: 'lucide:file-x', class: 'size-4' }),
+      props: { style: 'color: hsl(var(--destructive))' },
+    },
+    {
+      label: '删除媒体库文件',
+      key: 'del_dest',
+      icon: () => h(IconifyIcon, { icon: 'lucide:library', class: 'size-4' }),
+      props: { style: 'color: hsl(var(--destructive))' },
+    },
+    {
+      label: '删除源及媒体库文件',
+      key: 'del_all',
+      icon: () => h(IconifyIcon, { icon: 'lucide:trash-2', class: 'size-4' }),
+      props: { style: 'color: hsl(var(--destructive))' },
+    },
   ];
 }
 
 function getBulkOptions() {
   return [
-    { label: '删除记录', key: 'del_log', icon: () => h(IconifyIcon, { icon: 'lucide:eraser', class: 'size-4' }) },
-    { label: '删除源文件', key: 'del_source', icon: () => h(IconifyIcon, { icon: 'lucide:file-x', class: 'size-4' }), props: { style: 'color: hsl(var(--destructive))' } },
-    { label: '删除媒体库文件', key: 'del_dest', icon: () => h(IconifyIcon, { icon: 'lucide:library', class: 'size-4' }), props: { style: 'color: hsl(var(--destructive))' } },
-    { label: '删除源及媒体库文件', key: 'del_all', icon: () => h(IconifyIcon, { icon: 'lucide:trash-2', class: 'size-4' }), props: { style: 'color: hsl(var(--destructive))' } },
+    {
+      label: '删除记录',
+      key: 'del_log',
+      icon: () => h(IconifyIcon, { icon: 'lucide:eraser', class: 'size-4' }),
+    },
+    {
+      label: '删除源文件',
+      key: 'del_source',
+      icon: () => h(IconifyIcon, { icon: 'lucide:file-x', class: 'size-4' }),
+      props: { style: 'color: hsl(var(--destructive))' },
+    },
+    {
+      label: '删除媒体库文件',
+      key: 'del_dest',
+      icon: () => h(IconifyIcon, { icon: 'lucide:library', class: 'size-4' }),
+      props: { style: 'color: hsl(var(--destructive))' },
+    },
+    {
+      label: '删除源及媒体库文件',
+      key: 'del_all',
+      icon: () => h(IconifyIcon, { icon: 'lucide:trash-2', class: 'size-4' }),
+      props: { style: 'color: hsl(var(--destructive))' },
+    },
   ];
 }
 
@@ -206,7 +257,11 @@ function handleItemAction(key: string, item: any) {
       del_dest: '删除媒体库文件',
       del_all: '删除源及媒体库文件',
     };
-    deletePayload.value = { logids: [item.ID], flag: key === 'del_log' ? '' : key, label: labels[key] ?? '' };
+    deletePayload.value = {
+      logids: [item.ID],
+      flag: key === 'del_log' ? '' : key,
+      label: labels[key] ?? '',
+    };
     deleteModalShow.value = true;
   }
 }
@@ -222,7 +277,11 @@ function handleBulkAction(key: string) {
     del_dest: '删除媒体库文件',
     del_all: '删除源及媒体库文件',
   };
-  deletePayload.value = { logids: [...selectedIds.value], flag: key === 'del_log' ? '' : key, label: labels[key] ?? '' };
+  deletePayload.value = {
+    logids: [...selectedIds.value],
+    flag: key === 'del_log' ? '' : key,
+    label: labels[key] ?? '',
+  };
   deleteModalShow.value = true;
 }
 
@@ -232,8 +291,11 @@ async function doReIdentify(ids: number[]) {
     notification.success({ content: '重新识别任务已提交' });
     await fetchData(currentPage.value);
     await fetchStatistics();
-  } catch (err: any) {
-    notification.error({ content: '提交失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '提交失败',
+      description: error?.message || '',
+    });
   }
 }
 
@@ -251,8 +313,11 @@ async function confirmDelete() {
     );
     await fetchData(currentPage.value);
     await fetchStatistics();
-  } catch (err: any) {
-    notification.error({ content: '删除失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '删除失败',
+      description: error?.message || '',
+    });
   } finally {
     deleteModalShow.value = false;
     deletePayload.value = null;
@@ -265,7 +330,8 @@ function openManualModal(item: any) {
     logid: item.ID,
     path: item.SOURCE_PATH ? `${item.SOURCE_PATH}/${item.SOURCE_FILENAME}` : '',
     syncmod: item.SYNC_MODE || 'copy',
-    type: item.TYPE === 'movie' ? 'movie' : item.TYPE === 'anime' ? 'anime' : 'tv',
+    type:
+      item.TYPE === 'movie' ? 'movie' : item.TYPE === 'anime' ? 'anime' : 'tv',
     tmdb: item.TMDBID || undefined,
     season: undefined,
     min_filesize: undefined,
@@ -279,7 +345,14 @@ function openManualModal(item: any) {
 
 function openTmdbSearch() {
   tmdbSearchShow.value = true;
-  tmdbSearchKeyword.value = manualForm.value.tmdb ? '' : (manualForm.value.path ? manualForm.value.path.split('/').pop()?.replace(/\.\w+$/, '') || '' : '');
+  tmdbSearchKeyword.value = manualForm.value.tmdb
+    ? ''
+    : manualForm.value.path
+      ? manualForm.value.path
+          .split('/')
+          .pop()
+          ?.replace(/\.\w+$/, '') || ''
+      : '';
   tmdbSearchResults.value = [];
 }
 
@@ -287,11 +360,17 @@ async function handleTmdbSearch() {
   if (!tmdbSearchKeyword.value.trim()) return;
   tmdbSearchLoading.value = true;
   try {
-    const res: any = await searchMediaApi({ keyword: tmdbSearchKeyword.value, searchtype: 'tmdb' });
-    const raw = Array.isArray(res) ? res : (res?.data || []);
+    const res: any = await searchMediaApi({
+      keyword: tmdbSearchKeyword.value,
+      searchtype: 'tmdb',
+    });
+    const raw = Array.isArray(res) ? res : res?.data || [];
     tmdbSearchResults.value = raw;
-  } catch (err: any) {
-    notification.error({ content: '搜索失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '搜索失败',
+      description: error?.message || '',
+    });
   } finally {
     tmdbSearchLoading.value = false;
   }
@@ -328,8 +407,11 @@ async function submitManual() {
     manualModalShow.value = false;
     await fetchData(currentPage.value);
     await fetchStatistics();
-  } catch (err: any) {
-    notification.error({ content: '手动识别失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '手动识别失败',
+      description: error?.message || '',
+    });
   } finally {
     manualLoading.value = false;
   }
@@ -351,17 +433,15 @@ function formatDate(dateStr: string) {
   }
 }
 
-function getTypeIcon(type: string) {
-  const t = type || '';
-  if (t === 'movie') return 'lucide:film';
-  if (t === 'anime') return 'lucide:sparkles';
+function getTypeIcon(type: string = '') {
+  if (type === 'movie') return 'lucide:film';
+  if (type === 'anime') return 'lucide:sparkles';
   return 'lucide:tv';
 }
 
-function getTypeColor(type: string) {
-  const t = type || '';
-  if (t === 'movie') return 'var(--primary)';
-  if (t === 'anime') return 'var(--warning)';
+function getTypeColor(type: string = '') {
+  if (type === 'movie') return 'var(--primary)';
+  if (type === 'anime') return 'var(--warning)';
   return 'var(--success)';
 }
 
@@ -449,8 +529,15 @@ onMounted(() => {
     <div class="stats-grid mt-4">
       <NCard size="small" :bordered="false" class="stat-card">
         <div class="flex items-center gap-3">
-          <div class="stat-icon-wrapper" style="background-color: hsl(var(--primary) / 0.1);">
-            <IconifyIcon icon="lucide:film" class="size-5" style="color: hsl(var(--primary));" />
+          <div
+            class="stat-icon-wrapper"
+            style="background-color: hsl(var(--primary) / 10%)"
+          >
+            <IconifyIcon
+              icon="lucide:film"
+              class="size-5"
+              style="color: hsl(var(--primary))"
+            />
           </div>
           <div>
             <div class="stat-label">电影</div>
@@ -460,8 +547,15 @@ onMounted(() => {
       </NCard>
       <NCard size="small" :bordered="false" class="stat-card">
         <div class="flex items-center gap-3">
-          <div class="stat-icon-wrapper" style="background-color: hsl(var(--success) / 0.1);">
-            <IconifyIcon icon="lucide:tv" class="size-5" style="color: hsl(var(--success));" />
+          <div
+            class="stat-icon-wrapper"
+            style="background-color: hsl(var(--success) / 10%)"
+          >
+            <IconifyIcon
+              icon="lucide:tv"
+              class="size-5"
+              style="color: hsl(var(--success))"
+            />
           </div>
           <div>
             <div class="stat-label">电视剧</div>
@@ -471,8 +565,15 @@ onMounted(() => {
       </NCard>
       <NCard size="small" :bordered="false" class="stat-card">
         <div class="flex items-center gap-3">
-          <div class="stat-icon-wrapper" style="background-color: hsl(var(--warning) / 0.1);">
-            <IconifyIcon icon="lucide:sparkles" class="size-5" style="color: hsl(var(--warning));" />
+          <div
+            class="stat-icon-wrapper"
+            style="background-color: hsl(var(--warning) / 10%)"
+          >
+            <IconifyIcon
+              icon="lucide:sparkles"
+              class="size-5"
+              style="color: hsl(var(--warning))"
+            />
           </div>
           <div>
             <div class="stat-label">动漫</div>
@@ -511,7 +612,9 @@ onMounted(() => {
             <div class="flex gap-3">
               <div
                 class="history-poster-wrapper flex items-center justify-center"
-                :style="{ backgroundColor: `hsl(${getTypeColor(item.TYPE)} / 0.12)` }"
+                :style="{
+                  backgroundColor: `hsl(${getTypeColor(item.TYPE)} / 0.12)`,
+                }"
               >
                 <IconifyIcon
                   :icon="getTypeIcon(item.TYPE)"
@@ -523,7 +626,9 @@ onMounted(() => {
                 <div class="flex items-start justify-between gap-2">
                   <div class="history-title truncate">
                     {{ item.TITLE || '-' }}
-                    <span v-if="item.YEAR" class="history-year">({{ item.YEAR }})</span>
+                    <span v-if="item.YEAR" class="history-year"
+                      >({{ item.YEAR }})</span
+                    >
                   </div>
                   <NCheckbox
                     :checked="selectedIds.includes(item.ID)"
@@ -538,11 +643,17 @@ onMounted(() => {
                   <span class="history-mode">{{ getModeLabel(item) }}</span>
                 </div>
                 <div v-if="item.SOURCE_FILENAME" class="history-path truncate">
-                  <IconifyIcon icon="lucide:arrow-right-from-line" class="size-3 inline mr-1 source-icon" />
+                  <IconifyIcon
+                    icon="lucide:arrow-right-from-line"
+                    class="size-3 inline mr-1 source-icon"
+                  />
                   {{ item.SOURCE_FILENAME }}
                 </div>
                 <div v-if="item.DEST_FILENAME" class="history-path truncate">
-                  <IconifyIcon icon="lucide:arrow-right-to-line" class="size-3 inline mr-1 dest-icon" />
+                  <IconifyIcon
+                    icon="lucide:arrow-right-to-line"
+                    class="size-3 inline mr-1 dest-icon"
+                  />
                   {{ item.DEST_FILENAME }}
                 </div>
                 <div class="history-footer">
@@ -553,7 +664,10 @@ onMounted(() => {
                   >
                     <NButton size="tiny" text @click.stop>
                       <template #icon>
-                        <IconifyIcon icon="lucide:more-vertical" class="size-4" />
+                        <IconifyIcon
+                          icon="lucide:more-vertical"
+                          class="size-4"
+                        />
                       </template>
                     </NButton>
                   </NDropdown>
@@ -573,11 +687,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <EmptyState
-        v-else
-        title="暂无识别历史"
-        subtitle="还没有媒体文件识别记录"
-      >
+      <EmptyState v-else title="暂无识别历史" subtitle="还没有媒体文件识别记录">
         <template #icon>
           <IconifyIcon
             icon="lucide:clock"
@@ -613,7 +723,7 @@ onMounted(() => {
     >
       <p v-if="deletePayload">
         确定要执行 <strong>{{ deletePayload.label }}</strong> 吗？
-        <br>
+        <br />
         共 {{ deletePayload.logids.length }} 条记录，此操作不可恢复。
       </p>
     </NModal>
@@ -623,7 +733,7 @@ onMounted(() => {
       v-model:show="manualModalShow"
       title="手动识别"
       preset="card"
-      style="width: 560px; max-width: 92vw;"
+      style="width: 560px; max-width: 92vw"
       :bordered="false"
       segmented
     >
@@ -634,7 +744,11 @@ onMounted(() => {
 
         <div class="grid grid-cols-2 gap-3">
           <NFormItem label="转移方式">
-            <NSelect v-model:value="manualForm.syncmod" :options="SYNC_MODES" size="small" />
+            <NSelect
+              v-model:value="manualForm.syncmod"
+              :options="SYNC_MODES"
+              size="small"
+            />
           </NFormItem>
           <NFormItem label="类型">
             <NRadioGroup v-model:value="manualForm.type" size="small">
@@ -646,7 +760,7 @@ onMounted(() => {
         </div>
 
         <NFormItem label="TMDB ID">
-          <NSpace align="center" :wrap="false" style="width: 100%;">
+          <NSpace align="center" :wrap="false" style="width: 100%">
             <NInputNumber
               v-model:value="manualForm.tmdb"
               placeholder="留空自动识别"
@@ -654,7 +768,7 @@ onMounted(() => {
               :show-button="false"
               clearable
               size="small"
-              style="flex: 1;"
+              style="flex: 1"
             />
             <NButton size="small" @click="openTmdbSearch">
               <template #icon>
@@ -688,23 +802,39 @@ onMounted(() => {
           </NFormItem>
         </div>
 
-        <NDivider style="margin: 0.5rem 0;" />
+        <NDivider style="margin: 0.5rem 0" />
 
         <div class="grid grid-cols-2 gap-3">
           <NFormItem label="指定集数">
-            <NInput v-model:value="manualForm.episode_format" placeholder="如 1,2,3" size="small" />
+            <NInput
+              v-model:value="manualForm.episode_format"
+              placeholder="如 1,2,3"
+              size="small"
+            />
           </NFormItem>
           <NFormItem label="指定 Part">
-            <NInput v-model:value="manualForm.episode_part" placeholder="如 Part1" size="small" />
+            <NInput
+              v-model:value="manualForm.episode_part"
+              placeholder="如 Part1"
+              size="small"
+            />
           </NFormItem>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <NFormItem label="定位集数">
-            <NInput v-model:value="manualForm.episode_details" placeholder="如 E01" size="small" />
+            <NInput
+              v-model:value="manualForm.episode_details"
+              placeholder="如 E01"
+              size="small"
+            />
           </NFormItem>
           <NFormItem label="集数偏移">
-            <NInput v-model:value="manualForm.episode_offset" placeholder="如 -10" size="small" />
+            <NInput
+              v-model:value="manualForm.episode_offset"
+              placeholder="如 -10"
+              size="small"
+            />
           </NFormItem>
         </div>
       </NForm>
@@ -712,7 +842,14 @@ onMounted(() => {
       <template #footer>
         <div class="flex justify-end gap-2">
           <NButton size="small" @click="manualModalShow = false">取消</NButton>
-          <NButton type="primary" size="small" :loading="manualLoading" @click="submitManual">转移</NButton>
+          <NButton
+            type="primary"
+            size="small"
+            :loading="manualLoading"
+            @click="submitManual"
+          >
+            转移
+          </NButton>
         </div>
       </template>
     </NModal>
@@ -722,7 +859,7 @@ onMounted(() => {
       v-model:show="tmdbSearchShow"
       title="查询 TMDB ID"
       preset="card"
-      style="width: 560px; max-width: 92vw;"
+      style="width: 560px; max-width: 92vw"
       :bordered="false"
       segmented
     >
@@ -732,10 +869,15 @@ onMounted(() => {
             v-model:value="tmdbSearchKeyword"
             placeholder="输入名称查询"
             size="small"
-            style="width: 320px;"
+            style="width: 320px"
             @keyup.enter="handleTmdbSearch"
           />
-          <NButton type="primary" size="small" :loading="tmdbSearchLoading" @click="handleTmdbSearch">
+          <NButton
+            type="primary"
+            size="small"
+            :loading="tmdbSearchLoading"
+            @click="handleTmdbSearch"
+          >
             <template #icon>
               <IconifyIcon icon="lucide:search" class="size-4" />
             </template>
@@ -760,7 +902,9 @@ onMounted(() => {
                   :src="getImgUrl(media.image || media.poster)"
                   class="tmdb-poster rounded"
                   alt=""
-                  @error="(e: any) => e.target.src = '/static/img/no-image.png'"
+                  @error="
+                    (e: any) => (e.target.src = '/static/img/no-image.png')
+                  "
                 />
                 <div
                   v-else
@@ -769,13 +913,15 @@ onMounted(() => {
                   <IconifyIcon
                     icon="lucide:image"
                     class="size-6"
-                    style="color: hsl(var(--muted-foreground));"
+                    style="color: hsl(var(--muted-foreground))"
                   />
                 </div>
                 <div class="min-w-0 flex-1">
                   <div class="tmdb-title truncate">
                     {{ media.title }}
-                    <span v-if="media.year" class="tmdb-year">({{ media.year }})</span>
+                    <span v-if="media.year" class="tmdb-year"
+                      >({{ media.year }})</span
+                    >
                   </div>
                   <div v-if="media.overview" class="tmdb-overview line-clamp-3">
                     {{ media.overview }}
@@ -809,23 +955,23 @@ onMounted(() => {
 }
 
 .stat-card:hover {
-  box-shadow: 0 2px 12px hsl(var(--foreground) / 0.08);
+  box-shadow: 0 2px 12px hsl(var(--foreground) / 8%);
 }
 
 .stat-icon-wrapper {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 0.5rem;
-  flex-shrink: 0;
 }
 
 .stat-label {
+  margin-bottom: 0.125rem;
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
-  margin-bottom: 0.125rem;
 }
 
 .stat-value {
@@ -843,64 +989,66 @@ onMounted(() => {
 .history-card {
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
-  transition: box-shadow 0.2s, border-color 0.2s;
+  transition:
+    box-shadow 0.2s,
+    border-color 0.2s;
 }
 
 .history-card:hover {
-  box-shadow: 0 4px 16px hsl(var(--foreground) / 0.1);
-  border-color: hsl(var(--primary) / 0.25);
+  border-color: hsl(var(--primary) / 25%);
+  box-shadow: 0 4px 16px hsl(var(--foreground) / 10%);
 }
 
 .history-poster-wrapper {
+  flex-shrink: 0;
   width: 2.75rem;
   height: 2.75rem;
   border-radius: 0.5rem;
-  flex-shrink: 0;
 }
 
 .history-title {
   font-size: 0.95rem;
   font-weight: 600;
-  color: hsl(var(--card-foreground));
   line-height: 1.4;
+  color: hsl(var(--card-foreground));
 }
 
 .history-year {
   font-size: 0.85rem;
-  color: hsl(var(--muted-foreground));
   font-weight: 400;
+  color: hsl(var(--muted-foreground));
 }
 
 .history-meta {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
   gap: 0.375rem;
+  align-items: center;
   margin-bottom: 0.375rem;
 }
 
 .history-tag {
-  font-size: 0.7rem;
   padding: 0.125rem 0.5rem;
-  border-radius: 0.25rem;
-  background-color: hsl(var(--primary) / 0.1);
-  color: hsl(var(--primary));
+  font-size: 0.7rem;
   font-weight: 500;
+  color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 10%);
+  border-radius: 0.25rem;
 }
 
 .history-mode {
-  font-size: 0.7rem;
   padding: 0.125rem 0.5rem;
-  border-radius: 0.25rem;
-  background-color: hsl(var(--muted));
+  font-size: 0.7rem;
   color: hsl(var(--muted-foreground));
+  background-color: hsl(var(--muted));
+  border-radius: 0.25rem;
 }
 
 .history-path {
-  font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
   margin-bottom: 0.125rem;
   font-family: monospace;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
 }
 
 .source-icon {
@@ -917,8 +1065,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 0.5rem;
   padding-top: 0.375rem;
+  margin-top: 0.5rem;
   border-top: 1px solid hsl(var(--border));
 }
 
@@ -936,48 +1084,48 @@ onMounted(() => {
 }
 
 .tmdb-result-card {
+  cursor: pointer;
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
-  cursor: pointer;
   transition: box-shadow 0.2s;
 }
 
 .tmdb-result-card:hover {
-  box-shadow: 0 2px 8px hsl(var(--foreground) / 0.08);
+  box-shadow: 0 2px 8px hsl(var(--foreground) / 8%);
 }
 
 .tmdb-poster {
+  flex-shrink: 0;
   width: 60px;
   height: 80px;
   object-fit: cover;
-  flex-shrink: 0;
   background-color: hsl(var(--muted));
 }
 
 .tmdb-poster-placeholder {
+  flex-shrink: 0;
   width: 60px;
   height: 80px;
   background-color: hsl(var(--muted));
-  flex-shrink: 0;
 }
 
 .tmdb-title {
+  margin-bottom: 0.25rem;
   font-size: 0.9rem;
   font-weight: 500;
   color: hsl(var(--card-foreground));
-  margin-bottom: 0.25rem;
 }
 
 .tmdb-year {
   font-size: 0.8rem;
-  color: hsl(var(--muted-foreground));
   font-weight: 400;
+  color: hsl(var(--muted-foreground));
 }
 
 .tmdb-overview {
   font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
   line-height: 1.4;
+  color: hsl(var(--muted-foreground));
 }
 
 @media (max-width: 640px) {

@@ -11,7 +11,7 @@ export namespace SystemApi {
     platform: string;
     uptime: string;
     uptime_seconds: number;
-    start_time: string | null;
+    start_time: null | string;
     memory_mb: number;
   }
 
@@ -42,7 +42,14 @@ export namespace SystemApi {
   export interface ScraperConfig {
     scraper_nfo?: {
       movie?: { basic?: boolean; credits?: boolean; credits_chinese?: boolean };
-      tv?: { basic?: boolean; credits?: boolean; credits_chinese?: boolean; season_basic?: boolean; episode_basic?: boolean; episode_credits?: boolean };
+      tv?: {
+        basic?: boolean;
+        credits?: boolean;
+        credits_chinese?: boolean;
+        episode_basic?: boolean;
+        episode_credits?: boolean;
+        season_basic?: boolean;
+      };
     };
     scraper_pic?: {
       movie?: Record<string, boolean>;
@@ -68,7 +75,10 @@ export async function runSchedulerItemApi(item: string) {
 
 /** 网络连通性测试 */
 export async function netTestApi(target?: string) {
-  return requestClient.post<{ res: boolean; time: string }>('/api/system/net_test', { target });
+  return requestClient.post<{ res: boolean; time: string }>(
+    '/api/system/net_test',
+    { target },
+  );
 }
 
 /** 备份配置 */
@@ -78,7 +88,10 @@ export async function backupApi() {
 
 /** 获取系统命令列表 */
 export async function getSystemCommandsApi() {
-  return requestClient.post<Array<{ id: string; name: string }>>('/api/system/commands', {});
+  return requestClient.post<Array<{ id: string; name: string }>>(
+    '/api/system/commands',
+    {},
+  );
 }
 
 /** 获取所有系统配置（扁平化，供基础设置页面使用） */
@@ -87,8 +100,16 @@ export async function getAllSystemConfigApi() {
 }
 
 /** 获取系统日志 */
-export async function getSystemLogsApi(level?: string, source?: string, limit: number = 200) {
-  return requestClient.post<SystemApi.LogItem[]>('/api/system/logs', { level, source, limit });
+export async function getSystemLogsApi(
+  level?: string,
+  source?: string,
+  limit: number = 200,
+) {
+  return requestClient.post<SystemApi.LogItem[]>('/api/system/logs', {
+    level,
+    source,
+    limit,
+  });
 }
 
 /** 重启系统 */
@@ -97,7 +118,8 @@ export async function restartSystemApi() {
 }
 
 // 进度请求节流：同 type 2000ms 内不重复发请求
-const _progressLocks: Record<string, { promise: Promise<any>; time: number }> = {};
+const _progressLocks: Record<string, { promise: Promise<any>; time: number }> =
+  {};
 
 /** 获取任务进度（带同类型节流，2000ms 内不重复发请求） */
 export async function getProgressApi(type: string) {
@@ -106,10 +128,10 @@ export async function getProgressApi(type: string) {
   if (lock && now - lock.time < 2000) {
     return lock.promise;
   }
-  const promise = requestClient.post<{ code: number; data?: { value: number; text: string } }>(
-    '/api/system/refresh',
-    { type },
-  );
+  const promise = requestClient.post<{
+    code: number;
+    data?: { text: string; value: number };
+  }>('/api/system/refresh', { type });
   _progressLocks[type] = { promise, time: now };
   return promise;
 }
@@ -126,35 +148,44 @@ export async function setSystemConfigApi(key: string, value: any) {
 
 /** 查询 Agent 模型列表 */
 export async function listAgentModelsApi(data: {
-  provider_name: string;
-  api_url: string;
   api_key: string;
+  api_url: string;
+  provider_name: string;
 }) {
-  return requestClient.post<{ code: number; data?: string[] }>('/api/system/agent/models', data);
+  return requestClient.post<{ code: number; data?: string[] }>(
+    '/api/system/agent/models',
+    data,
+  );
 }
 
 /** 获取消息客户端列表 */
 export async function getMessageClientApi(cid?: number) {
-  return requestClient.post<Record<string, SystemApi.MessageClient>>('/api/system/message_clients', { cid });
+  return requestClient.post<Record<string, SystemApi.MessageClient>>(
+    '/api/system/message_clients',
+    { cid },
+  );
 }
 
 /** 获取消息通知配置模板 */
 export async function getMessageClientConfigApi() {
   return requestClient.post<{
-    channels: Record<string, {
-      name: string;
-      icon_url?: string;
-      search_type?: string;
-      max_length?: number;
-      config: Record<string, any>;
-    }>;
-    switchs: Record<string, { name: string; fuc_name: string }>;
+    channels: Record<
+      string,
+      {
+        config: Record<string, any>;
+        icon_url?: string;
+        max_length?: number;
+        name: string;
+        search_type?: string;
+      }
+    >;
+    switchs: Record<string, { fuc_name: string; name: string }>;
   }>('/api/system/message_clients/config');
 }
 
 /** 获取消息通知默认模板 */
 export async function getMessageClientDefaultTemplatesApi() {
-  return requestClient.get<Record<string, { title: string; text: string }>>(
+  return requestClient.get<Record<string, { text: string; title: string }>>(
     '/api/system/message_clients/templates/defaults',
   );
 }
@@ -162,13 +193,13 @@ export async function getMessageClientDefaultTemplatesApi() {
 /** 更新消息客户端 */
 export async function updateMessageClientApi(data: {
   cid?: number;
-  name?: string;
-  type?: string;
   config?: string;
-  switchs?: string;
-  interactive?: number;
   enabled?: number;
+  interactive?: number;
+  name?: string;
+  switchs?: string;
   templates?: string;
+  type?: string;
 }) {
   return requestClient.post('/api/system/message_clients/update', data);
 }
@@ -180,15 +211,18 @@ export async function deleteMessageClientApi(cid: number) {
 
 /** 测试消息客户端 */
 export async function testMessageClientApi(type: string, config: string) {
-  return requestClient.post('/api/system/message_clients/test', { type, config });
+  return requestClient.post('/api/system/message_clients/test', {
+    type,
+    config,
+  });
 }
 
 /** 发送自定义消息 */
 export async function sendCustomMessageApi(data: {
-  title: string;
-  text?: string;
   image?: string;
   message_clients: string[];
+  text?: string;
+  title: string;
 }) {
   return requestClient.post('/api/system/messages/send', data);
 }
@@ -196,13 +230,13 @@ export async function sendCustomMessageApi(data: {
 /** 获取索引器配置 */
 export async function getIndexersConfigApi() {
   return requestClient.post<{
+    indexer_conf: Record<string, any>;
+    indexer_config: Record<string, any>;
+    indexer_sites: string[];
     indexers: { id: string; name: string; public: boolean }[];
     private_count: number;
     public_count: number;
-    indexer_conf: Record<string, any>;
-    indexer_sites: string[];
     search_indexer: string;
-    indexer_config: Record<string, any>;
   }>('/api/system/indexers');
 }
 
@@ -219,9 +253,18 @@ export async function testIndexerConfigApi(data: Record<string, any>) {
 /** 获取媒体服务器配置 */
 export async function getMediaServersConfigApi() {
   return requestClient.post<{
-    servers: Record<string, { id: number; name: string; enabled: number; is_default: number; config: Record<string, any> }>;
-    default_server: string | null;
+    default_server: null | string;
     mediaserver_conf: Record<string, any>;
+    servers: Record<
+      string,
+      {
+        config: Record<string, any>;
+        enabled: number;
+        id: number;
+        is_default: number;
+        name: string;
+      }
+    >;
   }>('/api/system/mediaservers');
 }
 
@@ -237,25 +280,26 @@ export async function testMediaServerApi(data: Record<string, any>) {
 
 /** 获取站点配置版本 */
 export async function getSiteConfigVersionApi() {
-  return requestClient.get<{ local: string; remote: string; needs_update: boolean }>(
-    '/api/system/site-config/version',
-  );
+  return requestClient.get<{
+    local: string;
+    needs_update: boolean;
+    remote: string;
+  }>('/api/system/site-config/version');
 }
 
 /** 手动更新站点配置 */
 export async function updateSiteConfigApi(force?: boolean) {
-  return requestClient.post<{ success: boolean; message: string; version: string }>(
-    '/api/system/site-config/update',
-    { data: { force: !!force } },
-  );
+  return requestClient.post<{
+    message: string;
+    success: boolean;
+    version: string;
+  }>('/api/system/site-config/update', { data: { force: !!force } });
 }
 
 /** 手动触发配置重载 */
 export async function reloadConfigApi() {
-  return requestClient.post<{ code: number; data?: { version: number; steps: Record<string, boolean> } }>(
-    '/api/system/config/reload',
-    {},
-  );
+  return requestClient.post<{
+    code: number;
+    data?: { steps: Record<string, boolean>; version: number };
+  }>('/api/system/config/reload', {});
 }
-
-

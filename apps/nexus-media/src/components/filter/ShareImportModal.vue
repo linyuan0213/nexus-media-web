@@ -3,24 +3,18 @@ import { ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import {
-  NButton,
-  NInput,
-  NModal,
-  NSpace,
-  useNotification,
-} from 'naive-ui';
+import { NButton, NInput, NModal, NSpace, useNotification } from 'naive-ui';
 
 import { importFilterGroupApi } from '#/api/modules/filter';
 
 const props = defineProps<{
-  show: boolean;
   shareContent?: string;
+  show: boolean;
 }>();
 
 const emit = defineEmits<{
-  'update:show': [value: boolean];
   success: [];
+  'update:show': [value: boolean];
 }>();
 
 const notification = useNotification();
@@ -46,8 +40,11 @@ async function handleImport() {
     notification.success({ content: '导入成功' });
     emit('update:show', false);
     emit('success');
-  } catch (err: any) {
-    notification.error({ content: '导入失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '导入失败',
+      description: error?.message || '',
+    });
   } finally {
     loading.value = false;
   }
@@ -55,11 +52,14 @@ async function handleImport() {
 
 function handleCopy() {
   if (!localShareContent.value) return;
-  navigator.clipboard.writeText(localShareContent.value).then(() => {
-    notification.success({ content: '已复制到剪贴板' });
-  }).catch(() => {
-    notification.error({ content: '复制失败' });
-  });
+  navigator.clipboard
+    .writeText(localShareContent.value)
+    .then(() => {
+      notification.success({ content: '已复制到剪贴板' });
+    })
+    .catch(() => {
+      notification.error({ content: '复制失败' });
+    });
 }
 </script>
 
@@ -68,7 +68,7 @@ function handleCopy() {
     :show="show"
     :title="shareContent ? '分享规则组' : '导入规则组'"
     preset="card"
-    class="w-[600px]"
+    :style="{ width: '600px', maxWidth: '92vw' }"
     :bordered="false"
     @update:show="emit('update:show', $event)"
   >
@@ -98,7 +98,9 @@ function handleCopy() {
       <div class="mt-3 flex justify-end">
         <NSpace>
           <NButton @click="emit('update:show', false)">取消</NButton>
-          <NButton type="primary" :loading="loading" @click="handleImport">导入</NButton>
+          <NButton type="primary" :loading="loading" @click="handleImport">
+            导入
+          </NButton>
         </NSpace>
       </div>
     </div>

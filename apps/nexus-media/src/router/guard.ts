@@ -5,10 +5,9 @@ import { preferences } from '@vben/preferences';
 import { useAccessStore, useUserStore } from '@vben/stores';
 import { startProgress, stopProgress } from '@vben/utils';
 
+import { loadAllPluginFrontends } from '#/plugin-framework/loader';
 import { accessRoutes, coreRouteNames } from '#/router/routes';
 import { useAuthStore } from '#/store';
-
-import { loadAllPluginFrontends } from '#/plugin-framework/loader';
 
 import { generateAccess } from './access';
 
@@ -96,8 +95,8 @@ function setupAccessGuard(router: Router) {
       // 已登录状态下仍需加载插件前端（避免首次登录后插件未加载）
       try {
         await loadAllPluginFrontends();
-      } catch (e) {
-        console.error('[RouterGuard] 加载插件前端失败:', e);
+      } catch (error) {
+        console.error('[RouterGuard] 加载插件前端失败:', error);
       }
       return true;
     }
@@ -129,8 +128,8 @@ function setupAccessGuard(router: Router) {
     // 加载插件前端资源（路由、插槽）
     try {
       await loadAllPluginFrontends();
-    } catch (e) {
-      console.error('[RouterGuard] 加载插件前端失败:', e);
+    } catch (error) {
+      console.error('[RouterGuard] 加载插件前端失败:', error);
     }
     const redirectPath = (from.query.redirect ??
       (to.path === preferences.app.defaultHomePath

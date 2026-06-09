@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, onMounted, computed, h } from 'vue';
+import { computed, h, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import {
@@ -11,7 +11,11 @@ import {
   useNotification,
 } from 'naive-ui';
 
-import { deleteSubscriptionHistoryApi, getSubscriptionHistoryApi, redoSubscriptionHistoryApi } from '#/api';
+import {
+  deleteSubscriptionHistoryApi,
+  getSubscriptionHistoryApi,
+  redoSubscriptionHistoryApi,
+} from '#/api';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 import { useSubscriptionStore } from '#/store';
@@ -31,11 +35,11 @@ const type = computed(() => {
 });
 
 const pageTitle = computed(() =>
-  type.value === 'tv' ? '电视剧订阅历史' : '电影订阅历史'
+  type.value === 'tv' ? '电视剧订阅历史' : '电影订阅历史',
 );
 
 const backPath = computed(() =>
-  type.value === 'tv' ? '/subscription/tv' : '/subscription/movie'
+  type.value === 'tv' ? '/subscription/tv' : '/subscription/movie',
 );
 
 function getImgUrl(src?: string) {
@@ -75,10 +79,10 @@ async function handleReRss(row: any) {
     await redoSubscriptionHistoryApi(row.id, type.value);
     notification.success({ content: '重新订阅成功' });
     await fetchData();
-  } catch (err: any) {
+  } catch (error: any) {
     notification.error({
       content: '重新订阅失败',
-      description: err?.message || '',
+      description: error?.message || '',
     });
   }
 }
@@ -94,10 +98,10 @@ async function confirmDelete() {
     await deleteSubscriptionHistoryApi(deleteTarget.value.id);
     notification.success({ content: '已删除' });
     await fetchData();
-  } catch (err: any) {
+  } catch (error: any) {
     notification.error({
       content: '删除失败',
-      description: err?.message || '',
+      description: error?.message || '',
     });
   } finally {
     deleteModalShow.value = false;
@@ -110,35 +114,46 @@ function renderImage(row: any) {
     src: getImgUrl(row.image),
     class: 'rounded shadow-sm',
     style: 'width: 50px; aspect-ratio: 2/3; object-fit: cover',
-    onError: (e: any) => { e.target.src = '/static/img/no-image.png'; },
+    onError: (e: any) => {
+      e.target.src = '/static/img/no-image.png';
+    },
   });
 }
 
 function renderTitle(row: any) {
-  const children: any[] = [];
-  children.push(
+  return h('div', null, [
     h('div', { class: 'font-medium' }, [
       row.title,
       row.year ? ` (${row.year})` : '',
       row.season ? ` ${row.season}` : '',
-    ])
-  );
-  if (row.tmdbid) {
-    children.push(
-      h('a', {
-        href: `https://www.themoviedb.org/${row.type === 'tv' ? 'tv' : 'movie'}/${row.tmdbid}`,
-        target: '_blank',
-        class: 'text-xs hover:underline',
-        style: 'color: hsl(var(--success))',
-      }, row.tmdbid)
-    );
-  }
-  if (row.total > 0) {
-    children.push(
-      h('div', { class: 'text-xs mt-0.5', style: 'color: hsl(var(--muted-foreground))' }, `共 ${row.total - row.start} 集`)
-    );
-  }
-  return h('div', null, children);
+    ]),
+    ...(row.tmdbid
+      ? [
+          h(
+            'a',
+            {
+              href: `https://www.themoviedb.org/${row.type === 'tv' ? 'tv' : 'movie'}/${row.tmdbid}`,
+              target: '_blank',
+              class: 'text-xs hover:underline',
+              style: 'color: hsl(var(--success))',
+            },
+            row.tmdbid,
+          ),
+        ]
+      : []),
+    ...(row.total > 0
+      ? [
+          h(
+            'div',
+            {
+              class: 'text-xs mt-0.5',
+              style: 'color: hsl(var(--muted-foreground))',
+            },
+            `共 ${row.total - row.start} 集`,
+          ),
+        ]
+      : []),
+  ]);
 }
 
 function renderDesc(row: any) {
@@ -146,32 +161,54 @@ function renderDesc(row: any) {
 }
 
 function renderTime(row: any) {
-  return       h('span', { class: 'text-sm', style: 'color: hsl(var(--muted-foreground))' }, row.finishTime);
+  return h(
+    'span',
+    { class: 'text-sm', style: 'color: hsl(var(--muted-foreground))' },
+    row.finishTime,
+  );
 }
 
 function renderActions(row: any) {
-  return h(NSpace, { size: 'small' }, {
-    default: () => [
-      h(NButton, {
-        size: 'tiny',
-        type: 'primary',
-        ghost: true,
-        onClick: () => handleReRss(row),
-      }, { default: () => '重新订阅' }),
-      h(NButton, {
-        size: 'tiny',
-        type: 'error',
-        ghost: true,
-        onClick: () => handleDelete(row),
-      }, { default: () => '删除' }),
-    ],
-  });
+  return h(
+    NSpace,
+    { size: 'small' },
+    {
+      default: () => [
+        h(
+          NButton,
+          {
+            size: 'tiny',
+            type: 'primary',
+            ghost: true,
+            onClick: () => handleReRss(row),
+          },
+          { default: () => '重新订阅' },
+        ),
+        h(
+          NButton,
+          {
+            size: 'tiny',
+            type: 'error',
+            ghost: true,
+            onClick: () => handleDelete(row),
+          },
+          { default: () => '删除' },
+        ),
+      ],
+    },
+  );
 }
 
 const columns = [
   { title: '', key: 'image', width: 70, render: renderImage },
   { title: '标题', key: 'title', minWidth: 200, render: renderTitle },
-  { title: '简介', key: 'desc', minWidth: 240, ellipsis: { tooltip: true }, render: renderDesc },
+  {
+    title: '简介',
+    key: 'desc',
+    minWidth: 240,
+    ellipsis: { tooltip: true },
+    render: renderDesc,
+  },
   { title: '完成时间', key: 'finishTime', width: 160, render: renderTime },
   { title: '操作', key: 'actions', width: 160, render: renderActions },
 ];
@@ -225,9 +262,11 @@ onMounted(fetchData);
 </template>
 
 <style scoped>
+/* stylelint-disable selector-class-pattern */
 @media (max-width: 768px) {
   .hidden.md\:inline {
     display: none;
   }
 }
+/* stylelint-enable selector-class-pattern */
 </style>

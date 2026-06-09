@@ -1,7 +1,8 @@
-import { ref } from 'vue';
-import { defineStore } from 'pinia';
-
 import type { SubscriptionApi } from '#/api/modules/subscription';
+
+import { ref } from 'vue';
+
+import { defineStore } from 'pinia';
 
 export type Subscription = SubscriptionApi.Subscription;
 export type SubscriptionHistory = SubscriptionApi.SubscriptionHistory;

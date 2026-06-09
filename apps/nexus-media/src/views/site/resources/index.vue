@@ -1,26 +1,33 @@
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
+
+import { IconifyIcon } from '@vben/icons';
 
 import {
   NButton,
   NCard,
-  NInput,
-  NSpace,
-  NSpin,
-  NPagination,
-  NModal,
-  NSelect,
   NForm,
   NFormItem,
+  NInput,
+  NModal,
+  NPagination,
+  NSelect,
+  NSpace,
+  NSpin,
   NTooltip,
   useNotification,
 } from 'naive-ui';
 
-import { getSiteResourcesApi, getSiteFaviconsApi } from '#/api/modules/site';
-import { getIndexersApi, getDownloadSettingsApi, getDownloadDirsApi, addTorrentApi, resolveDownloadUrlApi } from '#/api/modules/download';
+import {
+  addTorrentApi,
+  getDownloadDirsApi,
+  getDownloadSettingsApi,
+  getIndexersApi,
+  resolveDownloadUrlApi,
+} from '#/api/modules/download';
+import { getSiteFaviconsApi, getSiteResourcesApi } from '#/api/modules/site';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
-import { IconifyIcon } from '@vben/icons';
 
 interface SiteItem {
   id: string;
@@ -47,7 +54,7 @@ const notification = useNotification();
 const loading = ref(false);
 const sites = ref<SiteItem[]>([]);
 const resources = ref<ResourceItem[]>([]);
-const selectedSite = ref<SiteItem | null>(null);
+const selectedSite = ref<null | SiteItem>(null);
 const keyword = ref('');
 const currentPage = ref(1);
 const pageSize = ref(20);
@@ -59,9 +66,11 @@ const viewMode = ref<'grid' | 'list'>('grid');
 // 下载弹窗
 const downloadModalVisible = ref(false);
 const downloadModalLoading = ref(false);
-const downloadResource = ref<ResourceItem | null>(null);
+const downloadResource = ref<null | ResourceItem>(null);
 const downloadSettings = ref<Array<{ label: string; value: string }>>([]);
-const downloadDirs = ref<Array<{ label: string; value: string }>>([{ label: '自动', value: '' }]);
+const downloadDirs = ref<Array<{ label: string; value: string }>>([
+  { label: '自动', value: '' },
+]);
 const selectedDownloadSetting = ref('');
 const selectedDownloadDir = ref('');
 
@@ -70,13 +79,18 @@ async function fetchSites() {
   try {
     const [indexersRes, faviconRes]: [any, any] = await Promise.all([
       getIndexersApi(),
-      getSiteFaviconsApi().catch(() => ({} as any)),
+      getSiteFaviconsApi().catch(() => ({}) as any),
     ]);
-    const list = Array.isArray(indexersRes) ? indexersRes : (indexersRes?.data || []);
+    const list = Array.isArray(indexersRes)
+      ? indexersRes
+      : indexersRes?.data || [];
     sites.value = list.map((s: any) => ({ id: s.id, name: s.name }));
     favicons.value = faviconRes?.data || faviconRes || {};
-  } catch (err: any) {
-    notification.error({ content: '获取站点列表失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '获取站点列表失败',
+      description: error?.message || '',
+    });
   } finally {
     loading.value = false;
   }
@@ -134,14 +148,15 @@ async function fetchData(page = 1) {
     currentPage.value = page;
     // 由于后端无法返回总记录数，使用动态估算：
     // 如果当前页有数据，total 至少要是 (page * pageSize + 1)，确保分页组件显示下一页
-    if (data.length > 0) {
-      total.value = Math.max(total.value, page * pageSize.value + 1);
-    } else {
-      // 空页，回退 total 到前一页末尾
-      total.value = (page - 1) * pageSize.value;
-    }
-  } catch (err: any) {
-    notification.error({ content: '获取数据失败', description: err?.message || '' });
+    total.value =
+      data.length > 0
+        ? Math.max(total.value, page * pageSize.value + 1)
+        : (page - 1) * pageSize.value;
+  } catch (error: any) {
+    notification.error({
+      content: '获取数据失败',
+      description: error?.message || '',
+    });
   } finally {
     loading.value = false;
   }
@@ -185,18 +200,23 @@ async function openDownloadModal(item: ResourceItem) {
         value: String(s.id),
       }));
     } else if (typeof settingsRes === 'object' && !Array.isArray(settingsRes)) {
-      downloadSettings.value = Object.entries(settingsRes).map(([sid, s]: [string, any]) => ({
-        label: (s as any).name || sid,
-        value: String((s as any).id || sid),
-      }));
+      downloadSettings.value = Object.entries(settingsRes).map(
+        ([sid, s]: [string, any]) => ({
+          label: (s as any).name || sid,
+          value: String((s as any).id || sid),
+        }),
+      );
     }
-    if (downloadSettings.value.length) {
+    if (downloadSettings.value.length > 0) {
       const first = downloadSettings.value[0]!.value;
       selectedDownloadSetting.value = first;
       await loadDownloadDirs(first);
     }
-  } catch (err: any) {
-    notification.error({ content: '获取下载设置失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '获取下载设置失败',
+      description: error?.message || '',
+    });
   } finally {
     downloadModalLoading.value = false;
   }
@@ -207,13 +227,16 @@ async function loadDownloadDirs(val: string) {
   if (!val) return;
   try {
     const dirsRes: any = await getDownloadDirsApi(val);
-    if (Array.isArray(dirsRes) && dirsRes.length) {
-      downloadDirs.value = [{ label: '自动', value: '' }, ...dirsRes.map((d: string) => ({ label: d, value: d }))];
+    if (Array.isArray(dirsRes) && dirsRes.length > 0) {
+      downloadDirs.value = [
+        { label: '自动', value: '' },
+        ...dirsRes.map((d: string) => ({ label: d, value: d })),
+      ];
     }
   } catch {}
 }
 
-async function onDownloadSettingChange(val: string | null) {
+async function onDownloadSettingChange(val: null | string) {
   selectedDownloadSetting.value = val || '';
   selectedDownloadDir.value = '';
   await loadDownloadDirs(val || '');
@@ -241,8 +264,10 @@ async function confirmDownload() {
       dl_dir: selectedDownloadDir.value || undefined,
       dl_setting: selectedDownloadSetting.value || undefined,
       page_url: downloadResource.value.page_url || undefined,
-      upload_volume_factor: downloadResource.value.uploadvolumefactor ?? undefined,
-      download_volume_factor: downloadResource.value.downloadvolumefactor ?? undefined,
+      upload_volume_factor:
+        downloadResource.value.uploadvolumefactor ?? undefined,
+      download_volume_factor:
+        downloadResource.value.downloadvolumefactor ?? undefined,
       title: downloadResource.value.title || undefined,
       description: downloadResource.value.description || undefined,
       site: downloadResource.value.indexer || undefined,
@@ -250,8 +275,11 @@ async function confirmDownload() {
     });
     notification.success({ content: '下载任务已提交', duration: 2000 });
     downloadModalVisible.value = false;
-  } catch (err: any) {
-    notification.error({ content: '下载失败', description: err?.message || '未知错误' });
+  } catch (error: any) {
+    notification.error({
+      content: '下载失败',
+      description: error?.message || '未知错误',
+    });
   } finally {
     downloadModalLoading.value = false;
   }
@@ -260,7 +288,8 @@ async function confirmDownload() {
 function getFreeTag(item: ResourceItem) {
   const up = item.uploadvolumefactor ?? 1;
   const down = item.downloadvolumefactor ?? 1;
-  if (down === 0 && up === 2) return { label: '2X免费', type: 'warning' as const };
+  if (down === 0 && up === 2)
+    return { label: '2X免费', type: 'warning' as const };
   if (down === 0) return { label: '免费', type: 'success' as const };
   return null;
 }
@@ -273,13 +302,28 @@ function parseLabels(labels?: string | string[]): string[] {
 
 function getLabelClass(label: string): string {
   const lower = label.toLowerCase();
-  if (/国语|中字|粤语|双语|中英|英文|简繁|繁体|简体|字幕|sub/.test(lower)) return 'resource-tag-lang';
+  if (/国语|中字|粤语|双语|中英|英文|简繁|繁体|简体|字幕|sub/.test(lower))
+    return 'resource-tag-lang';
   if (/禁转|禁止|禁|exclusive/.test(lower)) return 'resource-tag-danger';
   if (/官组|官方|官|official/.test(lower)) return 'resource-tag-primary';
-  if (/hdr|sdr|杜比视界|dolby.vision|画质|4k|2160p|1080p|720p|hevc|x264|x265|avc|vp9/.test(lower)) return 'resource-tag-warning';
-  if (/杜比|dobly|atmos|truehd|dts|flac|aac|ac3|eac3|mp3|opus|audio/.test(lower)) return 'resource-tag-info';
-  if (/web-dl|blu-ray|bdrip|brrip|dvdrip|hdtv|tvrip|转制|压制|remux|webrip/.test(lower)) return 'resource-tag-accent';
-  if (/去广告|纯净版|完整版|未删减|导演剪辑|加长版|uncut|unrated/.test(lower)) return 'resource-tag-cyan';
+  if (
+    /hdr|sdr|杜比视界|dolby.vision|画质|4k|2160p|1080p|720p|hevc|x264|x265|avc|vp9/.test(
+      lower,
+    )
+  )
+    return 'resource-tag-warning';
+  if (
+    /杜比|dobly|atmos|truehd|dts|flac|aac|ac3|eac3|mp3|opus|audio/.test(lower)
+  )
+    return 'resource-tag-info';
+  if (
+    /web-dl|blu-ray|bdrip|brrip|dvdrip|hdtv|tvrip|转制|压制|remux|webrip/.test(
+      lower,
+    )
+  )
+    return 'resource-tag-accent';
+  if (/去广告|纯净版|完整版|未删减|导演剪辑|加长版|uncut|unrated/.test(lower))
+    return 'resource-tag-cyan';
   return 'resource-tag-default';
 }
 
@@ -421,7 +465,11 @@ onMounted(() => {
             @keyup.enter="handleSearch"
           >
             <template #prefix>
-              <IconifyIcon icon="lucide:search" class="h-4 w-4" style="color: hsl(var(--muted-foreground))" />
+              <IconifyIcon
+                icon="lucide:search"
+                class="h-4 w-4"
+                style="color: hsl(var(--muted-foreground))"
+              />
             </template>
           </NInput>
           <NButton type="primary" size="small" @click="handleSearch">
@@ -453,10 +501,7 @@ onMounted(() => {
               <!-- 标题行 -->
               <div class="resource-header">
                 <div class="resource-title-row">
-                  <span
-                    v-if="getFreeTag(item)"
-                    class="resource-free-inline"
-                  >
+                  <span v-if="getFreeTag(item)" class="resource-free-inline">
                     {{ getFreeTag(item)!.label }}
                   </span>
                   <NTooltip :show-arrow="false">
@@ -472,7 +517,8 @@ onMounted(() => {
                     :key="label"
                     class="resource-tag"
                     :class="getLabelClass(label)"
-                  >{{ label }}</span>
+                    >{{ label }}</span
+                  >
                 </div>
               </div>
 
@@ -494,13 +540,17 @@ onMounted(() => {
                   <span class="meta-icon seeders">
                     <IconifyIcon icon="lucide:arrow-up" class="h-3.5 w-3.5" />
                   </span>
-                  <span class="meta-value seeders">{{ item.seeders || 0 }}</span>
+                  <span class="meta-value seeders">{{
+                    item.seeders || 0
+                  }}</span>
                 </div>
                 <div class="meta-group">
                   <span class="meta-icon leechers">
                     <IconifyIcon icon="lucide:arrow-down" class="h-3.5 w-3.5" />
                   </span>
-                  <span class="meta-value leechers">{{ item.leechers || 0 }}</span>
+                  <span class="meta-value leechers">{{
+                    item.leechers || 0
+                  }}</span>
                 </div>
                 <div v-if="item.pubdate" class="meta-group">
                   <span class="meta-icon">
@@ -546,10 +596,7 @@ onMounted(() => {
             >
               <div class="resource-list-main">
                 <div class="resource-list-header">
-                  <span
-                    v-if="getFreeTag(item)"
-                    class="resource-free-inline"
-                  >
+                  <span v-if="getFreeTag(item)" class="resource-free-inline">
                     {{ getFreeTag(item)!.label }}
                   </span>
                   <NTooltip :show-arrow="false">
@@ -565,7 +612,8 @@ onMounted(() => {
                     :key="label"
                     class="resource-tag"
                     :class="getLabelClass(label)"
-                  >{{ label }}</span>
+                    >{{ label }}</span
+                  >
                 </div>
               </div>
 
@@ -575,12 +623,22 @@ onMounted(() => {
                   <span class="meta-value">{{ formatSize(item.size) }}</span>
                 </span>
                 <span class="meta-group">
-                  <IconifyIcon icon="lucide:arrow-up" class="h-3.5 w-3.5 seeders" />
-                  <span class="meta-value seeders">{{ item.seeders || 0 }}</span>
+                  <IconifyIcon
+                    icon="lucide:arrow-up"
+                    class="h-3.5 w-3.5 seeders"
+                  />
+                  <span class="meta-value seeders">{{
+                    item.seeders || 0
+                  }}</span>
                 </span>
                 <span class="meta-group">
-                  <IconifyIcon icon="lucide:arrow-down" class="h-3.5 w-3.5 leechers" />
-                  <span class="meta-value leechers">{{ item.leechers || 0 }}</span>
+                  <IconifyIcon
+                    icon="lucide:arrow-down"
+                    class="h-3.5 w-3.5 leechers"
+                  />
+                  <span class="meta-value leechers">{{
+                    item.leechers || 0
+                  }}</span>
                 </span>
                 <span v-if="item.pubdate" class="meta-group">
                   <IconifyIcon icon="lucide:clock" class="h-3.5 w-3.5" />
@@ -606,7 +664,10 @@ onMounted(() => {
                   @click="handleOpenUrl(item.page_url)"
                 >
                   <template #icon>
-                    <IconifyIcon icon="lucide:external-link" class="h-3.5 w-3.5" />
+                    <IconifyIcon
+                      icon="lucide:external-link"
+                      class="h-3.5 w-3.5"
+                    />
                   </template>
                   <span class="hidden sm:inline">详情</span>
                 </NButton>
@@ -644,7 +705,7 @@ onMounted(() => {
       v-model:show="downloadModalVisible"
       :title="`下载 - ${downloadResource?.title || ''}`"
       preset="card"
-      class="w-[480px]"
+      :style="{ width: '480px', maxWidth: '92vw' }"
       :bordered="false"
       :segmented="{ content: true }"
       :mask-closable="false"
@@ -673,12 +734,16 @@ onMounted(() => {
 
       <template #footer>
         <NSpace justify="end">
-          <NButton size="small" @click="downloadModalVisible = false">取消</NButton>
+          <NButton size="small" @click="downloadModalVisible = false">
+            取消
+          </NButton>
           <NButton
             size="small"
             type="primary"
             :loading="downloadModalLoading"
-            :disabled="!downloadResource?.enclosure && !downloadResource?.page_url"
+            :disabled="
+              !downloadResource?.enclosure && !downloadResource?.page_url
+            "
             @click="confirmDownload"
           >
             确认下载
@@ -699,13 +764,13 @@ onMounted(() => {
 
 .site-card {
   cursor: pointer;
-  transition: all 0.2s ease;
   border-left: 3px solid transparent;
+  transition: all 0.2s ease;
 }
 
 .site-card:hover {
   border-left-color: hsl(var(--primary));
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 4%);
 }
 
 .site-card :deep(.n-card__content) {
@@ -714,28 +779,28 @@ onMounted(() => {
 
 .site-card-content {
   display: flex;
-  align-items: center;
   gap: 0.875rem;
+  align-items: center;
 }
 
 .site-logo-wrap {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   width: 2.5rem;
   height: 2.5rem;
-  border-radius: 0.5rem;
-  background-color: hsl(var(--primary) / 0.1);
-  color: hsl(var(--primary));
-  flex-shrink: 0;
   overflow: hidden;
+  color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 10%);
+  border-radius: 0.5rem;
 }
 
 .site-logo-img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
   padding: 0.25rem;
+  object-fit: contain;
 }
 
 .site-logo-placeholder {
@@ -752,59 +817,59 @@ onMounted(() => {
 .site-name {
   font-size: 1rem;
   font-weight: 600;
-  color: hsl(var(--card-foreground));
   line-height: 1.3;
+  color: hsl(var(--card-foreground));
 }
 
 .site-id {
+  margin-top: 0.125rem;
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
-  margin-top: 0.125rem;
 }
 
 .site-arrow {
-  color: hsl(var(--muted-foreground));
   flex-shrink: 0;
+  color: hsl(var(--muted-foreground));
 }
 
 /* ===== Header Row ===== */
 .header-row {
   display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 1rem;
-  gap: 1rem;
-  flex-wrap: wrap;
 }
 
 .page-title {
+  margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
-  color: hsl(var(--foreground));
   line-height: 1.4;
-  margin: 0;
+  color: hsl(var(--foreground));
 }
 
 .toolbar-actions {
   display: flex;
-  align-items: center;
   gap: 0.25rem;
+  align-items: center;
 }
 
 /* ===== 搜索栏 ===== */
 .search-bar {
-  margin-bottom: 1rem;
   padding: 0.75rem;
+  margin-bottom: 1rem;
+  background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: 0.5rem;
-  background-color: hsl(var(--card));
 }
 
 .search-row {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
   flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .search-input {
@@ -813,8 +878,8 @@ onMounted(() => {
 }
 
 .stats-bar {
-  margin-bottom: 0.75rem;
   padding: 0 0.25rem;
+  margin-bottom: 0.75rem;
 }
 
 .stats-text {
@@ -823,8 +888,8 @@ onMounted(() => {
 }
 
 .stats-text strong {
-  color: hsl(var(--card-foreground));
   font-weight: 600;
+  color: hsl(var(--card-foreground));
 }
 
 /* ===== Grid View ===== */
@@ -835,13 +900,13 @@ onMounted(() => {
 }
 
 .resource-card {
-  transition: all 0.2s ease;
   border-left: 3px solid transparent;
+  transition: all 0.2s ease;
 }
 
 .resource-card:hover {
   border-left-color: hsl(var(--primary));
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 4%);
 }
 
 .resource-card :deep(.n-card__content) {
@@ -855,98 +920,98 @@ onMounted(() => {
 .resource-title {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: hsl(var(--card-foreground));
   line-height: 1.4;
-  word-break: break-word;
+  color: hsl(var(--card-foreground));
+  overflow-wrap: break-word;
 }
 
 .resource-badges {
   display: flex;
-  align-items: center;
-  gap: 0.375rem;
   flex-wrap: wrap;
+  gap: 0.375rem;
+  align-items: center;
 }
 
 .resource-tag {
-  font-size: 0.75rem;
   padding: 0.125rem 0.5rem;
-  border-radius: 0.25rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  white-space: nowrap;
   line-height: 1.4;
+  white-space: nowrap;
+  border-radius: 0.25rem;
 }
 
 .resource-tag-default {
-  background-color: hsl(var(--muted) / 0.3);
   color: hsl(var(--muted-foreground));
+  background-color: hsl(var(--muted) / 30%);
 }
 
 .resource-tag-primary {
-  background-color: hsl(var(--primary) / 0.1);
   color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 10%);
 }
 
 .resource-tag-danger {
-  background-color: hsl(var(--destructive) / 0.1);
   color: hsl(var(--destructive));
+  background-color: hsl(var(--destructive) / 10%);
 }
 
 .resource-tag-lang {
-  background-color: hsl(var(--success) / 0.12);
   color: hsl(var(--success));
+  background-color: hsl(var(--success) / 12%);
 }
 
 .resource-tag-warning {
-  background-color: hsl(var(--warning) / 0.15);
   color: hsl(var(--warning));
+  background-color: hsl(var(--warning) / 15%);
 }
 
 .resource-tag-info {
-  background-color: hsla(210, 80%, 55%, 0.1);
-  color: hsl(210, 80%, 55%);
+  color: hsl(210deg 80% 55%);
+  background-color: hsl(210deg 80% 55% / 10%);
 }
 
 .resource-tag-accent {
-  background-color: hsl(var(--accent));
   color: hsl(var(--card-foreground));
+  background-color: hsl(var(--accent));
 }
 
 .resource-tag-cyan {
-  background-color: hsla(185, 70%, 45%, 0.1);
-  color: hsl(185, 70%, 45%);
+  color: hsl(185deg 70% 45%);
+  background-color: hsl(185deg 70% 45% / 10%);
 }
 
 .resource-title-row {
   display: flex;
-  align-items: flex-start;
   gap: 0.5rem;
+  align-items: flex-start;
   margin-bottom: 0.375rem;
 }
 
 .resource-free-inline {
   flex-shrink: 0;
+  padding: 0.125rem 0.375rem;
+  margin-top: 0.15rem;
   font-size: 0.6875rem;
   font-weight: 700;
-  padding: 0.125rem 0.375rem;
-  border-radius: 0.25rem;
-  background-color: hsl(var(--success));
-  color: hsl(var(--success-foreground, var(--primary-foreground)));
   line-height: 1.4;
-  margin-top: 0.15rem;
+  color: hsl(var(--success-foreground, var(--primary-foreground)));
+  background-color: hsl(var(--success));
+  border-radius: 0.25rem;
 }
 
 .resource-description {
   display: flex;
-  align-items: flex-start;
   gap: 0.375rem;
+  align-items: flex-start;
   padding: 0.5rem 0.625rem;
   margin-bottom: 0.5rem;
-  border-radius: 0.375rem;
-  background: hsl(var(--accent) / 0.4);
-  color: hsl(var(--muted-foreground));
   font-size: 0.8125rem;
   line-height: 1.5;
-  word-break: break-word;
+  color: hsl(var(--muted-foreground));
+  overflow-wrap: break-word;
+  background: hsl(var(--accent) / 40%);
+  border-radius: 0.375rem;
 }
 
 .resource-description span {
@@ -956,25 +1021,25 @@ onMounted(() => {
 
 .resource-meta {
   display: flex;
-  align-items: center;
-  gap: 0.875rem;
   flex-wrap: wrap;
+  gap: 0.875rem;
+  align-items: center;
   padding: 0.625rem;
+  margin-bottom: 0.75rem;
   background-color: hsl(var(--accent));
   border-radius: 0.5rem;
-  margin-bottom: 0.75rem;
 }
 
 .meta-group {
   display: inline-flex;
-  align-items: center;
   gap: 0.25rem;
+  align-items: center;
 }
 
 .meta-icon {
-  color: hsl(var(--muted-foreground));
   display: inline-flex;
   align-items: center;
+  color: hsl(var(--muted-foreground));
 }
 
 .meta-icon.seeders {
@@ -987,8 +1052,8 @@ onMounted(() => {
 
 .meta-value {
   font-size: 0.8125rem;
-  color: hsl(var(--card-foreground));
   font-weight: 500;
+  color: hsl(var(--card-foreground));
 }
 
 .meta-value.seeders {
@@ -1001,9 +1066,9 @@ onMounted(() => {
 
 .resource-actions {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
   flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 /* ===== List View ===== */
@@ -1015,83 +1080,83 @@ onMounted(() => {
 
 .resource-list-item {
   display: flex;
-  align-items: center;
   gap: 0.75rem;
+  align-items: center;
   padding: 0.75rem 1rem;
+  overflow: hidden;
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
   transition: box-shadow 0.2s;
-  overflow: hidden;
 }
 
 .resource-list-item:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 4%);
 }
 
 .resource-list-main {
-  min-width: 0;
   flex: 1;
+  min-width: 0;
 }
 
 .resource-list-header {
   display: flex;
-  align-items: flex-start;
   gap: 0.5rem;
+  align-items: flex-start;
   margin-bottom: 0.25rem;
 }
 
 .resource-list-title {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: hsl(var(--card-foreground));
   line-height: 1.4;
-  word-break: break-word;
+  color: hsl(var(--card-foreground));
+  overflow-wrap: break-word;
 }
 
 .resource-list-badges {
   display: flex;
-  align-items: center;
-  gap: 0.375rem;
   flex-wrap: wrap;
+  gap: 0.375rem;
+  align-items: center;
 }
 
 .resource-list-meta {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
   flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
 }
 
 .resource-list-meta .meta-group {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-items: center;
   font-size: 0.8125rem;
   color: hsl(var(--muted-foreground));
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
 }
 
 .resource-list-meta .meta-value {
   font-size: 0.8125rem;
-  color: hsl(var(--card-foreground));
   font-weight: 500;
+  color: hsl(var(--card-foreground));
 }
 
 .resource-list-actions {
   display: flex;
-  align-items: center;
-  gap: 0.375rem;
   flex-shrink: 0;
+  gap: 0.375rem;
+  align-items: center;
 }
 
 /* ===== Pagination ===== */
 .pagination-bar {
-  margin-top: 1.25rem;
-  padding-top: 1rem;
-  border-top: 1px solid hsl(var(--border));
   display: flex;
   justify-content: center;
+  padding-top: 1rem;
+  margin-top: 1.25rem;
+  border-top: 1px solid hsl(var(--border));
 }
 
 /* ===== Mobile ===== */
@@ -1102,8 +1167,8 @@ onMounted(() => {
 
   .header-row {
     flex-direction: column;
-    align-items: flex-start;
     gap: 0.75rem;
+    align-items: flex-start;
     margin-bottom: 0.75rem;
   }
 
@@ -1130,8 +1195,8 @@ onMounted(() => {
   }
 
   .resource-list-meta {
-    width: 100%;
     order: 3;
+    width: 100%;
     margin-top: 0.25rem;
   }
 

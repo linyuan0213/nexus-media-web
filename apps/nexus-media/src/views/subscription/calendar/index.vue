@@ -1,14 +1,13 @@
 <script lang="ts" setup>
-import { ref, onMounted, onActivated, onUnmounted, computed } from 'vue';
-import {
-  NCalendar,
-  NSpin,
-  NModal,
-  NSpace,
-  NTag,
-} from 'naive-ui';
-import { getMovieSubscriptionItemsApi, getTvSubscriptionItemsApi } from '#/api/modules/subscription';
+import { computed, onActivated, onMounted, onUnmounted, ref } from 'vue';
+
+import { NCalendar, NModal, NSpace, NSpin, NTag } from 'naive-ui';
+
 import { getMovieCalendarApi, getTvCalendarApi } from '#/api/modules/media';
+import {
+  getMovieSubscriptionItemsApi,
+  getTvSubscriptionItemsApi,
+} from '#/api/modules/subscription';
 
 interface CalendarEvent {
   id: string;
@@ -16,7 +15,7 @@ interface CalendarEvent {
   start: string;
   type: string;
   poster: string;
-  vote_average: string | number;
+  vote_average: number | string;
   year: string;
   rssid: string;
 }
@@ -28,7 +27,7 @@ const calendarKey = ref(0);
 const detailModalShow = ref(false);
 const selectedEvent = ref<CalendarEvent | null>(null);
 
-let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+let resizeTimer: null | ReturnType<typeof setTimeout> = null;
 
 function handleResize() {
   if (resizeTimer) clearTimeout(resizeTimer);
@@ -75,9 +74,9 @@ async function loadCalendarEvents() {
     }>;
     const tvItems = (tvItemsRes || []) as Array<{
       id: string;
+      name?: string;
       rssid: string;
       season?: string;
-      name?: string;
     }>;
 
     const eventPromises: Promise<CalendarEvent[]>[] = [];
@@ -170,7 +169,11 @@ onUnmounted(() => {
               <div class="calendar-events">
                 <template v-if="getDayEvents(year, month, date).length > 0">
                   <div
-                    v-for="(event, idx) in getDayEvents(year, month, date).slice(0, 3)"
+                    v-for="(event, idx) in getDayEvents(
+                      year,
+                      month,
+                      date,
+                    ).slice(0, 3)"
                     :key="`${event.id}-${event.start}-${idx}`"
                     class="calendar-event"
                     :class="{
@@ -181,8 +184,10 @@ onUnmounted(() => {
                   >
                     <div
                       class="event-poster"
-                      :style="{ backgroundImage: `url(${getImgUrl(event.poster)})` }"
-                    />
+                      :style="{
+                        backgroundImage: `url(${getImgUrl(event.poster)})`,
+                      }"
+                    ></div>
                     <div class="event-info">
                       <div class="event-title">{{ event.title }}</div>
                       <div class="event-meta">
@@ -224,8 +229,10 @@ onUnmounted(() => {
         <div class="detail-left">
           <div
             class="detail-poster"
-            :style="{ backgroundImage: `url(${getImgUrl(selectedEvent.poster)})` }"
-          />
+            :style="{
+              backgroundImage: `url(${getImgUrl(selectedEvent.poster)})`,
+            }"
+          ></div>
         </div>
         <div class="detail-right">
           <h3 class="detail-title">{{ selectedEvent.title }}</h3>
@@ -260,101 +267,120 @@ onUnmounted(() => {
 .empty-wrap {
   padding: 80px 0;
 }
+
 .calendar-page {
   padding: 16px;
 }
+
 .calendar-wrapper {
+  overflow: hidden;
   background: var(--n-card-color);
   border-radius: var(--n-border-radius);
-  overflow: hidden;
 }
+
 .calendar-events {
-  flex: 1;
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 4px;
 }
+
 .calendar-event {
   display: flex;
-  align-items: center;
   gap: 6px;
+  align-items: center;
   padding: 4px 6px;
-  border-radius: 4px;
   cursor: pointer;
-  transition: background 0.2s;
   border-left: 3px solid transparent;
+  border-radius: 4px;
+  transition: background 0.2s;
 }
+
 .calendar-event:hover {
   background: var(--n-action-color);
 }
+
 .event-movie {
   border-left-color: hsl(var(--success));
 }
+
 .event-tv {
   border-left-color: hsl(var(--primary));
 }
+
 .event-poster {
+  flex-shrink: 0;
   width: 30px;
   height: 40px;
-  background-size: cover;
   background-position: center;
+  background-size: cover;
   border-radius: 3px;
-  flex-shrink: 0;
 }
+
 .event-info {
   flex: 1;
   min-width: 0;
   overflow: hidden;
 }
+
 .event-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 12px;
   font-weight: 500;
   color: var(--n-text-color);
   white-space: nowrap;
+}
+
+.event-meta {
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.event-meta {
   font-size: 11px;
   color: var(--n-text-color-3);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
+
 .more-events {
+  padding: 2px 0;
   font-size: 11px;
   color: var(--n-text-color-3);
   text-align: center;
-  padding: 2px 0;
 }
+
 .detail-content {
   display: flex;
   gap: 16px;
 }
+
 .detail-left {
   flex-shrink: 0;
 }
+
 .detail-poster {
   width: 120px;
   height: 160px;
-  background-size: cover;
   background-position: center;
+  background-size: cover;
   border-radius: 6px;
 }
+
 .detail-right {
-  flex: 1;
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 10px;
 }
+
 .detail-title {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
 }
+
 .detail-tags {
   margin-bottom: 4px;
 }
+
 .detail-date {
   font-size: 14px;
   color: var(--n-text-color-2);

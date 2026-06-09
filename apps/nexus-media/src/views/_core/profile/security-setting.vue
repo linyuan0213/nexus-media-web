@@ -1,18 +1,16 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import {
-  NTag,
-} from 'naive-ui';
+import { NTag } from 'naive-ui';
 
 import { getUserInfoApi } from '#/api';
 
 const userInfo = ref<{
-  username?: string;
-  roles?: string[];
   is_superadmin?: boolean;
+  roles?: string[];
+  username?: string;
 }>({});
 
 async function fetchUserInfo() {
@@ -61,10 +59,7 @@ onMounted(() => {
           </div>
         </div>
       </div>
-      <NTag
-        :type="userInfo.is_superadmin ? 'warning' : 'default'"
-        size="small"
-      >
+      <NTag :type="userInfo.is_superadmin ? 'warning' : 'default'" size="small">
         {{ userInfo.is_superadmin ? '超级管理员' : '普通用户' }}
       </NTag>
     </div>
@@ -81,28 +76,28 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 1rem;
-  border: 1px solid hsl(var(--border));
-  border-radius: calc(var(--radius) - 2px);
   margin-bottom: 0.75rem;
   background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) - 2px);
 }
 
 .security-item-left {
   display: flex;
-  align-items: center;
   gap: 0.75rem;
+  align-items: center;
 }
 
 .security-item-icon {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   width: 2.25rem;
   height: 2.25rem;
-  border-radius: calc(var(--radius) - 2px);
-  background: hsl(var(--muted));
   color: hsl(var(--muted-foreground));
-  flex-shrink: 0;
+  background: hsl(var(--muted));
+  border-radius: calc(var(--radius) - 2px);
 }
 
 .security-item-title {
@@ -112,8 +107,8 @@ onMounted(() => {
 }
 
 .security-item-desc {
+  margin-top: 0.125rem;
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
-  margin-top: 0.125rem;
 }
 </style>

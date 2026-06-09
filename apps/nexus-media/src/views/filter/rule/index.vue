@@ -1,18 +1,14 @@
-<script lang="ts" setup>import { ref, onMounted } from 'vue';
+<script lang="ts" setup>
+import type { FilterApi } from '#/api/modules/filter';
+
+import { onMounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import {
-  NButton,
-  NInput,
-  NSpin,
-  useNotification,
-} from 'naive-ui';
+import { NButton, NInput, NSpin, useNotification } from 'naive-ui';
 
-import {
-  getFilterGroupsApi,
-  restoreFilterGroupApi,
-} from '#/api';
+import { getFilterGroupsApi, restoreFilterGroupApi } from '#/api';
+import EmptyState from '#/components/empty/EmptyState.vue';
 import {
   FilterGroupCard,
   GroupModal,
@@ -20,10 +16,8 @@ import {
   ShareImportModal,
   TestRuleModal,
 } from '#/components/filter';
-import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 import { useFilterStore } from '#/store';
-import type { FilterApi } from '#/api/modules/filter';
 
 const filterStore = useFilterStore();
 const notification = useNotification();
@@ -44,10 +38,13 @@ async function fetchData() {
   loading.value = true;
   try {
     const res: any = await getFilterGroupsApi();
-    const ruleGroups = Array.isArray(res) ? res : (res?.data || []);
+    const ruleGroups = Array.isArray(res) ? res : res?.data || [];
     filterStore.setGroups(ruleGroups);
-  } catch (err: any) {
-    notification.error({ content: '获取数据失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '获取数据失败',
+      description: error?.message || '',
+    });
   } finally {
     loading.value = false;
   }
@@ -58,8 +55,11 @@ async function handleRestore() {
     await restoreFilterGroupApi({});
     notification.success({ content: '已恢复默认规则组' });
     await fetchData();
-  } catch (err: any) {
-    notification.error({ content: '恢复失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '恢复失败',
+      description: error?.message || '',
+    });
   }
 }
 
@@ -164,10 +164,7 @@ onMounted(fetchData);
       </EmptyState>
     </NSpin>
 
-    <GroupModal
-      v-model:show="groupModalShow"
-      @success="fetchData"
-    />
+    <GroupModal v-model:show="groupModalShow" @success="fetchData" />
 
     <RuleModal
       v-model:show="ruleModalShow"
@@ -182,11 +179,6 @@ onMounted(fetchData);
       @success="fetchData"
     />
 
-    <TestRuleModal
-      v-model:show="testModalShow"
-      :group-name="testGroupName"
-    />
+    <TestRuleModal v-model:show="testModalShow" :group-name="testGroupName" />
   </div>
 </template>
-
-

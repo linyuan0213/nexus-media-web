@@ -1,6 +1,8 @@
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+
+import { IconifyIcon } from '@vben/icons';
 
 import {
   NButton,
@@ -8,25 +10,24 @@ import {
   NFormItem,
   NInput,
   NModal,
+  NSelect,
   NSpace,
   NSpin,
-  NSelect,
   NTooltip,
   useMessage,
 } from 'naive-ui';
-import { IconifyIcon } from '@vben/icons';
 
 import {
-  getDownloadSettingsApi,
-  saveDownloadSettingApi,
   deleteDownloadSettingApi,
   getDownloadersApi,
+  getDownloadSettingsApi,
+  saveDownloadSettingApi,
   setDefaultDownloadSettingApi,
 } from '#/api';
 import PageHeader from '#/components/page/PageHeader.vue';
 
 interface SettingItem {
-  id: string | number;
+  id: number | string;
   name: string;
   category?: string;
   tags?: string;
@@ -47,7 +48,7 @@ const downloaders = ref<Record<string, { name: string }>>({});
 const loading = ref(false);
 const editModalShow = ref(false);
 const deleteModalShow = ref(false);
-const deleteTarget = ref<SettingItem | null>(null);
+const deleteTarget = ref<null | SettingItem>(null);
 const editing = ref<Partial<SettingItem>>({});
 
 async function fetchData() {
@@ -55,8 +56,16 @@ async function fetchData() {
   try {
     let settingRes: any;
     let downloaderRes: any;
-    try { settingRes = await getDownloadSettingsApi(); } catch (e) { /* ignore */ }
-    try { downloaderRes = await getDownloadersApi(); } catch (e) { /* ignore */ }
+    try {
+      settingRes = await getDownloadSettingsApi();
+    } catch {
+      /* ignore */
+    }
+    try {
+      downloaderRes = await getDownloadersApi();
+    } catch {
+      /* ignore */
+    }
 
     if (settingRes && typeof settingRes === 'object') {
       let list: any[];
@@ -80,7 +89,10 @@ async function fetchData() {
     if (downloaderRes && typeof downloaderRes === 'object') {
       const dict = downloaderRes.data ?? downloaderRes;
       downloaders.value = Object.fromEntries(
-        Object.entries(dict).map(([k, v]: [string, any]) => [k, { name: v.name || v }]),
+        Object.entries(dict).map(([k, v]: [string, any]) => [
+          k,
+          { name: v.name || v },
+        ]),
       );
     }
   } finally {
@@ -118,8 +130,14 @@ function handleEdit(row: SettingItem) {
 
 async function handleSave() {
   const d = editing.value;
-  if (!d.name) { message.error('请输入名称'); return; }
-  if (!d.downloader) { message.error('请选择下载器'); return; }
+  if (!d.name) {
+    message.error('请输入名称');
+    return;
+  }
+  if (!d.downloader) {
+    message.error('请选择下载器');
+    return;
+  }
   await saveDownloadSettingApi({
     sid: d.id || '',
     name: d.name,
@@ -191,7 +209,7 @@ onMounted(fetchData);
 
     <NSpin :show="loading">
       <div
-        v-if="settings.length"
+        v-if="settings.length > 0"
         class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
       >
         <div
@@ -201,8 +219,12 @@ onMounted(fetchData);
           :style="{
             background: 'hsl(var(--card))',
             borderColor: 'hsl(var(--border))',
-            borderTopWidth: String(defaultSetting) === String(item.id) ? '3px' : '1px',
-            borderTopColor: String(defaultSetting) === String(item.id) ? 'hsl(var(--warning))' : 'hsl(var(--border))',
+            borderTopWidth:
+              String(defaultSetting) === String(item.id) ? '3px' : '1px',
+            borderTopColor:
+              String(defaultSetting) === String(item.id)
+                ? 'hsl(var(--warning))'
+                : 'hsl(var(--border))',
           }"
         >
           <!-- 头部 -->
@@ -223,11 +245,15 @@ onMounted(fetchData);
                   <span
                     class="truncate text-sm font-semibold"
                     style="color: hsl(var(--foreground))"
-                  >{{ item.name }}</span>
+                    >{{ item.name }}</span
+                  >
                   <div
                     v-if="String(defaultSetting) === String(item.id)"
                     class="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
-                    style="background: hsl(var(--warning) / 0.1); color: hsl(var(--warning))"
+                    style="
+                      color: hsl(var(--warning));
+                      background: hsl(var(--warning) / 10%);
+                    "
                   >
                     <IconifyIcon icon="lucide:star" class="size-3" />
                     默认
@@ -237,7 +263,12 @@ onMounted(fetchData);
                   class="text-xs"
                   style="color: hsl(var(--muted-foreground))"
                 >
-                  {{ item.downloader_name || downloaders[item.downloader || '']?.name || item.downloader || '-' }}
+                  {{
+                    item.downloader_name ||
+                    downloaders[item.downloader || '']?.name ||
+                    item.downloader ||
+                    '-'
+                  }}
                 </div>
               </div>
               <NTooltip>
@@ -245,16 +276,21 @@ onMounted(fetchData);
                   <button
                     class="flex-shrink-0 p-1 rounded-md transition-colors"
                     :style="{
-                      color: String(defaultSetting) === String(item.id)
-                        ? 'hsl(var(--warning))'
-                        : 'hsl(var(--muted-foreground))',
+                      color:
+                        String(defaultSetting) === String(item.id)
+                          ? 'hsl(var(--warning))'
+                          : 'hsl(var(--muted-foreground))',
                     }"
                     @click.stop="setDefault(String(item.id))"
                   >
                     <IconifyIcon icon="lucide:star" class="size-5" />
                   </button>
                 </template>
-                {{ String(defaultSetting) === String(item.id) ? '默认设置' : '设为默认' }}
+                {{
+                  String(defaultSetting) === String(item.id)
+                    ? '默认设置'
+                    : '设为默认'
+                }}
               </NTooltip>
             </div>
 
@@ -263,54 +299,84 @@ onMounted(fetchData);
               <div
                 v-if="item.category"
                 class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium"
-                style="background: hsl(var(--accent)); color: hsl(var(--accent-foreground))"
+                style="
+                  color: hsl(var(--accent-foreground));
+                  background: hsl(var(--accent));
+                "
               >
                 {{ item.category }}
               </div>
               <div
                 v-if="item.tags"
                 class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium"
-                style="background: hsl(var(--primary) / 0.1); color: hsl(var(--primary))"
+                style="
+                  color: hsl(var(--primary));
+                  background: hsl(var(--primary) / 10%);
+                "
               >
                 {{ item.tags }}
               </div>
               <div
                 class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium"
-                :style="item.is_paused
-                  ? { background: 'hsl(var(--warning) / 0.1)', color: 'hsl(var(--warning))' }
-                  : { background: 'hsl(var(--success) / 0.1)', color: 'hsl(var(--success))' }"
+                :style="
+                  item.is_paused
+                    ? {
+                        background: 'hsl(var(--warning) / 0.1)',
+                        color: 'hsl(var(--warning))',
+                      }
+                    : {
+                        background: 'hsl(var(--success) / 0.1)',
+                        color: 'hsl(var(--success))',
+                      }
+                "
               >
                 <span
                   class="size-1.5 rounded-full"
-                  :style="{ background: item.is_paused ? 'hsl(var(--warning))' : 'hsl(var(--success))' }"
-                />
+                  :style="{
+                    background: item.is_paused
+                      ? 'hsl(var(--warning))'
+                      : 'hsl(var(--success))',
+                  }"
+                ></span>
                 {{ item.is_paused ? '添加后暂停' : '添加后开始' }}
               </div>
               <div
                 v-if="item.upload_limit"
                 class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium"
-                style="background: hsl(var(--destructive) / 0.1); color: hsl(var(--destructive))"
+                style="
+                  color: hsl(var(--destructive));
+                  background: hsl(var(--destructive) / 10%);
+                "
               >
                 上传 {{ item.upload_limit }} KB/s
               </div>
               <div
                 v-if="item.download_limit"
                 class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium"
-                style="background: hsl(var(--destructive) / 0.1); color: hsl(var(--destructive))"
+                style="
+                  color: hsl(var(--destructive));
+                  background: hsl(var(--destructive) / 10%);
+                "
               >
                 下载 {{ item.download_limit }} KB/s
               </div>
               <div
                 v-if="item.ratio_limit"
                 class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium"
-                style="background: hsl(var(--info) / 0.1); color: hsl(var(--info))"
+                style="
+                  color: hsl(var(--info));
+                  background: hsl(var(--info) / 10%);
+                "
               >
                 分享率 {{ item.ratio_limit }}
               </div>
               <div
                 v-if="item.seeding_time_limit"
                 class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium"
-                style="background: hsl(var(--info) / 0.1); color: hsl(var(--info))"
+                style="
+                  color: hsl(var(--info));
+                  background: hsl(var(--info) / 10%);
+                "
               >
                 做种 {{ item.seeding_time_limit }} 分钟
               </div>
@@ -324,11 +390,7 @@ onMounted(fetchData);
           >
             <NTooltip v-if="Number(item.id) >= 0">
               <template #trigger>
-                <NButton
-                  size="small"
-                  text
-                  @click="handleEdit(item)"
-                >
+                <NButton size="small" text @click="handleEdit(item)">
                   <template #icon>
                     <IconifyIcon icon="lucide:pencil" class="size-4" />
                   </template>
@@ -388,7 +450,7 @@ onMounted(fetchData);
       v-model:show="editModalShow"
       :title="editing.id ? '编辑下载设置' : '新增下载设置'"
       preset="card"
-      class="w-[480px]"
+      :style="{ width: '480px', maxWidth: '92vw' }"
     >
       <NForm label-placement="top">
         <NFormItem label="名称" required>
@@ -433,14 +495,20 @@ onMounted(fetchData);
           <NFormItem label="上传速度限制 (KB/s)">
             <NInput
               :value="editing.upload_limit?.toString() ?? ''"
-              @update:value="(v: string) => editing.upload_limit = v ? Number(v) : undefined"
+              @update:value="
+                (v: string) =>
+                  (editing.upload_limit = v ? Number(v) : undefined)
+              "
               placeholder="0 为不限速"
             />
           </NFormItem>
           <NFormItem label="下载速度限制 (KB/s)">
             <NInput
               :value="editing.download_limit?.toString() ?? ''"
-              @update:value="(v: string) => editing.download_limit = v ? Number(v) : undefined"
+              @update:value="
+                (v: string) =>
+                  (editing.download_limit = v ? Number(v) : undefined)
+              "
               placeholder="0 为不限速"
             />
           </NFormItem>
@@ -450,14 +518,19 @@ onMounted(fetchData);
           <NFormItem label="分享率限制">
             <NInput
               :value="editing.ratio_limit?.toString() ?? ''"
-              @update:value="(v: string) => editing.ratio_limit = v ? Number(v) : undefined"
+              @update:value="
+                (v: string) => (editing.ratio_limit = v ? Number(v) : undefined)
+              "
               placeholder="0 为无限制"
             />
           </NFormItem>
           <NFormItem label="做种时间限制 (分钟)">
             <NInput
               :value="editing.seeding_time_limit?.toString() ?? ''"
-              @update:value="(v: string) => editing.seeding_time_limit = v ? Number(v) : undefined"
+              @update:value="
+                (v: string) =>
+                  (editing.seeding_time_limit = v ? Number(v) : undefined)
+              "
               placeholder="0 为无限制"
             />
           </NFormItem>

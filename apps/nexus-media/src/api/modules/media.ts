@@ -7,7 +7,7 @@ import { requestClient } from '#/api/request';
 export namespace MediaApi {
   export interface SearchParams {
     keyword: string;
-    searchtype?: 'tmdb' | 'douban' | '';
+    searchtype?: '' | 'douban' | 'tmdb';
   }
 
   export interface MediaItem {
@@ -27,8 +27,8 @@ export namespace MediaApi {
     runtime?: number;
     vote_average?: number;
     credits?: {
-      cast: Array<{ name: string; character?: string; profile_path?: string }>;
-      crew: Array<{ name: string; job?: string }>;
+      cast: Array<{ character?: string; name: string; profile_path?: string }>;
+      crew: Array<{ job?: string; name: string }>;
     };
   }
 
@@ -43,15 +43,21 @@ export namespace MediaApi {
 
 /** 搜索媒体 */
 export async function searchMediaApi(params: MediaApi.SearchParams) {
-  return requestClient.post<{ total: number; result: Record<string, any> }>('/api/media/search', {
-    keyword: params.keyword,
-    searchtype: params.searchtype || '',
-  });
+  return requestClient.post<{ result: Record<string, any>; total: number }>(
+    '/api/media/search',
+    {
+      keyword: params.keyword,
+      searchtype: params.searchtype || '',
+    },
+  );
 }
 
 /** 获取媒体详情 */
 export async function getMediaDetailApi(tmdbid: number | string, type: string) {
-  return requestClient.post<MediaApi.MediaDetail>('/api/media/detail', { tmdbid, type });
+  return requestClient.post<MediaApi.MediaDetail>('/api/media/detail', {
+    tmdbid,
+    type,
+  });
 }
 
 /** 获取媒体库首页数据（libraries/resumes/latests/stats） */
@@ -61,7 +67,10 @@ export async function getLibraryHomeApi() {
 
 /** 获取媒体库统计 */
 export async function getLibraryApi() {
-  return requestClient.post<Record<string, any>>('/api/media/library/count', {});
+  return requestClient.post<Record<string, any>>(
+    '/api/media/library/count',
+    {},
+  );
 }
 
 /** 获取正在观看 */
@@ -71,7 +80,9 @@ export async function getLibraryHistoryApi() {
 
 /** 获取最新入库 */
 export async function getLibraryDownloadedApi(page?: number) {
-  return requestClient.post('/api/media/library/downloaded', { page: page || 1 });
+  return requestClient.post('/api/media/library/downloaded', {
+    page: page || 1,
+  });
 }
 
 /** 获取推荐/发现 */
@@ -80,13 +91,27 @@ export async function getRecommendApi(params?: MediaApi.RecommendParams) {
 }
 
 /** 获取类似影片 */
-export async function getSimilarApi(params: { tmdbid: number | string; type?: string; page?: number }) {
-  return requestClient.post<{ code: number; Items?: any[] }>('/api/media/similar', params);
+export async function getSimilarApi(params: {
+  page?: number;
+  tmdbid: number | string;
+  type?: string;
+}) {
+  return requestClient.post<{ code: number; Items?: any[] }>(
+    '/api/media/similar',
+    params,
+  );
 }
 
 /** 获取推荐影片 */
-export async function getRecommendationsApi(params: { tmdbid: number | string; type?: string; page?: number }) {
-  return requestClient.post<{ code: number; Items?: any[] }>('/api/media/recommendations', params);
+export async function getRecommendationsApi(params: {
+  page?: number;
+  tmdbid: number | string;
+  type?: string;
+}) {
+  return requestClient.post<{ code: number; Items?: any[] }>(
+    '/api/media/recommendations',
+    params,
+  );
 }
 
 /** 添加媒体到库 */
@@ -98,39 +123,36 @@ export async function addToLibraryApi(data: {
 }
 
 /** 获取电影日历数据 */
-export async function getMovieCalendarApi(data: {
-  id: string;
-  rssid: string;
-}) {
+export async function getMovieCalendarApi(data: { id: string; rssid: string }) {
   return requestClient.post<{
-    type: string;
-    title: string;
-    start: string;
     id: string;
-    year: string;
     poster: string;
-    vote_average: string | number;
     rssid: string;
+    start: string;
+    title: string;
+    type: string;
+    vote_average: number | string;
+    year: string;
   }>('/api/media/calendar/movie', data);
 }
 
 /** 获取剧集日历数据 */
 export async function getTvCalendarApi(data: {
   id: string;
-  season: string;
   name: string;
   rssid: string;
+  season: string;
 }) {
   return requestClient.post<
     Array<{
-      type: string;
-      title: string;
-      start: string;
       id: string;
-      year: string;
       poster: string;
-      vote_average: string | number;
       rssid: string;
+      start: string;
+      title: string;
+      type: string;
+      vote_average: number | string;
+      year: string;
     }>
   >('/api/media/calendar/tv', data);
 }
@@ -142,30 +164,36 @@ export async function removeFromLibraryApi(id: number) {
 
 /** 获取搜索结果 */
 export async function getSearchResultApi() {
-  return requestClient.post<{ code: number; data?: Record<string, any> }>('/api/media/search/results', {});
+  return requestClient.post<{ code: number; data?: Record<string, any> }>(
+    '/api/media/search/results',
+    {},
+  );
 }
 
 /** WEB搜索（从发现页触发） */
 export async function webSearchApi(params: {
+  filters?: string;
+  media_type?: string;
   search_word: string;
   tmdbid?: string;
-  media_type?: string;
   unident?: boolean;
-  filters?: string;
 }) {
-  return requestClient.post('/api/system/search', params, { timeout: 300000 });
+  return requestClient.post('/api/system/search', params, { timeout: 300_000 });
 }
 
 /** 获取电视剧季列表 */
-export async function getTvSeasonListApi(tmdbid: number | string, title?: string) {
+export async function getTvSeasonListApi(
+  tmdbid: number | string,
+  title?: string,
+) {
   return requestClient.post<
     Array<{
-      season_number: number;
-      name?: string;
+      air_date?: string;
       episode_count?: number;
+      name?: string;
       overview?: string;
       poster_path?: string;
-      air_date?: string;
+      season_number: number;
     }>
   >('/api/media/season/list', { tmdbid, title });
 }
@@ -237,12 +265,18 @@ export async function getTransferHistoryApi(params: {
   page?: number;
   pagenum?: number;
 }) {
-  return requestClient.post<TransferHistoryPageResult>('/api/media/transfer/history', params);
+  return requestClient.post<TransferHistoryPageResult>(
+    '/api/media/transfer/history',
+    params,
+  );
 }
 
 /** 获取转移统计 */
 export async function getTransferStatisticsApi(days?: number) {
-  return requestClient.post<TransferStatisticsResult>('/api/media/transfer/statistics', { days });
+  return requestClient.post<TransferStatisticsResult>(
+    '/api/media/transfer/statistics',
+    { days },
+  );
 }
 
 /** 获取未识别列表（分页） */
@@ -251,7 +285,10 @@ export async function getUnknownListApi(params: {
   page?: number;
   pagenum?: number;
 }) {
-  return requestClient.post<UnknownListPageResult>('/api/media/unknown/paged', params);
+  return requestClient.post<UnknownListPageResult>(
+    '/api/media/unknown/paged',
+    params,
+  );
 }
 
 /** 清空识别记录 */
@@ -270,13 +307,24 @@ export async function deleteTransferUnknownApi(data: { ids: number[] }) {
 }
 
 /** 获取目录列表 */
-export async function getDirListApi(path?: string, filter?: string, backendId?: string) {
-  return requestClient.post<DirListItem[]>('/api/media/dir/list', { path, filter, backend_id: backendId });
+export async function getDirListApi(
+  path?: string,
+  filter?: string,
+  backendId?: string,
+) {
+  return requestClient.post<DirListItem[]>('/api/media/dir/list', {
+    path,
+    filter,
+    backend_id: backendId,
+  });
 }
 
 /** 刮削路径 */
 export async function scrapMediaPathApi(path: string, backendId?: string) {
-  return requestClient.post('/api/media/scrap', { path, backend_id: backendId || 'local' });
+  return requestClient.post('/api/media/scrap', {
+    path,
+    backend_id: backendId || 'local',
+  });
 }
 
 /** 下载字幕 */
@@ -286,16 +334,35 @@ export async function downloadSubtitleApi(path: string, name: string) {
 
 /** 名称识别测试 */
 export async function nameTestApi(name: string) {
-  return requestClient.post<Record<string, any>>('/api/media/name_test', { name }, { timeout: 60000 });
+  return requestClient.post<Record<string, any>>(
+    '/api/media/name_test',
+    { name },
+    { timeout: 60_000 },
+  );
 }
 
 /** 获取媒体库目录列表 */
 export async function getLibraryPathsApi() {
   return requestClient.post<{
-    library_paths: Array<{ name: string; path: string; type: string; backend_id?: string }>;
-    sync_source_paths: Array<{ name: string; path: string; type: string; backend_id?: string }>;
-    sync_dest_paths: Array<{ name: string; path: string; type: string; backend_id?: string }>;
     default_path: string;
+    library_paths: Array<{
+      backend_id?: string;
+      name: string;
+      path: string;
+      type: string;
+    }>;
+    sync_dest_paths: Array<{
+      backend_id?: string;
+      name: string;
+      path: string;
+      type: string;
+    }>;
+    sync_source_paths: Array<{
+      backend_id?: string;
+      name: string;
+      path: string;
+      type: string;
+    }>;
   }>('/api/media/library/paths', {});
 }
 
@@ -321,24 +388,32 @@ export interface TmdbBlacklistPageResult {
 
 /** 获取 TMDB 黑名单列表 */
 export async function getTmdbBlacklistApi(params: {
-  page?: number;
   count?: number;
+  page?: number;
   s?: string;
 }) {
   const query = new URLSearchParams();
   if (params.page) query.set('page', String(params.page));
   if (params.count) query.set('count', String(params.count));
   if (params.s) query.set('s', params.s);
-  return requestClient.get<TmdbBlacklistPageResult>(`/api/media/tmdb_blacklist/list?${query.toString()}`);
+  return requestClient.get<TmdbBlacklistPageResult>(
+    `/api/media/tmdb_blacklist/list?${query.toString()}`,
+  );
 }
 
 /** 添加 TMDB 黑名单 */
-export async function addTmdbBlacklistApi(data: { tmdb_id: string; media_type: string }) {
+export async function addTmdbBlacklistApi(data: {
+  media_type: string;
+  tmdb_id: string;
+}) {
   return requestClient.post('/api/media/tmdb_blacklist/add', data);
 }
 
 /** 删除 TMDB 黑名单 */
-export async function deleteTmdbBlacklistApi(data: { tmdb_id: string; media_type: string }) {
+export async function deleteTmdbBlacklistApi(data: {
+  media_type: string;
+  tmdb_id: string;
+}) {
   return requestClient.post('/api/media/tmdb_blacklist/delete', data);
 }
 
@@ -353,46 +428,70 @@ export async function searchFilesApi(keyword: string, limit?: number) {
   query.set('keyword', keyword);
   if (limit) query.set('limit', String(limit));
   return requestClient.get<{
+    indexed: number;
     items: Array<{
+      ctime?: number;
+      ext?: string;
+      is_dir: boolean;
+      mtime?: number;
       name: string;
       path: string;
-      is_dir: boolean;
-      ext?: string;
       size?: number;
-      mtime?: number;
-      ctime?: number;
     }>;
-    total: number;
     ready: boolean;
-    indexed: number;
+    total: number;
   }>(`/api/media/search/files?${query.toString()}`);
 }
 
 /** 获取媒体库路径配置 */
 export async function getMediaLibraryConfigApi() {
   return requestClient.post<{
-    movie_path: string[];
-    tv_path: string[];
-    anime_path: string[];
-    unknown_path: string[];
-    movie_backend: string[];
-    tv_backend: string[];
     anime_backend: string[];
+    anime_path: string[];
+    movie_backend: string[];
+    movie_path: string[];
+    tv_backend: string[];
+    tv_path: string[];
     unknown_backend: string[];
+    unknown_path: string[];
   }>('/api/media/library/path');
 }
 
 /** 添加媒体库路径 */
-export async function addMediaLibraryPathApi(path_type: string, path: string, backend?: string) {
-  return requestClient.post('/api/media/library/path/add', { path_type, path, backend });
+export async function addMediaLibraryPathApi(
+  path_type: string,
+  path: string,
+  backend?: string,
+) {
+  return requestClient.post('/api/media/library/path/add', {
+    path_type,
+    path,
+    backend,
+  });
 }
 
 /** 移除媒体库路径 */
-export async function removeMediaLibraryPathApi(path_type: string, path: string) {
-  return requestClient.post('/api/media/library/path/remove', { path_type, path });
+export async function removeMediaLibraryPathApi(
+  path_type: string,
+  path: string,
+) {
+  return requestClient.post('/api/media/library/path/remove', {
+    path_type,
+    path,
+  });
 }
 
 /** 更新媒体库路径 */
-export async function updateMediaLibraryPathApi(path_type: string, old_path: string, new_path: string, backend?: string) {
-  return requestClient.post('/api/media/library/path/update', { path_type, old_path, new_path, backend });
+export async function updateMediaLibraryPathApi(
+  path_type: string,
+  old_path: string,
+  new_path: string,
+  backend?: string,
+) {
+  return requestClient.post('/api/media/library/path/update', {
+    path_type,
+    old_path,
+    new_path,
+    backend,
+  });
 }

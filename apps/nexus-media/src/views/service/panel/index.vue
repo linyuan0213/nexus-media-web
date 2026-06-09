@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+
+import { IconifyIcon } from '@vben/icons';
+import { useAccessStore } from '@vben/stores';
 
 import {
   NButton,
@@ -11,22 +14,20 @@ import {
   NSpace,
   useMessage,
 } from 'naive-ui';
-import { IconifyIcon } from '@vben/icons';
 
 import {
-  getSystemInfoApi,
-  runSchedulerItemApi,
-  runSyncTaskApi,
   clearTransferBlacklistApi,
-  truncateSubscriptionHistoryApi,
-  netTestApi,
   getFilterRulesApi,
   getSyncTasksApi,
+  getSystemInfoApi,
+  netTestApi,
+  runSchedulerItemApi,
+  runSyncTaskApi,
+  truncateSubscriptionHistoryApi,
 } from '#/api';
 import { requestClient } from '#/api/request';
-import { useAccessStore } from '@vben/stores';
-import PageHeader from '#/components/page/PageHeader.vue';
 import IdentifyResult from '#/components/media/IdentifyResult.vue';
+import PageHeader from '#/components/page/PageHeader.vue';
 
 const message = useMessage();
 
@@ -49,7 +50,7 @@ const filterGroups = ref<Array<{ id: number; name: string }>>([]);
 
 interface NetTestTarget {
   target: string;
-  status: 'pending' | 'success' | 'error';
+  status: 'error' | 'pending' | 'success';
   time: string;
   loading: boolean;
 }
@@ -65,7 +66,12 @@ const NETTEST_TARGETS = [
 
 const showNetTest = ref(false);
 const netTestTargets = ref<NetTestTarget[]>(
-  NETTEST_TARGETS.map((t) => ({ target: t.target, status: 'pending', time: '-', loading: false })),
+  NETTEST_TARGETS.map((t) => ({
+    target: t.target,
+    status: 'pending',
+    time: '-',
+    loading: false,
+  })),
 );
 const netTestAllLoading = ref(false);
 
@@ -88,7 +94,9 @@ const confirmAction = ref<() => void>(() => {});
 const confirmLoading = ref(false);
 
 const showSync = ref(false);
-const syncPaths = ref<Array<{ id: string; from: string; to: string; enabled: boolean }>>([]);
+const syncPaths = ref<
+  Array<{ enabled: boolean; from: string; id: string; to: string }>
+>([]);
 const selectedSyncIds = ref<string[]>([]);
 const syncLoading = ref(false);
 
@@ -98,38 +106,123 @@ interface ServiceItem {
   icon: string;
   time: string;
   color: string;
-  action: 'scheduler' | 'sync' | 'api' | 'modal' | 'backup';
+  action: 'api' | 'backup' | 'modal' | 'scheduler' | 'sync';
   item?: string;
   modal?: string;
   api?: () => Promise<any>;
 }
 
 const services = ref<ServiceItem[]>([
-  { id: 'subscription_monitor', name: '订阅监控', icon: 'lucide:cloud-download', time: '', color: 'blue', action: 'scheduler', item: 'subscription_monitor' },
-  { id: 'pttransfer', name: '下载文件转移', icon: 'lucide:replace', time: '', color: 'green', action: 'scheduler', item: 'pttransfer' },
-  { id: 'sync', name: '目录同步', icon: 'lucide:refresh-cw', time: '实时监控', color: 'orange', action: 'modal', modal: 'sync' },
-  { id: 'blacklist', name: '清理转移缓存', icon: 'lucide:eraser', time: '手动', color: 'red', action: 'api', api: clearTransferBlacklistApi },
-  { id: 'subscription_history', name: '清理订阅缓存', icon: 'lucide:eraser', time: '手动', color: 'purple', action: 'api', api: truncateSubscriptionHistoryApi },
-  { id: 'nametest', name: '名称识别测试', icon: 'lucide:type', time: '手动', color: 'lime', action: 'modal', modal: 'nametest' },
-  { id: 'ruletest', name: '过滤规则测试', icon: 'lucide:sliders-horizontal', time: '手动', color: 'yellow', action: 'modal', modal: 'ruletest' },
-  { id: 'nettest', name: '网络连通性测试', icon: 'lucide:network', time: '手动', color: 'cyan', action: 'modal', modal: 'nettest' },
-  { id: 'backup', name: '备份&恢复', icon: 'lucide:archive', time: '手动', color: 'indigo', action: 'modal', modal: 'backup' },
-  { id: 'command', name: '系统命令', icon: 'lucide:terminal', time: '手动', color: 'gray', action: 'modal', modal: 'command' },
+  {
+    id: 'subscription_monitor',
+    name: '订阅监控',
+    icon: 'lucide:cloud-download',
+    time: '',
+    color: 'blue',
+    action: 'scheduler',
+    item: 'subscription_monitor',
+  },
+  {
+    id: 'pttransfer',
+    name: '下载文件转移',
+    icon: 'lucide:replace',
+    time: '',
+    color: 'green',
+    action: 'scheduler',
+    item: 'pttransfer',
+  },
+  {
+    id: 'sync',
+    name: '目录同步',
+    icon: 'lucide:refresh-cw',
+    time: '实时监控',
+    color: 'orange',
+    action: 'modal',
+    modal: 'sync',
+  },
+  {
+    id: 'blacklist',
+    name: '清理转移缓存',
+    icon: 'lucide:eraser',
+    time: '手动',
+    color: 'red',
+    action: 'api',
+    api: clearTransferBlacklistApi,
+  },
+  {
+    id: 'subscription_history',
+    name: '清理订阅缓存',
+    icon: 'lucide:eraser',
+    time: '手动',
+    color: 'purple',
+    action: 'api',
+    api: truncateSubscriptionHistoryApi,
+  },
+  {
+    id: 'nametest',
+    name: '名称识别测试',
+    icon: 'lucide:type',
+    time: '手动',
+    color: 'lime',
+    action: 'modal',
+    modal: 'nametest',
+  },
+  {
+    id: 'ruletest',
+    name: '过滤规则测试',
+    icon: 'lucide:sliders-horizontal',
+    time: '手动',
+    color: 'yellow',
+    action: 'modal',
+    modal: 'ruletest',
+  },
+  {
+    id: 'nettest',
+    name: '网络连通性测试',
+    icon: 'lucide:network',
+    time: '手动',
+    color: 'cyan',
+    action: 'modal',
+    modal: 'nettest',
+  },
+  {
+    id: 'backup',
+    name: '备份&恢复',
+    icon: 'lucide:archive',
+    time: '手动',
+    color: 'indigo',
+    action: 'modal',
+    modal: 'backup',
+  },
+  {
+    id: 'command',
+    name: '系统命令',
+    icon: 'lucide:terminal',
+    time: '手动',
+    color: 'gray',
+    action: 'modal',
+    modal: 'command',
+  },
 ]);
 
 const stats = computed(() => [
   { label: '系统版本', value: systemInfo.value?.version || '-' },
   { label: '运行时长', value: systemInfo.value?.uptime || '-' },
   { label: 'Python', value: systemInfo.value?.python_version || '-' },
-  { label: '内存占用', value: systemInfo.value?.memory_mb ? `${systemInfo.value.memory_mb} MB` : '-' },
+  {
+    label: '内存占用',
+    value: systemInfo.value?.memory_mb
+      ? `${systemInfo.value.memory_mb} MB`
+      : '-',
+  },
 ]);
 
 async function fetchSystemInfo() {
   try {
     const res = await getSystemInfoApi();
     systemInfo.value = res || {};
-  } catch (e: any) {
-    message.error(e?.message || '获取系统信息失败');
+  } catch (error: any) {
+    message.error(error?.message || '获取系统信息失败');
   }
 }
 
@@ -137,85 +230,101 @@ async function handleServiceClick(svc: ServiceItem) {
   if (runningIds.value.has(svc.id)) return;
 
   switch (svc.action) {
-    case 'scheduler':
-      if (!svc.item) return;
-      runningIds.value.add(svc.id);
-      try {
-        await runSchedulerItemApi(svc.item);
-        message.success(`${svc.name} 已触发执行`);
-      } catch (e: any) {
-        message.error(e?.message || '执行失败');
-      } finally {
-        runningIds.value.delete(svc.id);
-      }
-      break;
-
-    case 'api':
-      if (!svc.api) return;
+    case 'api': {
+      if (!svc.api) break;
       if (svc.id === 'blacklist') {
-        showConfirmDialog('确认', '清理文件整理缓存后，已转移过的文件允许重新转移（包括识别错误的文件），是否确认？', async () => {
-          runningIds.value.add(svc.id);
-          try {
-            await svc.api!();
-            message.success(`${svc.name} 执行成功`);
-          } catch (e: any) {
-            message.error(e?.message || '执行失败');
-          } finally {
-            runningIds.value.delete(svc.id);
-          }
-        });
+        showConfirmDialog(
+          '确认',
+          '清理文件整理缓存后，已转移过的文件允许重新转移（包括识别错误的文件），是否确认？',
+          async () => {
+            runningIds.value.add(svc.id);
+            try {
+              await (svc.api as () => Promise<any>)();
+              message.success(`${svc.name} 执行成功`);
+            } catch (error: any) {
+              message.error(error?.message || '执行失败');
+            } finally {
+              runningIds.value.delete(svc.id);
+            }
+          },
+        );
       } else if (svc.id === 'subscription_history') {
-        showConfirmDialog('确认', '清理订阅缓存后，已下载过的订阅记录将被清除，是否确认？', async () => {
-          runningIds.value.add(svc.id);
-          try {
-            await svc.api!();
-            message.success(`${svc.name} 执行成功`);
-          } catch (e: any) {
-            message.error(e?.message || '执行失败');
-          } finally {
-            runningIds.value.delete(svc.id);
-          }
-        });
+        showConfirmDialog(
+          '确认',
+          '清理订阅缓存后，已下载过的订阅记录将被清除，是否确认？',
+          async () => {
+            runningIds.value.add(svc.id);
+            try {
+              await (svc.api as () => Promise<any>)();
+              message.success(`${svc.name} 执行成功`);
+            } catch (error: any) {
+              message.error(error?.message || '执行失败');
+            } finally {
+              runningIds.value.delete(svc.id);
+            }
+          },
+        );
       } else {
         runningIds.value.add(svc.id);
         try {
           await svc.api();
           message.success(`${svc.name} 执行成功`);
-        } catch (e: any) {
-          message.error(e?.message || '执行失败');
+        } catch (error: any) {
+          message.error(error?.message || '执行失败');
         } finally {
           runningIds.value.delete(svc.id);
         }
       }
       break;
+    }
 
-    case 'modal':
-      openModal(svc.modal);
-      break;
-
-    case 'backup':
+    case 'backup': {
       openModal('backup');
       break;
+    }
+
+    case 'modal': {
+      openModal(svc.modal);
+      break;
+    }
+
+    case 'scheduler': {
+      if (!svc.item) break;
+      runningIds.value.add(svc.id);
+      try {
+        await runSchedulerItemApi(svc.item);
+        message.success(`${svc.name} 已触发执行`);
+      } catch (error: any) {
+        message.error(error?.message || '执行失败');
+      } finally {
+        runningIds.value.delete(svc.id);
+      }
+      break;
+    }
   }
 }
 
 function openModal(modal?: string) {
   switch (modal) {
-    case 'nametest':
+    case 'backup': {
+      showBackup.value = true;
+      backupFile.value = null;
+      backupFilePath.value = '';
+      break;
+    }
+    case 'command': {
+      showCommand.value = true;
+      selectedCommand.value = '';
+      fetchCommands();
+      break;
+    }
+    case 'nametest': {
       showNameTest.value = true;
       nameTestInput.value = '';
       nameTestResult.value = null;
       break;
-    case 'ruletest':
-      showRuleTest.value = true;
-      ruleTestInput.value = '';
-      ruleTestSubtitle.value = '';
-      ruleTestSize.value = '';
-      ruleTestGroup.value = '';
-      ruleTestResult.value = null;
-      fetchFilterGroups();
-      break;
-    case 'nettest':
+    }
+    case 'nettest': {
       showNetTest.value = true;
       netTestTargets.value = NETTEST_TARGETS.map((t) => ({
         target: t.target,
@@ -224,21 +333,23 @@ function openModal(modal?: string) {
         loading: false,
       }));
       break;
-    case 'command':
-      showCommand.value = true;
-      selectedCommand.value = '';
-      fetchCommands();
+    }
+    case 'ruletest': {
+      showRuleTest.value = true;
+      ruleTestInput.value = '';
+      ruleTestSubtitle.value = '';
+      ruleTestSize.value = '';
+      ruleTestGroup.value = '';
+      ruleTestResult.value = null;
+      fetchFilterGroups();
       break;
-    case 'backup':
-      showBackup.value = true;
-      backupFile.value = null;
-      backupFilePath.value = '';
-      break;
-    case 'sync':
+    }
+    case 'sync': {
       showSync.value = true;
       selectedSyncIds.value = [];
       fetchSyncPaths();
       break;
+    }
   }
 }
 
@@ -262,10 +373,13 @@ async function handleConfirm() {
 async function fetchCommands() {
   commandLoading.value = true;
   try {
-    const res = await requestClient.post<Array<{ id: string; name: string }>>('/api/system/commands', {});
+    const res = await requestClient.post<Array<{ id: string; name: string }>>(
+      '/api/system/commands',
+      {},
+    );
     commands.value = res || [];
-  } catch (e: any) {
-    message.error(e?.message || '获取命令列表失败');
+  } catch (error: any) {
+    message.error(error?.message || '获取命令列表失败');
   } finally {
     commandLoading.value = false;
   }
@@ -274,10 +388,10 @@ async function fetchCommands() {
 async function fetchFilterGroups() {
   try {
     const res = await getFilterRulesApi();
-    const data = Array.isArray(res) ? res : ((res as any)?.data || []);
+    const data = Array.isArray(res) ? res : (res as any)?.data || [];
     filterGroups.value = data.map((g: any) => ({ id: g.id, name: g.name }));
-  } catch (e: any) {
-    message.error(e?.message || '获取规则组失败');
+  } catch (error: any) {
+    message.error(error?.message || '获取规则组失败');
   }
 }
 
@@ -285,23 +399,24 @@ async function fetchSyncPaths() {
   try {
     const res = await getSyncTasksApi();
     const data = res || {};
-    syncPaths.value = Object.entries(data).map(([id, item]: [string, any]) => ({
-      id,
-      from: item.from || '',
-      to: item.to || '',
-      enabled: !!item.enabled,
-    })).filter((p) => p.from);
-  } catch (e: any) {
-    message.error(e?.message || '获取同步目录失败');
+    syncPaths.value = Object.entries(data)
+      .map(([id, item]: [string, any]) => ({
+        id,
+        from: item.from || '',
+        to: item.to || '',
+        enabled: !!item.enabled,
+      }))
+      .filter((p) => p.from);
+  } catch (error: any) {
+    message.error(error?.message || '获取同步目录失败');
   }
 }
 
 function selectAllSync() {
-  if (selectedSyncIds.value.length === syncPaths.value.length) {
-    selectedSyncIds.value = [];
-  } else {
-    selectedSyncIds.value = syncPaths.value.map((p) => p.id);
-  }
+  selectedSyncIds.value =
+    selectedSyncIds.value.length === syncPaths.value.length
+      ? []
+      : syncPaths.value.map((p) => p.id);
 }
 
 async function handleSyncRun() {
@@ -311,13 +426,11 @@ async function handleSyncRun() {
   }
   syncLoading.value = true;
   try {
-    await Promise.all(
-      selectedSyncIds.value.map((id) => runSyncTaskApi(id)),
-    );
+    await Promise.all(selectedSyncIds.value.map((id) => runSyncTaskApi(id)));
     message.success('目录同步已触发执行');
     showSync.value = false;
-  } catch (e: any) {
-    message.error(e?.message || '执行失败');
+  } catch (error: any) {
+    message.error(error?.message || '执行失败');
   } finally {
     syncLoading.value = false;
   }
@@ -333,11 +446,15 @@ async function handleNameTest() {
   nameTestLoading.value = true;
   showNameTestResult.value = false;
   try {
-    const res = await requestClient.post('/api/media/name_test', { name: nameTestInput.value },  { timeout: 60000 });
+    const res = await requestClient.post(
+      '/api/media/name_test',
+      { name: nameTestInput.value },
+      { timeout: 60_000 },
+    );
     nameTestResult.value = res;
     showNameTestResult.value = true;
-  } catch (e: any) {
-    message.error(e?.message || '测试失败');
+  } catch (error: any) {
+    message.error(error?.message || '测试失败');
   } finally {
     nameTestLoading.value = false;
   }
@@ -350,15 +467,19 @@ async function handleRuleTest() {
   }
   ruleTestLoading.value = true;
   try {
-    const res = await requestClient.post<{ flag: boolean; text: string; order: number }>('/api/filter/rules/test', {
+    const res = await requestClient.post<{
+      flag: boolean;
+      order: number;
+      text: string;
+    }>('/api/filter/rules/test', {
       title: ruleTestInput.value,
       subtitle: ruleTestSubtitle.value,
       size: ruleTestSize.value,
       rulegroup: ruleTestGroup.value || undefined,
     });
     ruleTestResult.value = res;
-  } catch (e: any) {
-    message.error(e?.message || '测试失败');
+  } catch (error: any) {
+    message.error(error?.message || '测试失败');
   } finally {
     ruleTestLoading.value = false;
   }
@@ -393,7 +514,7 @@ async function handleBackupDownload() {
       'Accept-Language': 'zh-CN',
     };
     if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+      headers.Authorization = `Bearer ${token}`;
     }
     const response = await fetch('/api/system/backup', {
       method: 'POST',
@@ -412,13 +533,13 @@ async function handleBackupDownload() {
     const link = document.createElement('a');
     link.href = url;
     link.download = `nexus_media_backup_${new Date().toISOString().slice(0, 10)}.zip`;
-    document.body.appendChild(link);
+    document.body.append(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
     window.URL.revokeObjectURL(url);
     message.success('备份已下载');
-  } catch (e: any) {
-    message.error(e?.message || '备份失败');
+  } catch (error: any) {
+    message.error(error?.message || '备份失败');
   } finally {
     backupLoading.value = false;
   }
@@ -443,15 +564,17 @@ function handleFileSelect(e: Event) {
 
 async function uploadBackupFile(file: File) {
   try {
-    const res = await requestClient.upload('/api/system/backup/upload', { file });
+    const res = await requestClient.upload('/api/system/backup/upload', {
+      file,
+    });
     if (res?.filepath) {
       backupFilePath.value = res.filepath;
       message.success('文件上传成功');
     } else {
       message.error('文件上传失败');
     }
-  } catch (e: any) {
-    message.error(e?.message || '文件上传失败');
+  } catch (error: any) {
+    message.error(error?.message || '文件上传失败');
   }
 }
 
@@ -468,7 +591,7 @@ async function handleRestore() {
       'Content-Type': 'application/json',
     };
     if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+      headers.Authorization = `Bearer ${token}`;
     }
     const response = await fetch('/api/system/backup/restore', {
       method: 'POST',
@@ -483,8 +606,8 @@ async function handleRestore() {
     } else {
       message.error(res?.msg || '恢复失败');
     }
-  } catch (e: any) {
-    message.error(e?.message || '恢复失败');
+  } catch (error: any) {
+    message.error(error?.message || '恢复失败');
   } finally {
     restoreLoading.value = false;
   }
@@ -497,11 +620,13 @@ async function handleCommand() {
   }
   commandLoading.value = true;
   try {
-    await requestClient.post('/api/system/scheduler/run', { item: selectedCommand.value });
+    await requestClient.post('/api/system/scheduler/run', {
+      item: selectedCommand.value,
+    });
     message.success('命令已执行');
     showCommand.value = false;
-  } catch (e: any) {
-    message.error(e?.message || '执行失败');
+  } catch (error: any) {
+    message.error(error?.message || '执行失败');
   } finally {
     commandLoading.value = false;
   }
@@ -527,11 +652,7 @@ onMounted(() => {
 
     <!-- 系统状态概览 -->
     <div class="stats-overview">
-      <div
-        v-for="(stat, idx) in stats"
-        :key="idx"
-        class="stat-box"
-      >
+      <div v-for="(stat, idx) in stats" :key="idx" class="stat-box">
         <div class="stat-box-value">{{ stat.value }}</div>
         <div class="stat-box-label">{{ stat.label }}</div>
       </div>
@@ -556,7 +677,7 @@ onMounted(() => {
           </div>
         </div>
         <div v-if="runningIds.has(svc.id)" class="service-running-indicator">
-          <span class="running-dot" />
+          <span class="running-dot"></span>
         </div>
       </div>
     </div>
@@ -566,7 +687,7 @@ onMounted(() => {
       v-model:show="showNameTest"
       title="名称识别测试"
       preset="card"
-      style="width: 640px; max-width: 95vw;"
+      style="width: 640px; max-width: 95vw"
     >
       <NSpace vertical size="large">
         <div>
@@ -585,9 +706,7 @@ onMounted(() => {
         />
 
         <div class="form-actions">
-          <NButton @click="showNameTest = false">
-            取消
-          </NButton>
+          <NButton @click="showNameTest = false"> 取消 </NButton>
           <NButton
             type="primary"
             :loading="nameTestLoading"
@@ -604,7 +723,7 @@ onMounted(() => {
       v-model:show="showRuleTest"
       title="过滤规则测试"
       preset="card"
-      style="width: 600px; max-width: 95vw;"
+      style="width: 600px; max-width: 95vw"
     >
       <NSpace vertical size="large">
         <div class="rule-test-form">
@@ -613,19 +732,13 @@ onMounted(() => {
               <label class="form-label">
                 标题 <span class="required">*</span>
               </label>
-              <NInput
-                v-model:value="ruleTestInput"
-                placeholder="种子名称"
-              />
+              <NInput v-model:value="ruleTestInput" placeholder="种子名称" />
             </div>
             <div class="form-col form-col--small">
               <label class="form-label">
                 大小(GB) <span class="required">*</span>
               </label>
-              <NInput
-                v-model:value="ruleTestSize"
-                placeholder="种子大小"
-              />
+              <NInput v-model:value="ruleTestSize" placeholder="种子大小" />
             </div>
             <div class="form-col form-col--small">
               <label class="form-label">
@@ -633,7 +746,12 @@ onMounted(() => {
               </label>
               <NSelect
                 v-model:value="ruleTestGroup"
-                :options="filterGroups.map(g => ({ label: g.name, value: String(g.id) }))"
+                :options="
+                  filterGroups.map((g) => ({
+                    label: g.name,
+                    value: String(g.id),
+                  }))
+                "
                 placeholder="请选择"
                 clearable
               />
@@ -641,9 +759,7 @@ onMounted(() => {
           </div>
           <div class="form-row">
             <div class="form-col form-col--full">
-              <label class="form-label">
-                副标题
-              </label>
+              <label class="form-label"> 副标题 </label>
               <NInput
                 v-model:value="ruleTestSubtitle"
                 type="textarea"
@@ -653,9 +769,7 @@ onMounted(() => {
             </div>
           </div>
           <div class="form-actions">
-            <NButton @click="showRuleTest = false">
-              取消
-            </NButton>
+            <NButton @click="showRuleTest = false"> 取消 </NButton>
             <NButton
               type="primary"
               :loading="ruleTestLoading"
@@ -666,14 +780,10 @@ onMounted(() => {
           </div>
         </div>
         <div v-if="ruleTestResult" class="test-result">
-          <div class="result-header">
-            测试结果
-          </div>
+          <div class="result-header">测试结果</div>
           <div class="result-body">
             <div class="result-item">
-              <span class="result-label">
-                匹配状态:
-              </span>
+              <span class="result-label"> 匹配状态: </span>
               <span
                 class="result-value"
                 :class="ruleTestResult.flag ? 'result-success' : 'result-fail'"
@@ -682,17 +792,13 @@ onMounted(() => {
               </span>
             </div>
             <div v-if="ruleTestResult.text" class="result-item">
-              <span class="result-label">
-                规则:
-              </span>
+              <span class="result-label"> 规则: </span>
               <span class="result-value">
                 {{ ruleTestResult.text }}
               </span>
             </div>
             <div v-if="ruleTestResult.order !== undefined" class="result-item">
-              <span class="result-label">
-                优先级:
-              </span>
+              <span class="result-label"> 优先级: </span>
               <span class="result-value">
                 {{ ruleTestResult.order }}
               </span>
@@ -707,19 +813,13 @@ onMounted(() => {
       v-model:show="showNetTest"
       title="网络连通性测试"
       preset="card"
-      style="width: 560px; max-width: 95vw;"
+      style="width: 560px; max-width: 95vw"
     >
       <div class="nettest-table">
         <div class="nettest-header">
-          <div class="nettest-col nettest-col--target">
-            测试对象
-          </div>
-          <div class="nettest-col nettest-col--status">
-            连通性
-          </div>
-          <div class="nettest-col nettest-col--time">
-            耗时
-          </div>
+          <div class="nettest-col nettest-col--target">测试对象</div>
+          <div class="nettest-col nettest-col--status">连通性</div>
+          <div class="nettest-col nettest-col--time">耗时</div>
         </div>
         <div
           v-for="(item, idx) in netTestTargets"
@@ -730,11 +830,19 @@ onMounted(() => {
           <div class="nettest-col nettest-col--target">
             <div class="nettest-target">
               <IconifyIcon
-                :icon="item.target.includes('tmdb') ? 'lucide:database' :
-                       item.target.includes('fanart') ? 'lucide:image' :
-                       item.target.includes('telegram') ? 'lucide:send' :
-                       item.target.includes('weixin') ? 'lucide:message-circle' :
-                       item.target.includes('douban') ? 'lucide:film' : 'lucide:globe'"
+                :icon="
+                  item.target.includes('tmdb')
+                    ? 'lucide:database'
+                    : item.target.includes('fanart')
+                      ? 'lucide:image'
+                      : item.target.includes('telegram')
+                        ? 'lucide:send'
+                        : item.target.includes('weixin')
+                          ? 'lucide:message-circle'
+                          : item.target.includes('douban')
+                            ? 'lucide:film'
+                            : 'lucide:globe'
+                "
                 class="nettest-target-icon"
               />
               <span class="nettest-target-text">
@@ -743,14 +851,15 @@ onMounted(() => {
             </div>
           </div>
           <div class="nettest-col nettest-col--status">
-            <span v-if="item.loading" class="nettest-loading">
-              测试中...
-            </span>
+            <span v-if="item.loading" class="nettest-loading"> 测试中... </span>
             <span
               v-else-if="item.status === 'success'"
               class="nettest-status nettest-status--success"
             >
-              <IconifyIcon icon="lucide:check-circle" class="nettest-status-icon" />
+              <IconifyIcon
+                icon="lucide:check-circle"
+                class="nettest-status-icon"
+              />
               正常
             </span>
             <span
@@ -760,9 +869,7 @@ onMounted(() => {
               <IconifyIcon icon="lucide:x-circle" class="nettest-status-icon" />
               异常
             </span>
-            <span v-else class="nettest-status">
-              --
-            </span>
+            <span v-else class="nettest-status"> -- </span>
           </div>
           <div class="nettest-col nettest-col--time">
             {{ item.time }}
@@ -770,9 +877,7 @@ onMounted(() => {
         </div>
       </div>
       <div class="nettest-actions">
-        <NButton @click="showNetTest = false">
-          取消
-        </NButton>
+        <NButton @click="showNetTest = false"> 取消 </NButton>
         <NButton
           type="primary"
           :loading="netTestAllLoading"
@@ -790,14 +895,12 @@ onMounted(() => {
       :title="confirmTitle"
       type="warning"
     >
-      <div style="line-height: 1.6;">
+      <div style="line-height: 1.6">
         {{ confirmContent }}
       </div>
       <template #action>
         <NSpace>
-          <NButton @click="showConfirm = false">
-            取消
-          </NButton>
+          <NButton @click="showConfirm = false"> 取消 </NButton>
           <NButton
             type="error"
             :loading="confirmLoading"
@@ -814,7 +917,7 @@ onMounted(() => {
       v-model:show="showBackup"
       title="备份\u0026恢复"
       preset="card"
-      style="width: 500px; max-width: 95vw;"
+      style="width: 500px; max-width: 95vw"
     >
       <NSpace vertical size="large">
         <div
@@ -830,7 +933,7 @@ onMounted(() => {
             ref="backupInput"
             type="file"
             accept=".zip"
-            style="display: none;"
+            style="display: none"
             @change="handleFileSelect"
           />
           <IconifyIcon icon="lucide:upload-cloud" class="backup-upload-icon" />
@@ -839,7 +942,11 @@ onMounted(() => {
               {{ backupFile ? backupFile.name : '上传备份文件' }}
             </div>
             <div class="backup-upload-subtitle">
-              {{ backupFile ? '点击或拖拽可更换文件' : '点击或者拖动备份文件到此处' }}
+              {{
+                backupFile
+                  ? '点击或拖拽可更换文件'
+                  : '点击或者拖动备份文件到此处'
+              }}
             </div>
           </div>
         </div>
@@ -874,7 +981,7 @@ onMounted(() => {
       v-model:show="showSync"
       title="手动目录同步"
       preset="card"
-      style="width: 560px; max-width: 95vw;"
+      style="width: 560px; max-width: 95vw"
     >
       <NSpace vertical size="large">
         <div>
@@ -886,14 +993,18 @@ onMounted(() => {
               size="small"
               @click="selectAllSync"
             >
-              {{ selectedSyncIds.length === syncPaths.length ? '取消全选' : '全选' }}
+              {{
+                selectedSyncIds.length === syncPaths.length
+                  ? '取消全选'
+                  : '全选'
+              }}
             </NButton>
           </div>
           <div v-if="syncPaths.length === 0" class="sync-empty">
             暂无配置同步目录
           </div>
           <NCheckboxGroup v-else v-model:value="selectedSyncIds">
-            <NSpace vertical style="width: 100%;">
+            <NSpace vertical style="width: 100%">
               <NCheckbox
                 v-for="path in syncPaths"
                 :key="path.id"
@@ -902,16 +1013,16 @@ onMounted(() => {
               >
                 <div class="sync-checkbox-content">
                   <div class="sync-checkbox-path">{{ path.from }}</div>
-                  <div v-if="path.to" class="sync-checkbox-target">→ {{ path.to }}</div>
+                  <div v-if="path.to" class="sync-checkbox-target">
+                    → {{ path.to }}
+                  </div>
                 </div>
               </NCheckbox>
             </NSpace>
           </NCheckboxGroup>
         </div>
         <div class="sync-actions">
-          <NButton @click="showSync = false">
-            取消
-          </NButton>
+          <NButton @click="showSync = false"> 取消 </NButton>
           <NButton
             type="primary"
             :loading="syncLoading"
@@ -929,12 +1040,12 @@ onMounted(() => {
       v-model:show="showCommand"
       title="系统命令"
       preset="card"
-      class="w-[500px]"
+      :style="{ width: '500px', maxWidth: '92vw' }"
     >
       <NSpace vertical>
         <NSelect
           v-model:value="selectedCommand"
-          :options="commands.map(c => ({ label: c.name, value: c.id }))"
+          :options="commands.map((c) => ({ label: c.name, value: c.id }))"
           placeholder="选择命令"
         />
         <NButton
@@ -958,29 +1069,29 @@ onMounted(() => {
 }
 
 .stat-box {
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.625rem;
-  background-color: hsl(var(--card));
   padding: 1rem;
   text-align: center;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.625rem;
   transition: all 0.2s ease;
 }
 
 .stat-box:hover {
-  border-color: hsl(var(--primary) / 0.2);
+  border-color: hsl(var(--primary) / 20%);
 }
 
 .stat-box-value {
   font-size: 1.25rem;
   font-weight: 700;
-  color: hsl(var(--card-foreground));
   line-height: 1.2;
+  color: hsl(var(--card-foreground));
 }
 
 .stat-box-label {
+  margin-top: 0.25rem;
   font-size: 0.8125rem;
   color: hsl(var(--muted-foreground));
-  margin-top: 0.25rem;
 }
 
 .service-grid {
@@ -990,45 +1101,45 @@ onMounted(() => {
 }
 
 .service-card {
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.75rem;
-  background-color: hsl(var(--card));
-  padding: 1.25rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 1.25rem;
+  cursor: pointer;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
 }
 
 .service-card:hover {
-  border-color: hsl(var(--primary) / 0.3);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border-color: hsl(var(--primary) / 30%);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 5%);
   transform: translateY(-1px);
 }
 
 .service-card--running {
-  opacity: 0.7;
   cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .service-card-content {
   display: flex;
-  align-items: center;
-  gap: 0.875rem;
-  min-width: 0;
   flex: 1;
+  gap: 0.875rem;
+  align-items: center;
+  min-width: 0;
 }
 
 .service-icon-wrap {
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 0.5rem;
-  background-color: hsl(var(--accent));
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  background-color: hsl(var(--accent));
+  border-radius: 0.5rem;
 }
 
 .service-icon {
@@ -1044,14 +1155,14 @@ onMounted(() => {
 .service-name {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: hsl(var(--card-foreground));
   line-height: 1.3;
+  color: hsl(var(--card-foreground));
 }
 
 .service-time {
+  margin-top: 0.125rem;
   font-size: 0.8125rem;
   color: hsl(var(--muted-foreground));
-  margin-top: 0.125rem;
 }
 
 .service-running-indicator {
@@ -1065,30 +1176,36 @@ onMounted(() => {
 .running-dot {
   width: 0.5rem;
   height: 0.5rem;
-  border-radius: 50%;
   background-color: hsl(var(--success));
+  border-radius: 50%;
   animation: pulse 1.5s ease-in-out infinite;
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
 }
 
 .test-result {
-  margin-top: 0.75rem;
-  padding: 0.75rem;
-  border-radius: 0.375rem;
-  background-color: hsl(var(--accent));
-  font-size: 0.8125rem;
   max-height: 200px;
+  padding: 0.75rem;
+  margin-top: 0.75rem;
   overflow: auto;
+  font-size: 0.8125rem;
+  background-color: hsl(var(--accent));
+  border-radius: 0.375rem;
 }
 
 .test-result pre {
   margin: 0;
-  white-space: pre-wrap;
   word-break: break-all;
+  white-space: pre-wrap;
 }
 
 /* 过滤规则测试 */
@@ -1100,16 +1217,16 @@ onMounted(() => {
 
 .form-row {
   display: flex;
-  gap: 0.75rem;
   flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .form-col {
-  flex: 1;
-  min-width: 0;
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 0.375rem;
+  min-width: 0;
 }
 
 .form-col--small {
@@ -1132,17 +1249,17 @@ onMounted(() => {
 
 .form-actions {
   display: flex;
-  justify-content: flex-end;
   gap: 0.75rem;
+  justify-content: flex-end;
   margin-top: 0.5rem;
 }
 
 .result-header {
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.5rem;
   font-size: 0.875rem;
   font-weight: 600;
   color: hsl(var(--card-foreground));
-  margin-bottom: 0.5rem;
-  padding-bottom: 0.5rem;
   border-bottom: 1px solid hsl(var(--border));
 }
 
@@ -1159,15 +1276,15 @@ onMounted(() => {
 }
 
 .result-label {
+  flex-shrink: 0;
   font-size: 0.8125rem;
   color: hsl(var(--muted-foreground));
-  flex-shrink: 0;
 }
 
 .result-value {
   font-size: 0.8125rem;
-  color: hsl(var(--card-foreground));
   font-weight: 500;
+  color: hsl(var(--card-foreground));
 }
 
 .result-success {
@@ -1180,30 +1297,30 @@ onMounted(() => {
 
 /* 网络连通性测试 */
 .nettest-table {
+  overflow: hidden;
   border: 1px solid hsl(var(--border));
   border-radius: 0.5rem;
-  overflow: hidden;
 }
 
 .nettest-header {
   display: flex;
   padding: 0.625rem 0.875rem;
-  background-color: hsl(var(--accent));
   font-size: 0.8125rem;
   font-weight: 500;
   color: hsl(var(--muted-foreground));
+  background-color: hsl(var(--accent));
 }
 
 .nettest-row {
   display: flex;
-  padding: 0.75rem 0.875rem;
   align-items: center;
-  border-top: 1px solid hsl(var(--border));
+  padding: 0.75rem 0.875rem;
   font-size: 0.8125rem;
+  border-top: 1px solid hsl(var(--border));
 }
 
 .nettest-row--alt {
-  background-color: hsl(var(--accent) / 0.3);
+  background-color: hsl(var(--accent) / 30%);
 }
 
 .nettest-col {
@@ -1229,22 +1346,22 @@ onMounted(() => {
 
 .nettest-target {
   display: flex;
-  align-items: center;
   gap: 0.5rem;
+  align-items: center;
 }
 
 .nettest-target-icon {
+  flex-shrink: 0;
   width: 1.125rem;
   height: 1.125rem;
   color: hsl(var(--primary));
-  flex-shrink: 0;
 }
 
 .nettest-target-text {
-  color: hsl(var(--card-foreground));
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: hsl(var(--card-foreground));
+  white-space: nowrap;
 }
 
 .nettest-loading {
@@ -1254,8 +1371,8 @@ onMounted(() => {
 
 .nettest-status {
   display: flex;
-  align-items: center;
   gap: 0.25rem;
+  align-items: center;
   font-size: 0.75rem;
 }
 
@@ -1274,34 +1391,34 @@ onMounted(() => {
 
 .nettest-actions {
   display: flex;
-  justify-content: flex-end;
   gap: 0.75rem;
+  justify-content: flex-end;
   margin-top: 1rem;
 }
 
 /* 备份恢复 */
 .backup-upload-area {
-  border: 2px dashed hsl(var(--border));
-  border-radius: 0.75rem;
-  padding: 2rem;
   display: flex;
   flex-direction: column;
+  gap: 0.75rem;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
+  padding: 2rem;
   cursor: pointer;
+  background-color: hsl(var(--accent) / 30%);
+  border: 2px dashed hsl(var(--border));
+  border-radius: 0.75rem;
   transition: all 0.2s ease;
-  background-color: hsl(var(--accent) / 0.3);
 }
 
 .backup-upload-area:hover {
-  border-color: hsl(var(--primary) / 0.4);
-  background-color: hsl(var(--accent) / 0.5);
+  background-color: hsl(var(--accent) / 50%);
+  border-color: hsl(var(--primary) / 40%);
 }
 
 .backup-upload-area--dragging {
+  background-color: hsl(var(--primary) / 8%);
   border-color: hsl(var(--primary));
-  background-color: hsl(var(--primary) / 0.08);
 }
 
 .backup-upload-icon {
@@ -1321,15 +1438,15 @@ onMounted(() => {
 }
 
 .backup-upload-subtitle {
+  margin-top: 0.25rem;
   font-size: 0.8125rem;
   color: hsl(var(--muted-foreground));
-  margin-top: 0.25rem;
 }
 
 .backup-actions {
   display: flex;
-  justify-content: flex-end;
   gap: 0.75rem;
+  justify-content: flex-end;
 }
 
 /* 目录同步 */
@@ -1348,9 +1465,9 @@ onMounted(() => {
 
 .sync-empty {
   padding: 2rem;
-  text-align: center;
-  color: hsl(var(--muted-foreground));
   font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
   border: 1px dashed hsl(var(--border));
   border-radius: 0.5rem;
 }
@@ -1379,24 +1496,24 @@ onMounted(() => {
 
 .sync-checkbox-path {
   font-size: 0.9375rem;
+  line-height: 1.4;
   color: hsl(var(--card-foreground));
   word-break: break-all;
-  line-height: 1.4;
 }
 
 .sync-checkbox-target {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
   font-size: 0.8125rem;
   color: hsl(var(--muted-foreground));
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
 }
 
 .sync-actions {
   display: flex;
-  justify-content: flex-end;
-  align-items: center;
   gap: 0.75rem;
+  align-items: center;
+  justify-content: flex-end;
   margin-top: 0.5rem;
 }
 

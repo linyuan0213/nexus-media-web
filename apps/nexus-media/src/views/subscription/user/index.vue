@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 
 import {
   NButton,
@@ -26,9 +26,13 @@ const columns = [
     key: 'status',
     width: 100,
     render(row: any) {
-      return h(NTag, { type: row.status === 1 ? 'success' : 'error' }, {
-        default: () => (row.status === 1 ? '启用' : '停用'),
-      });
+      return h(
+        NTag,
+        { type: row.status === 1 ? 'success' : 'error' },
+        {
+          default: () => (row.status === 1 ? '启用' : '停用'),
+        },
+      );
     },
   },
   {
@@ -36,11 +40,23 @@ const columns = [
     key: 'actions',
     width: 150,
     render(row: any) {
-      return h(NSpace, {}, {
-        default: () => [
-          h(NButton, { size: 'small', type: 'error', onClick: () => handleDelete(row.id) }, { default: () => '删除' }),
-        ],
-      });
+      return h(
+        NSpace,
+        {},
+        {
+          default: () => [
+            h(
+              NButton,
+              {
+                size: 'small',
+                type: 'error',
+                onClick: () => handleDelete(row.id),
+              },
+              { default: () => '删除' },
+            ),
+          ],
+        },
+      );
     },
   },
 ];

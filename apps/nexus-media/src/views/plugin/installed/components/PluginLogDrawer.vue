@@ -1,13 +1,27 @@
 <script lang="ts" setup>
-import { ref, watch, computed } from 'vue';
-import { useNotification, NButton, NDrawer, NDrawerContent, NPopconfirm, NPagination, NSpin, NEmpty } from 'naive-ui';
+import { computed, ref, watch } from 'vue';
+
 import { IconifyIcon } from '@vben/icons';
 
-import { getPluginLogsApi, clearPluginLogsApi } from '#/api/modules/plugin_framework';
+import {
+  NButton,
+  NDrawer,
+  NDrawerContent,
+  NEmpty,
+  NPagination,
+  NPopconfirm,
+  NSpin,
+  useNotification,
+} from 'naive-ui';
+
+import {
+  clearPluginLogsApi,
+  getPluginLogsApi,
+} from '#/api/modules/plugin_framework';
 
 const props = defineProps<{
-  show: boolean;
   pluginId: string;
+  show: boolean;
 }>();
 
 const emit = defineEmits(['update:show']);
@@ -28,11 +42,18 @@ async function fetchLogs() {
   if (!props.pluginId) return;
   loading.value = true;
   try {
-    const res: any = await getPluginLogsApi(props.pluginId, page.value, pageSize.value);
+    const res: any = await getPluginLogsApi(
+      props.pluginId,
+      page.value,
+      pageSize.value,
+    );
     logs.value = res?.items || [];
     total.value = res?.total || 0;
-  } catch (err: any) {
-    notification.error({ content: '获取日志失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '获取日志失败',
+      description: error?.message || '',
+    });
   } finally {
     loading.value = false;
   }
@@ -44,32 +65,45 @@ async function handleClear() {
     notification.success({ content: '日志已清空' });
     logs.value = [];
     total.value = 0;
-  } catch (err: any) {
-    notification.error({ content: '清空失败', description: err?.message || '' });
+  } catch (error: any) {
+    notification.error({
+      content: '清空失败',
+      description: error?.message || '',
+    });
   }
 }
 
 function getLevelColor(level: string) {
   switch (level?.toLowerCase()) {
-    case 'error': return 'text-destructive';
-    case 'warn': return 'text-warning';
-    case 'info': return 'text-primary';
-    default: return 'text-muted-foreground';
+    case 'error': {
+      return 'text-destructive';
+    }
+    case 'info': {
+      return 'text-primary';
+    }
+    case 'warn': {
+      return 'text-warning';
+    }
+    default: {
+      return 'text-muted-foreground';
+    }
   }
 }
 
-watch(() => [props.show, props.pluginId], () => {
-  if (props.show && props.pluginId) {
-    page.value = 1;
-    fetchLogs();
-  }
-});
+watch(
+  () => [props.show, props.pluginId],
+  () => {
+    if (props.show && props.pluginId) {
+      page.value = 1;
+      fetchLogs();
+    }
+  },
+);
 </script>
 
 <template>
   <NDrawer v-model:show="visible" :width="500" placement="right">
-    <NDrawerContent :title="`插件日志`" closable
->
+    <NDrawerContent title="插件日志" closable>
       <template #header>
         <NPopconfirm @positive-click="handleClear">
           <template #trigger>
@@ -89,10 +123,15 @@ watch(() => [props.show, props.pluginId], () => {
             class="rounded border p-3 dark:border-border"
           >
             <div class="flex items-center gap-2">
-              <span class="text-xs font-medium" :class="getLevelColor(log.level)">
+              <span
+                class="text-xs font-medium"
+                :class="getLevelColor(log.level)"
+              >
                 {{ log.level }}
               </span>
-              <span class="text-xs text-muted-foreground">{{ log.created_at }}</span>
+              <span class="text-xs text-muted-foreground">{{
+                log.created_at
+              }}</span>
             </div>
             <div class="mt-1 text-sm">{{ log.message }}</div>
           </div>
@@ -111,5 +150,3 @@ watch(() => [props.show, props.pluginId], () => {
     </NDrawerContent>
   </NDrawer>
 </template>
-
-

@@ -1,11 +1,12 @@
 import { ref } from 'vue';
+
 import { defineStore } from 'pinia';
 
 export interface DownloadTask {
   id: string;
   name: string;
   progress: number;
-  status: 'downloading' | 'completed' | 'error' | 'paused';
+  status: 'completed' | 'downloading' | 'error' | 'paused';
   speed?: string;
   size?: string;
   downloader?: string;
