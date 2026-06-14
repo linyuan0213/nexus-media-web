@@ -4,19 +4,17 @@ import { requestClient } from '#/api/request';
 
 /** 列出所有已安装插件 */
 export async function getPluginsApi() {
-  return requestClient.get('/api/plugin-framework/plugins');
+  return requestClient.get('/plugin-framework/plugins');
 }
 
 /** 获取插件完整 manifest */
 export async function getPluginManifestApi(pluginId: string) {
-  return requestClient.get(
-    `/api/plugin-framework/plugins/${pluginId}/manifest`,
-  );
+  return requestClient.get(`/plugin-framework/plugins/${pluginId}/manifest`);
 }
 
 /** 获取插件配置和字段定义 */
 export async function getPluginConfigApi(pluginId: string) {
-  return requestClient.get(`/api/plugin-framework/plugins/${pluginId}/config`);
+  return requestClient.get(`/plugin-framework/plugins/${pluginId}/config`);
 }
 
 /** 保存插件配置 */
@@ -24,7 +22,7 @@ export async function savePluginConfigApi(
   pluginId: string,
   config: Record<string, any>,
 ) {
-  return requestClient.put(`/api/plugin-framework/plugins/${pluginId}/config`, {
+  return requestClient.put(`/plugin-framework/plugins/${pluginId}/config`, {
     plugin_id: pluginId,
     config,
   });
@@ -32,28 +30,25 @@ export async function savePluginConfigApi(
 
 /** 安装插件（上传 zip） */
 export async function installPluginApi(file: File) {
-  return requestClient.upload('/api/plugin-framework/plugins/install', {
+  return requestClient.upload('/plugin-framework/plugins/install', {
     file,
   });
 }
 
 /** 卸载插件 */
 export async function uninstallPluginApi(pluginId: string) {
-  return requestClient.delete(`/api/plugin-framework/plugins/${pluginId}`);
+  return requestClient.delete(`/plugin-framework/plugins/${pluginId}`);
 }
 
 /** 启用插件 */
 export async function enablePluginApi(pluginId: string) {
-  return requestClient.post(
-    `/api/plugin-framework/plugins/${pluginId}/enable`,
-    {},
-  );
+  return requestClient.post(`/plugin-framework/plugins/${pluginId}/enable`, {});
 }
 
 /** 禁用插件 */
 export async function disablePluginApi(pluginId: string) {
   return requestClient.post(
-    `/api/plugin-framework/plugins/${pluginId}/disable`,
+    `/plugin-framework/plugins/${pluginId}/disable`,
     {},
   );
 }
@@ -65,40 +60,34 @@ export async function getPluginLogsApi(
   pageSize = 20,
 ) {
   return requestClient.get(
-    `/api/plugin-framework/plugins/${pluginId}/logs?page=${page}&page_size=${pageSize}`,
+    `/plugin-framework/plugins/${pluginId}/logs?page=${page}&page_size=${pageSize}`,
   );
 }
 
 /** 清空插件日志 */
 export async function clearPluginLogsApi(pluginId: string) {
-  return requestClient.delete(`/api/plugin-framework/plugins/${pluginId}/logs`);
+  return requestClient.delete(`/plugin-framework/plugins/${pluginId}/logs`);
 }
 
 /** 立即运行插件 */
 export async function runPluginApi(pluginId: string) {
-  return requestClient.post(
-    `/api/plugin-framework/plugins/${pluginId}/run`,
-    {},
-  );
+  return requestClient.post(`/plugin-framework/plugins/${pluginId}/run`, {});
 }
 
 /** 热重载插件 */
 export async function reloadPluginApi(pluginId: string) {
-  return requestClient.post(
-    `/api/plugin-framework/plugins/${pluginId}/reload`,
-    {},
-  );
+  return requestClient.post(`/plugin-framework/plugins/${pluginId}/reload`, {});
 }
 
 /** 获取插件 README */
 export async function getPluginReadmeApi(pluginId: string) {
-  return requestClient.get(`/api/plugin-framework/plugins/${pluginId}/readme`);
+  return requestClient.get(`/plugin-framework/plugins/${pluginId}/readme`);
 }
 
 /** 获取插件数据文件 */
 export async function getPluginDataApi(pluginId: string, filename: string) {
   return requestClient.get(
-    `/api/plugin-framework/plugins/${pluginId}/data/${filename}`,
+    `/plugin-framework/plugins/${pluginId}/data/${filename}`,
   );
 }
 
@@ -109,11 +98,11 @@ export async function deletePluginDataApi(
   itemId: string,
 ) {
   return requestClient.delete(
-    `/api/plugin-framework/plugins/${pluginId}/data/${filename}/${itemId}`,
+    `/plugin-framework/plugins/${pluginId}/data/${filename}/${itemId}`,
   );
 }
 
 /** 列出所有 Hook 事件 */
 export async function getHookEventsApi() {
-  return requestClient.get('/api/plugin-framework/hooks/events');
+  return requestClient.get('/plugin-framework/hooks/events');
 }

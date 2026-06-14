@@ -7,12 +7,18 @@ import type { RouteRecordRaw } from 'vue-router';
 
 import { h, reactive } from 'vue';
 
+import { useAppConfig } from '@vben/hooks';
 import { IconifyIcon } from '@vben/icons';
 
 import { requestClient } from '#/api/request';
 import { router } from '#/router';
 
-const PLUGIN_API_BASE = '/api/plugin-framework';
+const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
+
+// requestClient 已携带 baseURL（/api），API 调用不需要再加 /api 前缀
+const PLUGIN_API_BASE = '/plugin-framework';
+// loadScript 直接访问浏览器地址，需要拼上完整 /api 前缀
+const PLUGIN_ASSET_BASE = `${apiURL}/plugin-framework`;
 
 /** 已加载的插件组件缓存 */
 const loadedComponents = new Map<string, Component>();
@@ -222,7 +228,7 @@ async function loadPluginComponent(
     }
 
     // 尝试加载 UMD 包
-    const umdUrl = `${PLUGIN_API_BASE}/plugins/${pluginId}/assets/frontend/index.umd.js`;
+    const umdUrl = `${PLUGIN_ASSET_BASE}/plugins/${pluginId}/assets/frontend/index.umd.js`;
     await loadScript(umdUrl);
 
     const loaded = getComponent(pluginId, componentName);
@@ -286,7 +292,7 @@ export async function loadPluginFrontend(
         console.warn('[PluginLoader] window.IconifyIcon 已动态注入');
       }
 
-      const umdUrl = `${PLUGIN_API_BASE}/plugins/${plugin.id}/assets/frontend/index.umd.js`;
+      const umdUrl = `${PLUGIN_ASSET_BASE}/plugins/${plugin.id}/assets/frontend/index.umd.js`;
       await loadScript(umdUrl);
 
       // 验证 UMD 是否正确注册
