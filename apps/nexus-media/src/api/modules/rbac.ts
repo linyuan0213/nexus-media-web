@@ -117,7 +117,7 @@ export async function resetPasswordApi(
   newPassword: string,
   oldPassword?: string,
 ) {
-  return requestClient.post(`/api/rbac/users/${userId}/reset-password`, {
+  return requestClient.post(`/rbac/users/${userId}/reset-password`, {
     new_password: newPassword,
     old_password: oldPassword,
   });
@@ -125,10 +125,9 @@ export async function resetPasswordApi(
 
 /** 上传头像 */
 export async function uploadAvatarApi(userId: number, file: File) {
-  return requestClient.upload<{ url: string }>(
-    `/api/rbac/users/${userId}/avatar`,
-    { file },
-  );
+  return requestClient.upload<{ url: string }>(`/rbac/users/${userId}/avatar`, {
+    file,
+  });
 }
 
 // ---------- 角色管理 ----------
