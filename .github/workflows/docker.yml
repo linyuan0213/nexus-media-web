@@ -27,6 +27,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Login DockerHub
+        if: ${{ secrets.DOCKER_USERNAME != '' && secrets.DOCKER_PASSWORD != '' }}
         uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -47,10 +48,10 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/nexus-media-web:latest
-            ${{ secrets.DOCKER_USERNAME }}/nexus-media-web:${{ env.app_version }}
             ghcr.io/${{ github.repository_owner }}/nexus-media-web:latest
             ghcr.io/${{ github.repository_owner }}/nexus-media-web:${{ env.app_version }}
+            ${{ secrets.DOCKER_USERNAME != '' && format('{0}/nexus-media-web:latest', secrets.DOCKER_USERNAME) || '' }}
+            ${{ secrets.DOCKER_USERNAME != '' && format('{0}/nexus-media-web:{1}', secrets.DOCKER_USERNAME, env.app_version) || '' }}
 
   release:
     runs-on: ubuntu-latest
