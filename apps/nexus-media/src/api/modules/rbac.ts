@@ -80,7 +80,7 @@ export namespace RbacApi {
 
 /** 获取用户列表 */
 export async function getUsersApi() {
-  return requestClient.post<RbacApi.UserItem[]>('/api/rbac/users', {});
+  return requestClient.post<RbacApi.UserItem[]>('/rbac/users', {});
 }
 
 /** 创建用户 */
@@ -91,24 +91,24 @@ export async function createUserApi(data: {
   role_ids?: number[];
   username: string;
 }) {
-  return requestClient.post('/api/rbac/users/create', data);
+  return requestClient.post('/rbac/users/create', data);
 }
 
 /** 更新用户 */
 export async function updateUserApi(
   data: Partial<RbacApi.UserItem> & { id: number; role_ids?: number[] },
 ) {
-  return requestClient.post('/api/rbac/users/update', data);
+  return requestClient.post('/rbac/users/update', data);
 }
 
 /** 删除用户 */
 export async function deleteUserApi(id: number) {
-  return requestClient.post('/api/rbac/users/delete', { id });
+  return requestClient.post('/rbac/users/delete', { id });
 }
 
 /** 用户详情 */
 export async function getUserDetailApi(id: number) {
-  return requestClient.post('/api/rbac/users/detail', { id });
+  return requestClient.post('/rbac/users/detail', { id });
 }
 
 /** 重置密码 */
@@ -135,7 +135,7 @@ export async function uploadAvatarApi(userId: number, file: File) {
 
 /** 获取角色列表 */
 export async function getRolesApi() {
-  return requestClient.post<RbacApi.RoleItem[]>('/api/rbac/roles', {});
+  return requestClient.post<RbacApi.RoleItem[]>('/rbac/roles', {});
 }
 
 /** 创建角色 */
@@ -147,7 +147,7 @@ export async function createRoleApi(data: {
   role_level?: number;
   role_name: string;
 }) {
-  return requestClient.post('/api/rbac/roles/create', data);
+  return requestClient.post('/rbac/roles/create', data);
 }
 
 /** 更新角色 */
@@ -158,78 +158,75 @@ export async function updateRoleApi(
     permission_ids?: number[];
   },
 ) {
-  return requestClient.post('/api/rbac/roles/update', data);
+  return requestClient.post('/rbac/roles/update', data);
 }
 
 /** 删除角色 */
 export async function deleteRoleApi(id: number) {
-  return requestClient.post('/api/rbac/roles/delete', { id });
+  return requestClient.post('/rbac/roles/delete', { id });
 }
 
 /** 角色详情 */
 export async function getRoleDetailApi(id: number) {
-  return requestClient.post('/api/rbac/roles/detail', { id });
+  return requestClient.post('/rbac/roles/detail', { id });
 }
 
 // ---------- 菜单管理 ----------
 
 /** 获取当前用户菜单树（Vben 格式） */
 export async function getUserMenusApi() {
-  return requestClient.post<RbacApi.VbenMenuRoute[]>('/api/rbac/menus', {});
+  return requestClient.post<RbacApi.VbenMenuRoute[]>('/rbac/menus', {});
 }
 
 /** 获取顶部菜单 */
 export async function getTopMenusApi() {
-  return requestClient.post<RbacApi.VbenMenuRoute[]>('/api/rbac/menus/top', {});
+  return requestClient.post<RbacApi.VbenMenuRoute[]>('/rbac/menus/top', {});
 }
 
 /** 创建菜单 */
 export async function createMenuApi(data: Partial<RbacApi.MenuItem>) {
-  return requestClient.post('/api/rbac/menus/create', data);
+  return requestClient.post('/rbac/menus/create', data);
 }
 
 /** 更新菜单 */
 export async function updateMenuApi(
   data: Partial<RbacApi.MenuItem> & { id: number },
 ) {
-  return requestClient.post('/api/rbac/menus/update', data);
+  return requestClient.post('/rbac/menus/update', data);
 }
 
 /** 删除菜单 */
 export async function deleteMenuApi(id: number) {
-  return requestClient.post('/api/rbac/menus/delete', { id });
+  return requestClient.post('/rbac/menus/delete', { id });
 }
 
 /** 更新菜单排序 */
 export async function updateMenuSortApi(
   menuOrders: Array<{ id: number; parent_id?: number; sort_order: number }>,
 ) {
-  return requestClient.post('/api/rbac/menus/sort', {
+  return requestClient.post('/rbac/menus/sort', {
     menu_orders: menuOrders,
   });
 }
 
 /** 菜单详情 */
 export async function getMenuDetailApi(id: number) {
-  return requestClient.post('/api/rbac/menus/detail', { id });
+  return requestClient.post('/rbac/menus/detail', { id });
 }
 
 /** 获取所有菜单（菜单管理专用） */
 export async function getAllMenusForManagementApi() {
-  return requestClient.post<RbacApi.VbenMenuRoute[]>('/api/rbac/menus/all', {});
+  return requestClient.post<RbacApi.VbenMenuRoute[]>('/rbac/menus/all', {});
 }
 
 /** 获取所有权限列表 */
 export async function getPermissionsApi() {
-  return requestClient.post<RbacApi.PermissionItem[]>(
-    '/api/rbac/permissions',
-    {},
-  );
+  return requestClient.post<RbacApi.PermissionItem[]>('/rbac/permissions', {});
 }
 
 // ---------- 权限码 ----------
 
 /** 获取当前用户权限码列表 */
 export async function getAccessCodesApi() {
-  return requestClient.get<string[]>('/api/rbac/codes');
+  return requestClient.get<string[]>('/rbac/codes');
 }

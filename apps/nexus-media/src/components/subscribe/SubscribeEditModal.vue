@@ -1,9 +1,10 @@
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue';
 
+import { IconifyIcon } from '@vben/icons';
+
 import {
   NButton,
-  NCard,
   NCheckbox,
   NForm,
   NFormItem,
@@ -64,6 +65,7 @@ const filterRules = ref<{ label: string; value: string }[]>([]);
 const downloadSettings = ref<{ label: string; value: string }[]>([]);
 const downloadDirs = ref<{ label: string; value: string }[]>([]);
 const loading = ref(false);
+const optionsLoaded = ref(false);
 
 const seasonOptions = Array.from({ length: 51 }, (_, i) =>
   i === 0
@@ -92,7 +94,7 @@ const pixOptions = [
 const form = ref({
   name: '',
   year: '',
-  type: 'TV',
+  type: 'tv',
   season: '',
   tmdbid: '',
   image: '',
@@ -113,55 +115,48 @@ const form = ref({
   search_sites: [] as string[],
 });
 
-const isTv = computed(() => form.value.type === 'TV');
+const isTv = computed(() => form.value.type === 'tv');
 
-watch(
-  () => props.show,
-  async (visible) => {
-    if (visible && props.item) {
-      form.value = {
-        name: props.item.name,
-        year: props.item.year || '',
-        type: props.item.type || 'TV',
-        season: props.item.season || '',
-        tmdbid: props.item.tmdbid || '',
-        image: props.item.image || '',
-        keyword: props.item.keyword || '',
-        fuzzy_match: props.item.fuzzy_match ?? false,
-        over_edition: props.item.over_edition ?? false,
-        filter_restype: props.item.filter_restype || '',
-        filter_pix: props.item.filter_pix || '',
-        filter_team: props.item.filter_team || '',
-        filter_rule:
-          props.item.filter_rule != null &&
-          String(props.item.filter_rule) !== '0'
-            ? String(props.item.filter_rule)
-            : '',
-        filter_include: props.item.filter_include || '',
-        filter_exclude: props.item.filter_exclude || '',
-        download_setting:
-          props.item.download_setting == null
-            ? ''
-            : String(props.item.download_setting),
-        save_path: props.item.save_path || '',
-        total_ep:
-          props.item.total_ep == null ? '' : String(props.item.total_ep),
-        current_ep:
-          props.item.current_ep == null ? '' : String(props.item.current_ep),
-        rss_sites: Array.isArray(props.item.rss_sites)
-          ? [...props.item.rss_sites]
-          : [],
-        search_sites: Array.isArray(props.item.search_sites)
-          ? [...props.item.search_sites]
-          : [],
-      };
+watch([() => props.show, () => props.item], async ([visible, item]) => {
+  if (visible && item) {
+    form.value = {
+      name: item.name,
+      year: item.year || '',
+      type: item.type || 'tv',
+      season: item.season || '',
+      tmdbid: item.tmdbid || '',
+      image: item.image || '',
+      keyword: item.keyword || '',
+      fuzzy_match: item.fuzzy_match ?? false,
+      over_edition: item.over_edition ?? false,
+      filter_restype: item.filter_restype || '',
+      filter_pix: item.filter_pix || '',
+      filter_team: item.filter_team || '',
+      filter_rule:
+        item.filter_rule != null && String(item.filter_rule) !== '0'
+          ? String(item.filter_rule)
+          : '',
+      filter_include: item.filter_include || '',
+      filter_exclude: item.filter_exclude || '',
+      download_setting:
+        item.download_setting == null ? '' : String(item.download_setting),
+      save_path: item.save_path || '',
+      total_ep: item.total_ep == null ? '' : String(item.total_ep),
+      current_ep: item.current_ep == null ? '' : String(item.current_ep),
+      rss_sites: Array.isArray(item.rss_sites) ? [...item.rss_sites] : [],
+      search_sites: Array.isArray(item.search_sites)
+        ? [...item.search_sites]
+        : [],
+    };
+    if (!optionsLoaded.value) {
       await loadOptions();
-      if (props.item.download_setting != null) {
-        await fetchDownloadDirs();
-      }
+      optionsLoaded.value = true;
     }
-  },
-);
+    if (item.download_setting != null) {
+      await fetchDownloadDirs();
+    }
+  }
+});
 
 async function loadOptions() {
   loading.value = true;
@@ -174,7 +169,7 @@ async function loadOptions() {
     ]);
     const sites = Array.isArray(sitesRes) ? sitesRes : sitesRes?.data || [];
     rssSites.value = sites
-      .filter((s: any) => s.rss)
+      .filter((s: any) => s.rss_enable)
       .map((s: any) => ({ label: s.name, value: s.name }));
     searchSites.value = (
       Array.isArray(idxRes) ? idxRes : idxRes?.data || []
@@ -229,6 +224,22 @@ function toggleAllSites(type: string, checked: boolean) {
   }
 }
 
+function updateSite(type: 'rss' | 'search', value: string, checked: boolean) {
+  const key = type === 'rss' ? 'rss_sites' : 'search_sites';
+  const set = new Set(form.value[key]);
+  if (checked) set.add(value);
+  else set.delete(value);
+  form.value[key] = [...set];
+}
+
+function toggleSite(type: 'rss' | 'search', value: string) {
+  const key = type === 'rss' ? 'rss_sites' : 'search_sites';
+  const set = new Set(form.value[key]);
+  if (set.has(value)) set.delete(value);
+  else set.add(value);
+  form.value[key] = [...set];
+}
+
 function handleConfirm() {
   const data: Record<string, any> = {
     name: form.value.name,
@@ -267,11 +278,6 @@ function handleConfirm() {
   emit('confirm', data);
   emit('update:show', false);
 }
-
-function getImgUrl(src?: string) {
-  if (!src) return '/static/img/no-image.png';
-  return `/img?url=${encodeURIComponent(src)}`;
-}
 </script>
 
 <template>
@@ -279,162 +285,225 @@ function getImgUrl(src?: string) {
     :show="props.show"
     @update:show="(v) => emit('update:show', v)"
     preset="card"
-    :title="`${isEdit ? '编辑' : '新增'}订阅 - ${item?.name || ''}`"
-    style="width: 720px; max-width: 90vw; max-height: 90vh"
+    :title="`${isEdit ? '编辑' : '新增'}订阅 - ${item?.name || ''}${item?.year ? ` (${item.year})` : ''}`"
+    style="width: 720px; max-width: 90vw"
+    body-style="max-height: 80vh; overflow-y: auto;"
     :bordered="false"
   >
-    <div v-if="item" class="space-y-4">
-      <!-- 顶部信息栏 -->
-      <div class="flex items-center gap-4 mb-5 pb-4 border-b border-gray-100">
-        <img
-          :src="getImgUrl(item.image)"
-          class="rounded-lg shadow"
-          style="
-            flex-shrink: 0;
-            width: 60px;
-            aspect-ratio: 2/3;
-            object-fit: cover;
-          "
-          alt=""
-        />
-        <div class="min-w-0">
-          <h4 class="font-bold text-base truncate">{{ form.name }}</h4>
-          <p class="text-gray-400 text-sm mt-0.5">{{ form.year }}</p>
-        </div>
-      </div>
-
+    <div v-if="item" class="space-y-3">
       <NForm label-placement="left" label-width="90" size="small">
-        <NFormItem label="自定义搜索词">
-          <NInput v-model:value="form.keyword" placeholder="留空使用TMDB数据" />
-        </NFormItem>
-        <div class="grid grid-cols-3 gap-3">
-          <NFormItem v-if="isTv" label="季">
-            <NSelect v-model:value="form.season" :options="seasonOptions" />
-          </NFormItem>
-          <NFormItem v-if="isTv" label="总集数">
-            <NInput v-model:value="form.total_ep" placeholder="可留空" />
-          </NFormItem>
-          <NFormItem v-if="isTv" label="开始集数">
-            <NInput
-              v-model:value="form.current_ep"
-              placeholder="开始订阅集数"
-            />
-          </NFormItem>
-        </div>
-        <div class="grid grid-cols-3 gap-3">
-          <NFormItem label="模糊匹配">
-            <NCheckbox v-model:checked="form.fuzzy_match"> 开启 </NCheckbox>
-          </NFormItem>
-          <NFormItem label="洗版">
-            <NCheckbox v-model:checked="form.over_edition"> 开启 </NCheckbox>
-          </NFormItem>
-          <NFormItem />
-        </div>
-        <div class="grid grid-cols-3 gap-3">
-          <NFormItem label="质量">
-            <NSelect
-              v-model:value="form.filter_restype"
-              :options="restypeOptions"
-            />
-          </NFormItem>
-          <NFormItem label="分辨率">
-            <NSelect v-model:value="form.filter_pix" :options="pixOptions" />
-          </NFormItem>
-          <NFormItem label="制作组">
-            <NInput v-model:value="form.filter_team" placeholder="支持正则" />
-          </NFormItem>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <NFormItem label="包含">
-            <NInput
-              v-model:value="form.filter_include"
-              placeholder="关键字或正则"
-            />
-          </NFormItem>
-          <NFormItem label="排除">
-            <NInput
-              v-model:value="form.filter_exclude"
-              placeholder="关键字或正则"
-            />
-          </NFormItem>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <NFormItem label="过滤规则">
-            <NSelect v-model:value="form.filter_rule" :options="filterRules" />
-          </NFormItem>
-          <NFormItem label="下载设置">
-            <NSelect
-              v-model:value="form.download_setting"
-              :options="downloadSettings"
-              @update:value="fetchDownloadDirs"
-            />
-          </NFormItem>
-        </div>
-        <NFormItem label="保存路径">
-          <NSelect v-model:value="form.save_path" :options="downloadDirs" />
-        </NFormItem>
-        <NFormItem label="订阅站点">
-          <NCard size="small" :bordered="true" class="site-card">
-            <div
-              class="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100"
-            >
-              <NCheckbox
-                :checked="isAllSelected('rss')"
-                @update:checked="(v) => toggleAllSites('rss', v)"
-              >
-                全选
-              </NCheckbox>
+        <!-- 基础信息 -->
+        <div class="form-section">
+          <div class="form-section-header">
+            <div class="form-section-icon form-icon-info">
+              <IconifyIcon icon="lucide:info" class="h-4 w-4" />
             </div>
-            <div class="flex flex-wrap gap-x-4 gap-y-2">
-              <NCheckbox
+            <span class="form-section-title">基础信息</span>
+          </div>
+          <div class="form-section-body">
+            <NFormItem label="自定义搜索词">
+              <NInput
+                v-model:value="form.keyword"
+                placeholder="留空使用TMDB数据"
+              />
+            </NFormItem>
+            <div class="grid grid-cols-2 gap-3">
+              <NFormItem label="模糊匹配">
+                <NCheckbox v-model:checked="form.fuzzy_match"> 开启 </NCheckbox>
+              </NFormItem>
+              <NFormItem label="洗版">
+                <NCheckbox v-model:checked="form.over_edition">
+                  开启
+                </NCheckbox>
+              </NFormItem>
+            </div>
+            <div v-if="isTv" class="grid grid-cols-3 gap-3">
+              <NFormItem label="季">
+                <NSelect v-model:value="form.season" :options="seasonOptions" />
+              </NFormItem>
+              <NFormItem label="总集数">
+                <NInput v-model:value="form.total_ep" placeholder="可留空" />
+              </NFormItem>
+              <NFormItem label="开始集数">
+                <NInput
+                  v-model:value="form.current_ep"
+                  placeholder="开始订阅集数"
+                />
+              </NFormItem>
+            </div>
+          </div>
+        </div>
+
+        <!-- 过滤设置 -->
+        <div class="form-section">
+          <div class="form-section-header">
+            <div class="form-section-icon form-icon-filter">
+              <IconifyIcon icon="lucide:filter" class="h-4 w-4" />
+            </div>
+            <span class="form-section-title">过滤设置</span>
+          </div>
+          <div class="form-section-body">
+            <div class="grid grid-cols-3 gap-3">
+              <NFormItem label="质量">
+                <NSelect
+                  v-model:value="form.filter_restype"
+                  :options="restypeOptions"
+                />
+              </NFormItem>
+              <NFormItem label="分辨率">
+                <NSelect
+                  v-model:value="form.filter_pix"
+                  :options="pixOptions"
+                />
+              </NFormItem>
+              <NFormItem label="制作组">
+                <NInput
+                  v-model:value="form.filter_team"
+                  placeholder="支持正则"
+                />
+              </NFormItem>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <NFormItem label="包含">
+                <NInput
+                  v-model:value="form.filter_include"
+                  placeholder="关键字或正则"
+                />
+              </NFormItem>
+              <NFormItem label="排除">
+                <NInput
+                  v-model:value="form.filter_exclude"
+                  placeholder="关键字或正则"
+                />
+              </NFormItem>
+            </div>
+            <NFormItem label="过滤规则">
+              <NSelect
+                v-model:value="form.filter_rule"
+                :options="filterRules"
+              />
+            </NFormItem>
+          </div>
+        </div>
+
+        <!-- 下载设置 -->
+        <div class="form-section">
+          <div class="form-section-header">
+            <div class="form-section-icon form-icon-download">
+              <IconifyIcon icon="lucide:download" class="h-4 w-4" />
+            </div>
+            <span class="form-section-title">下载设置</span>
+          </div>
+          <div class="form-section-body">
+            <div class="grid grid-cols-2 gap-3">
+              <NFormItem label="下载设置">
+                <NSelect
+                  v-model:value="form.download_setting"
+                  :options="downloadSettings"
+                  @update:value="fetchDownloadDirs"
+                />
+              </NFormItem>
+              <NFormItem label="保存路径">
+                <NSelect
+                  v-model:value="form.save_path"
+                  :options="downloadDirs"
+                />
+              </NFormItem>
+            </div>
+          </div>
+        </div>
+
+        <!-- 订阅站点 -->
+        <div class="form-section">
+          <div class="form-section-header">
+            <div class="form-section-icon form-icon-rss">
+              <IconifyIcon icon="lucide:rss" class="h-4 w-4" />
+            </div>
+            <span class="form-section-title">订阅站点</span>
+            <NCheckbox
+              class="ml-auto"
+              size="small"
+              :checked="isAllSelected('rss')"
+              @update:checked="(v) => toggleAllSites('rss', v)"
+            >
+              全选
+            </NCheckbox>
+          </div>
+          <div class="form-section-body">
+            <div class="site-select-grid">
+              <div
                 v-for="site in rssSites"
                 :key="site.value"
-                :checked="form.rss_sites.includes(site.value)"
-                @update:checked="
-                  (v: boolean) => {
-                    const set = new Set(form.rss_sites);
-                    if (v) set.add(site.value);
-                    else set.delete(site.value);
-                    form.rss_sites = Array.from(set);
-                  }
-                "
+                class="site-select-card"
+                :class="{
+                  'site-select-card-on': form.rss_sites.includes(site.value),
+                }"
+                @click="toggleSite('rss', site.value)"
               >
-                {{ site.label }}
-              </NCheckbox>
+                <div class="site-select-main">
+                  <div class="site-select-icon">
+                    {{ site.label.charAt(0).toUpperCase() }}
+                  </div>
+                  <span class="site-select-label">{{ site.label }}</span>
+                </div>
+                <NCheckbox
+                  size="small"
+                  :checked="form.rss_sites.includes(site.value)"
+                  @click.stop
+                  @update:checked="
+                    (v: boolean) => updateSite('rss', site.value, v)
+                  "
+                />
+              </div>
             </div>
-          </NCard>
-        </NFormItem>
-        <NFormItem label="搜索站点">
-          <NCard size="small" :bordered="true" class="site-card">
-            <div
-              class="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100"
+          </div>
+        </div>
+
+        <!-- 搜索站点 -->
+        <div class="form-section">
+          <div class="form-section-header">
+            <div class="form-section-icon form-icon-search">
+              <IconifyIcon icon="lucide:search" class="h-4 w-4" />
+            </div>
+            <span class="form-section-title">搜索站点</span>
+            <NCheckbox
+              class="ml-auto"
+              size="small"
+              :checked="isAllSelected('search')"
+              @update:checked="(v) => toggleAllSites('search', v)"
             >
-              <NCheckbox
-                :checked="isAllSelected('search')"
-                @update:checked="(v) => toggleAllSites('search', v)"
-              >
-                全选
-              </NCheckbox>
-            </div>
-            <div class="flex flex-wrap gap-x-4 gap-y-2">
-              <NCheckbox
+              全选
+            </NCheckbox>
+          </div>
+          <div class="form-section-body">
+            <div class="site-select-grid">
+              <div
                 v-for="site in searchSites"
                 :key="site.value"
-                :checked="form.search_sites.includes(site.value)"
-                @update:checked="
-                  (v: boolean) => {
-                    const set = new Set(form.search_sites);
-                    if (v) set.add(site.value);
-                    else set.delete(site.value);
-                    form.search_sites = Array.from(set);
-                  }
-                "
+                class="site-select-card"
+                :class="{
+                  'site-select-card-on': form.search_sites.includes(site.value),
+                }"
+                @click="toggleSite('search', site.value)"
               >
-                {{ site.label }}
-              </NCheckbox>
+                <div class="site-select-main">
+                  <div class="site-select-icon">
+                    {{ site.label.charAt(0).toUpperCase() }}
+                  </div>
+                  <span class="site-select-label">{{ site.label }}</span>
+                </div>
+                <NCheckbox
+                  size="small"
+                  :checked="form.search_sites.includes(site.value)"
+                  @click.stop
+                  @update:checked="
+                    (v: boolean) => updateSite('search', site.value, v)
+                  "
+                />
+              </div>
             </div>
-          </NCard>
-        </NFormItem>
+          </div>
+        </div>
       </NForm>
 
       <div class="flex justify-end">
@@ -450,3 +519,145 @@ function getImgUrl(src?: string) {
     </div>
   </NModal>
 </template>
+
+<style scoped>
+.form-section {
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.625rem;
+}
+
+.form-section-header {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.625rem 0.875rem;
+  background-color: hsl(var(--muted) / 25%);
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.form-section-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: 0.375rem;
+}
+
+.form-icon-info {
+  color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 15%);
+}
+
+.form-icon-filter {
+  color: hsl(var(--warning));
+  background-color: hsl(var(--warning) / 15%);
+}
+
+.form-icon-download {
+  color: hsl(var(--success));
+  background-color: hsl(var(--success) / 15%);
+}
+
+.form-icon-rss {
+  color: hsl(var(--success));
+  background-color: hsl(var(--success) / 15%);
+}
+
+.form-icon-search {
+  color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 15%);
+}
+
+.form-section-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: hsl(var(--card-foreground));
+}
+
+.form-section-body {
+  padding: 0.75rem 0.875rem;
+}
+
+.site-select-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.625rem;
+}
+
+.site-select-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 0.75rem;
+  cursor: pointer;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.site-select-card:hover {
+  background-color: hsl(var(--accent) / 20%);
+  border-color: hsl(var(--primary) / 30%);
+}
+
+.site-select-card-on {
+  background-color: hsl(var(--primary) / 6%);
+  border-color: hsl(var(--primary) / 40%);
+}
+
+.site-select-card-on .site-select-icon {
+  color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 15%);
+}
+
+.site-select-main {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.site-select-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  background-color: hsl(var(--muted) / 30%);
+  border-radius: 0.375rem;
+  transition: all 0.2s ease;
+}
+
+.site-select-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: hsl(var(--card-foreground));
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .site-select-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-section-body {
+    padding: 0.5rem 0.625rem;
+  }
+
+  .form-section-header {
+    padding: 0.5rem 0.625rem;
+  }
+}
+</style>

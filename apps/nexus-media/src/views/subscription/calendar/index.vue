@@ -1,11 +1,22 @@
 <script lang="ts" setup>
 import { computed, onActivated, onMounted, onUnmounted, ref } from 'vue';
 
-import { NCalendar, NModal, NSpace, NSpin, NTag } from 'naive-ui';
+import {
+  NButton,
+  NCalendar,
+  NInput,
+  NModal,
+  NSpace,
+  NSpin,
+  NTag,
+  useNotification,
+} from 'naive-ui';
 
 import { getMovieCalendarApi, getTvCalendarApi } from '#/api/modules/media';
 import {
+  downloadSubscriptionCalendarIcsApi,
   getMovieSubscriptionItemsApi,
+  getSubscriptionCalendarWebcalUrlApi,
   getTvSubscriptionItemsApi,
 } from '#/api/modules/subscription';
 
@@ -26,6 +37,14 @@ const calendarValue = ref(Date.now());
 const calendarKey = ref(0);
 const detailModalShow = ref(false);
 const selectedEvent = ref<CalendarEvent | null>(null);
+const notification = useNotification();
+const webcalLink = ref('');
+const httpCalLink = ref('');
+const webcalLoading = ref(false);
+const calServerHost = ref(
+  localStorage.getItem('nexus-media-calendar-host') || window.location.host,
+);
+const webcalSettingShow = ref(false);
 
 let resizeTimer: null | ReturnType<typeof setTimeout> = null;
 
@@ -59,6 +78,86 @@ function getImgUrl(src?: string) {
 function handleEventClick(event: CalendarEvent) {
   selectedEvent.value = event;
   detailModalShow.value = true;
+}
+
+async function exportCalendar() {
+  try {
+    const res: any = await downloadSubscriptionCalendarIcsApi();
+    const ics = res?.data ?? res ?? '';
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'nexus-media-subscriptions.ics';
+    document.body.append(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (error: any) {
+    notification.error({
+      content: '导出失败',
+      description: error?.message || '',
+    });
+  }
+}
+
+async function ensureCalendarLinks() {
+  if (webcalLink.value && httpCalLink.value) return;
+  webcalLoading.value = true;
+  try {
+    const res: any = await getSubscriptionCalendarWebcalUrlApi();
+    const data = res?.data || res || {};
+    const { token } = data;
+    if (!token) {
+      notification.error({ content: '获取订阅 Token 失败' });
+      return;
+    }
+    const host = calServerHost.value || window.location.host;
+    localStorage.setItem('nexus-media-calendar-host', host);
+    const apiUrl = import.meta.env.VITE_GLOB_API_URL || '/api';
+    const base = apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
+    const absBase = base.startsWith('http') ? base : `http://${host}${base}`;
+    httpCalLink.value = `${absBase}/subscription/calendar/ical/webcal?apikey=${token}`;
+    webcalLink.value = httpCalLink.value.replace(/^https?:\/\//, 'webcal://');
+  } catch (error: any) {
+    notification.error({
+      content: '获取订阅链接失败',
+      description: error?.message || '',
+    });
+  } finally {
+    webcalLoading.value = false;
+  }
+}
+
+function openWebcal() {
+  ensureCalendarLinks().then(() => {
+    if (webcalLink.value) {
+      window.open(webcalLink.value, '_blank');
+    }
+  });
+}
+
+async function openWebcalSetting() {
+  await ensureCalendarLinks();
+  if (httpCalLink.value) {
+    webcalSettingShow.value = true;
+  }
+}
+
+async function copyHttpCalLink() {
+  await ensureCalendarLinks();
+  if (!httpCalLink.value) return;
+  try {
+    await navigator.clipboard.writeText(httpCalLink.value);
+    notification.success({ content: '已复制 HTTP 订阅链接' });
+  } catch {
+    notification.error({ content: '复制失败' });
+  }
+}
+
+function clearCalendarLinks() {
+  httpCalLink.value = '';
+  webcalLink.value = '';
 }
 
 async function loadCalendarEvents() {
@@ -162,6 +261,22 @@ onUnmounted(() => {
 <template>
   <div>
     <div class="calendar-page">
+      <div class="calendar-header">
+        <h2 class="calendar-title">订阅日历</h2>
+        <NSpace>
+          <NButton type="primary" size="small" @click="openWebcal">
+            订阅到系统日历
+          </NButton>
+          <NButton
+            size="small"
+            :loading="webcalLoading"
+            @click="openWebcalSetting"
+          >
+            订阅设置
+          </NButton>
+          <NButton size="small" @click="exportCalendar"> 导出 ICS </NButton>
+        </NSpace>
+      </div>
       <NSpin :show="loading">
         <div class="calendar-wrapper">
           <NCalendar :key="calendarKey" v-model:value="calendarValue">
@@ -191,7 +306,7 @@ onUnmounted(() => {
                     <div class="event-info">
                       <div class="event-title">{{ event.title }}</div>
                       <div class="event-meta">
-                        {{ event.type }}
+                        {{ event.type === 'movie' ? '电影' : '电视剧' }}
                         <span
                           v-if="
                             event.vote_average !== '' &&
@@ -241,7 +356,7 @@ onUnmounted(() => {
               size="small"
               :type="selectedEvent.type === 'movie' ? 'success' : 'primary'"
             >
-              {{ selectedEvent.type }}
+              {{ selectedEvent.type === 'movie' ? '电影' : '电视剧' }}
             </NTag>
             <NTag v-if="selectedEvent.year" size="small">
               {{ selectedEvent.year }}
@@ -260,12 +375,67 @@ onUnmounted(() => {
         </div>
       </div>
     </NModal>
+
+    <NModal
+      v-model:show="webcalSettingShow"
+      title="订阅日历设置"
+      preset="card"
+      :style="{ width: '560px' }"
+      :bordered="false"
+    >
+      <div class="flex flex-col gap-4">
+        <div>
+          <div class="text-sm font-medium mb-2">服务器地址</div>
+          <NInput
+            v-model:value="calServerHost"
+            placeholder="如 localhost:5555 或 192.168.1.x:5555"
+            @update:value="clearCalendarLinks"
+          />
+          <div class="text-xs text-muted-foreground mt-1">
+            手机/外网订阅时，请填写可访问的 IP 或域名
+          </div>
+        </div>
+        <div v-if="httpCalLink">
+          <div class="text-sm font-medium mb-2">HTTP 订阅链接</div>
+          <div class="p-2 rounded bg-muted text-xs break-all">
+            {{ httpCalLink }}
+          </div>
+        </div>
+        <div v-if="webcalLink">
+          <div class="text-sm font-medium mb-2">Webcal 订阅链接</div>
+          <div class="p-2 rounded bg-muted text-xs break-all">
+            {{ webcalLink }}
+          </div>
+        </div>
+        <div class="flex justify-end gap-2">
+          <NButton size="small" @click="webcalSettingShow = false">
+            关闭
+          </NButton>
+          <NButton type="primary" size="small" @click="copyHttpCalLink">
+            复制链接
+          </NButton>
+        </div>
+      </div>
+    </NModal>
   </div>
 </template>
 
 <style scoped>
 .empty-wrap {
   padding: 80px 0;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.calendar-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: hsl(var(--card-foreground));
 }
 
 .calendar-page {

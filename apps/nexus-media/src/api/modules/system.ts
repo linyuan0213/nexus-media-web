@@ -35,7 +35,7 @@ export namespace SystemApi {
     enabled: number;
     interactive: number;
     config: Record<string, any>;
-    switchs: string[];
+    switches: string[];
     templates?: Record<string, any>;
   }
 
@@ -60,43 +60,43 @@ export namespace SystemApi {
 
 /** 获取系统基本信息 */
 export async function getSystemInfoApi() {
-  return requestClient.post<SystemApi.SystemInfo>('/api/system/info', {});
+  return requestClient.post<SystemApi.SystemInfo>('/system/info', {});
 }
 
 /** 获取系统状态 */
 export async function getSystemStatusApi() {
-  return requestClient.post<SystemApi.SystemStatus>('/api/system/status', {});
+  return requestClient.post<SystemApi.SystemStatus>('/system/status', {});
 }
 
 /** 执行调度任务 */
 export async function runSchedulerItemApi(item: string) {
-  return requestClient.post('/api/system/scheduler/run', { item });
+  return requestClient.post('/system/scheduler/run', { item });
 }
 
 /** 网络连通性测试 */
 export async function netTestApi(target?: string) {
   return requestClient.post<{ res: boolean; time: string }>(
-    '/api/system/net_test',
+    '/system/net_test',
     { target },
   );
 }
 
 /** 备份配置 */
 export async function backupApi() {
-  return requestClient.post('/api/system/backup', {});
+  return requestClient.post('/system/backup', {});
 }
 
 /** 获取系统命令列表 */
 export async function getSystemCommandsApi() {
   return requestClient.post<Array<{ id: string; name: string }>>(
-    '/api/system/commands',
+    '/system/commands',
     {},
   );
 }
 
 /** 获取所有系统配置（扁平化，供基础设置页面使用） */
 export async function getAllSystemConfigApi() {
-  return requestClient.post<Record<string, any>>('/api/system/config/all', {});
+  return requestClient.post<Record<string, any>>('/system/config/all', {});
 }
 
 /** 获取系统日志 */
@@ -105,7 +105,7 @@ export async function getSystemLogsApi(
   source?: string,
   limit: number = 200,
 ) {
-  return requestClient.post<SystemApi.LogItem[]>('/api/system/logs', {
+  return requestClient.post<SystemApi.LogItem[]>('/system/logs', {
     level,
     source,
     limit,
@@ -114,7 +114,7 @@ export async function getSystemLogsApi(
 
 /** 重启系统 */
 export async function restartSystemApi() {
-  return requestClient.post('/api/system/restart');
+  return requestClient.post('/system/restart');
 }
 
 // 进度请求节流：同 type 2000ms 内不重复发请求
@@ -131,19 +131,19 @@ export async function getProgressApi(type: string) {
   const promise = requestClient.post<{
     code: number;
     data?: { text: string; value: number };
-  }>('/api/system/refresh', { type });
+  }>('/system/refresh', { type });
   _progressLocks[type] = { promise, time: now };
   return promise;
 }
 
 /** 更新系统配置 */
 export async function updateConfigApi(data: Record<string, any>) {
-  return requestClient.post('/api/system/config/update', { data });
+  return requestClient.post('/system/config/update', { data });
 }
 
 /** 设置系统配置项 */
 export async function setSystemConfigApi(key: string, value: any) {
-  return requestClient.post('/api/system/config', { key, value });
+  return requestClient.post('/system/config', { key, value });
 }
 
 /** 查询 Agent 模型列表 */
@@ -153,7 +153,7 @@ export async function listAgentModelsApi(data: {
   provider_name: string;
 }) {
   return requestClient.post<{ code: number; data?: string[] }>(
-    '/api/system/agent/models',
+    '/system/agent/models',
     data,
   );
 }
@@ -161,7 +161,7 @@ export async function listAgentModelsApi(data: {
 /** 获取消息客户端列表 */
 export async function getMessageClientApi(cid?: number) {
   return requestClient.post<Record<string, SystemApi.MessageClient>>(
-    '/api/system/message_clients',
+    '/system/message_clients',
     { cid },
   );
 }
@@ -179,14 +179,14 @@ export async function getMessageClientConfigApi() {
         search_type?: string;
       }
     >;
-    switchs: Record<string, { fuc_name: string; name: string }>;
-  }>('/api/system/message_clients/config');
+    switches: Record<string, { fuc_name: string; name: string }>;
+  }>('/system/message_clients/config');
 }
 
 /** 获取消息通知默认模板 */
 export async function getMessageClientDefaultTemplatesApi() {
   return requestClient.get<Record<string, { text: string; title: string }>>(
-    '/api/system/message_clients/templates/defaults',
+    '/system/message_clients/templates/defaults',
   );
 }
 
@@ -197,21 +197,21 @@ export async function updateMessageClientApi(data: {
   enabled?: number;
   interactive?: number;
   name?: string;
-  switchs?: string;
+  switches?: string;
   templates?: string;
   type?: string;
 }) {
-  return requestClient.post('/api/system/message_clients/update', data);
+  return requestClient.post('/system/message_clients/update', data);
 }
 
 /** 删除消息客户端 */
 export async function deleteMessageClientApi(cid: number) {
-  return requestClient.post('/api/system/message_clients/delete', { cid });
+  return requestClient.post('/system/message_clients/delete', { cid });
 }
 
 /** 测试消息客户端 */
 export async function testMessageClientApi(type: string, config: string) {
-  return requestClient.post('/api/system/message_clients/test', {
+  return requestClient.post('/system/message_clients/test', {
     type,
     config,
   });
@@ -224,7 +224,7 @@ export async function sendCustomMessageApi(data: {
   text?: string;
   title: string;
 }) {
-  return requestClient.post('/api/system/messages/send', data);
+  return requestClient.post('/system/messages/send', data);
 }
 
 /** 获取索引器配置 */
@@ -237,17 +237,17 @@ export async function getIndexersConfigApi() {
     private_count: number;
     public_count: number;
     search_indexer: string;
-  }>('/api/system/indexers');
+  }>('/system/indexers');
 }
 
 /** 保存索引器配置 */
 export async function saveIndexerConfigApi(data: Record<string, any>) {
-  return requestClient.post('/api/system/indexers/config', { data });
+  return requestClient.post('/system/indexers/config', { data });
 }
 
 /** 测试索引器连接 */
 export async function testIndexerConfigApi(data: Record<string, any>) {
-  return requestClient.post('/api/system/indexers/test', { data });
+  return requestClient.post('/system/indexers/test', { data });
 }
 
 /** 获取媒体服务器配置 */
@@ -265,17 +265,17 @@ export async function getMediaServersConfigApi() {
         name: string;
       }
     >;
-  }>('/api/system/mediaservers');
+  }>('/system/mediaservers');
 }
 
 /** 保存媒体服务器配置 */
 export async function saveMediaServerConfigApi(data: Record<string, any>) {
-  return requestClient.post('/api/system/mediaservers/config', { data });
+  return requestClient.post('/system/mediaservers/config', { data });
 }
 
 /** 测试媒体服务器连接 */
 export async function testMediaServerApi(data: Record<string, any>) {
-  return requestClient.post('/api/system/mediaservers/test', { data });
+  return requestClient.post('/system/mediaservers/test', { data });
 }
 
 /** 获取站点配置版本 */
@@ -284,7 +284,7 @@ export async function getSiteConfigVersionApi() {
     local: string;
     needs_update: boolean;
     remote: string;
-  }>('/api/system/site-config/version');
+  }>('/system/site-config/version');
 }
 
 /** 手动更新站点配置 */
@@ -293,7 +293,7 @@ export async function updateSiteConfigApi(force?: boolean) {
     message: string;
     success: boolean;
     version: string;
-  }>('/api/system/site-config/update', { data: { force: !!force } });
+  }>('/system/site-config/update', { data: { force: !!force } });
 }
 
 /** 手动触发配置重载 */
@@ -301,5 +301,5 @@ export async function reloadConfigApi() {
   return requestClient.post<{
     code: number;
     data?: { steps: Record<string, boolean>; version: number };
-  }>('/api/system/config/reload', {});
+  }>('/system/config/reload', {});
 }

@@ -47,12 +47,12 @@ export namespace WordsApi {
 
 /** 获取识别词组列表 */
 export async function getWordGroupsApi() {
-  return requestClient.post<WordsApi.WordGroup[]>('/api/words/words');
+  return requestClient.post<WordsApi.WordGroup[]>('/words/words');
 }
 
 /** 获取单个识别词详情 */
 export async function getWordDetailApi(wid: number) {
-  return requestClient.post<WordsApi.WordDetail>('/api/words/words/detail', {
+  return requestClient.post<WordsApi.WordDetail>('/words/words/detail', {
     wid,
   });
 }
@@ -73,7 +73,7 @@ export async function saveWordApi(data: {
   season?: number;
   type: string;
 }) {
-  return requestClient.post('/api/words/words/save', data);
+  return requestClient.post('/words/words/save', data);
 }
 
 /** 批量切换识别词状态 */
@@ -81,27 +81,27 @@ export async function toggleWordsApi(
   ids_info: string[],
   flag: 'disable' | 'enable',
 ) {
-  return requestClient.post('/api/words/words/check', { ids_info, flag });
+  return requestClient.post('/words/words/check', { ids_info, flag });
 }
 
 /** 删除识别词 */
 export async function deleteWordApi(ids_info: string[]) {
-  return requestClient.post('/api/words/words/delete', { ids_info });
+  return requestClient.post('/words/words/delete', { ids_info });
 }
 
 /** 添加识别词组 */
 export async function addWordGroupApi(tmdb_id: number, tmdb_type: string) {
-  return requestClient.post('/api/words/groups/add', { tmdb_id, tmdb_type });
+  return requestClient.post('/words/groups/add', { tmdb_id, tmdb_type });
 }
 
 /** 删除识别词组 */
 export async function deleteWordGroupApi(gid: number) {
-  return requestClient.post('/api/words/groups/delete', { gid });
+  return requestClient.post('/words/groups/delete', { gid });
 }
 
 /** 导出识别词 */
 export async function exportWordsApi(ids_info: string, note?: string) {
-  return requestClient.post<string>('/api/words/words/export', {
+  return requestClient.post<string>('/words/words/export', {
     ids_info,
     note,
   });
@@ -112,12 +112,12 @@ export async function analyseImportCodeApi(import_code: string) {
   return requestClient.post<{
     groups: WordsApi.WordGroup[];
     note_string: string;
-  }>('/api/words/words/analyse', { import_code });
+  }>('/words/words/analyse', { import_code });
 }
 
 /** 导入识别词 */
 export async function importWordsApi(import_code: string, ids_info: string) {
-  return requestClient.post('/api/words/words/import', {
+  return requestClient.post('/words/words/import', {
     import_code,
     ids_info,
   });

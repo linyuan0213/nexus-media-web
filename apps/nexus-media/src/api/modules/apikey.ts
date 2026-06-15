@@ -76,7 +76,7 @@ export namespace APIKeyApi {
 /** 创建 API Key */
 export async function createAPIKeyApi(params: APIKeyApi.CreateAPIKeyParams) {
   return requestClient.post<APIKeyApi.CreateAPIKeyResult>(
-    '/api/apikey/keys',
+    '/apikey/keys',
     params,
   );
 }
@@ -84,7 +84,7 @@ export async function createAPIKeyApi(params: APIKeyApi.CreateAPIKeyParams) {
 /** 获取 API Key 列表 */
 export async function listAPIKeysApi(page = 1, pageSize = 50) {
   return requestClient.get<APIKeyApi.PagedResult<APIKeyApi.APIKeyItem>>(
-    `/api/apikey/keys?page=${page}&page_size=${pageSize}`,
+    `/apikey/keys?page=${page}&page_size=${pageSize}`,
   );
 }
 
@@ -93,12 +93,12 @@ export async function updateAPIKeyApi(
   id: number,
   params: APIKeyApi.UpdateAPIKeyParams,
 ) {
-  return requestClient.put(`/api/apikey/keys/${id}`, params);
+  return requestClient.put(`/apikey/keys/${id}`, params);
 }
 
 /** 删除 API Key */
 export async function deleteAPIKeyApi(id: number) {
-  return requestClient.delete(`/api/apikey/keys/${id}`);
+  return requestClient.delete(`/apikey/keys/${id}`);
 }
 
 /** 获取 API Key 使用记录 */
@@ -108,18 +108,18 @@ export async function listAPIKeyLogsApi(
   pageSize = 50,
 ) {
   return requestClient.get<APIKeyApi.PagedResult<APIKeyApi.APIKeyLogItem>>(
-    `/api/apikey/keys/${keyId}/logs?page=${page}&page_size=${pageSize}`,
+    `/apikey/keys/${keyId}/logs?page=${page}&page_size=${pageSize}`,
   );
 }
 
 /** 获取所有使用记录 */
 export async function listAllLogsApi(page = 1, pageSize = 50) {
   return requestClient.get<APIKeyApi.PagedResult<APIKeyApi.APIKeyLogItem>>(
-    `/api/apikey/logs?page=${page}&page_size=${pageSize}`,
+    `/apikey/logs?page=${page}&page_size=${pageSize}`,
   );
 }
 
 /** 获取统计信息 */
 export async function getAPIKeyStatsApi() {
-  return requestClient.get<APIKeyApi.APIKeyStats>('/api/apikey/stats');
+  return requestClient.get<APIKeyApi.APIKeyStats>('/apikey/stats');
 }

@@ -46,6 +46,14 @@ const mediaTypeOptions = [
   { label: '电视剧', value: '电视剧' },
 ];
 
+function getMediaTypeLabel(type?: string) {
+  const map: Record<string, string> = {
+    movie: '电影',
+    tv: '电视剧',
+  };
+  return (type && map[type]) || type || '未知';
+}
+
 async function fetchData(page = 1) {
   loading.value = true;
   currentPage.value = page;
@@ -265,7 +273,7 @@ onMounted(() => fetchData(1));
                       "
                       class="size-3 inline mr-1"
                     />
-                    {{ item.media_type }}
+                    {{ getMediaTypeLabel(item.media_type) }}
                   </span>
                   <a
                     :href="getTmdbUrl(item)"

@@ -19,13 +19,13 @@ export async function getStorageBackendsApi() {
   return requestClient.post<{
     count: number;
     items: StorageApi.StorageBackend[];
-  }>('/api/storage/list', {});
+  }>('/storage/list', {});
 }
 
 /** 获取单个存储后端 */
 export async function getStorageBackendApi(sid: number) {
   return requestClient.post<{ data: StorageApi.StorageBackend }>(
-    '/api/storage/get',
+    '/storage/get',
     { sid },
   );
 }
@@ -37,7 +37,7 @@ export async function createStorageBackendApi(data: {
   name: string;
   type: string;
 }) {
-  return requestClient.post<{ id: number }>('/api/storage/save', data);
+  return requestClient.post<{ id: number }>('/storage/save', data);
 }
 
 /** 更新存储后端 */
@@ -48,12 +48,12 @@ export async function updateStorageBackendApi(data: {
   sid: number;
   type?: string;
 }) {
-  return requestClient.post('/api/storage/update', data);
+  return requestClient.post('/storage/update', data);
 }
 
 /** 删除存储后端 */
 export async function deleteStorageBackendApi(sid: number) {
-  return requestClient.post('/api/storage/delete', { sid });
+  return requestClient.post('/storage/delete', { sid });
 }
 
 export interface StorageTypeSchema {
@@ -74,7 +74,7 @@ export async function testStorageBackendApi(data: {
   type: string;
 }) {
   return requestClient.post<{ msg?: string; success: boolean }>(
-    '/api/storage/test',
+    '/storage/test',
     data,
   );
 }
@@ -82,7 +82,7 @@ export async function testStorageBackendApi(data: {
 /** 获取支持的存储类型 */
 export async function getStorageTypesApi() {
   return requestClient.post<{ items: StorageTypeSchema[] }>(
-    '/api/storage/types',
+    '/storage/types',
     {},
   );
 }

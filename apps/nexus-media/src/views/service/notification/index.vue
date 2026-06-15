@@ -40,7 +40,7 @@ interface MessageClient {
   enabled: number;
   interactive: number;
   config: Record<string, any>;
-  switchs: string[];
+  switches: string[];
   templates?: Record<string, any>;
 }
 
@@ -55,14 +55,14 @@ interface ChannelConf {
 const message = useMessage();
 const clients = ref<Record<string, MessageClient>>({});
 const channels = ref<Record<string, ChannelConf>>({});
-const switchs = ref<Record<string, { name: string }>>({});
+const switches = ref<Record<string, { name: string }>>({});
 const loading = ref(false);
 const editModalShow = ref(false);
 const customModalShow = ref(false);
 const editingClient = ref<Partial<MessageClient>>({});
 const editingType = ref('');
 const editingConfig = ref<Record<string, any>>({});
-const editingSwitchs = ref<string[]>([]);
+const editingSwitches = ref<string[]>([]);
 const editingTemplateMap = ref<Record<string, any>>({});
 const defaultTemplates = ref<Record<string, { text: string; title: string }>>(
   {},
@@ -129,7 +129,7 @@ async function fetchData() {
     const cfg = configData?.code === 0 ? configData.data : configData;
     if (cfg && typeof cfg === 'object' && !Array.isArray(cfg)) {
       channels.value = cfg.channels || {};
-      switchs.value = cfg.switchs || {};
+      switches.value = cfg.switches || {};
     }
 
     // 处理默认模板
@@ -147,7 +147,7 @@ async function fetchData() {
 
 function initTemplateMap() {
   editingTemplateMap.value = {};
-  for (const swid of Object.keys(switchs.value)) {
+  for (const swid of Object.keys(switches.value)) {
     editingTemplateMap.value[swid] = defaultTemplates.value[swid]
       ? { ...defaultTemplates.value[swid] }
       : { title: '', text: '' };
@@ -161,11 +161,11 @@ function handleAdd() {
     type: Object.keys(channels.value)[0] || '',
     enabled: 1,
     interactive: 0,
-    switchs: [],
+    switches: [],
   };
   editingType.value = editingClient.value.type || '';
   editingConfig.value = {};
-  editingSwitchs.value = [];
+  editingSwitches.value = [];
   initTemplateMap();
   editModalShow.value = true;
 }
@@ -180,7 +180,7 @@ function handleEdit(row: MessageClient) {
     editingConfig.value[key] =
       row.config?.[key] ?? (field.type === 'switch' ? 0 : '');
   }
-  editingSwitchs.value = row.switchs || [];
+  editingSwitches.value = row.switches || [];
   // 解析模板 JSON 到表单
   initTemplateMap();
   if (row.templates && typeof row.templates === 'object') {
@@ -198,25 +198,25 @@ function handleEdit(row: MessageClient) {
 
 function handleReset() {
   editingConfig.value = {};
-  editingSwitchs.value = [];
+  editingSwitches.value = [];
   editingTemplateMap.value = {};
   message.success('已重置');
 }
 
 function toggleSwitch(swid: string) {
-  editingSwitchs.value = editingSwitchs.value.includes(swid)
-    ? editingSwitchs.value.filter((s) => s !== swid)
-    : [...editingSwitchs.value, swid];
+  editingSwitches.value = editingSwitches.value.includes(swid)
+    ? editingSwitches.value.filter((s) => s !== swid)
+    : [...editingSwitches.value, swid];
 }
 
-function selectAllSwitchs() {
-  editingSwitchs.value = [
-    ...new Set([...editingSwitchs.value, ...Object.keys(switchs.value)]),
+function selectAllSwitches() {
+  editingSwitches.value = [
+    ...new Set([...editingSwitches.value, ...Object.keys(switches.value)]),
   ];
 }
 
-function clearSwitchs() {
-  editingSwitchs.value = [];
+function clearSwitches() {
+  editingSwitches.value = [];
 }
 
 async function handleSave() {
@@ -238,7 +238,7 @@ async function handleSave() {
       name: data.name,
       type: editingType.value,
       config: JSON.stringify(editingConfig.value),
-      switchs: JSON.stringify(editingSwitchs.value),
+      switches: JSON.stringify(editingSwitches.value),
       interactive: data.interactive,
       enabled: data.enabled,
       templates: JSON.stringify(templates),
@@ -412,12 +412,12 @@ onMounted(fetchData);
               </div>
               <div class="flex flex-wrap gap-1 mt-2">
                 <span
-                  v-for="swid in item.switchs"
+                  v-for="swid in item.switches"
                   :key="swid"
                   class="inline-block px-1.5 py-0.5 text-[10px] rounded border"
                   :class="getSwitchColorClass(swid)"
                 >
-                  {{ switchs[swid]?.name || swid }}
+                  {{ switches[swid]?.name || swid }}
                 </span>
               </div>
             </div>
@@ -594,11 +594,11 @@ onMounted(fetchData);
         <NFormItem label="推送设置">
           <div class="flex flex-wrap gap-2 items-center">
             <NButton
-              v-for="(sw, swid) in switchs"
+              v-for="(sw, swid) in switches"
               :key="swid"
               size="small"
-              :type="editingSwitchs.includes(swid) ? 'primary' : 'default'"
-              :ghost="!editingSwitchs.includes(swid)"
+              :type="editingSwitches.includes(swid) ? 'primary' : 'default'"
+              :ghost="!editingSwitches.includes(swid)"
               @click="toggleSwitch(swid)"
             >
               {{ sw.name }}
@@ -608,11 +608,11 @@ onMounted(fetchData);
                 size="tiny"
                 text
                 type="primary"
-                @click="selectAllSwitchs"
+                @click="selectAllSwitches"
               >
                 全选
               </NButton>
-              <NButton size="tiny" text type="primary" @click="clearSwitchs">
+              <NButton size="tiny" text type="primary" @click="clearSwitches">
                 清空
               </NButton>
             </div>
@@ -623,11 +623,11 @@ onMounted(fetchData);
         <NFormItem label="消息模板">
           <div class="space-y-3 max-h-[400px] overflow-y-auto pr-2">
             <div
-              v-for="(sw, swid) in switchs"
+              v-for="(sw, swid) in switches"
               :key="swid"
               class="border rounded-lg p-3"
               :class="
-                editingSwitchs.includes(swid)
+                editingSwitches.includes(swid)
                   ? 'border-blue-300 bg-blue-50/30'
                   : 'border-gray-200 opacity-60'
               "
@@ -635,7 +635,7 @@ onMounted(fetchData);
               <div class="flex items-center justify-between mb-2">
                 <span class="font-medium text-sm">{{ sw.name }}</span>
                 <span
-                  v-if="!editingSwitchs.includes(swid)"
+                  v-if="!editingSwitches.includes(swid)"
                   class="text-xs text-gray-400"
                   >未启用推送</span
                 >
@@ -645,7 +645,7 @@ onMounted(fetchData);
                   v-model:value="editingTemplateMap[swid].title"
                   size="small"
                   placeholder="标题模板（可选）"
-                  :disabled="!editingSwitchs.includes(swid)"
+                  :disabled="!editingSwitches.includes(swid)"
                 />
                 <NInput
                   v-model:value="editingTemplateMap[swid].text"
@@ -653,7 +653,7 @@ onMounted(fetchData);
                   type="textarea"
                   :rows="3"
                   placeholder="内容模板（可选）"
-                  :disabled="!editingSwitchs.includes(swid)"
+                  :disabled="!editingSwitches.includes(swid)"
                 />
               </div>
             </div>

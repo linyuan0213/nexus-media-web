@@ -68,22 +68,22 @@ export namespace BrushApi {
 
 /** 获取刷流任务列表 */
 export async function getBrushTasksApi() {
-  return requestClient.post<BrushApi.BrushTask[]>('/api/brush/tasks', {});
+  return requestClient.post<BrushApi.BrushTask[]>('/brush/tasks', {});
 }
 
 /** 添加刷流任务 */
 export async function addBrushTaskApi(data: Partial<BrushApi.BrushTask>) {
-  return requestClient.post('/api/brush/tasks/add', data);
+  return requestClient.post('/brush/tasks/add', data);
 }
 
 /** 更新刷流任务 */
 export async function updateBrushTaskApi(data: Partial<BrushApi.BrushTask>) {
-  return requestClient.post('/api/brush/tasks/update', data);
+  return requestClient.post('/brush/tasks/update', data);
 }
 
 /** 删除刷流任务 */
 export async function deleteBrushTaskApi(id: number | string) {
-  return requestClient.post('/api/brush/tasks/delete', { id });
+  return requestClient.post('/brush/tasks/delete', { id });
 }
 
 /** 启动/停止刷流任务 */
@@ -91,7 +91,7 @@ export async function toggleBrushTaskApi(
   id: number | string,
   enabled: boolean,
 ) {
-  return requestClient.post('/api/brush/tasks/state', {
+  return requestClient.post('/brush/tasks/state', {
     state: enabled ? 'Y' : 'S',
     ids: [id],
   });
@@ -99,13 +99,13 @@ export async function toggleBrushTaskApi(
 
 /** 立即运行刷流任务 */
 export async function runBrushTaskApi(id: number | string) {
-  return requestClient.post('/api/brush/tasks/run', { id });
+  return requestClient.post('/brush/tasks/run', { id });
 }
 
 /** 获取刷流任务详情 */
 export async function getBrushTaskDetailApi(id: number | string) {
   return requestClient.post<{ task: BrushApi.BrushTask }>(
-    '/api/brush/tasks/detail',
+    '/brush/tasks/detail',
     { id },
   );
 }
@@ -113,7 +113,7 @@ export async function getBrushTaskDetailApi(id: number | string) {
 /** 获取刷流任务种子列表 */
 export async function getBrushTaskTorrentsApi(id: number | string) {
   return requestClient.post<{ list: BrushApi.BrushTorrent[] }>(
-    '/api/brush/tasks/torrents',
+    '/brush/tasks/torrents',
     { id },
   );
 }
@@ -122,22 +122,22 @@ export async function getBrushTaskTorrentsApi(id: number | string) {
 
 /** 获取刷流规则列表 */
 export async function getBrushRulesApi() {
-  return requestClient.post<BrushApi.BrushRule[]>('/api/brush/rules', {});
+  return requestClient.post<BrushApi.BrushRule[]>('/brush/rules', {});
 }
 
 /** 获取刷流规则详情 */
 export async function getBrushRuleDetailApi(id: number | string) {
-  return requestClient.post<BrushApi.BrushRule>('/api/brush/rules/detail', {
+  return requestClient.post<BrushApi.BrushRule>('/brush/rules/detail', {
     id,
   });
 }
 
 /** 保存刷流规则 */
 export async function saveBrushRuleApi(data: Partial<BrushApi.BrushRule>) {
-  return requestClient.post('/api/brush/rules/save', data);
+  return requestClient.post('/brush/rules/save', data);
 }
 
 /** 删除刷流规则 */
 export async function deleteBrushRuleApi(id: number | string) {
-  return requestClient.post('/api/brush/rules/delete', { id });
+  return requestClient.post('/brush/rules/delete', { id });
 }

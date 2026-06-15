@@ -374,7 +374,7 @@ async function fetchCommands() {
   commandLoading.value = true;
   try {
     const res = await requestClient.post<Array<{ id: string; name: string }>>(
-      '/api/system/commands',
+      '/system/commands',
       {},
     );
     commands.value = res || [];
@@ -447,7 +447,7 @@ async function handleNameTest() {
   showNameTestResult.value = false;
   try {
     const res = await requestClient.post(
-      '/api/media/name_test',
+      '/media/name_test',
       { name: nameTestInput.value },
       { timeout: 60_000 },
     );
@@ -471,7 +471,7 @@ async function handleRuleTest() {
       flag: boolean;
       order: number;
       text: string;
-    }>('/api/filter/rules/test', {
+    }>('/filter/rules/test', {
       title: ruleTestInput.value,
       subtitle: ruleTestSubtitle.value,
       size: ruleTestSize.value,
@@ -516,7 +516,7 @@ async function handleBackupDownload() {
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
-    const response = await fetch('/api/system/backup', {
+    const response = await fetch('/system/backup', {
       method: 'POST',
       headers,
       credentials: 'include',
@@ -564,7 +564,7 @@ function handleFileSelect(e: Event) {
 
 async function uploadBackupFile(file: File) {
   try {
-    const res = await requestClient.upload('/api/system/backup/upload', {
+    const res = await requestClient.upload('/system/backup/upload', {
       file,
     });
     if (res?.filepath) {
@@ -593,7 +593,7 @@ async function handleRestore() {
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
-    const response = await fetch('/api/system/backup/restore', {
+    const response = await fetch('/system/backup/restore', {
       method: 'POST',
       headers,
       credentials: 'include',
@@ -620,7 +620,7 @@ async function handleCommand() {
   }
   commandLoading.value = true;
   try {
-    await requestClient.post('/api/system/scheduler/run', {
+    await requestClient.post('/system/scheduler/run', {
       item: selectedCommand.value,
     });
     message.success('命令已执行');

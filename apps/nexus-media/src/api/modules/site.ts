@@ -76,10 +76,7 @@ export async function getSitesApi(filter?: {
   rss?: boolean;
   statistic?: boolean;
 }) {
-  return requestClient.post<SiteApi.SiteItem[]>(
-    '/api/site/sites',
-    filter || {},
-  );
+  return requestClient.post<SiteApi.SiteItem[]>('/site/sites', filter || {});
 }
 
 /** 获取站点详情 */
@@ -89,12 +86,12 @@ export async function getSiteApi(id: number | string) {
     site_2xfree?: boolean;
     site_free?: boolean;
     site_hr?: boolean;
-  }>('/api/site/sites/detail', { id });
+  }>('/site/sites/detail', { id });
 }
 
 /** 添加/更新站点 */
 export async function saveSiteApi(data: Record<string, any>) {
-  return requestClient.post('/api/site/sites/update', {
+  return requestClient.post('/site/sites/update', {
     site_id: data.id == null ? undefined : String(data.id),
     site_name: data.name,
     site_pri: data.pri == null ? undefined : String(data.pri),
@@ -111,17 +108,17 @@ export async function saveSiteApi(data: Record<string, any>) {
 
 /** 删除站点 */
 export async function deleteSiteApi(id: number) {
-  return requestClient.post('/api/site/sites/delete', { id: String(id) });
+  return requestClient.post('/site/sites/delete', { id: String(id) });
 }
 
 /** 测试站点连通性 */
 export async function testSiteApi(id: number) {
-  return requestClient.post('/api/site/sites/test', { id: String(id) });
+  return requestClient.post('/site/sites/test', { id: String(id) });
 }
 
 /** 执行签到 */
 export async function signinSiteApi(id?: number) {
-  return requestClient.post('/api/site/sites/signin', {
+  return requestClient.post('/site/sites/signin', {
     id: id == null ? undefined : String(id),
   });
 }
@@ -133,7 +130,7 @@ export async function getSiteStatisticsApi(params?: {
   sort_on?: string;
 }) {
   return requestClient.post<SiteApi.SiteStatisticsItem[]>(
-    '/api/site/sites/statistics',
+    '/site/sites/statistics',
     {
       sites: params?.sites,
       sort_by: params?.sort_by,
@@ -151,7 +148,7 @@ export async function getSiteResourcesApi(params: {
   return requestClient.post<{
     list: SiteApi.SiteResourceItem[];
     total?: number;
-  }>('/api/site/sites/resources', params);
+  }>('/site/sites/resources', params);
 }
 
 /** 获取站点历史 */
@@ -160,14 +157,14 @@ export async function getSiteHistoryApi(params: {
   end_day?: string;
 }) {
   return requestClient.post<SiteApi.SiteHistoryDataset>(
-    '/api/site/sites/history',
+    '/site/sites/history',
     params,
   );
 }
 
 /** 获取站点活动 */
 export async function getSiteActivityApi(name: string) {
-  return requestClient.post<{ dataset: any[] }>('/api/site/sites/activity', {
+  return requestClient.post<{ dataset: any[] }>('/site/sites/activity', {
     name,
   });
 }
@@ -180,28 +177,25 @@ export async function getSiteDailyHistoryApi(params: {
   return requestClient.post<{
     dates: string[];
     series: Array<{ download: number[]; name: string; upload: number[] }>;
-  }>('/api/site/sites/statistics/daily', params);
+  }>('/site/sites/statistics/daily', params);
 }
 
 /** 刷新站点数据统计（批量或单站） */
 export async function refreshSiteStatisticsApi(sites?: string[]) {
   return requestClient.post<{ message: string }>(
-    '/api/site/sites/statistics/refresh',
+    '/site/sites/statistics/refresh',
     { sites },
   );
 }
 
 /** 获取站点做种信息 */
 export async function getSiteSeedingApi(name: string) {
-  return requestClient.post<{ dataset: any[] }>('/api/site/sites/seeding', {
+  return requestClient.post<{ dataset: any[] }>('/site/sites/seeding', {
     name,
   });
 }
 
 /** 获取所有站点图标 */
 export async function getSiteFaviconsApi() {
-  return requestClient.post<Record<string, string>>(
-    '/api/site/sites/favicon',
-    {},
-  );
+  return requestClient.post<Record<string, string>>('/site/sites/favicon', {});
 }

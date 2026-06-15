@@ -147,7 +147,7 @@ onMounted(fetchData);
                   resume.type === 'movie' ? 'bg-green-500' : 'bg-blue-500'
                 "
               >
-                {{ resume.type }}
+                {{ resume.type === 'movie' ? '电影' : '电视剧' }}
               </span>
               <div
                 v-if="resume.percent"
@@ -189,7 +189,7 @@ onMounted(fetchData);
                   latest.type === 'movie' ? 'bg-green-500' : 'bg-blue-500'
                 "
               >
-                {{ latest.type }}
+                {{ latest.type === 'movie' ? '电影' : '电视剧' }}
               </span>
               <div class="m-2 text-center text-sm truncate">
                 {{ latest.name }}

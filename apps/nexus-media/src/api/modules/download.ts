@@ -101,7 +101,7 @@ export namespace DownloadApi {
 /** 获取下载任务列表 */
 export async function getDownloadTasksApi() {
   return requestClient.post<DownloadApi.DownloadTask[]>(
-    '/api/download/tasks',
+    '/download/tasks',
     {},
     { timeout: 30_000 },
   );
@@ -110,7 +110,7 @@ export async function getDownloadTasksApi() {
 /** 获取下载历史 */
 export async function getDownloadHistoryApi(page?: number, _pageSize?: number) {
   return requestClient.post<DownloadApi.DownloadHistoryItem[]>(
-    '/api/media/library/downloaded',
+    '/media/library/downloaded',
     {
       page,
     },
@@ -119,17 +119,17 @@ export async function getDownloadHistoryApi(page?: number, _pageSize?: number) {
 
 /** 暂停任务 */
 export async function pauseTaskApi(id: string) {
-  return requestClient.post('/api/download/tasks/stop', { id });
+  return requestClient.post('/download/tasks/stop', { id });
 }
 
 /** 恢复任务 */
 export async function resumeTaskApi(id: string) {
-  return requestClient.post('/api/download/tasks/start', { id });
+  return requestClient.post('/download/tasks/start', { id });
 }
 
 /** 删除任务 */
 export async function deleteTaskApi(id: string, deleteFiles: boolean = false) {
-  return requestClient.post('/api/download/tasks/remove', {
+  return requestClient.post('/download/tasks/remove', {
     id,
     delete_files: deleteFiles,
   });
@@ -138,7 +138,7 @@ export async function deleteTaskApi(id: string, deleteFiles: boolean = false) {
 /** 获取下载器配置列表 */
 export async function getDownloadersApi(did?: string) {
   return requestClient.post<Record<string, DownloadApi.DownloaderConfig>>(
-    '/api/download/downloaders',
+    '/download/downloaders',
     { did },
   );
 }
@@ -156,22 +156,22 @@ export async function getDownloaderTypesApi() {
         speedlimit_enable?: boolean;
       }
     >
-  >('/api/download/downloaders/types', {});
+  >('/download/downloaders/types', {});
 }
 
 /** 保存下载器配置 */
 export async function saveDownloaderApi(data: DownloadApi.DownloaderConfig) {
-  return requestClient.post('/api/download/downloaders/update', data);
+  return requestClient.post('/download/downloaders/update', data);
 }
 
 /** 删除下载器配置 */
 export async function deleteDownloaderApi(id: string) {
-  return requestClient.post('/api/download/downloaders/delete', { did: id });
+  return requestClient.post('/download/downloaders/delete', { did: id });
 }
 
 /** 测试下载器配置 */
 export async function testDownloaderApi(type: string, config: string) {
-  return requestClient.post('/api/download/downloaders/test', { type, config });
+  return requestClient.post('/download/downloaders/test', { type, config });
 }
 
 /** 检查下载器 */
@@ -180,7 +180,7 @@ export async function checkDownloaderApi(
   flag: string,
   checked: boolean,
 ) {
-  return requestClient.post('/api/download/downloaders/check', {
+  return requestClient.post('/download/downloaders/check', {
     did,
     flag,
     checked,
@@ -189,12 +189,12 @@ export async function checkDownloaderApi(
 
 /** 设置默认下载器 */
 export async function setDefaultDownloaderApi(did: string) {
-  return requestClient.post('/api/download/downloaders/default', { did });
+  return requestClient.post('/download/downloaders/default', { did });
 }
 
 /** 设置默认下载设置 */
 export async function setDefaultDownloadSettingApi(sid: string) {
-  return requestClient.post('/api/download/settings/default', { sid });
+  return requestClient.post('/download/settings/default', { sid });
 }
 
 /** 下载搜索结果 */
@@ -204,7 +204,7 @@ export async function downloadSearchResultApi(
   setting?: string,
 ) {
   return requestClient.post(
-    '/api/download/tasks/add',
+    '/download/tasks/add',
     { id, dir, setting },
     { timeout: 60_000 },
   );
@@ -213,7 +213,7 @@ export async function downloadSearchResultApi(
 /** 获取下载设置列表 */
 export async function getDownloadSettingsApi(sid?: string) {
   return requestClient.post<DownloadApi.DownloadSetting[]>(
-    '/api/download/settings',
+    '/download/settings',
     { sid },
   );
 }
@@ -222,17 +222,17 @@ export async function getDownloadSettingsApi(sid?: string) {
 export async function saveDownloadSettingApi(
   data: DownloadApi.DownloadSetting,
 ) {
-  return requestClient.post('/api/download/settings/update', data);
+  return requestClient.post('/download/settings/update', data);
 }
 
 /** 删除下载设置 */
 export async function deleteDownloadSettingApi(sid: string) {
-  return requestClient.post('/api/download/settings/delete', { sid });
+  return requestClient.post('/download/settings/delete', { sid });
 }
 
 /** 获取下载目录 */
 export async function getDownloadDirsApi(sid?: string, site?: string) {
-  return requestClient.post<string[]>('/api/download/downloaders/dirs', {
+  return requestClient.post<string[]>('/download/downloaders/dirs', {
     sid,
     site,
   });
@@ -241,7 +241,7 @@ export async function getDownloadDirsApi(sid?: string, site?: string) {
 /** 获取索引器列表 */
 export async function getIndexersApi() {
   return requestClient.post<{ id: string; name: string }[]>(
-    '/api/download/indexers',
+    '/download/indexers',
     {},
   );
 }
@@ -249,7 +249,7 @@ export async function getIndexersApi() {
 /** 获取索引器统计 */
 export async function getIndexerStatisticsApi() {
   return requestClient.post<{ dataset: any[]; stats: any[] }>(
-    '/api/download/indexers/statistics',
+    '/download/indexers/statistics',
     {},
   );
 }
@@ -260,7 +260,7 @@ export async function resolveDownloadUrlApi(params: {
   page_url?: string;
 }) {
   return requestClient.post<{ url: string }>(
-    '/api/download/tasks/resolve_url',
+    '/download/tasks/resolve_url',
     params,
   );
 }
@@ -279,7 +279,7 @@ export async function addTorrentApi(params: {
   upload_volume_factor?: number;
   urls?: string[];
 }) {
-  return requestClient.post('/api/download/tasks/add_torrent', params, {
+  return requestClient.post('/download/tasks/add_torrent', params, {
     timeout: 60_000,
   });
 }
@@ -287,21 +287,21 @@ export async function addTorrentApi(params: {
 /** 获取删种任务列表 */
 export async function getTorrentRemoveTasksApi(tid?: number | string) {
   return requestClient.post<Record<string, DownloadApi.TorrentRemoveTask>>(
-    '/api/download/torrent-remove-tasks',
+    '/download/torrent-remove-tasks',
     { tid },
   );
 }
 
 /** 保存删种任务 */
 export async function saveTorrentRemoveTaskApi(data: Record<string, any>) {
-  return requestClient.post('/api/download/torrent-remove-tasks/save', {
+  return requestClient.post('/download/torrent-remove-tasks/save', {
     data,
   });
 }
 
 /** 删除删种任务 */
 export async function deleteTorrentRemoveTaskApi(tid: number | string) {
-  return requestClient.post('/api/download/torrent-remove-tasks/delete', {
+  return requestClient.post('/download/torrent-remove-tasks/delete', {
     tid,
   });
 }
@@ -309,19 +309,19 @@ export async function deleteTorrentRemoveTaskApi(tid: number | string) {
 /** 获取满足删种条件的种子 */
 export async function getRemoveTorrentsApi(tid: number | string) {
   return requestClient.post<DownloadApi.RemoveTorrentCandidate[]>(
-    '/api/download/torrent-remove-tasks/candidates',
+    '/download/torrent-remove-tasks/candidates',
     { tid },
   );
 }
 
 /** 立即执行删种任务 */
 export async function autoRemoveTorrentsApi(tid: number | string) {
-  return requestClient.post('/api/download/torrent-remove-tasks/run', { tid });
+  return requestClient.post('/download/torrent-remove-tasks/run', { tid });
 }
 
 /** 清理转移缓存 */
 export async function clearTransferBlacklistApi() {
-  return requestClient.post('/api/download/tools/blacklist/clear', {});
+  return requestClient.post('/download/tools/blacklist/clear', {});
 }
 
 /** 查询硬链接 */
@@ -330,7 +330,7 @@ export async function findHardlinksApi(data: {
   files: string[];
 }) {
   return requestClient.post<Record<string, string[]>>(
-    '/api/download/tools/hardlinks',
+    '/download/tools/hardlinks',
     data,
   );
 }

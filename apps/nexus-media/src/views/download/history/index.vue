@@ -59,6 +59,14 @@ function formatDate(dateStr: string) {
   }
 }
 
+function getMediaTypeLabel(type?: string) {
+  const map: Record<string, string> = {
+    movie: '电影',
+    tv: '电视剧',
+  };
+  return (type && map[type]) || type || '';
+}
+
 function handlePageChange(page: number) {
   fetchData(page);
 }
@@ -147,7 +155,9 @@ onMounted(() => fetchData(1));
                 </NTooltip>
                 <div class="history-meta">
                   <span v-if="item.year">{{ item.year }}</span>
-                  <span v-if="item.media_type">{{ item.media_type }}</span>
+                  <span v-if="item.media_type">{{
+                    getMediaTypeLabel(item.media_type)
+                  }}</span>
                   <span v-if="item.vote">评分 {{ item.vote }}</span>
                 </div>
                 <div v-if="item.overview" class="history-torrent truncate">
@@ -214,7 +224,9 @@ onMounted(() => fetchData(1));
               </NTooltip>
               <div class="history-list-meta">
                 <span v-if="item.year">{{ item.year }}</span>
-                <span v-if="item.media_type">{{ item.media_type }}</span>
+                <span v-if="item.media_type">{{
+                  getMediaTypeLabel(item.media_type)
+                }}</span>
                 <span v-if="item.vote">评分 {{ item.vote }}</span>
                 <span v-if="item.site" class="history-site">{{
                   item.site

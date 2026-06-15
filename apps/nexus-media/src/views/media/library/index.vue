@@ -123,7 +123,11 @@ function getTypeColor(type: string) {
 }
 
 function getTypeLabel(type: string) {
-  return type || '未知';
+  const map: Record<string, string> = {
+    movie: '电影',
+    tv: '电视剧',
+  };
+  return map[type] || type || '未知';
 }
 
 function replaceLocalhost(url?: string) {

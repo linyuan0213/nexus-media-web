@@ -40,24 +40,24 @@ export const SYNC_MODES = [
 /** 获取同步任务列表 */
 export async function getSyncTasksApi() {
   return requestClient.post<Record<string, SyncApi.SyncTask>>(
-    '/api/sync/paths',
+    '/sync/paths',
     {},
   );
 }
 
 /** 保存同步任务 */
 export async function saveSyncTaskApi(data: Partial<SyncApi.SyncTask>) {
-  return requestClient.post('/api/sync/paths/save', data);
+  return requestClient.post('/sync/paths/save', data);
 }
 
 /** 删除同步任务 */
 export async function deleteSyncTaskApi(id: number | string) {
-  return requestClient.post('/api/sync/paths/delete', { id });
+  return requestClient.post('/sync/paths/delete', { id });
 }
 
 /** 立即执行同步 */
 export async function runSyncTaskApi(sid: number | string) {
-  return requestClient.post('/api/sync/run', { sid });
+  return requestClient.post('/sync/run', { sid });
 }
 
 /** 更新媒体库目录（add/sub） */
@@ -67,7 +67,7 @@ export async function updateDirectoryApi(data: {
   replace_value?: string;
   value: string;
 }) {
-  return requestClient.post('/api/sync/directories/update', data);
+  return requestClient.post('/sync/directories/update', data);
 }
 
 /** 删除识别历史记录（及文件） */
@@ -75,7 +75,7 @@ export async function deleteTransferHistoryApi(data: {
   flag?: '' | 'del_all' | 'del_dest' | 'del_source';
   logids: number[];
 }) {
-  return requestClient.post('/api/sync/history/delete', data);
+  return requestClient.post('/sync/history/delete', data);
 }
 
 /** 重新识别 */
@@ -83,7 +83,7 @@ export async function reIdentifyTransferHistoryApi(data: {
   flag?: string;
   ids: number[];
 }) {
-  return requestClient.post('/api/sync/reidentify', data);
+  return requestClient.post('/sync/reidentify', data);
 }
 
 /** 手动识别/转移 */
@@ -100,7 +100,7 @@ export async function manualTransferApi(data: {
   type?: string;
   unknown_id?: number;
 }) {
-  return requestClient.post('/api/sync/rename', data);
+  return requestClient.post('/sync/rename', data);
 }
 
 /** 自定义识别/转移（指定输入路径） */
@@ -117,12 +117,12 @@ export async function manualTransferUdfApi(data: {
   tmdb?: number;
   type?: string;
 }) {
-  return requestClient.post('/api/sync/rename/udf', data);
+  return requestClient.post('/sync/rename/udf', data);
 }
 
 /** 重命名文件 */
 export async function renameFileApi(data: { name: string; path: string }) {
-  return requestClient.post('/api/sync/rename/file', data);
+  return requestClient.post('/sync/rename/file', data);
 }
 
 /** 删除文件 */
@@ -130,5 +130,5 @@ export async function deleteFilesApi(data: {
   backend_id?: string;
   files: string[];
 }) {
-  return requestClient.post('/api/sync/files/delete', data);
+  return requestClient.post('/sync/files/delete', data);
 }

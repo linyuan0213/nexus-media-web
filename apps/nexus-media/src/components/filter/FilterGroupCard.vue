@@ -41,7 +41,7 @@ function getRuleSummary(rule: FilterApi.FilterRuleItem): string {
   const parts: string[] = [];
   if (rule.include?.length) parts.push(`包含 ${rule.include.length}`);
   if (rule.exclude?.length) parts.push(`排除 ${rule.exclude.length}`);
-  // eslint-disable-next-line unicorn/explicit-length-check
+
   if (rule.size && Number(rule.size) > 0) parts.push(`大小 ${rule.size}`);
   if (rule.free_text) parts.push(rule.free_text);
   return parts.join(' · ') || '无过滤条件';

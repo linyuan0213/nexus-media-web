@@ -6,19 +6,15 @@ import { IconifyIcon } from '@vben/icons';
 import {
   NButton,
   NCard,
-  NCheckbox,
   NForm,
   NFormItem,
   NGrid,
   NGridItem,
   NInput,
-  NModal,
   NSelect,
   NSpace,
   NSpin,
   NSwitch,
-  NTabPane,
-  NTabs,
   useMessage,
 } from 'naive-ui';
 
@@ -27,7 +23,6 @@ import {
   getSiteConfigVersionApi,
   listAgentModelsApi,
   reloadConfigApi,
-  setSystemConfigApi,
   updateConfigApi,
   updateSiteConfigApi,
 } from '#/api';
@@ -57,47 +52,6 @@ const providerUrlPresets: Record<string, string> = {
   ollama: 'http://localhost:11434/v1',
   custom: '',
 };
-
-// 刮削模态框
-const scraperModal = ref(false);
-const scraperConfig = ref({
-  scraper_nfo: {
-    movie: { basic: true, credits: false, credits_chinese: false },
-    tv: {
-      basic: true,
-      credits: false,
-      credits_chinese: false,
-      season_basic: false,
-      episode_basic: false,
-      episode_credits: false,
-    },
-  },
-  scraper_pic: {
-    movie: {
-      poster: true,
-      backdrop: false,
-      background: false,
-      logo: false,
-      disc: false,
-      banner: false,
-      thumb: false,
-    },
-    tv: {
-      poster: true,
-      backdrop: false,
-      background: false,
-      logo: false,
-      clearart: false,
-      banner: false,
-      thumb: false,
-      season_poster: false,
-      season_banner: false,
-      season_thumb: false,
-      episode_thumb: false,
-      episode_thumb_ffmpeg: false,
-    },
-  },
-});
 
 async function fetchData() {
   loading.value = true;
@@ -191,7 +145,6 @@ function saveMedia() {
     'app.rmt_match_mode',
     'media.tmdb_language',
     'app.tmdb_image_url',
-    'media.category',
     'pt.download_order',
     'media.default_rmt_mode',
     'media.min_filesize',
@@ -202,6 +155,7 @@ function saveMedia() {
     'media.tv_name_format',
     'media.filesize_cover',
     'media.nfo_poster',
+    'media.sync_transfer_interval',
     'media.episode_mapping_enabled',
   ];
   fields.forEach((f) => {
@@ -266,25 +220,6 @@ function saveService() {
   saveSection('service', data);
 }
 
-function saveSecurity() {
-  const data: Record<string, any> = {};
-  const fields = [
-    'security.media_server_webhook_allow_ip.ipv4',
-    'security.media_server_webhook_allow_ip.ipv6',
-    'security.telegram_webhook_allow_ip.ipv4',
-    'security.telegram_webhook_allow_ip.ipv6',
-    'security.synology_webhook_allow_ip.ipv4',
-    'security.synology_webhook_allow_ip.ipv6',
-    'security.api_key',
-    'security.check_apikey',
-  ];
-  fields.forEach((f) => {
-    const v = config.value[f];
-    if (v !== undefined && v !== '') data[f] = v;
-  });
-  saveSection('security', data);
-}
-
 function saveLaboratory() {
   const data: Record<string, any> = {};
   const fields = [
@@ -302,15 +237,6 @@ function saveLaboratory() {
     if (v !== undefined && v !== '') data[f] = v;
   });
   saveSection('laboratory', data);
-}
-
-async function saveScraper() {
-  await setSystemConfigApi(
-    'UserScraperConf',
-    JSON.stringify(scraperConfig.value),
-  );
-  scraperModal.value = false;
-  message.success('刮削设置已保存');
 }
 
 // 站点配置更新
@@ -639,14 +565,6 @@ onMounted(() => {
                   </NFormItem>
                 </NGridItem>
                 <NGridItem span="1">
-                  <NFormItem label="二级分类策略">
-                    <NInput
-                      v-model:value="config['media.category']"
-                      placeholder="留空不启用"
-                    />
-                  </NFormItem>
-                </NGridItem>
-                <NGridItem span="1">
                   <NFormItem label="下载优先规则">
                     <NSelect
                       v-model:value="config['pt.download_order']"
@@ -746,13 +664,7 @@ onMounted(() => {
               </NGrid>
             </NForm>
             <template #footer>
-              <div class="flex justify-between items-center">
-                <NButton size="small" @click="scraperModal = true">
-                  <template #icon>
-                    <IconifyIcon icon="lucide:image" class="w-4 h-4" />
-                  </template>
-                  刮削设置
-                </NButton>
+              <div class="flex justify-end">
                 <NButton
                   type="primary"
                   size="small"
@@ -936,6 +848,14 @@ onMounted(() => {
                   </NFormItem>
                 </NGridItem>
                 <NGridItem span="1">
+                  <NFormItem label="目录同步监控间隔(秒)">
+                    <NInput
+                      v-model:value="config['media.sync_transfer_interval']"
+                      placeholder="本地60，远程/网盘300+"
+                    />
+                  </NFormItem>
+                </NGridItem>
+                <NGridItem span="1">
                   <NFormItem label="站点数据刷新时间">
                     <NInput
                       v-model:value="config['pt.ptrefresh_date_cron']"
@@ -970,105 +890,6 @@ onMounted(() => {
                   size="small"
                   :loading="saving === 'service'"
                   @click="saveService"
-                >
-                  保存
-                </NButton>
-              </div>
-            </template>
-          </NCard>
-        </NGridItem>
-
-        <!-- 安全 -->
-        <NGridItem>
-          <NCard id="security" size="small">
-            <template #header>
-              <div class="flex items-center gap-2">
-                <IconifyIcon icon="lucide:shield" class="w-4 h-4" />
-                <span class="font-semibold">安全</span>
-              </div>
-            </template>
-            <NForm label-placement="left" :label-width="200">
-              <NGrid cols="1 s:1 m:2 l:2" :x-gap="16" responsive="screen">
-                <NGridItem span="1">
-                  <NFormItem label="媒体服务器Webhook源地址 IPv4">
-                    <NInput
-                      v-model:value="
-                        config['security.media_server_webhook_allow_ip.ipv4']
-                      "
-                      placeholder="允许的IPv4 CIDR"
-                    />
-                  </NFormItem>
-                  <NFormItem label="媒体服务器Webhook源地址 IPv6">
-                    <NInput
-                      v-model:value="
-                        config['security.media_server_webhook_allow_ip.ipv6']
-                      "
-                      placeholder="允许的IPv6 CIDR"
-                    />
-                  </NFormItem>
-                </NGridItem>
-                <NGridItem span="1">
-                  <NFormItem label="Telegram源地址 IPv4">
-                    <NInput
-                      v-model:value="
-                        config['security.telegram_webhook_allow_ip.ipv4']
-                      "
-                      placeholder="允许的IPv4 CIDR"
-                    />
-                  </NFormItem>
-                  <NFormItem label="Telegram源地址 IPv6">
-                    <NInput
-                      v-model:value="
-                        config['security.telegram_webhook_allow_ip.ipv6']
-                      "
-                      placeholder="允许的IPv6 CIDR"
-                    />
-                  </NFormItem>
-                </NGridItem>
-                <NGridItem span="1">
-                  <NFormItem label="Synology Chat源地址 IPv4">
-                    <NInput
-                      v-model:value="
-                        config['security.synology_webhook_allow_ip.ipv4']
-                      "
-                      placeholder="允许的IPv4 CIDR"
-                    />
-                  </NFormItem>
-                  <NFormItem label="Synology Chat源地址 IPv6">
-                    <NInput
-                      v-model:value="
-                        config['security.synology_webhook_allow_ip.ipv6']
-                      "
-                      placeholder="允许的IPv6 CIDR"
-                    />
-                  </NFormItem>
-                </NGridItem>
-                <NGridItem span="1">
-                  <NFormItem label="API密钥">
-                    <NInput
-                      v-model:value="config['security.api_key']"
-                      placeholder="用于外部调用"
-                    />
-                  </NFormItem>
-                </NGridItem>
-                <NGridItem span="1 s:1 m:2 l:2">
-                  <NFormItem label="验证外部请求的API密钥">
-                    <NSwitch
-                      v-model:value="config['security.check_apikey']"
-                      :checked-value="1"
-                      :unchecked-value="0"
-                    />
-                  </NFormItem>
-                </NGridItem>
-              </NGrid>
-            </NForm>
-            <template #footer>
-              <div class="flex justify-end">
-                <NButton
-                  type="primary"
-                  size="small"
-                  :loading="saving === 'security'"
-                  @click="saveSecurity"
                 >
                   保存
                 </NButton>
@@ -1176,198 +997,5 @@ onMounted(() => {
         </NGridItem>
       </NGrid>
     </NSpin>
-
-    <!-- 刮削设置模态框 -->
-    <NModal
-      v-model:show="scraperModal"
-      title="刮削设置"
-      preset="card"
-      :style="{ width: '800px', maxWidth: '92vw' }"
-    >
-      <NTabs type="line">
-        <NTabPane name="nfo" tab="元数据">
-          <div class="space-y-4">
-            <div>
-              <div class="font-medium mb-2">电影</div>
-              <NSpace>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_nfo.movie.basic"
-                >
-                  基础信息
-                </NCheckbox>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_nfo.movie.credits"
-                >
-                  演职人员
-                </NCheckbox>
-                <NCheckbox
-                  v-model:checked="
-                    scraperConfig.scraper_nfo.movie.credits_chinese
-                  "
-                >
-                  演职人员中文
-                </NCheckbox>
-              </NSpace>
-            </div>
-            <div>
-              <div class="font-medium mb-2">电视剧</div>
-              <NSpace>
-                <NCheckbox v-model:checked="scraperConfig.scraper_nfo.tv.basic">
-                  基础信息
-                </NCheckbox>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_nfo.tv.credits"
-                >
-                  演职人员
-                </NCheckbox>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_nfo.tv.credits_chinese"
-                >
-                  演职人员中文
-                </NCheckbox>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_nfo.tv.season_basic"
-                >
-                  季-基础信息
-                </NCheckbox>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_nfo.tv.episode_basic"
-                >
-                  集-基础信息
-                </NCheckbox>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_nfo.tv.episode_credits"
-                >
-                  集-演职人员
-                </NCheckbox>
-              </NSpace>
-            </div>
-          </div>
-        </NTabPane>
-        <NTabPane name="pic" tab="图片">
-          <div class="space-y-4">
-            <div>
-              <div class="font-medium mb-2">电影图片</div>
-              <NSpace>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_pic.movie.poster"
-                >
-                  poster
-                </NCheckbox>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_pic.movie.backdrop"
-                >
-                  fanart
-                </NCheckbox>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_pic.movie.background"
-                >
-                  background
-                </NCheckbox>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_pic.movie.logo"
-                >
-                  logo
-                </NCheckbox>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_pic.movie.disc"
-                >
-                  disc
-                </NCheckbox>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_pic.movie.banner"
-                >
-                  banner
-                </NCheckbox>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_pic.movie.thumb"
-                >
-                  thumb
-                </NCheckbox>
-              </NSpace>
-            </div>
-            <div>
-              <div class="font-medium mb-2">电视剧图片</div>
-              <NSpace>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_pic.tv.poster"
-                >
-                  poster
-                </NCheckbox>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_pic.tv.backdrop"
-                >
-                  fanart
-                </NCheckbox>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_pic.tv.background"
-                >
-                  background
-                </NCheckbox>
-                <NCheckbox v-model:checked="scraperConfig.scraper_pic.tv.logo">
-                  logo
-                </NCheckbox>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_pic.tv.clearart"
-                >
-                  clearart
-                </NCheckbox>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_pic.tv.banner"
-                >
-                  banner
-                </NCheckbox>
-                <NCheckbox v-model:checked="scraperConfig.scraper_pic.tv.thumb">
-                  thumb
-                </NCheckbox>
-              </NSpace>
-            </div>
-            <div>
-              <div class="font-medium mb-2">电视剧-季图片</div>
-              <NSpace>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_pic.tv.season_poster"
-                >
-                  poster
-                </NCheckbox>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_pic.tv.season_banner"
-                >
-                  banner
-                </NCheckbox>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_pic.tv.season_thumb"
-                >
-                  thumb
-                </NCheckbox>
-              </NSpace>
-            </div>
-            <div>
-              <div class="font-medium mb-2">电视剧-集图片</div>
-              <NSpace>
-                <NCheckbox
-                  v-model:checked="scraperConfig.scraper_pic.tv.episode_thumb"
-                >
-                  thumb
-                </NCheckbox>
-                <NCheckbox
-                  v-model:checked="
-                    scraperConfig.scraper_pic.tv.episode_thumb_ffmpeg
-                  "
-                >
-                  thumb-ffmpeg
-                </NCheckbox>
-              </NSpace>
-            </div>
-          </div>
-        </NTabPane>
-      </NTabs>
-      <template #footer>
-        <NSpace justify="end">
-          <NButton @click="scraperModal = false">取消</NButton>
-          <NButton type="primary" @click="saveScraper">保存</NButton>
-        </NSpace>
-      </template>
-    </NModal>
   </div>
 </template>

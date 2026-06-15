@@ -31,35 +31,34 @@ export namespace PluginApi {
 
 /** 获取已安装插件 */
 export async function getInstalledPluginsApi() {
-  return requestClient.post<PluginApi.PluginItem[]>('/api/plugin/plugins', {});
+  return requestClient.post<PluginApi.PluginItem[]>('/plugin/plugins', {});
 }
 
 /** 获取插件市场列表 */
 export async function getMarketPluginsApi() {
-  return requestClient.post<PluginApi.PluginItem[]>('/api/plugin/plugins', {});
+  return requestClient.post<PluginApi.PluginItem[]>('/plugin/plugins', {});
 }
 
 /** 安装插件 */
 export async function installPluginApi(id: string) {
-  return requestClient.post('/api/plugin/plugins/install', { id });
+  return requestClient.post('/plugin/plugins/install', { id });
 }
 
 /** 卸载插件 */
 export async function uninstallPluginApi(id: string) {
-  return requestClient.post('/api/plugin/plugins/uninstall', { id });
+  return requestClient.post('/plugin/plugins/uninstall', { id });
 }
 
 /** 启用/禁用插件 */
 export async function togglePluginApi(id: string, enabled: boolean) {
-  return requestClient.post('/api/plugin/plugins/state', { id, enabled });
+  return requestClient.post('/plugin/plugins/state', { id, enabled });
 }
 
 /** 获取插件配置 */
 export async function getPluginConfigApi(id: string) {
-  return requestClient.post<PluginApi.PluginConfig>(
-    '/api/plugin/plugins/state',
-    { id },
-  );
+  return requestClient.post<PluginApi.PluginConfig>('/plugin/plugins/state', {
+    id,
+  });
 }
 
 /** 保存插件配置 */
@@ -67,5 +66,5 @@ export async function savePluginConfigApi(
   id: string,
   config: PluginApi.PluginConfig,
 ) {
-  return requestClient.post('/api/plugin/plugins/config', { id, config });
+  return requestClient.post('/plugin/plugins/config', { id, config });
 }

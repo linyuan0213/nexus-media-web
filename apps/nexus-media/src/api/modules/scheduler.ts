@@ -50,27 +50,27 @@ export namespace SchedulerApi {
 
 /** 获取任务列表 */
 export async function getJobsApi() {
-  return requestClient.post<SchedulerApi.JobItem[]>('/api/scheduler/jobs', {});
+  return requestClient.post<SchedulerApi.JobItem[]>('/scheduler/jobs', {});
 }
 
 /** 立即执行任务 */
 export async function runJobApi(id: string) {
-  return requestClient.post('/api/scheduler/jobs/run', { id });
+  return requestClient.post('/scheduler/jobs/run', { id });
 }
 
 /** 暂停任务 */
 export async function pauseJobApi(id: string) {
-  return requestClient.post('/api/scheduler/jobs/pause', { id });
+  return requestClient.post('/scheduler/jobs/pause', { id });
 }
 
 /** 恢复任务 */
 export async function resumeJobApi(id: string) {
-  return requestClient.post('/api/scheduler/jobs/resume', { id });
+  return requestClient.post('/scheduler/jobs/resume', { id });
 }
 
 /** 获取任务日志 */
 export async function getJobLogsApi(jobId?: string, limit: number = 50) {
-  return requestClient.post<SchedulerApi.JobLog[]>('/api/scheduler/logs', {
+  return requestClient.post<SchedulerApi.JobLog[]>('/scheduler/logs', {
     job_id: jobId,
     limit,
   });

@@ -1736,6 +1736,15 @@ onMounted(() => initLibraryPaths());
     display: none;
   }
 
+  .file-manager-body {
+    flex-direction: column;
+  }
+
+  .file-manager-body > .sidebar + .file-list-wrapper,
+  .file-manager-body > div:last-child {
+    width: 100%;
+  }
+
   .file-col-size,
   .file-col-mtime,
   .file-col-ctime {
@@ -1743,7 +1752,31 @@ onMounted(() => initLibraryPaths());
   }
 
   .file-col-actions {
+    width: auto;
+    min-width: 2rem;
     opacity: 1;
+  }
+
+  .file-col-name {
+    flex: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .file-manager :deep(.page-header-actions) {
+    width: 100%;
+  }
+
+  .file-manager :deep(.page-header-actions) .n-space {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .file-manager :deep(.page-header-actions) .n-input,
+  .file-manager :deep(.page-header-actions) .n-select {
+    flex: 1;
+    width: auto !important;
+    min-width: 140px;
   }
 }
 </style>

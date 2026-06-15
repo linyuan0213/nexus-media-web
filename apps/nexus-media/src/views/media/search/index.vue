@@ -379,6 +379,14 @@ function getTypeColor(type: string) {
   return type === 'movie' ? 'success' : 'info';
 }
 
+function getMediaTypeLabel(type?: string) {
+  const map: Record<string, string> = {
+    movie: '电影',
+    tv: '电视剧',
+  };
+  return (type && map[type]) || '未知';
+}
+
 function hasFilters(item: SearchResultWithFilter) {
   const f = item.filter;
   return (
@@ -739,7 +747,7 @@ async function confirmDownload() {
                 : 'bg-[hsl(var(--info))]'
             "
           >
-            {{ media.media_type || media.type }}
+            {{ getMediaTypeLabel(media.media_type || media.type) }}
           </span>
           <span
             v-if="media.vote && media.vote !== '0.0' && media.vote !== '0'"
@@ -826,7 +834,7 @@ async function confirmDownload() {
                 <img :src="item.poster" alt="" />
                 <div v-if="item.type" class="hero-poster-tag">
                   <NTag :type="getTypeColor(item.type)" size="small" round>
-                    {{ item.type }}
+                    {{ getMediaTypeLabel(item.type) }}
                   </NTag>
                 </div>
                 <div v-if="item.fav === '2'" class="hero-poster-fav">

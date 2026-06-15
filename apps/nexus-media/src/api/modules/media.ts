@@ -44,7 +44,7 @@ export namespace MediaApi {
 /** 搜索媒体 */
 export async function searchMediaApi(params: MediaApi.SearchParams) {
   return requestClient.post<{ result: Record<string, any>; total: number }>(
-    '/api/media/search',
+    '/media/search',
     {
       keyword: params.keyword,
       searchtype: params.searchtype || '',
@@ -54,7 +54,7 @@ export async function searchMediaApi(params: MediaApi.SearchParams) {
 
 /** 获取媒体详情 */
 export async function getMediaDetailApi(tmdbid: number | string, type: string) {
-  return requestClient.post<MediaApi.MediaDetail>('/api/media/detail', {
+  return requestClient.post<MediaApi.MediaDetail>('/media/detail', {
     tmdbid,
     type,
   });
@@ -62,32 +62,29 @@ export async function getMediaDetailApi(tmdbid: number | string, type: string) {
 
 /** 获取媒体库首页数据（libraries/resumes/latests/stats） */
 export async function getLibraryHomeApi() {
-  return requestClient.post<Record<string, any>>('/api/media/library/home', {});
+  return requestClient.post<Record<string, any>>('/media/library/home', {});
 }
 
 /** 获取媒体库统计 */
 export async function getLibraryApi() {
-  return requestClient.post<Record<string, any>>(
-    '/api/media/library/count',
-    {},
-  );
+  return requestClient.post<Record<string, any>>('/media/library/count', {});
 }
 
 /** 获取正在观看 */
 export async function getLibraryHistoryApi() {
-  return requestClient.post('/api/media/library/history', {});
+  return requestClient.post('/media/library/history', {});
 }
 
 /** 获取最新入库 */
 export async function getLibraryDownloadedApi(page?: number) {
-  return requestClient.post('/api/media/library/downloaded', {
+  return requestClient.post('/media/library/downloaded', {
     page: page || 1,
   });
 }
 
 /** 获取推荐/发现 */
 export async function getRecommendApi(params?: MediaApi.RecommendParams) {
-  return requestClient.post('/api/media/recommend', params || {});
+  return requestClient.post('/media/recommend', params || {});
 }
 
 /** 获取类似影片 */
@@ -97,7 +94,7 @@ export async function getSimilarApi(params: {
   type?: string;
 }) {
   return requestClient.post<{ code: number; Items?: any[] }>(
-    '/api/media/similar',
+    '/media/similar',
     params,
   );
 }
@@ -109,7 +106,7 @@ export async function getRecommendationsApi(params: {
   type?: string;
 }) {
   return requestClient.post<{ code: number; Items?: any[] }>(
-    '/api/media/recommendations',
+    '/media/recommendations',
     params,
   );
 }
@@ -119,7 +116,7 @@ export async function addToLibraryApi(data: {
   tmdb_id: number;
   type: 'movie' | 'tv';
 }) {
-  return requestClient.post('/api/media/add', data);
+  return requestClient.post('/media/add', data);
 }
 
 /** 获取电影日历数据 */
@@ -133,7 +130,7 @@ export async function getMovieCalendarApi(data: { id: string; rssid: string }) {
     type: string;
     vote_average: number | string;
     year: string;
-  }>('/api/media/calendar/movie', data);
+  }>('/media/calendar/movie', data);
 }
 
 /** 获取剧集日历数据 */
@@ -154,18 +151,18 @@ export async function getTvCalendarApi(data: {
       vote_average: number | string;
       year: string;
     }>
-  >('/api/media/calendar/tv', data);
+  >('/media/calendar/tv', data);
 }
 
 /** 删除媒体 */
 export async function removeFromLibraryApi(id: number) {
-  return requestClient.post('/api/media/remove', { id });
+  return requestClient.post('/media/remove', { id });
 }
 
 /** 获取搜索结果 */
 export async function getSearchResultApi() {
   return requestClient.post<{ code: number; data?: Record<string, any> }>(
-    '/api/media/search/results',
+    '/media/search/results',
     {},
   );
 }
@@ -178,7 +175,7 @@ export async function webSearchApi(params: {
   tmdbid?: string;
   unident?: boolean;
 }) {
-  return requestClient.post('/api/system/search', params, { timeout: 300_000 });
+  return requestClient.post('/system/search', params, { timeout: 300_000 });
 }
 
 /** 获取电视剧季列表 */
@@ -195,7 +192,7 @@ export async function getTvSeasonListApi(
       poster_path?: string;
       season_number: number;
     }>
-  >('/api/media/season/list', { tmdbid, title });
+  >('/media/season/list', { tmdbid, title });
 }
 
 // ---------- 识别/重命名模块 ----------
@@ -266,7 +263,7 @@ export async function getTransferHistoryApi(params: {
   pagenum?: number;
 }) {
   return requestClient.post<TransferHistoryPageResult>(
-    '/api/media/transfer/history',
+    '/media/transfer/history',
     params,
   );
 }
@@ -274,7 +271,7 @@ export async function getTransferHistoryApi(params: {
 /** 获取转移统计 */
 export async function getTransferStatisticsApi(days?: number) {
   return requestClient.post<TransferStatisticsResult>(
-    '/api/media/transfer/statistics',
+    '/media/transfer/statistics',
     { days },
   );
 }
@@ -286,24 +283,24 @@ export async function getUnknownListApi(params: {
   pagenum?: number;
 }) {
   return requestClient.post<UnknownListPageResult>(
-    '/api/media/unknown/paged',
+    '/media/unknown/paged',
     params,
   );
 }
 
 /** 清空识别记录 */
 export async function clearTransferHistoryApi() {
-  return requestClient.post('/api/media/history/clear', {});
+  return requestClient.post('/media/history/clear', {});
 }
 
 /** 重新识别未识别记录 */
 export async function reIdentifyUnknownApi() {
-  return requestClient.post('/api/media/unknown/list', {});
+  return requestClient.post('/media/unknown/list', {});
 }
 
 /** 删除未识别记录 */
 export async function deleteTransferUnknownApi(data: { ids: number[] }) {
-  return requestClient.post('/api/sync/unknown/delete', data);
+  return requestClient.post('/sync/unknown/delete', data);
 }
 
 /** 获取目录列表 */
@@ -312,7 +309,7 @@ export async function getDirListApi(
   filter?: string,
   backendId?: string,
 ) {
-  return requestClient.post<DirListItem[]>('/api/media/dir/list', {
+  return requestClient.post<DirListItem[]>('/media/dir/list', {
     path,
     filter,
     backend_id: backendId,
@@ -321,7 +318,7 @@ export async function getDirListApi(
 
 /** 刮削路径 */
 export async function scrapMediaPathApi(path: string, backendId?: string) {
-  return requestClient.post('/api/media/scrap', {
+  return requestClient.post('/media/scrap', {
     path,
     backend_id: backendId || 'local',
   });
@@ -329,13 +326,13 @@ export async function scrapMediaPathApi(path: string, backendId?: string) {
 
 /** 下载字幕 */
 export async function downloadSubtitleApi(path: string, name: string) {
-  return requestClient.post('/api/media/subtitle/download', { path, name });
+  return requestClient.post('/media/subtitle/download', { path, name });
 }
 
 /** 名称识别测试 */
 export async function nameTestApi(name: string) {
   return requestClient.post<Record<string, any>>(
-    '/api/media/name_test',
+    '/media/name_test',
     { name },
     { timeout: 60_000 },
   );
@@ -363,7 +360,7 @@ export async function getLibraryPathsApi() {
       path: string;
       type: string;
     }>;
-  }>('/api/media/library/paths', {});
+  }>('/media/library/paths', {});
 }
 
 // ---------- TMDB 黑名单 ----------
@@ -406,7 +403,7 @@ export async function addTmdbBlacklistApi(data: {
   media_type: string;
   tmdb_id: string;
 }) {
-  return requestClient.post('/api/media/tmdb_blacklist/add', data);
+  return requestClient.post('/media/tmdb_blacklist/add', data);
 }
 
 /** 删除 TMDB 黑名单 */
@@ -414,12 +411,35 @@ export async function deleteTmdbBlacklistApi(data: {
   media_type: string;
   tmdb_id: string;
 }) {
-  return requestClient.post('/api/media/tmdb_blacklist/delete', data);
+  return requestClient.post('/media/tmdb_blacklist/delete', data);
 }
 
 /** 清空 TMDB 黑名单 */
 export async function clearTmdbBlacklistApi() {
-  return requestClient.post('/api/media/tmdb_blacklist/clear', {});
+  return requestClient.post('/media/tmdb_blacklist/clear', {});
+}
+
+// ---------- 分类配置 ----------
+
+export interface CategoryConfigItem {
+  id?: number;
+  media_type: string;
+  name: string;
+  sort_order: number;
+  is_default: boolean;
+  rules: Record<string, string>;
+}
+
+/** 获取分类配置 */
+export async function getCategoryConfigApi() {
+  return requestClient.post<CategoryConfigItem[]>('/media/category/config', {});
+}
+
+/** 更新分类配置 */
+export async function updateCategoryConfigApi(items: CategoryConfigItem[]) {
+  return requestClient.post('/media/category/config/update', {
+    config: items,
+  });
 }
 
 /** 全局搜索文件（基于后台索引） */
@@ -454,7 +474,7 @@ export async function getMediaLibraryConfigApi() {
     tv_path: string[];
     unknown_backend: string[];
     unknown_path: string[];
-  }>('/api/media/library/path');
+  }>('/media/library/path');
 }
 
 /** 添加媒体库路径 */
@@ -463,7 +483,7 @@ export async function addMediaLibraryPathApi(
   path: string,
   backend?: string,
 ) {
-  return requestClient.post('/api/media/library/path/add', {
+  return requestClient.post('/media/library/path/add', {
     path_type,
     path,
     backend,
@@ -475,7 +495,7 @@ export async function removeMediaLibraryPathApi(
   path_type: string,
   path: string,
 ) {
-  return requestClient.post('/api/media/library/path/remove', {
+  return requestClient.post('/media/library/path/remove', {
     path_type,
     path,
   });
@@ -488,7 +508,7 @@ export async function updateMediaLibraryPathApi(
   new_path: string,
   backend?: string,
 ) {
-  return requestClient.post('/api/media/library/path/update', {
+  return requestClient.post('/media/library/path/update', {
     path_type,
     old_path,
     new_path,

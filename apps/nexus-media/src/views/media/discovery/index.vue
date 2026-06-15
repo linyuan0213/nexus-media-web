@@ -271,6 +271,14 @@ function normalizeMediaType(type?: string): 'movie' | 'tv' {
   return 'tv';
 }
 
+function getMediaTypeLabel(type?: string) {
+  const map: Record<string, string> = {
+    movie: '电影',
+    tv: '电视剧',
+  };
+  return map[normalizeMediaType(type)] || '未知';
+}
+
 function handleSubscribe(item: RecommendItem, e: Event) {
   e.stopPropagation();
   subscribeConfirmItem.value = {
@@ -492,7 +500,7 @@ onMounted(() => {
                   color: 'hsl(var(--primary-foreground))',
                 }"
               >
-                {{ item.media_type || item.type }}
+                {{ getMediaTypeLabel(item.media_type || item.type) }}
               </span>
 
               <!-- 右上角：评分 + 已入库绿勾 -->
@@ -612,7 +620,7 @@ onMounted(() => {
                 color: 'hsl(var(--primary-foreground))',
               }"
             >
-              {{ item.media_type || item.type }}
+              {{ getMediaTypeLabel(item.media_type || item.type) }}
             </span>
             <!-- 右上角：评分 + 已入库绿勾 -->
             <div class="absolute top-1.5 right-1.5 flex items-center gap-1">

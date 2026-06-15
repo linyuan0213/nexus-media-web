@@ -17,7 +17,7 @@ const hasSubtitle = computed(() => !!props.subtitle);
       <h2 class="page-header-title">{{ title }}</h2>
       <div v-if="hasSubtitle" class="page-header-subtitle">{{ subtitle }}</div>
     </div>
-    <div class="flex items-center gap-2">
+    <div class="page-header-actions">
       <slot name="actions"></slot>
     </div>
   </div>
@@ -44,5 +44,27 @@ const hasSubtitle = computed(() => !!props.subtitle);
   margin-top: 0.25rem;
   font-size: 0.875rem;
   color: hsl(var(--muted-foreground));
+}
+
+.page-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-header-actions {
+    width: 100%;
+  }
+
+  .page-header-actions > * {
+    flex: 1 1 auto;
+  }
 }
 </style>

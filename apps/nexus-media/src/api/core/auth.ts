@@ -30,7 +30,7 @@ export async function loginApi(data: AuthApi.LoginParams) {
   formData.append('username', data.username);
   formData.append('password', data.password);
 
-  return requestClient.post<AuthApi.LoginResult>('/api/auth/login', formData, {
+  return requestClient.post<AuthApi.LoginResult>('/auth/login', formData, {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
@@ -44,7 +44,7 @@ export async function loginApi(data: AuthApi.LoginParams) {
  */
 export async function refreshTokenApi() {
   return baseRequestClient.post<AuthApi.RefreshTokenResult>(
-    '/api/auth/refresh',
+    '/auth/refresh',
     null,
     {
       withCredentials: true,
@@ -57,7 +57,7 @@ export async function refreshTokenApi() {
  * 退出登录
  */
 export async function logoutApi() {
-  return baseRequestClient.post('/api/auth/logout', null, {
+  return baseRequestClient.post('/auth/logout', null, {
     withCredentials: true,
   });
 }
@@ -66,7 +66,7 @@ export async function logoutApi() {
  * 获取当前用户信息
  */
 export async function getUserInfoApi() {
-  return requestClient.get('/api/auth/me', {
+  return requestClient.get('/auth/me', {
     withCredentials: true,
   });
 }
@@ -79,5 +79,5 @@ export async function getLoginWallpaperApi() {
     image_code: string;
     img_link: string;
     img_title: string;
-  }>('/api/auth/wallpaper');
+  }>('/auth/wallpaper');
 }

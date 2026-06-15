@@ -71,7 +71,7 @@ export namespace DashboardApi {
 /** 获取媒体库首页聚合数据 */
 export async function getDashboardLibraryApi() {
   return requestClient.post<DashboardApi.LibraryHome>(
-    '/api/media/library/home',
+    '/media/library/home',
     {},
   );
 }
@@ -79,7 +79,7 @@ export async function getDashboardLibraryApi() {
 /** 获取入库统计（最近30天） */
 export async function getDashboardTransferStatsApi(days = 30) {
   return requestClient.post<DashboardApi.TransferStatistics>(
-    '/api/media/transfer/statistics',
+    '/media/transfer/statistics',
     { days },
   );
 }
@@ -87,7 +87,7 @@ export async function getDashboardTransferStatsApi(days = 30) {
 /** 获取站点统计 */
 export async function getDashboardSiteStatsApi() {
   return requestClient.post<DashboardApi.SiteStatisticsItem[]>(
-    '/api/site/sites/statistics',
+    '/site/sites/statistics',
     {},
   );
 }
@@ -95,22 +95,19 @@ export async function getDashboardSiteStatsApi() {
 /** 获取索引器/下载统计 */
 export async function getDashboardIndexerStatsApi() {
   return requestClient.post<DashboardApi.IndexerStatistics>(
-    '/api/download/indexers/statistics',
+    '/download/indexers/statistics',
     {},
   );
 }
 
 /** 获取刷流任务列表 */
 export async function getDashboardBrushTasksApi() {
-  return requestClient.post<DashboardApi.BrushTask[]>('/api/brush/tasks', {});
+  return requestClient.post<DashboardApi.BrushTask[]>('/brush/tasks', {});
 }
 
 /** 获取调度任务列表 */
 export async function getDashboardSchedulerJobsApi() {
-  return requestClient.post<DashboardApi.SchedulerJob[]>(
-    '/api/scheduler/jobs',
-    {},
-  );
+  return requestClient.post<DashboardApi.SchedulerJob[]>('/scheduler/jobs', {});
 }
 
 /** 获取系统状态 */
@@ -119,5 +116,5 @@ export async function getDashboardSystemStatusApi() {
     python_version: string;
     uptime: number;
     version: string;
-  }>('/api/system/status', {});
+  }>('/system/status', {});
 }

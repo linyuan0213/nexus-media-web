@@ -60,38 +60,52 @@ export namespace SubscriptionApi {
   }
 }
 
+/** 下载订阅日历 ICS 文件 */
+export async function downloadSubscriptionCalendarIcsApi() {
+  return requestClient.post<{ data: string }>(
+    '/subscription/calendar/ical/download',
+  );
+}
+
+/** 获取订阅日历 Webcal URL */
+export async function getSubscriptionCalendarWebcalUrlApi() {
+  return requestClient.get<{ data: { token: string } }>(
+    '/subscription/calendar/webcal_url',
+  );
+}
+
 /** 获取电影订阅 */
 export async function getMovieSubscriptionApi() {
   return requestClient.post<SubscriptionApi.Subscription[]>(
-    '/api/subscription/movie/list',
+    '/subscription/movie/list',
   );
 }
 
 /** 获取剧集订阅 */
 export async function getTvSubscriptionApi() {
   return requestClient.post<SubscriptionApi.Subscription[]>(
-    '/api/subscription/tv/list',
+    '/subscription/tv/list',
   );
 }
 
 /** 添加订阅 */
 export async function addSubscriptionApi(data: Record<string, any>) {
-  return requestClient.post('/api/subscription/add', data);
+  return requestClient.post('/subscription/add', data);
 }
 
 /** 更新订阅 */
 export async function updateSubscriptionApi(data: Record<string, any>) {
-  return requestClient.post('/api/subscription/update', data);
+  return requestClient.post('/subscription/update', data);
 }
 
 /** 删除订阅（简化版，优先使用 removeSubscriptionApi） */
 export async function deleteSubscriptionApi(id: number) {
-  return requestClient.post('/api/subscription/remove', { rssid: String(id) });
+  return requestClient.post('/subscription/remove', { rssid: String(id) });
 }
 
 /** 获取默认订阅设置 */
 export async function getDefaultSubscriptionSettingApi(mtype: string) {
-  return requestClient.post('/api/subscription/default_setting', { mtype });
+  return requestClient.post('/subscription/default_setting', { mtype });
 }
 
 /** 保存默认订阅设置 */
@@ -99,7 +113,7 @@ export async function saveDefaultSubscriptionSettingApi(
   mtype: string,
   data: Record<string, any>,
 ) {
-  return requestClient.post('/api/subscription/default_setting/save', {
+  return requestClient.post('/subscription/default_setting/save', {
     mtype,
     ...data,
   });
@@ -107,7 +121,7 @@ export async function saveDefaultSubscriptionSettingApi(
 
 /** 刷新订阅 */
 export async function refreshSubscriptionApi(mtype: string, rssid?: string) {
-  return requestClient.post('/api/subscription/refresh', {
+  return requestClient.post('/subscription/refresh', {
     type: mtype,
     rssid,
   });
@@ -118,7 +132,7 @@ export async function getSubscriptionDetailApi(
   rssid: number | string,
   rsstype: string,
 ) {
-  return requestClient.post('/api/subscription/detail', {
+  return requestClient.post('/subscription/detail', {
     rssid: String(rssid),
     rsstype,
   });
@@ -127,7 +141,7 @@ export async function getSubscriptionDetailApi(
 /** 获取订阅历史 */
 export async function getSubscriptionHistoryApi(type?: 'movie' | 'tv') {
   return requestClient.post<SubscriptionApi.SubscriptionHistory[]>(
-    '/api/subscription/history',
+    '/subscription/history',
     { type },
   );
 }
@@ -137,7 +151,7 @@ export async function redoSubscriptionHistoryApi(
   rssid: number | string,
   type: 'movie' | 'tv',
 ) {
-  return requestClient.post('/api/subscription/history/redo', { rssid, type });
+  return requestClient.post('/subscription/history/redo', { rssid, type });
 }
 
 /** 添加订阅（从发现页触发） */
@@ -149,7 +163,7 @@ export async function addSubscriptionMediaApi(data: {
   type: string;
   year?: string;
 }) {
-  return requestClient.post('/api/subscription/add', data);
+  return requestClient.post('/subscription/add', data);
 }
 
 /** 取消订阅 */
@@ -161,23 +175,23 @@ export async function removeSubscriptionApi(data: {
   type: string;
   year?: string;
 }) {
-  return requestClient.post('/api/subscription/remove', data);
+  return requestClient.post('/subscription/remove', data);
 }
 
 /** 删除订阅历史 */
 export async function deleteSubscriptionHistoryApi(rssid: number | string) {
-  return requestClient.post('/api/subscription/history/delete', { rssid });
+  return requestClient.post('/subscription/history/delete', { rssid });
 }
 
 /** 清理订阅缓存 */
 export async function truncateSubscriptionHistoryApi() {
-  return requestClient.post('/api/subscription/history/clear', {});
+  return requestClient.post('/subscription/history/clear', {});
 }
 
 /** 获取 RSS 自动化任务列表 */
 export async function getRssAutomationApi() {
   return requestClient.post<SubscriptionApi.RssAutomationItem[]>(
-    '/api/rss-automation/tasks',
+    '/rss-automation/tasks',
   );
 }
 
@@ -185,31 +199,31 @@ export async function getRssAutomationApi() {
 export async function addRssAutomationApi(
   data: Partial<SubscriptionApi.RssAutomationItem>,
 ) {
-  return requestClient.post('/api/rss-automation/tasks/update', data);
+  return requestClient.post('/rss-automation/tasks/update', data);
 }
 
 /** 更新 RSS 自动化任务 */
 export async function updateRssAutomationApi(
   data: Partial<SubscriptionApi.RssAutomationItem>,
 ) {
-  return requestClient.post('/api/rss-automation/tasks/update', data);
+  return requestClient.post('/rss-automation/tasks/update', data);
 }
 
 /** 删除 RSS 自动化任务 */
 export async function deleteRssAutomationApi(id: number) {
-  return requestClient.post('/api/rss-automation/tasks/delete', { id });
+  return requestClient.post('/rss-automation/tasks/delete', { id });
 }
 
 /** 获取电影订阅原始项（用于日历） */
 export async function getMovieSubscriptionItemsApi() {
   return requestClient.post<
     Array<{ id: string; name?: string; rssid: string }>
-  >('/api/subscription/movie/items');
+  >('/subscription/movie/items');
 }
 
 /** 获取剧集订阅原始项（用于日历） */
 export async function getTvSubscriptionItemsApi() {
   return requestClient.post<
     Array<{ id: string; name?: string; rssid: string; season?: string }>
-  >('/api/subscription/tv/items');
+  >('/subscription/tv/items');
 }

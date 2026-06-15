@@ -8,6 +8,7 @@ import { IconifyIcon } from '@vben/icons';
 import {
   NButton,
   NCard,
+  NCheckbox,
   NEmpty,
   NForm,
   NFormItem,
@@ -16,9 +17,12 @@ import {
   NSelect,
   NSpace,
   NSpin,
+  NTabPane,
+  NTabs,
   useMessage,
 } from 'naive-ui';
 
+import { setSystemConfigApi } from '#/api';
 import {
   addMediaLibraryPathApi,
   getMediaLibraryConfigApi,
@@ -97,6 +101,55 @@ const deleteModal = ref({
   sectionLabel: '',
   path: '',
 });
+
+// 刮削配置
+const scraperModal = ref(false);
+const scraperConfig = ref({
+  scraper_nfo: {
+    movie: { basic: true, credits: false, credits_chinese: false },
+    tv: {
+      basic: true,
+      credits: false,
+      credits_chinese: false,
+      season_basic: false,
+      episode_basic: false,
+      episode_credits: false,
+    },
+  },
+  scraper_pic: {
+    movie: {
+      poster: true,
+      backdrop: false,
+      background: false,
+      logo: false,
+      disc: false,
+      banner: false,
+      thumb: false,
+    },
+    tv: {
+      poster: true,
+      backdrop: false,
+      background: false,
+      logo: false,
+      clearart: false,
+      banner: false,
+      thumb: false,
+      season_poster: false,
+      season_banner: false,
+      season_thumb: false,
+      episode_thumb: false,
+    },
+  },
+});
+
+async function saveScraper() {
+  await setSystemConfigApi(
+    'UserScraperConf',
+    JSON.stringify(scraperConfig.value),
+  );
+  scraperModal.value = false;
+  message.success('刮削设置已保存');
+}
 
 // 路径选择器
 const pathPicker = ref({
@@ -237,6 +290,12 @@ onMounted(fetch);
             <IconifyIcon icon="lucide:refresh-cw" class="h-4 w-4" />
           </template>
           刷新
+        </NButton>
+        <NButton size="small" @click="scraperModal = true">
+          <template #icon>
+            <IconifyIcon icon="lucide:image" class="h-4 w-4" />
+          </template>
+          刮削设置
         </NButton>
       </template>
     </PageHeader>
@@ -418,6 +477,192 @@ onMounted(fetch);
           deleteModal.path
         }}」吗？
       </div>
+    </NModal>
+
+    <!-- 刮削设置模态框 -->
+    <NModal
+      v-model:show="scraperModal"
+      title="刮削设置"
+      preset="card"
+      :style="{ width: '800px', maxWidth: '92vw' }"
+    >
+      <NTabs type="line">
+        <NTabPane name="nfo" tab="元数据">
+          <div class="space-y-4">
+            <div>
+              <div class="font-medium mb-2">电影</div>
+              <NSpace>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_nfo.movie.basic"
+                >
+                  基础信息
+                </NCheckbox>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_nfo.movie.credits"
+                >
+                  演职人员
+                </NCheckbox>
+                <NCheckbox
+                  v-model:checked="
+                    scraperConfig.scraper_nfo.movie.credits_chinese
+                  "
+                >
+                  演职人员中文
+                </NCheckbox>
+              </NSpace>
+            </div>
+            <div>
+              <div class="font-medium mb-2">电视剧</div>
+              <NSpace>
+                <NCheckbox v-model:checked="scraperConfig.scraper_nfo.tv.basic">
+                  基础信息
+                </NCheckbox>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_nfo.tv.credits"
+                >
+                  演职人员
+                </NCheckbox>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_nfo.tv.credits_chinese"
+                >
+                  演职人员中文
+                </NCheckbox>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_nfo.tv.season_basic"
+                >
+                  季-基础信息
+                </NCheckbox>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_nfo.tv.episode_basic"
+                >
+                  集-基础信息
+                </NCheckbox>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_nfo.tv.episode_credits"
+                >
+                  集-演职人员
+                </NCheckbox>
+              </NSpace>
+            </div>
+          </div>
+        </NTabPane>
+        <NTabPane name="pic" tab="图片">
+          <div class="space-y-4">
+            <div>
+              <div class="font-medium mb-2">电影图片</div>
+              <NSpace>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_pic.movie.poster"
+                >
+                  poster
+                </NCheckbox>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_pic.movie.backdrop"
+                >
+                  fanart
+                </NCheckbox>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_pic.movie.background"
+                >
+                  background
+                </NCheckbox>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_pic.movie.logo"
+                >
+                  logo
+                </NCheckbox>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_pic.movie.disc"
+                >
+                  disc
+                </NCheckbox>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_pic.movie.banner"
+                >
+                  banner
+                </NCheckbox>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_pic.movie.thumb"
+                >
+                  thumb
+                </NCheckbox>
+              </NSpace>
+            </div>
+            <div>
+              <div class="font-medium mb-2">电视剧图片</div>
+              <NSpace>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_pic.tv.poster"
+                >
+                  poster
+                </NCheckbox>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_pic.tv.backdrop"
+                >
+                  fanart
+                </NCheckbox>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_pic.tv.background"
+                >
+                  background
+                </NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.tv.logo">
+                  logo
+                </NCheckbox>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_pic.tv.clearart"
+                >
+                  clearart
+                </NCheckbox>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_pic.tv.banner"
+                >
+                  banner
+                </NCheckbox>
+                <NCheckbox v-model:checked="scraperConfig.scraper_pic.tv.thumb">
+                  thumb
+                </NCheckbox>
+              </NSpace>
+            </div>
+            <div>
+              <div class="font-medium mb-2">电视剧-季图片</div>
+              <NSpace>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_pic.tv.season_poster"
+                >
+                  poster
+                </NCheckbox>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_pic.tv.season_banner"
+                >
+                  banner
+                </NCheckbox>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_pic.tv.season_thumb"
+                >
+                  thumb
+                </NCheckbox>
+              </NSpace>
+            </div>
+            <div>
+              <div class="font-medium mb-2">电视剧-集图片</div>
+              <NSpace>
+                <NCheckbox
+                  v-model:checked="scraperConfig.scraper_pic.tv.episode_thumb"
+                >
+                  thumb
+                </NCheckbox>
+              </NSpace>
+            </div>
+          </div>
+        </NTabPane>
+      </NTabs>
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="scraperModal = false">取消</NButton>
+          <NButton type="primary" @click="saveScraper">保存</NButton>
+        </NSpace>
+      </template>
     </NModal>
 
     <!-- 目录选择器 -->
