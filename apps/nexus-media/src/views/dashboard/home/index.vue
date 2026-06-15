@@ -30,20 +30,20 @@ const systemStatus = ref<{ uptime: number; version: string }>();
 // 媒体库
 const libraryData = ref<{
   library_spaces: {
-    FreeSpace: string;
-    TotalSpace: string;
-    UsedPercent: number;
-    UsedSpace: string;
+    free_space: string;
+    total_space: string;
+    used_percent: number;
+    used_space: string;
   };
   media_counts: Record<string, number>;
 }>();
 
 // 入库统计
 const transferStats = ref<{
-  AnimeNums: number[];
-  Labels: string[];
-  MovieNums: number[];
-  TvNums: number[];
+  anime_nums: number[];
+  labels: string[];
+  movie_nums: number[];
+  tv_nums: number[];
 }>();
 
 // 站点统计
@@ -279,11 +279,11 @@ onMounted(fetchData);
         title="最近30天入库趋势"
       >
         <TransferLineChart
-          v-if="transferStats && transferStats.Labels?.length"
-          :labels="transferStats.Labels"
-          :movie-data="transferStats.MovieNums"
-          :tv-data="transferStats.TvNums"
-          :anime-data="transferStats.AnimeNums"
+          v-if="transferStats && transferStats.labels?.length"
+          :labels="transferStats.labels"
+          :movie-data="transferStats.movie_nums"
+          :tv-data="transferStats.tv_nums"
+          :anime-data="transferStats.anime_nums"
         />
         <NEmpty v-else description="暂无入库数据" />
       </NCard>

@@ -436,19 +436,19 @@ onMounted(fetchData);
       <div class="grid grid-cols-3 gap-4">
         <NCard size="small">
           <div class="text-2xl font-bold text-primary">
-            {{ statsData.MediaCount?.MovieCount || 0 }}
+            {{ statsData.media_counts?.Movie || 0 }}
           </div>
           <div class="text-sm text-gray-500">电影数量</div>
         </NCard>
         <NCard size="small">
           <div class="text-2xl font-bold text-primary">
-            {{ statsData.MediaCount?.SeriesCount || 0 }}
+            {{ statsData.media_counts?.Series || 0 }}
           </div>
           <div class="text-sm text-gray-500">剧集数量</div>
         </NCard>
         <NCard size="small">
           <div class="text-2xl font-bold text-primary">
-            {{ statsData.MediaCount?.EpisodeCount || 0 }}
+            {{ statsData.media_counts?.Episodes || 0 }}
           </div>
           <div class="text-sm text-gray-500">总集数</div>
         </NCard>

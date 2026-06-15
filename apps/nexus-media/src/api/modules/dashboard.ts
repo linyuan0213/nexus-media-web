@@ -6,10 +6,10 @@ import { requestClient } from '#/api/request';
 
 export namespace DashboardApi {
   export interface TransferStatistics {
-    Labels: string[];
-    MovieNums: number[];
-    TvNums: number[];
-    AnimeNums: number[];
+    labels: string[];
+    movie_nums: number[];
+    tv_nums: number[];
+    anime_nums: number[];
   }
 
   export interface LibraryHome {
@@ -17,10 +17,10 @@ export namespace DashboardApi {
     media_counts: Record<string, number>;
     activity: any[];
     library_spaces: {
-      FreeSpace: string;
-      TotalSpace: string;
-      UsedPercent: number;
-      UsedSpace: string;
+      free_space: string;
+      total_space: string;
+      used_percent: number;
+      used_space: string;
     };
     downloaded: any[];
     server_type: string;
