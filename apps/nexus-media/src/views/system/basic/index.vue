@@ -130,7 +130,7 @@ function saveSystem() {
 
 function saveLog() {
   const data: Record<string, any> = {};
-  ['log.type', 'log.path', 'log.server', 'log.level'].forEach((f) => {
+  ['log.type', 'log.path', 'log.level', 'log.format'].forEach((f) => {
     const v = config.value[f];
     if (v !== undefined && v !== '') data[f] = v;
   });
@@ -455,7 +455,6 @@ onMounted(() => {
                       :options="[
                         { label: '控制台', value: 'console' },
                         { label: '文件', value: 'file' },
-                        { label: '日志中心', value: 'server' },
                       ]"
                     />
                   </NFormItem>
@@ -464,15 +463,18 @@ onMounted(() => {
                   <NFormItem label="日志文件路径">
                     <NInput
                       v-model:value="config['log.path']"
-                      placeholder="/config/logs"
+                      placeholder="data/logs"
                     />
                   </NFormItem>
                 </NGridItem>
                 <NGridItem span="1">
-                  <NFormItem label="日志中心地址">
-                    <NInput
-                      v-model:value="config['log.server']"
-                      placeholder="127.0.0.1:514"
+                  <NFormItem label="日志格式">
+                    <NSelect
+                      v-model:value="config['log.format']"
+                      :options="[
+                        { label: '可读文本', value: 'text' },
+                        { label: 'JSON', value: 'json' },
+                      ]"
                     />
                   </NFormItem>
                 </NGridItem>
