@@ -160,7 +160,8 @@ async function fetchFilterRules() {
     ];
     const map: Record<string, string> = {};
     rules.forEach((r: any) => {
-      if (r.id != null) map[String(r.id)] = r.name || String(r.id);
+      if (r.id !== null && r.id !== undefined)
+        map[String(r.id)] = r.name || String(r.id);
     });
     filterRuleMap.value = map;
   } catch {
@@ -182,7 +183,8 @@ async function fetchDownloadSettings() {
     ];
     const map: Record<string, string> = {};
     list.forEach((d: any) => {
-      if (d.id != null) map[String(d.id)] = d.name || String(d.id);
+      if (d.id !== null && d.id !== undefined)
+        map[String(d.id)] = d.name || String(d.id);
     });
     downloadSettingMap.value = map;
   } catch {
@@ -222,7 +224,8 @@ function getStateLabel(state: string) {
 
 function hasCardTags(item: any) {
   return (
-    (item.filter_rule != null &&
+    (item.filter_rule !== null &&
+      item.filter_rule !== undefined &&
       String(item.filter_rule) !== '' &&
       String(item.filter_rule) !== '0') ||
     item.over_edition ||
@@ -599,7 +602,8 @@ onMounted(() => {
             >
               <NTag
                 v-if="
-                  item.filter_rule != null &&
+                  item.filter_rule !== null &&
+                  item.filter_rule !== undefined &&
                   String(item.filter_rule) !== '' &&
                   String(item.filter_rule) !== '0'
                 "
@@ -721,7 +725,8 @@ onMounted(() => {
               detailItem.filter_restype ||
               detailItem.filter_pix ||
               detailItem.filter_team ||
-              (detailItem.filter_rule != null &&
+              (detailItem.filter_rule !== null &&
+                detailItem.filter_rule !== undefined &&
                 String(detailItem.filter_rule) !== '' &&
                 String(detailItem.filter_rule) !== '0') ||
               detailItem.filter_include ||
@@ -758,7 +763,8 @@ onMounted(() => {
             </NTag>
             <NTag
               v-if="
-                detailItem.filter_rule != null &&
+                detailItem.filter_rule !== null &&
+                detailItem.filter_rule !== undefined &&
                 String(detailItem.filter_rule) !== '' &&
                 String(detailItem.filter_rule) !== '0'
               "
@@ -788,7 +794,6 @@ onMounted(() => {
 
           <div
             v-if="
-              detailItem.download_setting != null &&
               String(detailItem.download_setting) !== '' &&
               String(detailItem.download_setting) !== '-1'
             "
