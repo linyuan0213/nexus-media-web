@@ -55,14 +55,19 @@ const downloadSettings = ref<{ label: string; value: string }[]>([]);
 
 const downloadSettingMap = ref<Record<string, string>>({});
 
+function nullableString(val: any): string {
+  return val === null || val === undefined ? '' : String(val);
+}
+
 function getFilterRuleLabel(val: any): string {
-  if (val == null || val === '' || val === '0') return '';
+  if (val === null || val === undefined || val === '' || val === '0') return '';
   const s = String(val);
   return filterRuleMap.value[s] || s;
 }
 
 function getDownloadSettingLabel(val: any): string {
-  if (val == null || val === '' || val === '-1') return '';
+  if (val === null || val === undefined || val === '' || val === '-1')
+    return '';
   const s = String(val);
   return downloadSettingMap.value[s] || s;
 }
@@ -171,7 +176,7 @@ async function fetchDownloadSettings() {
     downloadSettings.value = [
       { label: '站点设置', value: '' },
       ...list.map((d: any) => {
-        const idValue = d.id == null ? '' : String(d.id);
+        const idValue = nullableString(d.id);
         return { label: d.name || idValue, value: idValue };
       }),
     ];
@@ -296,14 +301,13 @@ async function handleEdit(item: any) {
     filter_restype: detail.filter_restype || detail.restype || '',
     filter_pix: detail.filter_pix || detail.pix || '',
     filter_team: detail.filter_team || detail.team || '',
-    filter_rule: detail.filter_rule == null ? '' : String(detail.filter_rule),
+    filter_rule: nullableString(detail.filter_rule),
     filter_include: detail.filter_include || detail.include || '',
     filter_exclude: detail.filter_exclude || detail.exclude || '',
-    download_setting:
-      detail.download_setting == null ? '' : String(detail.download_setting),
+    download_setting: nullableString(detail.download_setting),
     save_path: detail.save_path || '',
     total_ep: String(detail.total_ep || detail.total || item.total || ''),
-    current_ep: detail.current_ep == null ? '' : String(detail.current_ep),
+    current_ep: nullableString(detail.current_ep),
     rss_sites: Array.isArray(detail.rss_sites) ? detail.rss_sites : [],
     search_sites: Array.isArray(detail.search_sites) ? detail.search_sites : [],
   };
@@ -370,11 +374,10 @@ async function openSettingModal() {
       restype: data.restype || data.filter_restype || '',
       pix: data.pix || data.filter_pix || '',
       team: data.team || data.filter_team || '',
-      rule: data.rule == null ? '' : String(data.rule),
+      rule: nullableString(data.rule),
       include: data.include || data.filter_include || '',
       exclude: data.exclude || data.filter_exclude || '',
-      download_setting:
-        data.download_setting == null ? '' : String(data.download_setting),
+      download_setting: nullableString(data.download_setting),
       rss_sites: Array.isArray(data.rss_sites) ? data.rss_sites : [],
       search_sites: Array.isArray(data.search_sites) ? data.search_sites : [],
     };
@@ -471,13 +474,10 @@ async function selectAddMedia(media: any) {
     filter_restype: defaults.restype || defaults.filter_restype || '',
     filter_pix: defaults.pix || defaults.filter_pix || '',
     filter_team: defaults.team || defaults.filter_team || '',
-    filter_rule: defaults.rule == null ? '' : String(defaults.rule),
+    filter_rule: nullableString(defaults.rule),
     filter_include: defaults.include || defaults.filter_include || '',
     filter_exclude: defaults.exclude || defaults.filter_exclude || '',
-    download_setting:
-      defaults.download_setting == null
-        ? ''
-        : String(defaults.download_setting),
+    download_setting: nullableString(defaults.download_setting),
     save_path: defaults.save_path || '',
     total_ep: '',
     current_ep: '',
