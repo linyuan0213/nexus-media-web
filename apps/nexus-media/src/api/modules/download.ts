@@ -334,3 +334,48 @@ export async function findHardlinksApi(data: {
     data,
   );
 }
+
+export interface DownloadEvent {
+  event: string;
+  data: Record<string, any>;
+}
+
+/** 订阅下载事件 SSE */
+export async function subscribeDownloadEventsApi(
+  callbacks: {
+    onEnd?: () => void;
+    onEvent: (event: DownloadEvent) => void;
+  },
+  signal?: AbortSignal,
+) {
+  return requestClient.requestSSE('/download/events', undefined, {
+    method: 'GET',
+    signal,
+    onMessage: (content: string) => {
+      const blocks = content.split('\n\n');
+      for (const block of blocks) {
+        const trimmed = block.trim();
+        if (!trimmed) continue;
+        const lines = trimmed.split('\n');
+        let eventType = '';
+        let eventData = '';
+        for (const line of lines) {
+          if (line.startsWith('event:')) {
+            eventType = line.slice(6).trim();
+          } else if (line.startsWith('data:')) {
+            eventData = line.slice(5).trim();
+          }
+        }
+        if (eventType && eventData) {
+          try {
+            const data = JSON.parse(eventData);
+            callbacks.onEvent({ event: eventType, data });
+          } catch {
+            // ignore parse errors
+          }
+        }
+      }
+    },
+    onEnd: callbacks.onEnd,
+  });
+}
