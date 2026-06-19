@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
@@ -28,6 +28,7 @@ import {
 import { getSiteFaviconsApi, getSiteResourcesApi } from '#/api/modules/site';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
+import { useDownloadEventStream } from '#/composables/useDownloadEventStream';
 
 interface SiteItem {
   id: string;
@@ -62,6 +63,7 @@ const total = ref(0);
 const favicons = ref<Record<string, string>>({});
 const faviconLoadFailed = ref<Record<string, boolean>>({});
 const viewMode = ref<'grid' | 'list'>('grid');
+const { start: startSSE, stop: stopSSE } = useDownloadEventStream();
 
 // 下载弹窗
 const downloadModalVisible = ref(false);
@@ -346,6 +348,11 @@ function formatDate(date?: string): string {
 
 onMounted(() => {
   fetchSites();
+  startSSE();
+});
+
+onUnmounted(() => {
+  stopSSE();
 });
 </script>
 

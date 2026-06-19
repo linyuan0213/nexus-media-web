@@ -2,7 +2,7 @@ import type { VxeTableGridOptions } from '@vben/plugins/vxe-table';
 
 import { h } from 'vue';
 
-import { setupVbenVxeTable, useVbenVxeGrid } from '@vben/plugins/vxe-table';
+import { setupVbenVxeTable } from '@vben/plugins/vxe-table';
 
 import { NButton, NImage } from 'naive-ui';
 
@@ -65,6 +65,6 @@ setupVbenVxeTable({
   useVbenForm,
 });
 
-export { useVbenVxeGrid };
-
 export type * from '@vben/plugins/vxe-table';
+
+export { useVbenVxeGrid } from '@vben/plugins/vxe-table';

@@ -1,8 +1,6 @@
 <script lang="ts" setup>
 import type { UploadFileInfo } from 'naive-ui';
 
-import type { DownloadEvent } from '#/api';
-
 import { computed, h, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
@@ -32,9 +30,9 @@ import {
   getDownloadTasksApi,
   pauseTaskApi,
   resumeTaskApi,
-  subscribeDownloadEventsApi,
 } from '#/api';
 import EmptyState from '#/components/empty/EmptyState.vue';
+import { useDownloadEventStream } from '#/composables/useDownloadEventStream';
 import { useDownloadStore } from '#/store';
 
 const downloadStore = useDownloadStore();
@@ -57,7 +55,7 @@ const downloadSettings = ref<any[]>([]);
 const selectedDir = ref('');
 const selectedSetting = ref('');
 const addLoading = ref(false);
-const sseAbortController = ref<AbortController | null>(null);
+const { start: startSSE, stop: stopSSE } = useDownloadEventStream(fetchTasks);
 
 // 下载器颜色映射（基于 client_id）
 const DOWNLOADER_STYLES: Record<
@@ -320,52 +318,11 @@ function handleDropdownSelect(key: string, torrent: any) {
 }
 
 function stopDownloadEventStream() {
-  if (sseAbortController.value) {
-    sseAbortController.value.abort();
-    sseAbortController.value = null;
-  }
+  stopSSE();
 }
 
 function startDownloadEventStream() {
-  stopDownloadEventStream();
-  sseAbortController.value = new AbortController();
-
-  subscribeDownloadEventsApi(
-    {
-      onEnd: () => {
-        setTimeout(startDownloadEventStream, 3000);
-      },
-      onEvent: (event: DownloadEvent) => {
-        switch (event.event) {
-          case 'download.completed': {
-            message.success(
-              `下载完成: ${event.data.name || event.data.task_id || ''}`,
-            );
-            fetchTasks();
-            break;
-          }
-          case 'download.failed': {
-            message.error(
-              `下载失败: ${event.data.title || ''} — ${event.data.reason || ''}`,
-            );
-            break;
-          }
-          case 'download.started': {
-            message.success(
-              `下载开始: ${event.data.title || ''} (${event.data.download_id || ''})`,
-            );
-            break;
-          }
-          default: {
-            break;
-          }
-        }
-      },
-    },
-    sseAbortController.value.signal,
-  ).catch(() => {
-    // SSE disconnected
-  });
+  startSSE();
 }
 
 onMounted(() => {

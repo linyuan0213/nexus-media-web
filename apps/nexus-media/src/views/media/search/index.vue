@@ -31,6 +31,7 @@ import {
 import { getProgressApi } from '#/api/modules/system';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
+import { useDownloadEventStream } from '#/composables/useDownloadEventStream';
 
 interface TorrentItem {
   id: string;
@@ -100,6 +101,7 @@ interface SearchResultWithFilter extends SearchResult {
 
 const route = useRoute();
 const notification = useNotification();
+const { start: startSSE, stop: stopSSE } = useDownloadEventStream();
 
 /** 图片 URL 处理：后端已统一转换代理路径，直接使用 */
 function getImgUrl(src?: string) {
@@ -344,6 +346,7 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 onMounted(() => {
+  startSSE();
   const s = route.query.s as string;
   const from = route.query.from as string;
   if (s) {
@@ -373,6 +376,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopProgressPoll();
+  stopSSE();
 });
 
 function getTypeColor(type: string) {
