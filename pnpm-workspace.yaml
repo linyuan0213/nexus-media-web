@@ -221,4 +221,5 @@ allowBuilds:
   core-js: true
   esbuild: true
   lefthook: true
+  less: true
   vue-demi: true
