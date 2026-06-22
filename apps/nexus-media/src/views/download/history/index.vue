@@ -25,6 +25,16 @@ const pageSize = ref(30);
 const total = ref(0);
 const viewMode = ref<'grid' | 'list'>('grid');
 
+function getImgUrl(src?: string) {
+  if (!src) return '';
+  if (src.startsWith('/img/')) return src;
+  const tmdbMatch = src.match(/https?:\/\/image\.tmdb\.org\/t\/p\/(\w+)(\/.+)/);
+  if (tmdbMatch) {
+    return `/img/tmdb/${tmdbMatch[1]}${tmdbMatch[2]}`;
+  }
+  return `/img?url=${encodeURIComponent(src)}`;
+}
+
 const history = computed(() => downloadStore.history);
 
 async function fetchData(page = 1) {
@@ -131,7 +141,7 @@ onMounted(() => fetchData(1));
               <div class="history-poster-wrapper">
                 <img
                   v-if="item.image"
-                  :src="`/img?url=${item.image}`"
+                  :src="getImgUrl(item.image)"
                   class="history-poster rounded"
                   alt=""
                 />
