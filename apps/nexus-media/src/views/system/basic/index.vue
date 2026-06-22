@@ -413,11 +413,7 @@ onMounted(() => {
                 </NGridItem>
                 <NGridItem span="1">
                   <NFormItem label="启用图片代理">
-                    <NSwitch
-                      v-model:value="config['app.enable_image_proxy']"
-                      :checked-value="1"
-                      :unchecked-value="0"
-                    />
+                    <NSwitch v-model:value="config['app.enable_image_proxy']" />
                   </NFormItem>
                 </NGridItem>
               </NGrid>
@@ -640,20 +636,12 @@ onMounted(() => {
                 </NGridItem>
                 <NGridItem span="1">
                   <NFormItem label="高质量文件覆盖">
-                    <NSwitch
-                      v-model:value="config['media.filesize_cover']"
-                      :checked-value="1"
-                      :unchecked-value="0"
-                    />
+                    <NSwitch v-model:value="config['media.filesize_cover']" />
                   </NFormItem>
                 </NGridItem>
                 <NGridItem span="1">
                   <NFormItem label="刮削元数据及图片">
-                    <NSwitch
-                      v-model:value="config['media.nfo_poster']"
-                      :checked-value="1"
-                      :unchecked-value="0"
-                    />
+                    <NSwitch v-model:value="config['media.nfo_poster']" />
                   </NFormItem>
                 </NGridItem>
                 <NGridItem span="1">
@@ -867,19 +855,13 @@ onMounted(() => {
                 </NGridItem>
                 <NGridItem span="1">
                   <NFormItem label="远程搜索自动择优下载">
-                    <NSwitch
-                      v-model:value="config['pt.search_auto']"
-                      :checked-value="1"
-                      :unchecked-value="0"
-                    />
+                    <NSwitch v-model:value="config['pt.search_auto']" />
                   </NFormItem>
                 </NGridItem>
                 <NGridItem span="1">
                   <NFormItem label="远程下载不完整自动订阅">
                     <NSwitch
                       v-model:value="config['pt.search_no_result_rss']"
-                      :checked-value="1"
-                      :unchecked-value="0"
                     />
                   </NFormItem>
                 </NGridItem>
@@ -915,8 +897,6 @@ onMounted(() => {
                   <NFormItem label="辅助识别">
                     <NSwitch
                       v-model:value="config['laboratory.search_keyword']"
-                      :checked-value="1"
-                      :unchecked-value="0"
                     />
                   </NFormItem>
                 </NGridItem>
@@ -924,8 +904,6 @@ onMounted(() => {
                   <NFormItem label="WEB增强识别">
                     <NSwitch
                       v-model:value="config['laboratory.search_tmdbweb']"
-                      :checked-value="1"
-                      :unchecked-value="0"
                     />
                   </NFormItem>
                 </NGridItem>
@@ -933,8 +911,6 @@ onMounted(() => {
                   <NFormItem label="TMDB缓存过期策略">
                     <NSwitch
                       v-model:value="config['laboratory.tmdb_cache_expire']"
-                      :checked-value="1"
-                      :unchecked-value="0"
                     />
                   </NFormItem>
                 </NGridItem>
@@ -942,8 +918,6 @@ onMounted(() => {
                   <NFormItem label="默认搜索豆瓣资源">
                     <NSwitch
                       v-model:value="config['laboratory.use_douban_titles']"
-                      :checked-value="1"
-                      :unchecked-value="0"
                     />
                   </NFormItem>
                 </NGridItem>
@@ -951,8 +925,6 @@ onMounted(() => {
                   <NFormItem label="多语言搜索">
                     <NSwitch
                       v-model:value="config['laboratory.search_multi_language']"
-                      :checked-value="1"
-                      :unchecked-value="0"
                     />
                   </NFormItem>
                 </NGridItem>
@@ -960,8 +932,6 @@ onMounted(() => {
                   <NFormItem label="展示更多站点">
                     <NSwitch
                       v-model:value="config['laboratory.show_more_sites']"
-                      :checked-value="1"
-                      :unchecked-value="0"
                     />
                   </NFormItem>
                 </NGridItem>
