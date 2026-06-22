@@ -27,7 +27,6 @@ export async function openBackendConfig(): Promise<void> {
   }
 
   try {
-    // @ts-expect-error `@tauri-apps/api` 仅在桌面客户端构建中存在。
     const { invoke } = await import(/* @vite-ignore */ '@tauri-apps/api/core');
     await invoke('show_config_window');
   } catch {
