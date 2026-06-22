@@ -391,7 +391,7 @@ onMounted(() => {
                   <NFormItem label="代理服务器">
                     <NInput
                       v-model:value="config['app.proxies']"
-                      placeholder="127.0.0.1:7890"
+                      placeholder="127.0.0.1:7890 或 socks5://127.0.0.1:1080"
                     />
                   </NFormItem>
                 </NGridItem>
