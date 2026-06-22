@@ -189,7 +189,9 @@ watch([() => route.query.id, () => route.query.type], () => {
 
 <template>
   <div>
-    <PageHeader title="媒体详情" />
+    <div class="px-4">
+      <PageHeader title="媒体详情" />
+    </div>
 
     <NSpin :show="loading">
       <div class="p-4">
