@@ -8,8 +8,12 @@ import { startProgress, stopProgress } from '@vben/utils';
 import { loadAllPluginFrontends } from '#/plugin-framework/loader';
 import { accessRoutes, coreRouteNames } from '#/router/routes';
 import { useAuthStore } from '#/store';
+import { getBackendUrl } from '#/utils/backend-url';
+import { isTauri } from '#/utils/tauri';
 
 import { generateAccess } from './access';
+
+const BACKEND_CONFIG_PATH = '/setup/backend-url';
 
 /**
  * 通用守卫配置
@@ -20,6 +24,11 @@ function setupCommonGuard(router: Router) {
   const loadedPaths = new Set<string>();
 
   router.beforeEach((to) => {
+    // 桌面/安卓客户端未配置服务端地址时，强制进入配置页
+    if (isTauri() && !getBackendUrl() && to.path !== BACKEND_CONFIG_PATH) {
+      return { path: BACKEND_CONFIG_PATH, replace: true };
+    }
+
     to.meta.loaded = loadedPaths.has(to.path);
 
     // 页面加载进度条

@@ -17,6 +17,7 @@ import { useAccessStore, useUserStore } from '@vben/stores';
 
 import { $t } from '#/locales';
 import { useAuthStore } from '#/store';
+import { isTauri, openBackendConfig } from '#/utils/tauri';
 import LoginForm from '#/views/_core/authentication/login.vue';
 
 const notifications = ref<NotificationItem[]>([]);
@@ -30,15 +31,27 @@ const showDot = computed(() =>
   notifications.value.some((item) => !item.isRead),
 );
 
-const menus = computed(() => [
-  {
-    handler: () => {
-      router.push({ name: 'Profile' });
+const menus = computed(() => {
+  const list = [
+    {
+      handler: () => {
+        router.push({ name: 'Profile' });
+      },
+      icon: 'lucide:user',
+      text: $t('page.auth.profile'),
     },
-    icon: 'lucide:user',
-    text: $t('page.auth.profile'),
-  },
-]);
+  ];
+
+  if (isTauri()) {
+    list.push({
+      handler: openBackendConfig,
+      icon: 'lucide:settings',
+      text: '服务端地址',
+    });
+  }
+
+  return list;
+});
 
 const avatar = computed(() => {
   return userStore.userInfo?.avatar ?? preferences.app.defaultAvatar;
