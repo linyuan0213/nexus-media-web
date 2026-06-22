@@ -25,6 +25,7 @@
     "#/*": "./src/*"
   },
   "dependencies": {
+    "@tauri-apps/api": "catalog:",
     "@vben/access": "workspace:*",
     "@vben/common-ui": "workspace:*",
     "@vben/constants": "workspace:*",
