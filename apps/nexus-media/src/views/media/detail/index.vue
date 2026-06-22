@@ -116,7 +116,7 @@ async function handleSearch() {
   router.push({
     name: 'MediaSearch',
     query: {
-      s: encodeURIComponent(detail.value.title || ''),
+      s: detail.value.title || '',
       from: 'detail',
     },
   });
