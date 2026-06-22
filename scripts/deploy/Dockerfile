@@ -15,8 +15,11 @@ WORKDIR /app
 COPY . /app
 
 # 安装依赖
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
-RUN pnpm run build:nexus
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    --mount=type=cache,id=turbo,target=/app/node_modules/.cache/turbo \
+    pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=turbo,target=/app/node_modules/.cache/turbo \
+    pnpm run build:nexus
 
 RUN echo "Builder Success"
 
