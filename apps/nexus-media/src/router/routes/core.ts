@@ -7,6 +7,8 @@ import { $t } from '#/locales';
 
 const BasicLayout = () => import('#/layouts/basic.vue');
 const AuthPageLayout = () => import('#/layouts/auth.vue');
+const BackendConfigPage = () =>
+  import('#/views/_core/backend-config/index.vue');
 /** 全局404页面 */
 const fallbackNotFoundRoute: RouteRecordRaw = {
   component: () => import('#/views/_core/fallback/not-found.vue'),
@@ -91,6 +93,17 @@ const coreRoutes: RouteRecordRaw[] = [
         },
       },
     ],
+  },
+  {
+    component: BackendConfigPage,
+    meta: {
+      hideInBreadcrumb: true,
+      hideInMenu: true,
+      hideInTab: true,
+      title: '服务端地址设置',
+    },
+    name: 'BackendConfig',
+    path: '/setup/backend-url',
   },
 ];
 

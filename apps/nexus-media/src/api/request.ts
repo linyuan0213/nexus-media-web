@@ -16,10 +16,12 @@ import { useAccessStore } from '@vben/stores';
 
 import { message } from '#/adapter/naive';
 import { useAuthStore } from '#/store';
+import { getApiBaseUrl } from '#/utils/backend-url';
 
 import { refreshTokenApi } from './core';
 
 const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
+const runtimeApiURL = getApiBaseUrl() ?? apiURL;
 
 function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   const client = new RequestClient({
@@ -105,7 +107,7 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   return client;
 }
 
-export const requestClient = createRequestClient(apiURL, {
+export const requestClient = createRequestClient(runtimeApiURL, {
   responseReturn: 'data',
 });
 
@@ -115,7 +117,7 @@ if (typeof window !== 'undefined') {
 }
 
 export const baseRequestClient = new RequestClient({
-  baseURL: apiURL,
+  baseURL: runtimeApiURL,
   withCredentials: true,
 });
 
