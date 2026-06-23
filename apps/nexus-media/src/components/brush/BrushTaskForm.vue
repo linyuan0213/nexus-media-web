@@ -132,9 +132,25 @@ const rules = {
   brushtask_rule_id: {
     required: true,
     message: '请选择规则模板',
-    trigger: 'change',
+    trigger: ['blur', 'change'],
+    validator(_rule: any, value: any) {
+      if (value === undefined || value === null) {
+        return new Error('请选择规则模板');
+      }
+      return true;
+    },
   },
-  brushtask_site: { required: true, message: '请选择站点', trigger: 'change' },
+  brushtask_site: {
+    required: true,
+    message: '请选择站点',
+    trigger: ['blur', 'change'],
+    validator(_rule: any, value: any) {
+      if (!value) {
+        return new Error('请选择站点');
+      }
+      return true;
+    },
+  },
   brushtask_interval: {
     required: true,
     message: '请输入执行周期',
@@ -143,7 +159,13 @@ const rules = {
   brushtask_downloader: {
     required: true,
     message: '请选择下载器',
-    trigger: 'change',
+    trigger: ['blur', 'change'],
+    validator(_rule: any, value: any) {
+      if (!value) {
+        return new Error('请选择下载器');
+      }
+      return true;
+    },
   },
 };
 

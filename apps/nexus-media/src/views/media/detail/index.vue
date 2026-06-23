@@ -112,27 +112,22 @@ async function handleSearch() {
   if (searching.value) return;
   searching.value = true;
 
-  // 先跳转到搜索页，再后台触发搜索（避免同步阻塞导致页面卡住）
+  // 先触发后台搜索，再跳转，避免搜索页加载时后端还没开始搜
+  webSearchApi({
+    search_word: detail.value.title,
+    tmdbid: mediaId.value,
+    media_type: mediaType.value,
+  }).catch(() => {});
+
   router.push({
     name: 'MediaSearch',
     query: {
-      s: encodeURIComponent(detail.value.title || ''),
+      s: detail.value.title || '',
       from: 'detail',
     },
   });
 
-  // 后台触发搜索，不阻塞页面跳转
-  try {
-    await webSearchApi({
-      search_word: detail.value.title,
-      tmdbid: mediaId.value,
-      media_type: mediaType.value,
-    });
-  } catch {
-    // 搜索触发失败不影响页面跳转，搜索页会轮询进度
-  } finally {
-    searching.value = false;
-  }
+  searching.value = false;
 }
 
 async function handleSubscribe() {
