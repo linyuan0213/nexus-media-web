@@ -44,6 +44,13 @@ const backPath = computed(() =>
 
 function getImgUrl(src?: string) {
   if (!src) return '/static/img/no-image.png';
+  if (src.startsWith('/img/')) return src;
+
+  const tmdbMatch = src.match(/https?:\/\/image\.tmdb\.org\/t\/p\/(\w+)(\/.+)/);
+  if (tmdbMatch) {
+    return `/img/tmdb/${tmdbMatch[1]}${tmdbMatch[2]}`;
+  }
+
   return `/img?url=${encodeURIComponent(src)}`;
 }
 
