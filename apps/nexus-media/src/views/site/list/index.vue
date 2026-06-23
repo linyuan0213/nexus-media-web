@@ -40,7 +40,7 @@ interface SiteForm {
   api_key: string;
   bearer_token: string;
   rssurl: string;
-  public: string;
+  public: boolean;
   rss_enable: boolean;
   brush_enable: boolean;
   statistic_enable: boolean;
@@ -151,11 +151,6 @@ function getSiteTypeLabel(publicFlag?: boolean): string {
   return publicFlag ? 'BT' : 'PT';
 }
 
-function parseNoteBool(val?: boolean | string): boolean {
-  if (typeof val === 'boolean') return val;
-  return val === 'Y' || val === 'y' || val === '1';
-}
-
 function parseNoteStr(val?: string): string {
   return val || '';
 }
@@ -164,15 +159,15 @@ function buildNote(form: SiteForm): string {
   const note: Record<string, any> = {};
   if (form.rule) note.rule = form.rule;
   if (form.download_setting) note.download_setting = form.download_setting;
-  note.parse = form.parse ? 'Y' : 'N';
+  note.parse = form.parse;
   if (form.ua) note.ua = form.ua;
   if (form.headers) note.headers = form.headers;
-  note.chrome = form.chrome ? 'Y' : 'N';
-  note.proxy = form.proxy ? 'Y' : 'N';
-  note.message = form.unread_msg_notify ? 'Y' : 'N';
-  note.subtitle = form.subtitle ? 'Y' : 'N';
-  note.tag = form.tag ? 'Y' : 'N';
-  note.public = form.public === 'Y' ? 'Y' : 'N';
+  note.chrome = form.chrome;
+  note.proxy = form.proxy;
+  note.message = form.unread_msg_notify;
+  note.subtitle = form.subtitle;
+  note.tag = form.tag;
+  note.public = form.public;
   if (form.rate_limit) note.rate_limit = form.rate_limit;
   if (form.rate_burst) note.rate_burst = form.rate_burst;
   return JSON.stringify(note);
@@ -187,7 +182,7 @@ function handleAdd() {
     api_key: '',
     bearer_token: '',
     rssurl: '',
-    public: 'N',
+    public: false,
     rss_enable: true,
     brush_enable: false,
     statistic_enable: true,
@@ -229,16 +224,16 @@ function handleEdit(item: any) {
     api_key: item.api_key || '',
     bearer_token: item.bearer_token || '',
     rssurl: item.rssurl || '',
-    public: item.public ? 'Y' : 'N',
+    public: !!item.public,
     rss_enable: !!item.rss_enable,
     brush_enable: !!item.brush_enable,
     statistic_enable: !!item.statistic_enable,
-    parse: parseNoteBool(parsedNote?.parse),
-    unread_msg_notify: parseNoteBool(parsedNote?.message),
-    chrome: parseNoteBool(parsedNote?.chrome),
-    proxy: parseNoteBool(parsedNote?.proxy),
-    subtitle: parseNoteBool(parsedNote?.subtitle),
-    tag: parseNoteBool(parsedNote?.tag),
+    parse: !!parsedNote?.parse,
+    unread_msg_notify: !!parsedNote?.message,
+    chrome: !!parsedNote?.chrome,
+    proxy: !!parsedNote?.proxy,
+    subtitle: !!parsedNote?.subtitle,
+    tag: !!parsedNote?.tag,
     ua: parseNoteStr(parsedNote?.ua),
     // 优先使用独立字段，回退到 note.headers（向后兼容）
     headers: item.headers || parseNoteStr(parsedNote?.headers),
@@ -568,13 +563,13 @@ onMounted(fetchSites);
             </NFormItem>
             <div class="form-grid-2">
               <NFormItem label="站点类型">
-                <NSelect
-                  v-model:value="editingSite.public"
-                  :options="[
-                    { label: 'PT站点（私有）', value: 'N' },
-                    { label: 'BT站点（公开）', value: 'Y' },
-                  ]"
-                />
+                <NSwitch v-model:value="editingSite.public" />
+                <span
+                  class="ml-2 text-xs"
+                  style="color: hsl(var(--muted-foreground))"
+                >
+                  {{ editingSite.public ? 'BT站点（公开）' : 'PT站点（私有）' }}
+                </span>
               </NFormItem>
               <NFormItem label="过滤规则">
                 <NSelect

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { GlobalThemeOverrides } from 'naive-ui';
 
-import { computed } from 'vue';
+import { computed, defineComponent, h } from 'vue';
 
 import { useNaiveDesignTokens } from '@vben/hooks';
 import { preferences } from '@vben/preferences';
@@ -19,6 +19,25 @@ import {
 } from 'naive-ui';
 
 defineOptions({ name: 'App' });
+
+// 包装 NNotificationProvider，吸收外部透传的 duration 属性并通过合法的 notification-props 传入
+const NotificationProvider = defineComponent({
+  name: 'NotificationProvider',
+  props: {
+    duration: {
+      default: 3000,
+      type: Number,
+    },
+  },
+  setup(props, { slots }) {
+    return () =>
+      h(
+        NNotificationProvider,
+        { notificationProps: { duration: props.duration } },
+        slots,
+      );
+  },
+});
 
 const { commonTokens } = useNaiveDesignTokens();
 
@@ -47,10 +66,10 @@ const themeOverrides = computed((): GlobalThemeOverrides => {
     :theme-overrides="themeOverrides"
     class="h-full"
   >
-    <NNotificationProvider>
+    <NotificationProvider>
       <NMessageProvider>
         <RouterView />
       </NMessageProvider>
-    </NNotificationProvider>
+    </NotificationProvider>
   </NConfigProvider>
 </template>
