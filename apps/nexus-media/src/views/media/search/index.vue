@@ -355,7 +355,12 @@ onMounted(() => {
     results.value = [];
     if (from === 'discovery' || from === 'detail') {
       // 从探索页/详情页跳转时已在外部触发过搜索，直接加载结果
-      loadSearchResults();
+      loadSearchResults().then(() => {
+        if (results.value.length === 0) {
+          // 搜索尚未完成，启动进度轮询等待结果
+          startProgressPoll();
+        }
+      });
     } else {
       loading.value = true;
       startProgressPoll();
