@@ -164,14 +164,14 @@ function buildNote(form: SiteForm): string {
   const note: Record<string, any> = {};
   if (form.rule) note.rule = form.rule;
   if (form.download_setting) note.download_setting = form.download_setting;
-  if (form.parse) note.parse = 'Y';
+  note.parse = form.parse ? 'Y' : 'N';
   if (form.ua) note.ua = form.ua;
   if (form.headers) note.headers = form.headers;
-  if (form.chrome) note.chrome = 'Y';
-  if (form.proxy) note.proxy = 'Y';
-  if (form.unread_msg_notify) note.message = 'Y';
-  if (form.subtitle) note.subtitle = 'Y';
-  if (form.tag) note.tag = 'Y';
+  note.chrome = form.chrome ? 'Y' : 'N';
+  note.proxy = form.proxy ? 'Y' : 'N';
+  note.message = form.unread_msg_notify ? 'Y' : 'N';
+  note.subtitle = form.subtitle ? 'Y' : 'N';
+  note.tag = form.tag ? 'Y' : 'N';
   note.public = form.public === 'Y' ? 'Y' : 'N';
   if (form.rate_limit) note.rate_limit = form.rate_limit;
   if (form.rate_burst) note.rate_burst = form.rate_burst;
@@ -285,6 +285,9 @@ async function handleSave() {
       headers: form.headers,
       note: buildNote(form),
       include: uses.join(''),
+      rss_enable: form.rss_enable,
+      brush_enable: form.brush_enable,
+      statistic_enable: form.statistic_enable,
     });
     notification.success({ content: '保存成功' });
     editModalShow.value = false;
