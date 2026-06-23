@@ -193,6 +193,7 @@ function startProgressPoll() {
   stopProgressPoll();
   searchProgress.value = 0;
   searchProgressText.value = '正在处理...';
+  loading.value = true;
   progressTimer = setInterval(pollSearchProgress, 3000);
 }
 
@@ -355,6 +356,7 @@ onMounted(() => {
     results.value = [];
     if (from === 'discovery' || from === 'detail') {
       // 从探索页/详情页跳转时已在外部触发过搜索，直接加载结果
+      loading.value = true;
       loadSearchResults().then(() => {
         if (results.value.length === 0) {
           // 搜索尚未完成，启动进度轮询等待结果
