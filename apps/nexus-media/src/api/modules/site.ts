@@ -103,6 +103,9 @@ export async function saveSiteApi(data: Record<string, any>) {
     site_headers: data.headers,
     site_note: data.note,
     site_include: data.include,
+    rss_enable: data.rss_enable,
+    brush_enable: data.brush_enable,
+    statistic_enable: data.statistic_enable,
   });
 }
 
