@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue';
 
-import { NCard, NEmpty, NSpin } from 'naive-ui';
+import { NCard, NEmpty, NSpin, NTag } from 'naive-ui';
 
 import {
   getDashboardBrushTasksApi,
@@ -316,6 +316,9 @@ onMounted(fetchData);
           :segmented="{ content: true }"
           title="索引器统计"
         >
+          <template #header-extra>
+            <NTag size="small" :bordered="false" type="info">24h</NTag>
+          </template>
           <DownloaderRingChart
             v-if="downloaderRingData.length > 0"
             :data="downloaderRingData"
