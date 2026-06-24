@@ -23,6 +23,7 @@ import {
   deleteTorrentRemoveTaskApi,
   getDownloadersApi,
   getRemoveTorrentsApi,
+  getSeedStatusesApi,
   getTorrentRemoveTasksApi,
   saveTorrentRemoveTaskApi,
 } from '#/api';
@@ -78,7 +79,8 @@ const editingConfig = ref<RemoveTask['config']>({
 const editLoading = ref(false);
 
 const tagInput = ref('');
-const filterStatusInput = ref('');
+const filterStatusInput = ref<string[]>([]);
+const seedStatusOptions = ref<{ label: string; value: string }[]>([]);
 const sizeInput = ref('');
 
 const deleteModalShow = ref(false);
@@ -102,9 +104,10 @@ const actionMap: Record<number, { label: string; type: string }> = {
 async function fetchData() {
   loading.value = true;
   try {
-    const [tasksRes, downloadersRes] = await Promise.all([
+    const [tasksRes, downloadersRes, statusesRes] = await Promise.all([
       getTorrentRemoveTasksApi(),
       getDownloadersApi(),
+      getSeedStatusesApi(),
     ]);
     const tasksDict = (tasksRes as any)?.data || tasksRes || {};
     tasks.value = Object.values(tasksDict);
@@ -116,6 +119,7 @@ async function fetchData() {
         type: v.type || '',
       }),
     );
+    seedStatusOptions.value = (statusesRes as any)?.data || statusesRes || [];
   } finally {
     loading.value = false;
   }
@@ -141,7 +145,7 @@ function handleAdd() {
     only_nexus_media: 1,
   };
   tagInput.value = '';
-  filterStatusInput.value = '';
+  filterStatusInput.value = [];
   sizeInput.value = '';
   editingConfig.value = {
     ratio: 0,
@@ -169,7 +173,7 @@ function handleEdit(task: RemoveTask) {
     filter_status: task.config?.filter_status || [],
   };
   tagInput.value = task.config?.tags?.join(';') || '';
-  filterStatusInput.value = task.config?.filter_status?.join(';') || '';
+  filterStatusInput.value = task.config?.filter_status || [];
   sizeInput.value =
     task.config?.size?.length === 2
       ? `${task.config.size[0]}-${task.config.size[1]}`
@@ -210,7 +214,7 @@ async function handleSave() {
       tags: tagInput.value,
       savepath_key: editingConfig.value.savepath_key || '',
       tracker_key: editingConfig.value.tracker_key || '',
-      filter_status: filterStatusInput.value,
+      filter_status: filterStatusInput.value.join(';'),
     };
 
     await saveTorrentRemoveTaskApi(payload);
@@ -627,9 +631,11 @@ onMounted(fetchData);
         </div>
         <div class="grid grid-cols-2 gap-3">
           <NFormItem label="种子状态">
-            <NInput
+            <NSelect
               v-model:value="filterStatusInput"
-              placeholder="多个状态用;分隔"
+              :options="seedStatusOptions"
+              multiple
+              placeholder="选择种子状态"
             />
           </NFormItem>
         </div>
