@@ -26,7 +26,7 @@
   "type": "module",
   "scripts": {
     "bootstrap": "pnpm install",
-    "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 turbo build",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 turbo build",
     "build:analyze": "turbo build:analyze",
     "build:docker": "./scripts/deploy/build-local-docker-image.sh",
     "build:nexus": "pnpm run build --filter=@nexus-media/frontend",
