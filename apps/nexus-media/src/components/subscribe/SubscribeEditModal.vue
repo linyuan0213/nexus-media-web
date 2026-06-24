@@ -143,9 +143,15 @@ watch([() => props.show, () => props.item], async ([visible, item]) => {
       save_path: item.save_path || '',
       total_ep: item.total_ep == null ? '' : String(item.total_ep),
       current_ep: item.current_ep == null ? '' : String(item.current_ep),
-      rss_sites: Array.isArray(item.rss_sites) ? [...item.rss_sites] : [],
+      rss_sites: Array.isArray(item.rss_sites)
+        ? [...item.rss_sites].filter((s) =>
+            rssSites.value.some((x) => x.value === s),
+          )
+        : [],
       search_sites: Array.isArray(item.search_sites)
-        ? [...item.search_sites]
+        ? [...item.search_sites].filter((s) =>
+            searchSites.value.some((x) => x.value === s),
+          )
         : [],
     };
     if (!optionsLoaded.value) {

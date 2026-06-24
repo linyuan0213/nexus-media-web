@@ -456,8 +456,13 @@ async function openSettingModal() {
       exclude: data.exclude || data.filter_exclude || '',
       download_setting:
         data.download_setting == null ? '' : String(data.download_setting),
-      rss_sites: Array.isArray(data.rss_sites) ? data.rss_sites : [],
-      search_sites: Array.isArray(data.search_sites) ? data.search_sites : [],
+      rss_sites: (Array.isArray(data.rss_sites) ? data.rss_sites : []).filter(
+        (s: string) => subscriptionSites.value.some((x) => x.value === s),
+      ),
+      search_sites: (Array.isArray(data.search_sites)
+        ? data.search_sites
+        : []
+      ).filter((s: string) => searchSites.value.some((x) => x.value === s)),
     };
   } catch {
     // ignore

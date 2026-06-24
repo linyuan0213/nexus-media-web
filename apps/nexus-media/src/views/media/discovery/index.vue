@@ -2,7 +2,7 @@
 import type { SubscribeConfirmItem } from '#/components/subscribe/SubscribeConfirmModal.vue';
 import type { SubscribeEditItem } from '#/components/subscribe/SubscribeEditModal.vue';
 
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
@@ -208,6 +208,7 @@ async function loadSingle(reset = false) {
   } finally {
     loadingMap.value[key] = false;
     singleLoadingMore.value = false;
+    nextTick(() => checkInfiniteScroll());
   }
 }
 
@@ -412,6 +413,21 @@ function setupInfiniteScroll() {
     { rootMargin: '100px' },
   );
   observer.observe(sentinelRef.value);
+}
+
+function checkInfiniteScroll() {
+  if (!singleConfig.value || !sentinelRef.value) return;
+  if (
+    singleHasMore.value &&
+    !singleLoadingMore.value &&
+    !loadingMap.value.single
+  ) {
+    const rect = sentinelRef.value.getBoundingClientRect();
+    if (rect.top < window.innerHeight + 100) {
+      singlePage.value += 1;
+      loadSingle();
+    }
+  }
 }
 
 onMounted(() => {

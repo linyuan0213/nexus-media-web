@@ -2,7 +2,7 @@
 import type { SubscribeConfirmItem } from '#/components/subscribe/SubscribeConfirmModal.vue';
 import type { SubscribeEditItem } from '#/components/subscribe/SubscribeEditModal.vue';
 
-import { onMounted, ref, watch } from 'vue';
+import { nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
@@ -79,6 +79,7 @@ async function loadItems(page: number, append = false) {
   } finally {
     loading.value = false;
     loadingMore.value = false;
+    nextTick(() => checkInfiniteScroll());
   }
 }
 
@@ -235,6 +236,17 @@ function getImgUrl(src?: string) {
 // Intersection Observer for infinite scroll
 const sentinelRef = ref<HTMLDivElement | null>(null);
 let observer: IntersectionObserver | null = null;
+
+function checkInfiniteScroll() {
+  if (!sentinelRef.value) return;
+  if (hasMore.value && !loadingMore.value && !loading.value) {
+    const rect = sentinelRef.value.getBoundingClientRect();
+    if (rect.top < window.innerHeight + 100) {
+      currentPage.value += 1;
+      loadItems(currentPage.value, true);
+    }
+  }
+}
 
 onMounted(() => {
   loadItems(1);
