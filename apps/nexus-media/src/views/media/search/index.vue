@@ -77,6 +77,7 @@ interface SearchResult {
   key: string;
   tmdbid: string;
   type: string;
+  type_key?: string;
   year: string;
   vote: string;
   poster: string;
@@ -387,13 +388,16 @@ onUnmounted(() => {
 });
 
 function getTypeColor(type: string) {
-  return type === 'movie' ? 'success' : 'info';
+  if (type === 'movie') return 'success';
+  if (type === 'anime') return 'warning';
+  return 'info';
 }
 
 function getMediaTypeLabel(type?: string) {
   const map: Record<string, string> = {
     movie: '电影',
     tv: '电视剧',
+    anime: '动漫',
   };
   return (type && map[type]) || '未知';
 }
@@ -843,9 +847,9 @@ async function confirmDownload() {
                 "
               >
                 <img :src="item.poster" alt="" />
-                <div v-if="item.type" class="hero-poster-tag">
-                  <NTag :type="getTypeColor(item.type)" size="small" round>
-                    {{ getMediaTypeLabel(item.type) }}
+                <div v-if="item.type_key" class="hero-poster-tag">
+                  <NTag :type="getTypeColor(item.type_key)" size="small" round>
+                    {{ getMediaTypeLabel(item.type_key) }}
                   </NTag>
                 </div>
                 <div v-if="item.fav === '2'" class="hero-poster-fav">
