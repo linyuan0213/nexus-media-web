@@ -98,9 +98,9 @@ const someSelected = computed(() => {
 const statTotals = computed(() => {
   const s = statistics.value;
   if (!s) return { movie: 0, tv: 0, anime: 0 };
-  const movie = s.MovieNums.reduce((a, b) => a + b, 0);
-  const tv = s.TvNums.reduce((a, b) => a + b, 0);
-  const anime = s.AnimeNums.reduce((a, b) => a + b, 0);
+  const movie = s.movie_nums.reduce((a, b) => a + b, 0);
+  const tv = s.tv_nums.reduce((a, b) => a + b, 0);
+  const anime = s.anime_nums.reduce((a, b) => a + b, 0);
   return { movie, tv, anime };
 });
 
