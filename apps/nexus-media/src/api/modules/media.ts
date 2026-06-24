@@ -226,10 +226,10 @@ export interface TransferHistoryPageResult {
 }
 
 export interface TransferStatisticsResult {
-  Labels: string[];
-  MovieNums: number[];
-  TvNums: number[];
-  AnimeNums: number[];
+  labels: string[];
+  movie_nums: number[];
+  tv_nums: number[];
+  anime_nums: number[];
 }
 
 export interface UnknownItem {
