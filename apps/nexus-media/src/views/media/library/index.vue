@@ -68,11 +68,11 @@ async function fetchData() {
   try {
     const res = await getLibraryHomeApi();
     const data = res?.data || res;
-    if (data && data.ServerSucess !== false) {
+    if (data && data.server_success !== false) {
       serverSuccess.value = true;
-      libraries.value = data.Librarys || [];
-      resumes.value = data.Resumes || [];
-      latests.value = data.Latests || [];
+      libraries.value = data.librarys || [];
+      resumes.value = data.resumes || [];
+      latests.value = data.latests || [];
       statsData.value = data;
     } else {
       serverSuccess.value = false;

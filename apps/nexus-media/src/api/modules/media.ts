@@ -62,7 +62,11 @@ export async function getMediaDetailApi(tmdbid: number | string, type: string) {
 
 /** 获取媒体库首页数据（libraries/resumes/latests/stats） */
 export async function getLibraryHomeApi() {
-  return requestClient.post<Record<string, any>>('/media/library/home', {});
+  return requestClient.post<Record<string, any>>(
+    '/media/library/home',
+    {},
+    { timeout: 120_000 },
+  );
 }
 
 /** 获取媒体库统计 */
