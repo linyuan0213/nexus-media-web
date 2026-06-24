@@ -394,7 +394,7 @@ export async function getTmdbBlacklistApi(params: {
   if (params.count) query.set('count', String(params.count));
   if (params.s) query.set('s', params.s);
   return requestClient.get<TmdbBlacklistPageResult>(
-    `/api/media/tmdb_blacklist/list?${query.toString()}`,
+    `/media/tmdb_blacklist/list?${query.toString()}`,
   );
 }
 
@@ -460,7 +460,7 @@ export async function searchFilesApi(keyword: string, limit?: number) {
     }>;
     ready: boolean;
     total: number;
-  }>(`/api/media/search/files?${query.toString()}`);
+  }>(`/media/search/files?${query.toString()}`);
 }
 
 /** 获取媒体库路径配置 */

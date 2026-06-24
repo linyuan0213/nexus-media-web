@@ -292,6 +292,13 @@ export async function getTorrentRemoveTasksApi(tid?: number | string) {
   );
 }
 
+/** 获取种子状态列表 */
+export async function getSeedStatusesApi() {
+  return requestClient.get<{ label: string; value: string }[]>(
+    '/download/torrent-remove-tasks/seed-statuses',
+  );
+}
+
 /** 保存删种任务 */
 export async function saveTorrentRemoveTaskApi(data: Record<string, any>) {
   return requestClient.post('/download/torrent-remove-tasks/save', {
