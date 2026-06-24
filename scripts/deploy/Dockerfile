@@ -3,7 +3,7 @@ FROM node:24-slim AS builder
 # --max-old-space-size
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-ENV NODE_OPTIONS=--max-old-space-size=8192
+ENV NODE_OPTIONS=--max-old-space-size=4096
 ENV TZ=Asia/Shanghai
 ENV CI=true
 
