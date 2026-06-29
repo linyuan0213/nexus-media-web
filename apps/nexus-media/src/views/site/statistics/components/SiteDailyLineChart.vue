@@ -23,10 +23,10 @@ const props = withDefaults(defineProps<Props>(), {
   mode: 'upload',
 });
 
-const { formatSize } = useSiteStats();
+const { formatSize, getChartDataKey } = useSiteStats();
 
 const chartRef = ref<EchartsUIType>();
-const { renderEcharts } = useEcharts(chartRef);
+const { renderEcharts, updateData } = useEcharts(chartRef);
 
 const TEXT_COLOR = 'hsl(var(--card-foreground))';
 
@@ -60,6 +60,7 @@ const activeSeries = computed(() => {
 
 function buildOption() {
   return {
+    animationDurationUpdate: 0,
     grid: {
       bottom: 36,
       containLabel: true,
@@ -121,10 +122,15 @@ onMounted(() => {
   renderEcharts(buildOption() as any);
 });
 
+let dataCacheKey = '';
+
 watch(
   () => [props.dates, props.series, props.mode],
-  () => {
-    renderEcharts(buildOption() as any);
+  (newVal) => {
+    const key = getChartDataKey(newVal);
+    if (key === dataCacheKey) return;
+    dataCacheKey = key;
+    updateData(buildOption() as any);
   },
   { deep: true },
 );

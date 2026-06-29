@@ -11,7 +11,6 @@ const themeOverridesProviderProps = computed(() => ({
 
 const notificationProviderProps = computed(() => ({
   ...themeOverridesProviderProps.value,
-  duration: 3000,
 }));
 
 const themeProviderProps = computed(() => ({

@@ -302,6 +302,7 @@ defineExpose({
                   type="password"
                   show-password-on="click"
                   placeholder="站点API Key"
+                  :input-props="{ autocomplete: 'new-password' }"
                   @update:value="(v) => updateField('api_key', v)"
                 />
               </NFormItem>
@@ -313,6 +314,7 @@ defineExpose({
                   type="password"
                   show-password-on="click"
                   placeholder="站点Bearer Token"
+                  :input-props="{ autocomplete: 'new-password' }"
                   @update:value="(v) => updateField('bearer_token', v)"
                 />
               </NFormItem>

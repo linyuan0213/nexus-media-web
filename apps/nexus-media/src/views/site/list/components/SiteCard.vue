@@ -108,18 +108,26 @@ const enabledFeatures = features.filter(
             text
             size="small"
             :loading="testing"
+            aria-label="连通性测试"
             title="连通性测试"
             @click="handleTest"
           >
             <IconifyIcon icon="lucide:activity" class="action-icon" />
           </NButton>
-          <NButton text size="small" title="编辑" @click="handleEdit">
+          <NButton
+            text
+            size="small"
+            aria-label="编辑"
+            title="编辑"
+            @click="handleEdit"
+          >
             <IconifyIcon icon="lucide:pencil" class="action-icon" />
           </NButton>
           <NButton
             text
             size="small"
             type="error"
+            aria-label="删除"
             title="删除"
             @click="handleDelete"
           >
@@ -195,7 +203,7 @@ const enabledFeatures = features.filter(
 .site-identity {
   display: flex;
   gap: 0.875rem;
-  align-items: flex-start;
+  align-items: center;
   margin-bottom: 1rem;
 }
 
@@ -231,8 +239,34 @@ const enabledFeatures = features.filter(
 .site-header-actions {
   display: flex;
   flex-shrink: 0;
-  gap: 0.25rem;
+  gap: 0.5rem;
+  align-items: center;
   margin-left: auto;
+}
+
+.site-header-actions :deep(.n-button) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 0.5rem;
+  transition: background-color 0.2s ease;
+}
+
+.site-header-actions :deep(.n-button):not(.n-button--disabled):hover {
+  background: hsl(var(--accent));
+}
+
+.site-header-actions
+  :deep(.n-button.n-button--error-type):not(.n-button--disabled):hover {
+  background: hsl(var(--destructive) / 12%);
+}
+
+.action-icon {
+  width: 1rem;
+  height: 1rem;
 }
 
 .site-meta {
@@ -377,7 +411,7 @@ const enabledFeatures = features.filter(
   .site-header-actions {
     justify-content: flex-end;
     width: 100%;
-    margin-top: 0.5rem;
+    margin-top: 0.75rem;
     margin-left: 0;
   }
 

@@ -15,6 +15,7 @@ import {
   NSelect,
   NSpace,
   NSpin,
+  NSwitch,
   NTag,
   useNotification,
 } from 'naive-ui';
@@ -69,7 +70,6 @@ const stateOptions = [
   { label: '全部状态', value: '' },
   { label: '运行中', value: 'Y' },
   { label: '已停止', value: 'S' },
-  { label: '已停用', value: 'N' },
 ];
 
 const filteredTasks = computed(() => {
@@ -180,11 +180,11 @@ async function fetchDownloaders() {
   }
 }
 
-async function handleToggle(task: BrushApi.BrushTask) {
-  const enable = task.state !== 'Y';
+async function handleToggle(task: BrushApi.BrushTask, enable?: boolean) {
+  const target = enable ?? task.state !== 'Y';
   try {
-    await toggleBrushTaskApi(task.id, enable);
-    notification.success({ content: enable ? '任务已启用' : '任务已停用' });
+    await toggleBrushTaskApi(task.id, target);
+    notification.success({ content: target ? '任务已启用' : '任务已停用' });
     await fetchData();
   } catch (error: any) {
     notification.error({
@@ -192,6 +192,41 @@ async function handleToggle(task: BrushApi.BrushTask) {
       description: error?.message || '',
     });
   }
+}
+
+function getMoreOptions() {
+  return [
+    {
+      label: '立即运行',
+      key: 'run',
+      icon: () => h(IconifyIcon, { icon: 'lucide:zap', class: 'h-4 w-4' }),
+    },
+    {
+      label: '编辑任务',
+      key: 'edit',
+      icon: () => h(IconifyIcon, { icon: 'lucide:pencil', class: 'h-4 w-4' }),
+    },
+    {
+      label: '种子列表',
+      key: 'torrents',
+      icon: () =>
+        h(IconifyIcon, { icon: 'lucide:file-text', class: 'h-4 w-4' }),
+    },
+    { type: 'divider', key: 'd1' },
+    {
+      label: '删除任务',
+      key: 'delete',
+      type: 'error',
+      icon: () => h(IconifyIcon, { icon: 'lucide:trash-2', class: 'h-4 w-4' }),
+    },
+  ];
+}
+
+function handleMoreSelect(key: string, row: BrushApi.BrushTask) {
+  if (key === 'run') handleRun(row);
+  if (key === 'edit') openEdit(row);
+  if (key === 'torrents') openTorrents(row);
+  if (key === 'delete') handleDelete(row);
 }
 
 async function handleRun(task: BrushApi.BrushTask) {
@@ -263,8 +298,14 @@ async function openDetail(task: BrushApi.BrushTask) {
 
 function getStateType(state?: string) {
   if (state === 'Y') return 'success';
-  if (state === 'N') return 'error';
+  if (state === 'S') return 'error';
   return 'default';
+}
+
+function getRowClass(state?: string) {
+  if (state === 'Y') return 'task-row task-row-running';
+  if (state === 'N') return 'task-row task-row-disabled';
+  return 'task-row task-row-stopped';
 }
 
 function getStateLabel(state?: string) {
@@ -308,40 +349,6 @@ function getDownloaderName(did?: number | string): string {
   const id = String(did);
   const d = downloaders.value.find((item) => item.value === id);
   return d?.label || id;
-}
-
-function getActionOptions() {
-  return [
-    {
-      label: '立即运行',
-      key: 'run',
-      icon: () => h(IconifyIcon, { icon: 'lucide:zap', class: 'h-4 w-4' }),
-    },
-    {
-      label: '查看详情',
-      key: 'detail',
-      icon: () => h(IconifyIcon, { icon: 'lucide:eye', class: 'h-4 w-4' }),
-    },
-    {
-      label: '编辑任务',
-      key: 'edit',
-      icon: () => h(IconifyIcon, { icon: 'lucide:pencil', class: 'h-4 w-4' }),
-    },
-    { type: 'divider', key: 'd1' },
-    {
-      label: '删除任务',
-      key: 'delete',
-      icon: () => h(IconifyIcon, { icon: 'lucide:trash-2', class: 'h-4 w-4' }),
-    },
-  ];
-}
-
-function handleActionSelect(key: string, row: BrushApi.BrushTask) {
-  if (key === 'run') handleRun(row);
-  if (key === 'detail') openDetail(row);
-  if (key === 'torrents') openTorrents(row);
-  if (key === 'edit') openEdit(row);
-  if (key === 'delete') handleDelete(row);
 }
 
 async function handleFormSubmit(data: any) {
@@ -396,224 +403,137 @@ onMounted(() => {
       </template>
     </PageHeader>
 
-    <!-- 统计卡片 -->
-    <div v-if="summary" class="stats-overview">
-      <NCard size="small" class="stat-card">
-        <div class="stat-icon">
-          <IconifyIcon icon="lucide:list" class="h-5 w-5" />
+    <!-- 任务列表卡片 -->
+    <NCard :bordered="false" :segmented="{ content: true }" class="task-card">
+      <template #header>
+        <div class="card-header">
+          <div class="filter-controls">
+            <NInput
+              v-model:value="searchKeyword"
+              placeholder="搜索任务名称、站点、下载器"
+              clearable
+              class="filter-input"
+              size="small"
+            >
+              <template #prefix>
+                <IconifyIcon
+                  icon="lucide:search"
+                  class="h-3.5 w-3.5 text-muted"
+                />
+              </template>
+            </NInput>
+            <NSelect
+              v-model:value="filterState"
+              :options="stateOptions"
+              placeholder="状态"
+              clearable
+              size="small"
+              style="width: 100px"
+            />
+            <NSelect
+              v-model:value="filterSite"
+              :options="[{ label: '全部站点', value: '' }, ...sites]"
+              placeholder="站点"
+              clearable
+              size="small"
+              style="width: 130px"
+            />
+          </div>
+          <div v-if="summary" class="filter-summary">
+            <span class="summary-pill">
+              <strong>{{ summary.total }}</strong> 个任务
+            </span>
+            <span class="summary-pill summary-pill-running">
+              <IconifyIcon icon="lucide:activity" class="h-3 w-3" />
+              <strong>{{ summary.running }}</strong> 运行
+            </span>
+            <span class="summary-pill summary-pill-stopped">
+              <IconifyIcon icon="lucide:pause-circle" class="h-3 w-3" />
+              <strong>{{ summary.stopped }}</strong> 停止
+            </span>
+            <span v-if="summary.disabled > 0" class="summary-pill">
+              <strong>{{ summary.disabled }}</strong> 停用
+            </span>
+          </div>
         </div>
-        <div class="stat-value">{{ summary.total }}</div>
-        <div class="stat-label">任务总数</div>
-      </NCard>
-      <NCard size="small" class="stat-card">
-        <div class="stat-icon stat-icon-success">
-          <IconifyIcon icon="lucide:activity" class="h-5 w-5" />
-        </div>
-        <div class="stat-value stat-success">{{ summary.running }}</div>
-        <div class="stat-label">运行中</div>
-      </NCard>
-      <NCard size="small" class="stat-card">
-        <div class="stat-icon stat-icon-muted">
-          <IconifyIcon icon="lucide:pause-circle" class="h-5 w-5" />
-        </div>
-        <div class="stat-value">{{ summary.stopped }}</div>
-        <div class="stat-label">已停止</div>
-      </NCard>
-      <NCard size="small" class="stat-card">
-        <div class="stat-icon stat-icon-error">
-          <IconifyIcon icon="lucide:power-off" class="h-5 w-5" />
-        </div>
-        <div class="stat-value stat-error">{{ summary.disabled }}</div>
-        <div class="stat-label">已停用</div>
-      </NCard>
-      <NCard size="small" class="stat-card">
-        <div class="stat-icon stat-icon-primary">
-          <IconifyIcon icon="lucide:download" class="h-5 w-5" />
-        </div>
-        <div class="stat-value stat-primary">{{ summary.totalDownloads }}</div>
-        <div class="stat-label">总下载数</div>
-      </NCard>
-      <NCard size="small" class="stat-card">
-        <div class="stat-icon stat-icon-warning">
-          <IconifyIcon icon="lucide:trash-2" class="h-5 w-5" />
-        </div>
-        <div class="stat-value stat-warning">{{ summary.totalRemoves }}</div>
-        <div class="stat-label">总删除数</div>
-      </NCard>
-    </div>
+      </template>
 
-    <!-- 筛选栏 -->
-    <div class="filter-bar">
-      <NInput
-        v-model:value="searchKeyword"
-        placeholder="搜索任务名称、站点、下载器"
-        clearable
-        style="width: 260px"
-        size="small"
-      >
-        <template #prefix>
-          <IconifyIcon
-            icon="lucide:search"
-            class="h-4 w-4"
-            style="color: hsl(var(--muted-foreground))"
-          />
-        </template>
-      </NInput>
-      <NSelect
-        v-model:value="filterState"
-        :options="stateOptions"
-        placeholder="状态筛选"
-        clearable
-        style="width: 130px"
-        size="small"
-      />
-      <NSelect
-        v-model:value="filterSite"
-        :options="[{ label: '全部站点', value: '' }, ...sites]"
-        placeholder="站点筛选"
-        clearable
-        style="width: 150px"
-        size="small"
-      />
-    </div>
-
-    <!-- 任务卡片列表 -->
-    <NSpin :show="loading">
-      <div v-if="filteredTasks.length > 0" class="task-grid">
-        <NCard
-          v-for="task in filteredTasks"
-          :key="task.id"
-          size="small"
-          class="task-card"
-          :class="{ 'task-card-active': task.state === 'Y' }"
-        >
-          <!-- 第一行：名称 + 操作 -->
-          <div class="task-row-header">
-            <div class="task-title-group">
-              <div
-                class="status-dot"
-                :class="{ 'status-dot-active': task.state === 'Y' }"
-              ></div>
-              <div class="task-title-text">
-                <div class="task-name" :title="task.name">{{ task.name }}</div>
-                <div class="task-meta">
-                  <span class="meta-item">
-                    <IconifyIcon icon="lucide:globe" class="h-3 w-3" />
-                    {{ task.site || '-' }}
-                  </span>
-                  <span class="meta-sep">/</span>
-                  <span class="meta-item">
-                    <IconifyIcon icon="lucide:hard-drive" class="h-3 w-3" />
-                    {{ getDownloaderName(task.downloader) }}
-                  </span>
-                  <span class="meta-sep">/</span>
-                  <span class="meta-item">
-                    <IconifyIcon icon="lucide:clock" class="h-3 w-3" />
-                    {{ formatInterval(task.interval) }}
+      <NSpin :show="loading">
+        <div v-if="filteredTasks.length > 0" class="task-list">
+          <div
+            v-for="task in filteredTasks"
+            :key="task.id"
+            :class="getRowClass(task.state)"
+            @click="openDetail(task)"
+          >
+            <div class="task-content">
+              <div class="task-main">
+                <div class="task-title-line">
+                  <span class="task-name" :title="task.name">{{
+                    task.name
+                  }}</span>
+                  <span
+                    class="task-badge"
+                    :class="`task-badge-${getStateType(task.state)}`"
+                    >{{ getStateLabel(task.state) }}</span
+                  >
+                  <span v-if="task.free" class="task-badge task-badge-free">{{
+                    getFreeLabel(task.free)
+                  }}</span>
+                  <span
+                    v-if="task.rule_id && ruleNameMap[task.rule_id]"
+                    class="task-badge task-badge-rule"
+                  >
+                    <IconifyIcon icon="lucide:filter" class="h-3 w-3" />
+                    <span>{{ ruleNameMap[task.rule_id] }}</span>
                   </span>
                 </div>
+                <div class="task-actions" @click.stop>
+                  <NSwitch
+                    :value="task.state === 'Y'"
+                    size="small"
+                    @update:value="(v) => handleToggle(task, v)"
+                  />
+                  <NDropdown
+                    trigger="click"
+                    :options="getMoreOptions()"
+                    @select="(key) => handleMoreSelect(key, task)"
+                  >
+                    <NButton text aria-label="更多操作" size="small">
+                      <IconifyIcon
+                        icon="lucide:more-vertical"
+                        class="h-4 w-4"
+                      />
+                    </NButton>
+                  </NDropdown>
+                </div>
+              </div>
+              <div class="task-meta">
+                {{ task.site || '-' }} ·
+                {{ task.downloader_name || getDownloaderName(task.downloader) }}
+                ·
+                {{ formatInterval(task.interval) }}
+              </div>
+              <div class="task-stats">
+                <span class="task-stat">
+                  <IconifyIcon icon="lucide:arrow-up" class="h-3.5 w-3.5" />
+                  上传 {{ task.upload_size || '-' }}
+                </span>
+                <span class="task-stat">
+                  <IconifyIcon icon="lucide:arrow-down" class="h-3.5 w-3.5" />
+                  下载 {{ task.download_size || '-' }}
+                </span>
               </div>
             </div>
-
-            <div class="task-badges">
-              <span
-                class="task-badge"
-                :class="`task-badge-${getStateType(task.state)}`"
-              >
-                {{ getStateLabel(task.state) }}
-              </span>
-              <span v-if="task.free" class="task-badge task-badge-free">
-                {{ getFreeLabel(task.free) }}
-              </span>
-              <span
-                v-if="task.rule_id && ruleNameMap[task.rule_id]"
-                class="task-badge task-badge-rule"
-              >
-                <IconifyIcon icon="lucide:filter" class="h-3 w-3" />
-                {{ ruleNameMap[task.rule_id] }}
-              </span>
-            </div>
           </div>
-
-          <!-- 第二行：统计数据 -->
-          <div class="task-row-stats">
-            <div class="stat-item">
-              <div class="stat-item-value">{{ task.download_count || 0 }}</div>
-              <div class="stat-item-label">下载</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-item-value">{{ task.remove_count || 0 }}</div>
-              <div class="stat-item-label">删除</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-item-value">{{ task.upload_size || '-' }}</div>
-              <div class="stat-item-label">上传</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-item-value">{{ task.download_size || '-' }}</div>
-              <div class="stat-item-label">下载量</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-item-value">
-                {{ task.seed_size != null ? `${task.seed_size}GB` : '-' }}
-              </div>
-              <div class="stat-item-label">保种</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-item-value">
-                {{ task.total_size != null ? `${task.total_size}GB` : '-' }}
-              </div>
-              <div class="stat-item-label">总量</div>
-            </div>
-          </div>
-
-          <!-- 第三行：操作 -->
-          <div class="task-row-actions">
-            <NButton
-              size="small"
-              :type="task.state === 'Y' ? 'default' : 'primary'"
-              :ghost="task.state !== 'Y'"
-              @click="handleToggle(task)"
-            >
-              {{ task.state === 'Y' ? '停用' : '启用' }}
-            </NButton>
-            <NButton size="small" @click="handleRun(task)">
-              <template #icon>
-                <IconifyIcon icon="lucide:zap" class="h-4 w-4" />
-              </template>
-              运行
-            </NButton>
-            <NButton size="small" @click="openDetail(task)">
-              <template #icon>
-                <IconifyIcon icon="lucide:eye" class="h-4 w-4" />
-              </template>
-              详情
-            </NButton>
-            <NButton size="small" @click="openTorrents(task)">
-              <template #icon>
-                <IconifyIcon icon="lucide:file-text" class="h-4 w-4" />
-              </template>
-              种子
-            </NButton>
-            <NDropdown
-              trigger="click"
-              :options="getActionOptions()"
-              @select="(key: string) => handleActionSelect(key, task)"
-            >
-              <NButton size="small" text>
-                <IconifyIcon icon="lucide:more-vertical" class="h-4 w-4" />
-              </NButton>
-            </NDropdown>
-          </div>
-        </NCard>
-      </div>
-
-      <EmptyState
-        v-else-if="!loading"
-        title="没有任务"
-        subtitle="当前没有符合条件的刷流任务"
-      />
-    </NSpin>
+        </div>
+        <EmptyState
+          v-else-if="!loading"
+          title="暂无刷流任务"
+          subtitle="点击「新增任务」创建第一个刷流任务"
+        />
+      </NSpin>
+    </NCard>
 
     <!-- 详情弹窗 -->
     <NModal
@@ -709,7 +629,10 @@ onMounted(() => {
 
         <!-- 配置信息 -->
         <div class="brush-detail-config">
-          <div class="brush-detail-config-title">配置信息</div>
+          <div class="brush-detail-config-title">
+            <IconifyIcon icon="lucide:settings" class="h-3.5 w-3.5" />
+            配置信息
+          </div>
           <div class="brush-detail-config-grid">
             <div class="brush-detail-config-item">
               <span class="brush-detail-config-label">刷新间隔</span>
@@ -944,195 +867,191 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.stats-overview {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+.task-card {
+  border-radius: 0.75rem;
+}
+
+.card-header {
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.stat-card {
-  text-align: center;
-}
-
-.stat-card :deep(.n-card__content) {
-  padding: 0.875rem 0.5rem;
-}
-
-.stat-icon {
-  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  margin-bottom: 0.375rem;
-  color: hsl(var(--primary));
-  background-color: hsl(var(--accent));
-  border-radius: 0.5rem;
+  justify-content: space-between;
 }
 
-.stat-icon-success {
-  color: hsl(var(--success));
-  background-color: hsl(var(--success) / 15%);
-}
-
-.stat-icon-muted {
-  color: hsl(var(--muted-foreground));
-  background-color: hsl(var(--muted-foreground) / 15%);
-}
-
-.stat-icon-primary {
-  color: hsl(var(--primary));
-  background-color: hsl(var(--primary) / 15%);
-}
-
-.stat-icon-warning {
-  color: hsl(var(--warning));
-  background-color: hsl(var(--warning) / 15%);
-}
-
-.stat-icon-error {
-  color: hsl(var(--destructive));
-  background-color: hsl(var(--destructive) / 15%);
-}
-
-.stat-value {
-  font-size: 1.25rem;
-  font-weight: 700;
-  line-height: 1.2;
-  color: hsl(var(--card-foreground));
-}
-
-.stat-success {
-  color: hsl(var(--success));
-}
-
-.stat-primary {
-  color: hsl(var(--primary));
-}
-
-.stat-warning {
-  color: hsl(var(--warning));
-}
-
-.stat-error {
-  color: hsl(var(--destructive));
-}
-
-.stat-label {
-  margin-top: 0.25rem;
-  font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
-}
-
-.filter-bar {
+.filter-controls {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  align-items: center;
 }
 
-/* 任务卡片网格 */
-.task-grid {
+.filter-input {
+  width: 260px;
+  max-width: 100%;
+}
+
+.filter-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.8125rem;
+}
+
+.summary-pill {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  color: hsl(var(--muted-foreground));
+  background-color: hsl(var(--accent));
+  border-radius: 0.375rem;
+}
+
+.summary-pill strong {
+  font-weight: 600;
+  color: hsl(var(--card-foreground));
+}
+
+.summary-pill-running {
+  color: hsl(var(--success));
+  background-color: hsl(var(--success) / 12%);
+}
+
+.summary-pill-running strong {
+  color: hsl(var(--success));
+}
+
+.summary-pill-stopped {
+  color: hsl(var(--destructive));
+  background-color: hsl(var(--destructive) / 12%);
+}
+
+.summary-pill-stopped strong {
+  color: hsl(var(--destructive));
+}
+
+.text-muted {
+  color: hsl(var(--muted-foreground));
+}
+
+.task-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
 }
 
-.task-card {
-  border-left: 3px solid transparent;
+@media (max-width: 768px) {
+  .task-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+.task-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: stretch;
+  padding: 1.25rem 1.5rem;
+  cursor: pointer;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem;
   transition: all 0.2s ease;
 }
 
-.task-card:hover {
-  border-color: hsl(var(--border));
-  box-shadow: 0 2px 8px rgb(0 0 0 / 4%);
+.task-row:hover {
+  background-color: hsl(var(--accent) / 60%);
+  border-color: hsl(var(--border) / 70%);
+  box-shadow: 0 4px 12px -2px hsl(var(--border) / 30%);
+  transform: translateY(-1px);
 }
 
-.task-card-active {
-  border-left-color: hsl(var(--success));
+.task-row-running {
+  background-color: hsl(var(--success) / 5%);
+  border-left: 4px solid hsl(var(--success));
 }
 
-.task-card :deep(.n-card__content) {
-  padding: 1rem;
+.task-row-running:hover {
+  background-color: hsl(var(--success) / 8%);
 }
 
-/* 第一行：名称 + 操作 */
-.task-row-header {
+.task-row-stopped {
+  border-left: 4px solid hsl(var(--destructive));
+}
+
+.task-row-disabled {
+  border-left: 4px solid hsl(var(--muted-foreground));
+}
+
+.task-content {
   display: flex;
-  gap: 0.75rem;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.task-main {
+  display: flex;
+  gap: 1rem;
   align-items: flex-start;
   justify-content: space-between;
 }
 
-.task-title-group {
-  display: flex;
-  flex: 1;
-  gap: 0.625rem;
-  align-items: flex-start;
-  min-width: 0;
-}
-
-.status-dot {
-  flex-shrink: 0;
-  width: 0.5rem;
-  height: 0.5rem;
-  margin-top: 0.5rem;
-  background-color: hsl(var(--muted-foreground));
-  border-radius: 9999px;
-}
-
-.status-dot-active {
-  background-color: hsl(var(--success));
-  box-shadow: 0 0 0 2px hsl(var(--success) / 20%);
-}
-
-.task-title-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.task-name {
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.4;
-  color: hsl(var(--card-foreground));
-  overflow-wrap: break-word;
-}
-
-.task-meta {
+.task-title-line {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
-  margin-top: 0.25rem;
+  min-width: 0;
 }
 
-.meta-item {
-  display: inline-flex;
-  gap: 0.25rem;
-  align-items: center;
-  font-size: 0.8125rem;
-  color: hsl(var(--muted-foreground));
+.task-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: hsl(var(--card-foreground));
   white-space: nowrap;
 }
 
-.meta-sep {
-  font-size: 0.8125rem;
-  color: hsl(var(--border));
-}
-
-.task-badges {
+.task-actions {
   display: flex;
   flex-shrink: 0;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.task-meta {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: hsl(var(--muted-foreground));
+}
+
+.task-stats {
+  display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
+  gap: 0.75rem 1rem;
+  align-items: center;
+  font-size: 0.8125rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.task-stat {
+  display: inline-flex;
+  gap: 0.25rem;
   align-items: center;
 }
 
 .task-badge {
-  padding: 0.125rem 0.5rem;
-  font-size: 0.75rem;
+  display: inline-flex;
+  gap: 0.1875rem;
+  align-items: center;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.6875rem;
   font-weight: 500;
   line-height: 1.4;
   white-space: nowrap;
@@ -1146,7 +1065,7 @@ onMounted(() => {
 
 .task-badge-error {
   color: hsl(var(--destructive));
-  background-color: hsl(var(--destructive) / 10%);
+  background-color: hsl(var(--destructive) / 12%);
 }
 
 .task-badge-default {
@@ -1160,57 +1079,50 @@ onMounted(() => {
 }
 
 .task-badge-rule {
-  display: inline-flex;
-  gap: 0.25rem;
-  align-items: center;
   color: hsl(var(--primary));
   background-color: hsl(var(--primary) / 12%);
 }
 
 .task-badge-info {
-  color: hsl(210deg 80% 55%);
-  background-color: hsl(210deg 80% 55% / 10%);
+  color: hsl(var(--info));
+  background-color: hsl(var(--info) / 12%);
 }
 
 .task-badge-warning {
   color: hsl(var(--warning));
-  background-color: hsl(var(--warning) / 15%);
+  background-color: hsl(var(--warning) / 12%);
 }
 
-/* 第二行：统计数据 */
-.task-row-stats {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 0.5rem;
-  padding: 0.625rem;
-  margin-top: 0.75rem;
-  background-color: hsl(var(--accent));
-  border-radius: 0.5rem;
-}
+@media (max-width: 768px) {
+  .card-header {
+    align-items: flex-start;
+  }
 
-.stat-item {
-  text-align: center;
-}
+  .filter-input {
+    width: 100%;
+  }
 
-.stat-item-value {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: hsl(var(--card-foreground));
-}
+  .filter-summary {
+    width: 100%;
+  }
 
-.stat-item-label {
-  margin-top: 0.125rem;
-  font-size: 0.6875rem;
-  color: hsl(var(--muted-foreground));
-}
+  .task-main {
+    flex-direction: column;
+    gap: 0.625rem;
+  }
 
-/* 第三行：操作按钮 */
-.task-row-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  margin-top: 0.75rem;
+  .task-actions {
+    justify-content: flex-end;
+    width: 100%;
+  }
+
+  .brush-detail-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .brush-detail-config-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* 详情弹窗 */
@@ -1365,6 +1277,9 @@ onMounted(() => {
 }
 
 .brush-detail-config-title {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
   padding-bottom: 0.5rem;
   margin-bottom: 0.75rem;
   font-size: 0.875rem;
@@ -1455,45 +1370,5 @@ onMounted(() => {
   line-height: 1.5;
   color: hsl(var(--muted-foreground));
   word-break: break-all;
-}
-
-@media (max-width: 768px) {
-  .stats-overview {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .filter-bar {
-    flex-direction: column;
-  }
-
-  .filter-bar :deep(.n-input),
-  .filter-bar :deep(.n-select) {
-    width: 100% !important;
-  }
-
-  .brush-detail-metrics {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .brush-detail-config-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .task-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .task-row-stats {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .task-row-header {
-    flex-wrap: wrap;
-  }
-
-  .task-badges {
-    width: 100%;
-    margin-top: 0.25rem;
-  }
 }
 </style>

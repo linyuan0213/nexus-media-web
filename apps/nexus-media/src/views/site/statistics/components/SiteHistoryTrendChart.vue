@@ -15,10 +15,10 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const { formatSize } = useSiteStats();
+const { formatSize, getChartDataKey } = useSiteStats();
 
 const chartRef = ref<EchartsUIType>();
-const { renderEcharts } = useEcharts(chartRef);
+const { renderEcharts, updateData } = useEcharts(chartRef);
 
 const COLORS = {
   download: 'hsl(340, 85%, 58%)',
@@ -39,6 +39,7 @@ function tooltipHtml(title: string, items: any[]): string {
 
 function buildOption() {
   return {
+    animationDurationUpdate: 0,
     grid: {
       bottom: 24,
       containLabel: true,
@@ -102,10 +103,15 @@ onMounted(() => {
   renderEcharts(buildOption() as any);
 });
 
+let dataCacheKey = '';
+
 watch(
   () => [props.labels, props.uploadData, props.downloadData],
-  () => {
-    renderEcharts(buildOption() as any);
+  (newVal) => {
+    const key = getChartDataKey(newVal);
+    if (key === dataCacheKey) return;
+    dataCacheKey = key;
+    updateData(buildOption() as any);
   },
   { deep: true },
 );

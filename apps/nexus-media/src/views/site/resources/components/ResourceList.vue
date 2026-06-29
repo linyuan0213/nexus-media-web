@@ -38,7 +38,7 @@ const { formatDate, formatSize, getFreeTag, getLabelClass, parseLabels } =
         color: 'hsl(var(--muted-foreground))',
       }"
     >
-      <IconifyIcon icon="lucide:film" class="h-5 w-5 opacity-50" />
+      <IconifyIcon icon="lucide:film" class="h-4 w-4 opacity-40" />
       <div
         v-if="getFreeTag(item)"
         class="resource-list-poster-badge"
@@ -156,7 +156,7 @@ const { formatDate, formatSize, getFreeTag, getLabelClass, parseLabels } =
   display: flex;
   gap: 0.75rem;
   align-items: center;
-  padding: 0.75rem 1rem;
+  padding: 0.625rem 0.875rem;
   overflow: hidden;
   border: 1px solid;
   border-radius: var(--radius);
@@ -173,8 +173,8 @@ const { formatDate, formatSize, getFreeTag, getLabelClass, parseLabels } =
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 3rem;
-  height: 3rem;
+  width: 2.5rem;
+  height: 2.5rem;
   overflow: hidden;
   border-radius: 0.5rem;
 }
@@ -233,43 +233,53 @@ const { formatDate, formatSize, getFreeTag, getLabelClass, parseLabels } =
 }
 
 .resource-tag-default {
-  color: hsl(var(--muted-foreground));
-  background-color: hsl(var(--muted) / 30%);
+  color: hsl(var(--tag-default));
+  background-color: hsl(var(--tag-default) / 18%);
 }
 
 .resource-tag-primary {
-  color: hsl(var(--primary));
-  background-color: hsl(var(--primary) / 10%);
+  color: hsl(var(--tag-primary));
+  background-color: hsl(var(--tag-primary) / 20%);
 }
 
 .resource-tag-danger {
-  color: hsl(var(--destructive));
-  background-color: hsl(var(--destructive) / 10%);
+  color: hsl(var(--tag-danger));
+  background-color: hsl(var(--tag-danger) / 20%);
 }
 
 .resource-tag-lang {
-  color: hsl(var(--success));
-  background-color: hsl(var(--success) / 12%);
+  color: hsl(var(--tag-lang));
+  background-color: hsl(var(--tag-lang) / 18%);
 }
 
 .resource-tag-quality {
-  color: hsl(var(--warning));
-  background-color: hsl(var(--warning) / 15%);
+  color: hsl(var(--tag-quality));
+  background-color: hsl(var(--tag-quality) / 20%);
 }
 
 .resource-tag-audio {
-  color: hsl(var(--info));
-  background-color: hsl(var(--info) / 12%);
+  color: hsl(var(--tag-audio));
+  background-color: hsl(var(--tag-audio) / 18%);
 }
 
 .resource-tag-source {
-  color: hsl(var(--card-foreground));
-  background-color: hsl(var(--accent));
+  color: hsl(var(--tag-source));
+  background-color: hsl(var(--tag-source) / 18%);
 }
 
 .resource-tag-edition {
-  color: hsl(var(--secondary-foreground));
-  background-color: hsl(var(--secondary));
+  color: hsl(var(--tag-edition));
+  background-color: hsl(var(--tag-edition) / 18%);
+}
+
+.resource-tag-dolby {
+  color: hsl(var(--tag-dolby));
+  background-color: hsl(var(--tag-dolby) / 18%);
+}
+
+.resource-tag-hdr {
+  color: hsl(var(--tag-hdr));
+  background-color: hsl(var(--tag-hdr) / 18%);
 }
 
 .resource-list-meta {
@@ -302,23 +312,23 @@ const { formatDate, formatSize, getFreeTag, getLabelClass, parseLabels } =
 @media (max-width: 640px) {
   .resource-list-item {
     flex-wrap: wrap;
-    padding: 0.625rem;
+    padding: 0.5rem 0.625rem;
   }
 
   .resource-list-poster {
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 2.25rem;
+    height: 2.25rem;
   }
 
   .resource-list-main {
-    flex: 1 1 calc(100% - 3.25rem);
+    flex: 1 1 calc(100% - 3rem);
   }
 
   .resource-list-meta {
     order: 3;
     width: 100%;
     margin-top: 0.25rem;
-    margin-left: 3.25rem;
+    margin-left: 3rem;
   }
 
   .resource-list-actions {

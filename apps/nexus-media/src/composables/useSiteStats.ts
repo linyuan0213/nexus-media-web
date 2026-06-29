@@ -108,10 +108,15 @@ export function useSiteStats() {
     );
   }
 
+  function getChartDataKey(input: unknown): string {
+    return JSON.stringify(input);
+  }
+
   return {
     formatCompactSize,
     formatSize,
     generateChartColor,
+    getChartDataKey,
     getChartPalette,
     getThemeColor,
     getThemeColors,

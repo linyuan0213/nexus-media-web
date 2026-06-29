@@ -902,29 +902,33 @@ onMounted(() => {
 <style scoped>
 .rule-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
 }
 
 .rule-card {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-left: 4px solid hsl(var(--primary));
+  border-radius: 1rem;
   transition: all 0.2s ease;
 }
 
 .rule-card:hover {
-  border-color: hsl(var(--primary) / 30%);
-  box-shadow: 0 4px 12px rgb(0 0 0 / 6%);
+  background-color: hsl(var(--accent) / 60%);
+  border-color: hsl(var(--border) / 70%);
+  box-shadow: 0 4px 12px -2px hsl(var(--border) / 30%);
+  transform: translateY(-1px);
 }
 
 .rule-card :deep(.n-card__content) {
-  padding: 1rem;
+  padding: 1.25rem 1.5rem;
 }
 
 .rule-header {
   display: flex;
   gap: 0.75rem;
   align-items: center;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid hsl(var(--border));
 }
 
 .rule-icon {
@@ -945,7 +949,7 @@ onMounted(() => {
 }
 
 .rule-name {
-  font-size: 0.9375rem;
+  font-size: 1rem;
   font-weight: 600;
   line-height: 1.4;
   color: hsl(var(--card-foreground));
@@ -954,7 +958,7 @@ onMounted(() => {
 
 .rule-date {
   margin-top: 0.125rem;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: hsl(var(--muted-foreground));
 }
 

@@ -22,14 +22,13 @@ export function useResourceHelpers() {
       return 'lang';
     if (/禁转|禁止|禁|exclusive/.test(lower)) return 'danger';
     if (/官组|官方|官|official/.test(lower)) return 'primary';
-    if (
-      /hdr|sdr|杜比视界|dolby.vision|画质|4k|2160p|1080p|720p|hevc|x264|x265|avc|vp9/.test(
-        lower,
-      )
-    )
+    if (/(?:^|\b)dv\b|dovi|dolby[.\s]vision|杜比视界/.test(lower))
+      return 'dolby';
+    if (/hdr10\+|hdr10|hdr/.test(lower)) return 'hdr';
+    if (/sdr|画质|4k|2160p|1080p|720p|hevc|x264|x265|avc|vp9/.test(lower))
       return 'quality';
     if (
-      /杜比|dobly|atmos|truehd|dts|flac|aac|ac3|eac3|mp3|opus|audio/.test(lower)
+      /杜比|dolby|atmos|truehd|dts|flac|aac|ac3|eac3|mp3|opus|audio/.test(lower)
     )
       return 'audio';
     if (
@@ -46,14 +45,16 @@ export function useResourceHelpers() {
   function getLabelClass(label: string): string {
     const type = getLabelType(label);
     const map: Record<LabelType, string> = {
-      lang: 'resource-tag-lang',
+      audio: 'resource-tag-audio',
       danger: 'resource-tag-danger',
+      default: 'resource-tag-default',
+      dolby: 'resource-tag-dolby',
+      edition: 'resource-tag-edition',
+      hdr: 'resource-tag-hdr',
+      lang: 'resource-tag-lang',
       primary: 'resource-tag-primary',
       quality: 'resource-tag-quality',
-      audio: 'resource-tag-audio',
       source: 'resource-tag-source',
-      edition: 'resource-tag-edition',
-      default: 'resource-tag-default',
     };
     return map[type];
   }

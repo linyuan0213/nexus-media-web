@@ -21,6 +21,18 @@
   --tblr-purple: #ae3ec9;
   --tblr-pink: #d6336c;
 
+  /* 资源标签 - 更鲜明的语义色 */
+  --tag-dolby: 270 60% 55%;
+  --tag-hdr: 45 90% 50%;
+  --tag-lang: 150 60% 42%;
+  --tag-danger: 0 78% 54%;
+  --tag-primary: 215 90% 48%;
+  --tag-quality: 195 75% 45%;
+  --tag-audio: 245 65% 55%;
+  --tag-source: 210 14% 42%;
+  --tag-edition: 28 82% 45%;
+  --tag-default: 215 16% 50%;
+
   /* 卡片 */
   --tblr-card-border-radius: calc(var(--radius) - 2px);
   --tblr-card-border-color: hsl(var(--border));

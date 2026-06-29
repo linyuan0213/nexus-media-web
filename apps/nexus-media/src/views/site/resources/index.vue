@@ -471,11 +471,11 @@ onUnmounted(() => {
 .header-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 0.75rem;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 1rem;
-  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.875rem;
   border-bottom: 1px solid;
 }
 
@@ -534,8 +534,8 @@ onUnmounted(() => {
 }
 
 .search-bar {
-  padding: 0.75rem;
-  margin-bottom: 1rem;
+  padding: 0.625rem;
+  margin-bottom: 0.75rem;
   border: 1px solid;
   border-radius: 0.5rem;
 }
@@ -553,12 +553,12 @@ onUnmounted(() => {
 }
 
 .stats-bar {
-  padding: 0 0.25rem;
-  margin-bottom: 0.75rem;
+  padding: 0 0.125rem;
+  margin-bottom: 0.625rem;
 }
 
 .stats-text {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
 }
 
 .stats-text strong {
@@ -567,30 +567,30 @@ onUnmounted(() => {
 
 .resource-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 0.625rem;
 }
 
 .resource-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.375rem;
 }
 
 .pagination-bar {
   display: flex;
   justify-content: center;
-  padding-top: 1rem;
-  margin-top: 1.25rem;
+  padding-top: 0.875rem;
+  margin-top: 1rem;
   border-top: 1px solid;
 }
 
 @media (max-width: 640px) {
   .header-row {
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.5rem;
     align-items: flex-start;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.625rem;
   }
 
   .toolbar-actions {
