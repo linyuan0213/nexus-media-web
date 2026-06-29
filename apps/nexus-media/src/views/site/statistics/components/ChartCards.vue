@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import { computed } from 'vue';
+
 import { NCard, NEmpty } from 'naive-ui';
 
 import { type StatisticsItem, useSiteStats } from '#/composables/useSiteStats';
@@ -29,11 +31,31 @@ const emit = defineEmits<{
 
 const { parseSize } = useSiteStats();
 
-const hasHistoryData = () => props.historyData.length > 0;
-const hasUploadData = () =>
-  props.statistics.some((s) => parseSize(s.upload) > 0);
-const hasSeedingData = () =>
-  props.statistics.some((s) => (s.seeding_count || 0) > 0);
+const barLabels = computed(() => props.statistics.map((i) => i.site_name));
+const barUploads = computed(() =>
+  props.statistics.map((i) => parseSize(i.upload)),
+);
+const barDownloads = computed(() =>
+  props.statistics.map((i) => parseSize(i.download)),
+);
+
+const uploadPieData = computed(() =>
+  props.statistics
+    .map((i) => ({ name: i.site_name, value: parseSize(i.upload) }))
+    .filter((i) => i.value > 0)
+    .toSorted((a, b) => b.value - a.value),
+);
+
+const trendLabels = computed(() => props.historyData.map((i) => i[0]));
+const trendUploads = computed(() => props.historyData.map((i) => i[1]));
+const trendDownloads = computed(() => props.historyData.map((i) => i[2]));
+
+const seedingRoseData = computed(() =>
+  props.statistics
+    .map((i) => ({ name: i.site_name, value: i.seeding_count || 0 }))
+    .filter((i) => i.value > 0)
+    .toSorted((a, b) => b.value - a.value),
+);
 </script>
 
 <template>
@@ -44,7 +66,12 @@ const hasSeedingData = () =>
       class="chart-card"
       title="站点流量对比"
     >
-      <SiteTrafficBarChart v-if="statistics.length > 0" :data="statistics" />
+      <SiteTrafficBarChart
+        v-if="statistics.length > 0"
+        :labels="barLabels"
+        :upload-data="barUploads"
+        :download-data="barDownloads"
+      />
       <NEmpty v-else description="暂无站点流量数据" />
     </NCard>
 
@@ -54,7 +81,10 @@ const hasSeedingData = () =>
       class="chart-card"
       title="上传量分布"
     >
-      <SiteUploadPieChart v-if="hasUploadData()" :data="statistics" />
+      <SiteUploadPieChart
+        v-if="uploadPieData.length > 0"
+        :data="uploadPieData"
+      />
       <NEmpty v-else description="暂无上传量数据" />
     </NCard>
 
@@ -64,7 +94,12 @@ const hasSeedingData = () =>
       class="chart-card"
       title="近7天流量增量"
     >
-      <SiteHistoryTrendChart v-if="hasHistoryData()" :data="historyData" />
+      <SiteHistoryTrendChart
+        v-if="historyData.length > 0"
+        :labels="trendLabels"
+        :upload-data="trendUploads"
+        :download-data="trendDownloads"
+      />
       <NEmpty v-else description="暂无近7天流量数据" />
     </NCard>
 
@@ -74,7 +109,10 @@ const hasSeedingData = () =>
       class="chart-card"
       title="做种数分布（玫瑰图）"
     >
-      <SiteSeedingRoseChart v-if="hasSeedingData()" :data="statistics" />
+      <SiteSeedingRoseChart
+        v-if="seedingRoseData.length > 0"
+        :data="seedingRoseData"
+      />
       <NEmpty v-else description="暂无做种数据" />
     </NCard>
 
@@ -117,10 +155,6 @@ const hasSeedingData = () =>
   gap: 1rem;
   width: 100%;
   max-width: 100%;
-}
-
-.chart-card :deep(.n-card__content) {
-  overflow: hidden;
 }
 
 .chart-card-full {

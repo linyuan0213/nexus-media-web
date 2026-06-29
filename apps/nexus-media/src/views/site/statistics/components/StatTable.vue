@@ -180,7 +180,7 @@ const columns = computed(() => getColumns(props.isMobile));
 <template>
   <NDataTable
     :columns="columns"
-    :data="data"
+    :data="[...data]"
     :pagination="{ pageSize: 20 }"
     :bordered="false"
     size="small"

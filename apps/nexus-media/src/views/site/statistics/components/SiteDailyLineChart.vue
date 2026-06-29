@@ -23,19 +23,32 @@ const props = withDefaults(defineProps<Props>(), {
   mode: 'upload',
 });
 
-const { formatSize, generateChartColor, getThemeColors } = useSiteStats();
+const { formatSize } = useSiteStats();
 
 const chartRef = ref<EchartsUIType>();
 const { renderEcharts } = useEcharts(chartRef);
 
-const colors = getThemeColors();
+const TEXT_COLOR = 'hsl(var(--card-foreground))';
+
+const PALETTE = [
+  'hsl(217, 90%, 58%)',
+  'hsl(145, 75%, 42%)',
+  'hsl(340, 85%, 58%)',
+  'hsl(24, 95%, 55%)',
+  'hsl(280, 70%, 60%)',
+  'hsl(160, 75%, 45%)',
+  'hsl(195, 85%, 45%)',
+  'hsl(55, 90%, 50%)',
+];
+
+function getColor(index: number): string {
+  return PALETTE[index % PALETTE.length] || PALETTE[0]!;
+}
 
 const activeSeries = computed(() => {
   return props.series.map((s, idx) => ({
     data: props.mode === 'upload' ? s.upload : s.download,
-    itemStyle: {
-      color: generateChartColor(idx, props.series.length),
-    },
+    itemStyle: { color: getColor(idx) },
     lineStyle: { width: 2 },
     name: s.name,
     showSymbol: true,
@@ -58,18 +71,18 @@ function buildOption() {
       bottom: 0,
       itemGap: 12,
       left: 'center',
-      textStyle: { color: colors.cardForeground, fontSize: 11 },
+      textStyle: { fontSize: 11 },
       type: 'scroll' as const,
     },
     series: activeSeries.value,
     tooltip: {
       axisPointer: { type: 'line' as const },
       formatter: (params: any) => {
-        let html = `<div style="font-weight:600;margin-bottom:4px">${params[0]?.name}</div>`;
+        let html = `<div style="font-weight:600;margin-bottom:4px;color:${TEXT_COLOR}">${params[0]?.name}</div>`;
         params.forEach((p: any) => {
           html += `<div style="display:flex;align-items:center;gap:6px">
             <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color}"></span>
-            <span>${p.seriesName}: ${formatSize(p.value)}</span>
+            <span style="color:${TEXT_COLOR}">${p.seriesName}: ${formatSize(p.value)}</span>
           </div>`;
         });
         return html;
@@ -78,7 +91,6 @@ function buildOption() {
     },
     xAxis: {
       axisLabel: {
-        color: colors.mutedForeground,
         fontSize: 10,
         rotate: 30,
       },
@@ -89,7 +101,6 @@ function buildOption() {
     },
     yAxis: {
       axisLabel: {
-        color: colors.mutedForeground,
         fontSize: 10,
         formatter: (v: number) => formatSize(v),
       },
@@ -97,7 +108,7 @@ function buildOption() {
       axisTick: { show: false },
       splitLine: {
         lineStyle: {
-          color: colors.border,
+          color: 'hsl(var(--border) / 0.5)',
           type: 'dashed' as const,
         },
       },
@@ -120,5 +131,5 @@ watch(
 </script>
 
 <template>
-  <EchartsUI ref="chartRef" class="h-80 w-full" />
+  <EchartsUI ref="chartRef" class="h-64 w-full" />
 </template>

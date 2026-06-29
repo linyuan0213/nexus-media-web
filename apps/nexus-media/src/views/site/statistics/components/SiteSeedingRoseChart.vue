@@ -5,67 +5,63 @@ import { onMounted, ref, watch } from 'vue';
 
 import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 
-import { type StatisticsItem, useSiteStats } from '#/composables/useSiteStats';
+import { useSiteStats } from '#/composables/useSiteStats';
 
 interface Props {
-  data: StatisticsItem[];
+  data: Array<{ name: string; value: number }>;
 }
 
 const props = defineProps<Props>();
 
-const { getChartPalette, getThemeColors } = useSiteStats();
+const { getChartPalette } = useSiteStats();
 
 const chartRef = ref<EchartsUIType>();
 const { renderEcharts } = useEcharts(chartRef);
 
-const colors = getThemeColors();
+const TEXT_COLOR = 'hsl(var(--card-foreground))';
 
 function buildOption() {
-  const chartData = props.data
-    .map((i) => ({ name: i.site_name, value: i.seeding_count || 0 }))
-    .filter((i) => i.value > 0)
-    .toSorted((a, b) => b.value - a.value);
-
   return {
-    color: getChartPalette(chartData.length),
+    color: getChartPalette(props.data.length),
     legend: {
-      bottom: 20,
-      orient: 'vertical' as const,
-      right: 10,
-      textStyle: { color: colors.cardForeground },
-      top: 20,
+      bottom: 0,
+      itemGap: 8,
+      left: 'center',
+      textStyle: { fontSize: 11 },
       type: 'scroll' as const,
     },
     series: [
       {
-        center: ['35%', '50%'],
-        data: chartData,
+        center: ['50%', '45%'],
+        data: props.data,
         emphasis: {
           label: {
-            color: colors.cardForeground,
-            fontSize: 13,
-            fontWeight: 'bold' as const,
+            formatter: '{b}\n{c}',
             show: true,
           },
+          labelLine: {
+            lineStyle: { width: 1.5 },
+            show: true,
+            smooth: true,
+          },
+          scale: true,
+          scaleSize: 8,
         },
         itemStyle: {
-          borderColor: colors.card,
-          borderRadius: 6,
-          borderWidth: 2,
+          borderRadius: 4,
         },
         label: { show: false },
         labelLine: { show: false },
-        name: '做种分布',
-        radius: [20, 100],
+        radius: [16, 100],
         roseType: 'area' as const,
         type: 'pie' as const,
       },
     ],
     tooltip: {
       formatter: (params: any) =>
-        `<div style="font-weight:600">${params.name}</div>
-         <div>做种数: ${params.value}</div>
-         <div>占比: ${params.percent}%</div>`,
+        `<div style="font-weight:600;color:${TEXT_COLOR}">${params.name}</div>
+         <div style="color:${TEXT_COLOR}">做种数: ${params.value}</div>
+         <div style="color:${TEXT_COLOR}">占比: ${params.percent}%</div>`,
       trigger: 'item' as const,
     },
   };
