@@ -65,19 +65,24 @@ const rmtModes = [
     "
   >
     <template #header>
-      <div class="flex items-center gap-2">
-        <IconifyIcon
-          icon="lucide:database"
-          class="size-4"
-          style="color: hsl(var(--primary))"
-        />
-        <span class="font-semibold" style="color: hsl(var(--card-foreground))"
-          >媒体</span
-        >
+      <div>
+        <div class="flex items-center gap-2">
+          <IconifyIcon
+            icon="lucide:database"
+            class="size-4"
+            style="color: hsl(var(--primary))"
+          />
+          <span class="font-semibold" style="color: hsl(var(--card-foreground))"
+            >媒体</span
+          >
+        </div>
+        <div class="mt-1 text-xs" style="color: hsl(var(--muted-foreground))">
+          TMDB、重命名格式、转移方式与刮削选项
+        </div>
       </div>
     </template>
     <NForm label-placement="top">
-      <NGrid cols="1 s:1 m:2 l:2" :x-gap="16" responsive="screen">
+      <NGrid cols="1 s:1 m:2 l:3" :x-gap="12" :y-gap="8" responsive="screen">
         <NGridItem span="1">
           <NFormItem label="TMDB API Key">
             <NInput

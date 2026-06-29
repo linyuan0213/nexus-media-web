@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { onMounted, ref } from 'vue';
 
-import { NSpin, useMessage } from 'naive-ui';
+import { NSpin, NTabPane, NTabs, useMessage } from 'naive-ui';
 
 import {
   getAllSystemConfigApi,
@@ -18,7 +18,6 @@ import LaboratorySection from './components/LaboratorySection.vue';
 import LogSection from './components/LogSection.vue';
 import MediaSection from './components/MediaSection.vue';
 import ServiceSection from './components/ServiceSection.vue';
-import SettingsNav from './components/SettingsNav.vue';
 import SiteConfigCard from './components/SiteConfigCard.vue';
 import SystemSection from './components/SystemSection.vue';
 
@@ -28,7 +27,7 @@ const loading = ref(false);
 const saving = ref<null | string>(null);
 const loadingModels = ref(false);
 const modelOptions = ref<string[]>([]);
-const activeNavId = ref('basic_system');
+const activeTab = ref('system');
 
 const config = ref<Record<string, any>>({});
 
@@ -250,32 +249,9 @@ async function handleReloadConfig() {
   }
 }
 
-function onScroll() {
-  const sections: string[] = [
-    'basic_system',
-    'basic_log',
-    'basic_media',
-    'basic_ai',
-    'basic_service',
-    'basic_laboratory',
-  ];
-  for (let i = sections.length - 1; i >= 0; i--) {
-    const sectionId = sections[i]!;
-    const el = document.querySelector(`#${sectionId}`);
-    if (el) {
-      const rect = el.getBoundingClientRect();
-      if (rect.top <= 120) {
-        activeNavId.value = sectionId;
-        break;
-      }
-    }
-  }
-}
-
 onMounted(() => {
   fetchData();
   fetchSiteConfigVersion();
-  window.addEventListener('scroll', onScroll, { passive: true });
 });
 </script>
 
@@ -295,35 +271,40 @@ onMounted(() => {
     />
 
     <NSpin :show="loading">
-      <div class="grid grid-cols-1 gap-6 lg:grid-cols-4">
-        <div class="hidden lg:block">
-          <div class="sticky top-20">
-            <SettingsNav v-model:active-id="activeNavId" />
-          </div>
-        </div>
-
-        <div class="lg:col-span-3">
+      <NTabs
+        v-model:value="activeTab"
+        type="line"
+        animated
+        class="settings-tabs"
+      >
+        <NTabPane name="system" tab="系统">
           <SystemSection
             :config="config"
             :saving="saving === 'system'"
             @save="saveSystem"
             @update-config="updateConfig"
           />
+        </NTabPane>
 
+        <NTabPane name="log" tab="日志">
           <LogSection
             :config="config"
             :saving="saving === 'log'"
             @save="saveLog"
             @update-config="updateConfig"
           />
+        </NTabPane>
 
+        <NTabPane name="media" tab="媒体">
           <MediaSection
             :config="config"
             :saving="saving === 'media'"
             @save="saveMedia"
             @update-config="updateConfig"
           />
+        </NTabPane>
 
+        <NTabPane name="agent" tab="Agent">
           <AgentSection
             :config="config"
             :saving="saving === 'ai'"
@@ -333,22 +314,26 @@ onMounted(() => {
             @fetch-models="fetchModels"
             @update-config="updateConfig"
           />
+        </NTabPane>
 
+        <NTabPane name="service" tab="服务">
           <ServiceSection
             :config="config"
             :saving="saving === 'service'"
             @save="saveService"
             @update-config="updateConfig"
           />
+        </NTabPane>
 
+        <NTabPane name="laboratory" tab="实验室">
           <LaboratorySection
             :config="config"
             :saving="saving === 'laboratory'"
             @save="saveLaboratory"
             @update-config="updateConfig"
           />
-        </div>
-      </div>
+        </NTabPane>
+      </NTabs>
     </NSpin>
   </div>
 </template>

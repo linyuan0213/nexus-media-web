@@ -40,19 +40,24 @@ const emit = defineEmits<{
     "
   >
     <template #header>
-      <div class="flex items-center gap-2">
-        <IconifyIcon
-          icon="lucide:settings"
-          class="size-4"
-          style="color: hsl(var(--primary))"
-        />
-        <span class="font-semibold" style="color: hsl(var(--card-foreground))"
-          >服务</span
-        >
+      <div>
+        <div class="flex items-center gap-2">
+          <IconifyIcon
+            icon="lucide:settings"
+            class="size-4"
+            style="color: hsl(var(--primary))"
+          />
+          <span class="font-semibold" style="color: hsl(var(--card-foreground))"
+            >服务</span
+          >
+        </div>
+        <div class="mt-1 text-xs" style="color: hsl(var(--muted-foreground))">
+          RSS订阅、媒体库同步、站点刷新等后台任务周期
+        </div>
       </div>
     </template>
     <NForm label-placement="top">
-      <NGrid cols="1 s:1 m:2 l:2" :x-gap="16" responsive="screen">
+      <NGrid cols="1 s:1 m:2 l:3" :x-gap="12" :y-gap="8" responsive="screen">
         <NGridItem span="1">
           <NFormItem label="订阅RSS周期(秒)">
             <NInput

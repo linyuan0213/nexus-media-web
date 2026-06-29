@@ -40,19 +40,24 @@ const emit = defineEmits<{
     "
   >
     <template #header>
-      <div class="flex items-center gap-2">
-        <IconifyIcon
-          icon="lucide:flask-conical"
-          class="size-4"
-          style="color: hsl(var(--primary))"
-        />
-        <span class="font-semibold" style="color: hsl(var(--card-foreground))"
-          >实验室</span
-        >
+      <div>
+        <div class="flex items-center gap-2">
+          <IconifyIcon
+            icon="lucide:flask-conical"
+            class="size-4"
+            style="color: hsl(var(--primary))"
+          />
+          <span class="font-semibold" style="color: hsl(var(--card-foreground))"
+            >实验室</span
+          >
+        </div>
+        <div class="mt-1 text-xs" style="color: hsl(var(--muted-foreground))">
+          实验性功能、辅助识别与外部服务地址
+        </div>
       </div>
     </template>
     <NForm label-placement="top">
-      <NGrid cols="1 s:1 m:2 l:3" :x-gap="16" responsive="screen">
+      <NGrid cols="1 s:1 m:2 l:4" :x-gap="12" :y-gap="8" responsive="screen">
         <NGridItem span="1">
           <NFormItem label="辅助识别">
             <NSwitch

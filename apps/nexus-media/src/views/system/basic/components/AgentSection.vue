@@ -108,20 +108,25 @@ function placeholder(field: string) {
     "
   >
     <template #header>
-      <div class="flex items-center gap-2">
-        <IconifyIcon
-          icon="lucide:cpu"
-          class="size-4"
-          style="color: hsl(var(--primary))"
-        />
-        <span class="font-semibold" style="color: hsl(var(--card-foreground))"
-          >Agent 设置</span
-        >
+      <div>
+        <div class="flex items-center gap-2">
+          <IconifyIcon
+            icon="lucide:cpu"
+            class="size-4"
+            style="color: hsl(var(--primary))"
+          />
+          <span class="font-semibold" style="color: hsl(var(--card-foreground))"
+            >Agent 设置</span
+          >
+        </div>
+        <div class="mt-1 text-xs" style="color: hsl(var(--muted-foreground))">
+          AI Provider 选择、API 配置与模型设置
+        </div>
       </div>
     </template>
 
     <NForm label-placement="top">
-      <NGrid cols="1 s:1 m:2 l:3" :x-gap="16" responsive="screen">
+      <NGrid cols="1 s:1 m:2 l:3" :x-gap="12" :y-gap="8" responsive="screen">
         <NGridItem span="1">
           <NFormItem label="启用 Agent">
             <NSwitch
@@ -154,18 +159,17 @@ function placeholder(field: string) {
       <!-- Provider 选择卡片 -->
       <NFormItem label="默认 Provider">
         <div
-          class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+          class="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6"
         >
           <div
             v-for="p in providers"
             :key="p.value"
-            class="flex cursor-pointer items-center gap-2 rounded-lg border p-3 transition-all"
-            :class="
-              currentProvider === p.value
-                ? 'border-primary bg-accent ring-1 ring-primary'
-                : 'hover:border-primary/50 hover:bg-accent/50'
-            "
+            class="flex cursor-pointer items-center gap-2 rounded-lg border p-2 transition-all"
             :style="{
+              background:
+                currentProvider === p.value
+                  ? 'hsl(var(--primary))'
+                  : 'transparent',
               borderColor:
                 currentProvider === p.value
                   ? 'hsl(var(--primary))'
@@ -179,16 +183,16 @@ function placeholder(field: string) {
               :style="{
                 color:
                   currentProvider === p.value
-                    ? 'hsl(var(--primary))'
+                    ? 'hsl(var(--primary-foreground))'
                     : 'hsl(var(--muted-foreground))',
               }"
             />
             <span
-              class="text-sm font-medium"
+              class="text-xs font-medium"
               :style="{
                 color:
                   currentProvider === p.value
-                    ? 'hsl(var(--foreground))'
+                    ? 'hsl(var(--primary-foreground))'
                     : 'hsl(var(--muted-foreground))',
               }"
               >{{ p.label }}</span
