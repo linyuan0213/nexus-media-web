@@ -1,0 +1,89 @@
+<script lang="ts" setup>
+import type { EchartsUIType } from '@vben/plugins/echarts';
+
+import { onMounted, ref, watch } from 'vue';
+
+import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
+
+import { type StatisticsItem, useSiteStats } from '#/composables/useSiteStats';
+
+interface Props {
+  data: StatisticsItem[];
+}
+
+const props = defineProps<Props>();
+
+const { getChartPalette, getThemeColors } = useSiteStats();
+
+const chartRef = ref<EchartsUIType>();
+const { renderEcharts } = useEcharts(chartRef);
+
+const colors = getThemeColors();
+
+function buildOption() {
+  const chartData = props.data
+    .map((i) => ({ name: i.site_name, value: i.seeding_count || 0 }))
+    .filter((i) => i.value > 0)
+    .toSorted((a, b) => b.value - a.value);
+
+  return {
+    color: getChartPalette(chartData.length),
+    legend: {
+      bottom: 20,
+      orient: 'vertical' as const,
+      right: 10,
+      textStyle: { color: colors.cardForeground },
+      top: 20,
+      type: 'scroll' as const,
+    },
+    series: [
+      {
+        center: ['35%', '50%'],
+        data: chartData,
+        emphasis: {
+          label: {
+            color: colors.cardForeground,
+            fontSize: 13,
+            fontWeight: 'bold' as const,
+            show: true,
+          },
+        },
+        itemStyle: {
+          borderColor: colors.card,
+          borderRadius: 6,
+          borderWidth: 2,
+        },
+        label: { show: false },
+        labelLine: { show: false },
+        name: '做种分布',
+        radius: [20, 100],
+        roseType: 'area' as const,
+        type: 'pie' as const,
+      },
+    ],
+    tooltip: {
+      formatter: (params: any) =>
+        `<div style="font-weight:600">${params.name}</div>
+         <div>做种数: ${params.value}</div>
+         <div>占比: ${params.percent}%</div>`,
+      trigger: 'item' as const,
+    },
+  };
+}
+
+onMounted(() => {
+  renderEcharts(buildOption() as any);
+});
+
+watch(
+  () => props.data,
+  () => {
+    renderEcharts(buildOption() as any);
+  },
+  { deep: true },
+);
+</script>
+
+<template>
+  <EchartsUI ref="chartRef" class="h-64 w-full" />
+</template>

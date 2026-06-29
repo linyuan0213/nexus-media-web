@@ -26,7 +26,7 @@ const props = withDefaults(defineProps<Props>(), {
 const { formatSize, generateChartColor, getThemeColors } = useSiteStats();
 
 const chartRef = ref<EchartsUIType>();
-const { renderEcharts, updateData } = useEcharts(chartRef);
+const { renderEcharts } = useEcharts(chartRef);
 
 const colors = getThemeColors();
 
@@ -113,7 +113,7 @@ onMounted(() => {
 watch(
   () => [props.dates, props.series, props.mode],
   () => {
-    updateData(buildOption() as any);
+    renderEcharts(buildOption() as any);
   },
   { deep: true },
 );
