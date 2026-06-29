@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
@@ -303,8 +303,12 @@ watch(
     await nextTick();
     renderAllCharts();
   },
-  { deep: true },
+  { deep: true, immediate: true },
 );
+
+onMounted(() => {
+  nextTick().then(renderAllCharts);
+});
 </script>
 
 <template>
@@ -319,6 +323,10 @@ watch(
         </div>
       </template>
       <EchartsUI ref="chartBarRef" height="320px" />
+      <div v-if="statistics.length === 0" class="chart-empty">
+        <IconifyIcon icon="lucide:bar-chart-2" class="chart-empty-icon" />
+        <span class="chart-empty-text">暂无站点流量数据</span>
+      </div>
     </NCard>
 
     <NCard size="small" class="chart-card">
@@ -331,6 +339,13 @@ watch(
         </div>
       </template>
       <EchartsUI ref="chartPieRef" height="320px" />
+      <div
+        v-if="!statistics.some((s) => parseSize(s.upload) > 0)"
+        class="chart-empty"
+      >
+        <IconifyIcon icon="lucide:pie-chart" class="chart-empty-icon" />
+        <span class="chart-empty-text">暂无上传量数据</span>
+      </div>
     </NCard>
 
     <NCard size="small" class="chart-card">
@@ -343,6 +358,10 @@ watch(
         </div>
       </template>
       <EchartsUI ref="chartTrendRef" height="320px" />
+      <div v-if="historyData.length === 0" class="chart-empty">
+        <IconifyIcon icon="lucide:trending-up" class="chart-empty-icon" />
+        <span class="chart-empty-text">暂无近7天流量数据</span>
+      </div>
     </NCard>
 
     <NCard size="small" class="chart-card">
@@ -355,6 +374,13 @@ watch(
         </div>
       </template>
       <EchartsUI ref="chartRoseRef" height="320px" />
+      <div
+        v-if="!statistics.some((s) => (s.seeding_count || 0) > 0)"
+        class="chart-empty"
+      >
+        <IconifyIcon icon="lucide:flower-2" class="chart-empty-icon" />
+        <span class="chart-empty-text">暂无做种数据</span>
+      </div>
     </NCard>
 
     <NCard
@@ -403,7 +429,29 @@ watch(
 }
 
 .chart-card :deep(.n-card__content) {
+  position: relative;
   padding: 0.5rem;
+}
+
+.chart-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  color: hsl(var(--muted-foreground));
+}
+
+.chart-empty-icon {
+  width: 2rem;
+  height: 2rem;
+  opacity: 0.4;
+}
+
+.chart-empty-text {
+  font-size: 0.8125rem;
 }
 
 .chart-card-full {

@@ -114,7 +114,7 @@ watch(
   () => {
     renderEcharts(buildOption());
   },
-  { deep: true },
+  { deep: true, immediate: true },
 );
 </script>
 
