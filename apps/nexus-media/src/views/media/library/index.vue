@@ -1,489 +1,190 @@
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import {
-  NButton,
-  NCard,
-  NCheckbox,
-  NModal,
-  NSpace,
-  NSpin,
-  NTag,
-} from 'naive-ui';
+import { NButton, NSpin, useMessage } from 'naive-ui';
 
-import { getLibraryHistoryApi, getLibraryHomeApi } from '#/api';
-import EmptyState from '#/components/empty/EmptyState.vue';
+import { getLibraryHomeApi } from '#/api';
 import PageHeader from '#/components/page/PageHeader.vue';
 
-interface LibraryItem {
-  id: number;
-  name: string;
-  link?: string;
-  image?: string;
-  image_list?: string[];
+import ActivityList from './components/ActivityList.vue';
+import LibraryCard from './components/LibraryCard.vue';
+import MediaPosterCard from './components/MediaPosterCard.vue';
+import ServerStatusLine from './components/ServerStatusLine.vue';
+import StatSummary from './components/StatSummary.vue';
+import StorageUsage from './components/StorageUsage.vue';
+
+const message = useMessage();
+
+const loading = ref(true);
+const serverSuccess = ref(false);
+const mediaCounts = ref<Record<string, number | string>>({});
+const librarySpaces = ref<Record<string, any>>({});
+const libraries = ref<any[]>([]);
+const resumes = ref<any[]>([]);
+const latests = ref<any[]>([]);
+const activitys = ref<any[]>([]);
+
+const hasLibraries = computed(() => libraries.value.length > 0);
+const hasResumes = computed(() => resumes.value.length > 0);
+const hasLatests = computed(() => latests.value.length > 0);
+
+function typeLabel(type?: string) {
+  const map: Record<string, string> = {
+    movie: '电影',
+    tv: '电视剧',
+    series: '电视剧',
+    anime: '动漫',
+    music: '音乐',
+  };
+  return map[(type || '').toLowerCase()] || type || '';
 }
-
-interface ResumeItem {
-  id: number;
-  name: string;
-  link?: string;
-  image?: string;
-  type: string;
-  percent?: number;
-}
-
-interface LatestItem {
-  id: number;
-  name: string;
-  link?: string;
-  image?: string;
-  type: string;
-}
-
-const libraries = ref<LibraryItem[]>([]);
-const resumes = ref<ResumeItem[]>([]);
-const latests = ref<LatestItem[]>([]);
-const loading = ref(false);
-const serverSuccess = ref(true);
-
-// 同步弹窗
-const syncModalShow = ref(false);
-const syncProgress = ref(0);
-const syncing = ref(false);
-const syncLibraries = ref<number[]>([]);
-
-// 播放记录弹窗
-const historyModalShow = ref(false);
-const historyLoading = ref(false);
-const historyList = ref<any[]>([]);
-
-// 统计数据弹窗
-const statsModalShow = ref(false);
-const statsData = ref<Record<string, any>>({});
 
 async function fetchData() {
   loading.value = true;
   try {
     const res = await getLibraryHomeApi();
-    const data = res?.data || res;
-    if (data && data.server_success !== false) {
-      serverSuccess.value = true;
+    const data = (res as any)?.data || res;
+    if (data) {
+      serverSuccess.value = data.server_success !== false;
+      mediaCounts.value = data.media_counts || {};
+      librarySpaces.value = data.library_spaces || {};
       libraries.value = data.librarys || [];
       resumes.value = data.resumes || [];
       latests.value = data.latests || [];
-      statsData.value = data;
-    } else {
-      serverSuccess.value = false;
+      activitys.value = data.activitys || [];
     }
-  } catch {
+  } catch (error: any) {
     serverSuccess.value = false;
+    message.error(error?.message || '获取媒体库数据失败');
   } finally {
     loading.value = false;
   }
-}
-
-function handleSync() {
-  syncModalShow.value = true;
-  syncProgress.value = 0;
-  syncLibraries.value = libraries.value.map((l) => l.id);
-}
-
-function startMediaSync() {
-  syncing.value = true;
-  syncProgress.value = 0;
-  // TODO: 调用同步接口
-  const timer = setInterval(() => {
-    syncProgress.value += 10;
-    if (syncProgress.value >= 100) {
-      clearInterval(timer);
-      syncing.value = false;
-    }
-  }, 500);
-}
-
-async function showHistory() {
-  historyModalShow.value = true;
-  historyLoading.value = true;
-  try {
-    const res = await getLibraryHistoryApi();
-    historyList.value = Array.isArray(res) ? res : res?.data || [];
-  } finally {
-    historyLoading.value = false;
-  }
-}
-
-function showStats() {
-  statsModalShow.value = true;
-}
-
-function getTypeColor(type: string) {
-  return type === 'movie' ? 'bg-green-500' : 'bg-blue-500';
-}
-
-function getTypeLabel(type: string) {
-  const map: Record<string, string> = {
-    movie: '电影',
-    tv: '电视剧',
-  };
-  return map[type] || type || '未知';
-}
-
-function replaceLocalhost(url?: string) {
-  if (!url) return '';
-  if (
-    url.startsWith('http://127.0.0.1') ||
-    url.startsWith('https://127.0.0.1')
-  ) {
-    return url.replace(/127\.0\.0\.1:\d+/, window.location.host);
-  }
-  if (
-    url.startsWith('http://localhost') ||
-    url.startsWith('https://localhost')
-  ) {
-    return url.replace(/localhost:\d+/, window.location.host);
-  }
-  return url;
 }
 
 onMounted(fetchData);
 </script>
 
 <template>
-  <div class="p-4">
+  <div class="p-4 lg:p-6">
     <PageHeader title="我的媒体库">
       <template #actions>
-        <NSpace>
-          <NButton
-            type="primary"
-            :disabled="!serverSuccess"
-            @click="handleSync"
-          >
-            <template #icon>
-              <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
-            </template>
-            媒体库同步
-          </NButton>
-          <NButton :disabled="!serverSuccess" @click="showStats">
-            <template #icon>
-              <IconifyIcon icon="lucide:bar-chart-3" class="size-4" />
-            </template>
-            统计数据
-          </NButton>
-          <NButton :disabled="!serverSuccess" @click="showHistory">
-            <template #icon>
-              <IconifyIcon icon="lucide:history" class="size-4" />
-            </template>
-            播放记录
-          </NButton>
-        </NSpace>
+        <NButton @click="fetchData">
+          <template #icon>
+            <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
+          </template>
+          刷新
+        </NButton>
       </template>
     </PageHeader>
 
     <NSpin :show="loading">
-      <!-- 媒体服务器连接失败 -->
-      <div v-if="!serverSuccess && !loading" class="mt-8">
-        <EmptyState
-          title="媒体服务器连接失败！"
-          subtitle="当前无法连接媒体服务器获取数据，请确认Emby/Jellyfin/Plex配置是否正确。"
-        />
-      </div>
+      <template #default>
+        <!-- 服务器状态 -->
+        <ServerStatusLine class="mb-6" :connected="serverSuccess" />
 
-      <template v-else>
-        <!-- 媒体库 -->
-        <div v-if="libraries.length > 0" class="page-body mt-4">
-          <div class="grid gap-3 grid-normal-card">
-            <a
+        <!-- 统计摘要 -->
+        <StatSummary class="mb-8" :counts="mediaCounts" />
+
+        <!-- 媒体库列表 -->
+        <section v-if="hasLibraries" class="mb-8">
+          <div class="mb-4 flex items-center gap-2">
+            <IconifyIcon
+              icon="lucide:library"
+              class="size-5"
+              style="color: hsl(var(--primary))"
+            />
+            <h2
+              class="text-lg font-semibold"
+              style="color: hsl(var(--card-foreground))"
+            >
+              媒体库
+            </h2>
+          </div>
+          <div
+            class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          >
+            <LibraryCard
               v-for="lib in libraries"
               :key="lib.id"
-              class="card card-link-pop rounded-3 overflow-hidden"
-              :href="replaceLocalhost(lib.link)"
-              target="_blank"
-            >
-              <img
-                v-if="lib.image"
-                :src="lib.image"
-                class="w-100 object-cover"
-                style="aspect-ratio: 2/1"
-                alt=""
-              />
-              <div
-                v-else-if="lib.image_list && lib.image_list.length > 0"
-                class="relative"
-              >
-                <img
-                  :src="lib.image_list[0]"
-                  class="w-100 object-cover"
-                  style="aspect-ratio: 2/1"
-                  alt=""
-                />
-              </div>
-              <div class="m-2 text-center text-sm">{{ lib.name }}</div>
-            </a>
+              :name="lib.name"
+              :image="lib.image"
+              :image-list="lib.image_list"
+              :href="lib.link"
+            />
           </div>
-        </div>
+        </section>
 
         <!-- 正在观看 -->
-        <div v-if="resumes.length > 0" class="mt-8">
-          <div class="page-header mb-4">
-            <h2 class="text-lg font-semibold">正在观看</h2>
+        <section v-if="hasResumes" class="mb-8">
+          <div class="mb-4 flex items-center gap-2">
+            <IconifyIcon
+              icon="lucide:play-circle"
+              class="size-5"
+              style="color: hsl(var(--primary))"
+            />
+            <h2
+              class="text-lg font-semibold"
+              style="color: hsl(var(--card-foreground))"
+            >
+              正在观看
+            </h2>
           </div>
-          <div class="grid gap-3 grid-normal-card align-items-start">
-            <a
+          <div class="flex gap-4 overflow-x-auto pb-3">
+            <MediaPosterCard
               v-for="item in resumes"
               :key="item.id"
-              class="card card-link-pop rounded-3 overflow-hidden relative"
-              :href="replaceLocalhost(item.link)"
-              target="_blank"
-            >
-              <img
-                :src="item.image || '/static/img/no-image.png'"
-                class="w-100 object-cover"
-                style="aspect-ratio: 2/1"
-                alt=""
-              />
-              <span
-                class="absolute top-2 left-2 text-white text-xs px-2 py-0.5 rounded-full"
-                :class="getTypeColor(item.type)"
-              >
-                {{ getTypeLabel(item.type) }}
-              </span>
-              <div
-                v-if="item.percent"
-                class="absolute bottom-0 left-0 right-0 h-1 bg-gray-200"
-              >
-                <div
-                  class="h-full bg-green-500"
-                  :style="{ width: `${item.percent}%` }"
-                ></div>
-              </div>
-              <div class="m-2 text-center text-sm truncate">
-                {{ item.name }}
-              </div>
-            </a>
+              :title="item.name"
+              :image="item.image"
+              :type="item.type"
+              :type-label="typeLabel(item.type)"
+              :percent="item.percent"
+              :href="item.link"
+            />
           </div>
-        </div>
+        </section>
 
-        <!-- 最新入库 -->
-        <div v-if="latests.length > 0" class="mt-8">
-          <div class="page-header mb-4">
-            <h2 class="text-lg font-semibold">最新入库</h2>
+        <!-- 最近入库 -->
+        <section v-if="hasLatests" class="mb-8">
+          <div class="mb-4 flex items-center gap-2">
+            <IconifyIcon
+              icon="lucide:sparkles"
+              class="size-5"
+              style="color: hsl(var(--primary))"
+            />
+            <h2
+              class="text-lg font-semibold"
+              style="color: hsl(var(--card-foreground))"
+            >
+              最近入库
+            </h2>
           </div>
-          <div class="grid gap-3 grid-media-card align-items-start">
-            <a
+          <div class="flex gap-4 overflow-x-auto pb-3">
+            <MediaPosterCard
               v-for="item in latests"
               :key="item.id"
-              class="card card-link-pop overflow-hidden rounded-3 relative"
-              :href="replaceLocalhost(item.link)"
-              target="_blank"
-            >
-              <img
-                :src="item.image || '/static/img/no-image.png'"
-                class="w-100 object-cover"
-                style="aspect-ratio: 2/3"
-                alt=""
-              />
-              <span
-                class="absolute top-2 left-2 text-white text-xs px-2 py-0.5 rounded-full"
-                :class="getTypeColor(item.type)"
-              >
-                {{ getTypeLabel(item.type) }}
-              </span>
-              <div class="m-2 text-center text-sm truncate">
-                {{ item.name }}
-              </div>
-            </a>
+              :title="item.name"
+              :image="item.image"
+              :type="item.type"
+              :type-label="typeLabel(item.type)"
+              :href="item.link"
+            />
           </div>
-        </div>
+        </section>
 
-        <!-- 无数据 -->
-        <div
-          v-if="libraries.length === 0 && !loading && serverSuccess"
-          class="mt-8"
-        >
-          <EmptyState title="暂无媒体库" subtitle="请配置媒体服务器后同步" />
+        <!-- 底部：存储 + 动态 -->
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <StorageUsage
+            :free-space="librarySpaces.FreeSpace"
+            :total-space="librarySpaces.TotalSpace"
+            :used-space="librarySpaces.UsedSpace"
+            :used-percent="librarySpaces.UsedPercent"
+          />
+
+          <ActivityList class="lg:col-span-2" :items="activitys" />
         </div>
       </template>
     </NSpin>
-
-    <!-- 同步弹窗 -->
-    <NModal
-      v-model:show="syncModalShow"
-      title="媒体库同步"
-      preset="card"
-      :style="{ width: '480px', maxWidth: '92vw' }"
-      :closable="!syncing"
-      :mask-closable="!syncing"
-    >
-      <div class="text-center mb-4">
-        <div
-          class="w-16 h-16 rounded-full bg-gray-100 mx-auto mb-3 flex items-center justify-center"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="32"
-            height="32"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <rect width="20" height="16" x="2" y="4" rx="2" />
-            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-          </svg>
-        </div>
-        <div class="font-medium">媒体服务器</div>
-        <div class="text-sm text-gray-500 mt-1">
-          {{ syncing ? '同步中...' : '准备就绪' }}
-        </div>
-      </div>
-
-      <details class="m-3">
-        <summary class="cursor-pointer text-sm text-gray-600">
-          媒体库列表
-        </summary>
-        <div class="mt-2 space-y-2">
-          <NCheckbox
-            v-for="lib in libraries"
-            :key="lib.id"
-            :checked="syncLibraries.includes(lib.id)"
-            :value="lib.id"
-          >
-            {{ lib.name }}
-          </NCheckbox>
-        </div>
-      </details>
-
-      <div class="card-progress">
-        <div class="h-1 bg-gray-200 rounded overflow-hidden">
-          <div
-            class="h-full bg-green-500 transition-all duration-300"
-            :style="{ width: `${syncProgress}%` }"
-          ></div>
-        </div>
-      </div>
-
-      <template #footer>
-        <NSpace justify="center">
-          <NButton :disabled="syncing" @click="syncModalShow = false">
-            关闭
-          </NButton>
-          <NButton type="primary" :loading="syncing" @click="startMediaSync">
-            {{ syncing ? '同步中...' : '开始同步' }}
-          </NButton>
-        </NSpace>
-      </template>
-    </NModal>
-
-    <!-- 播放记录弹窗 -->
-    <NModal
-      v-model:show="historyModalShow"
-      title="播放记录"
-      preset="card"
-      :style="{ width: '720px', maxWidth: '92vw' }"
-    >
-      <NSpin :show="historyLoading">
-        <div
-          v-if="historyList.length > 0"
-          class="space-y-3 max-h-[500px] overflow-auto"
-        >
-          <div
-            v-for="(item, idx) in historyList"
-            :key="idx"
-            class="flex items-center gap-3 p-2 rounded hover:bg-gray-50"
-          >
-            <div
-              class="w-10 h-10 rounded flex items-center justify-center flex-shrink-0"
-              :class="
-                item.type === 'PL'
-                  ? 'bg-primary/10 text-primary'
-                  : 'bg-muted/30 text-muted-foreground'
-              "
-            >
-              <IconifyIcon
-                :icon="item.type === 'PL' ? 'lucide:play' : 'lucide:log-in'"
-                class="h-5 w-5"
-              />
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="font-medium truncate">{{ item.event }}</div>
-              <div class="text-sm text-gray-500">{{ item.date }}</div>
-            </div>
-            <NTag
-              size="small"
-              :type="item.type === 'PL' ? 'primary' : 'default'"
-            >
-              {{ item.type === 'PL' ? '播放' : '登录' }}
-            </NTag>
-          </div>
-        </div>
-        <EmptyState
-          v-else
-          title="暂无播放记录"
-          subtitle="媒体服务器暂无播放数据"
-        />
-      </NSpin>
-    </NModal>
-
-    <!-- 统计数据弹窗 -->
-    <NModal
-      v-model:show="statsModalShow"
-      title="统计数据"
-      preset="card"
-      :style="{ width: '480px', maxWidth: '92vw' }"
-    >
-      <div class="grid grid-cols-3 gap-4">
-        <NCard size="small">
-          <div class="text-2xl font-bold text-primary">
-            {{ statsData.media_counts?.Movie || 0 }}
-          </div>
-          <div class="text-sm text-gray-500">电影数量</div>
-        </NCard>
-        <NCard size="small">
-          <div class="text-2xl font-bold text-primary">
-            {{ statsData.media_counts?.Series || 0 }}
-          </div>
-          <div class="text-sm text-gray-500">剧集数量</div>
-        </NCard>
-        <NCard size="small">
-          <div class="text-2xl font-bold text-primary">
-            {{ statsData.media_counts?.Episodes || 0 }}
-          </div>
-          <div class="text-sm text-gray-500">总集数</div>
-        </NCard>
-      </div>
-    </NModal>
   </div>
 </template>
-
-<style scoped>
-.grid-normal-card {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 0.75rem;
-}
-
-.grid-media-card {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 0.75rem;
-}
-
-.card-link-pop {
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.card-link-pop:hover {
-  box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
-  transform: translateY(-2px);
-}
-
-.truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-</style>

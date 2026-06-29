@@ -14,16 +14,17 @@ export namespace DashboardApi {
 
   export interface LibraryHome {
     server_success: boolean;
-    media_counts: Record<string, number>;
-    activity: any[];
+    media_counts: Record<string, number | string>;
+    activitys: any[];
     library_spaces: {
-      free_space: string;
-      total_space: string;
-      used_percent: number;
-      used_space: string;
+      FreeSpace: string;
+      TotalSpace: string;
+      UsedPercent: number;
+      UsedSpace: string;
     };
-    downloaded: any[];
-    server_type: string;
+    librarys: any[];
+    resumes: any[];
+    latests: any[];
   }
 
   export interface SiteStatisticsItem {
