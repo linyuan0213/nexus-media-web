@@ -1,10 +1,10 @@
 <script lang="ts" setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 
-import { NCard } from 'naive-ui';
+import { NCard, NEmpty } from 'naive-ui';
 
 import { type StatisticsItem, useSiteStats } from '#/composables/useSiteStats';
 
@@ -28,13 +28,8 @@ const emit = defineEmits<{
   'update:dailyMode': [mode: 'download' | 'upload'];
 }>();
 
-const {
-  formatSize,
-  getChartPalette,
-  getThemeColor,
-  getThemeColors,
-  parseSize,
-} = useSiteStats();
+const { formatSize, getChartPalette, getThemeColors, parseSize } =
+  useSiteStats();
 
 const chartBarRef = ref<any>(null);
 const chartPieRef = ref<any>(null);
@@ -46,52 +41,59 @@ const { renderEcharts: renderPie } = useEcharts(chartPieRef);
 const { renderEcharts: renderTrend } = useEcharts(chartTrendRef);
 const { renderEcharts: renderRose } = useEcharts(chartRoseRef);
 
-const chartTooltipColor = computed(() => getThemeColor('--foreground'));
+const hasHistoryData = () => props.historyData.length > 0;
+const hasUploadData = () =>
+  props.statistics.some((s) => parseSize(s.upload) > 0);
+const hasSeedingData = () =>
+  props.statistics.some((s) => (s.seeding_count || 0) > 0);
 
 function commonGrid(bottom = '15%') {
   return {
+    bottom,
+    containLabel: true,
     left: '3%',
     right: '4%',
-    bottom,
     top: '10%',
-    containLabel: true,
   };
 }
 
 function commonXAxis(data: string[]) {
   return {
-    type: 'category' as const,
-    data,
     axisLabel: {
-      rotate: 45,
+      color: getThemeColors().mutedForeground,
       interval: 0,
-      color: getThemeColor('--muted-foreground'),
+      rotate: 45,
     },
-    axisLine: { lineStyle: { color: getThemeColor('--border') } },
+    axisLine: { lineStyle: { color: getThemeColors().border } },
+    data,
+    type: 'category' as const,
   };
 }
 
 function commonYAxis(name?: string) {
   return {
-    type: 'value' as const,
-    name,
-    nameTextStyle: { color: getThemeColor('--muted-foreground') },
     axisLabel: {
-      color: getThemeColor('--muted-foreground'),
+      color: getThemeColors().mutedForeground,
       formatter: (value: number) => formatSize(value),
     },
+    name,
+    nameTextStyle: { color: getThemeColors().mutedForeground },
     splitLine: {
-      lineStyle: { color: getThemeColor('--border'), type: 'dashed' as const },
+      lineStyle: {
+        color: getThemeColors().border,
+        type: 'dashed' as const,
+      },
     },
+    type: 'value' as const,
   };
 }
 
 function tooltipHtml(title: string, items: any[]): string {
-  let result = `<div style="font-weight:600;margin-bottom:4px;color:${chartTooltipColor.value}">${title}</div>`;
+  let result = `<div style="font-weight:600;margin-bottom:4px">${title}</div>`;
   items.forEach((p: any) => {
     result += `<div style="display:flex;align-items:center;gap:6px">
       <span style="width:8px;height:8px;border-radius:50%;background:${p.color}"></span>
-      <span style="color:${chartTooltipColor.value}">${p.seriesName}: ${formatSize(p.value)}</span>
+      <span>${p.seriesName}: ${formatSize(p.value)}</span>
     </div>`;
   });
   return result;
@@ -112,202 +114,196 @@ function renderBarChart() {
   const colors = getThemeColors();
 
   renderBar({
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-      formatter: (params: any) => tooltipHtml(params[0].name, params),
-    },
+    grid: commonGrid(),
     legend: {
-      data: ['上传量', '下载量'],
       bottom: 0,
+      data: ['上传量', '下载量'],
       textStyle: { color: colors.cardForeground },
     },
-    grid: commonGrid(),
-    xAxis: commonXAxis(sites),
-    yAxis: commonYAxis('流量'),
     series: [
       {
+        barMaxWidth: 24,
+        data: uploads,
+        itemStyle: { borderRadius: [4, 4, 0, 0], color: colors.success },
         name: '上传量',
         type: 'bar',
-        data: uploads,
-        itemStyle: { color: colors.success, borderRadius: [4, 4, 0, 0] },
-        barMaxWidth: 24,
       },
       {
+        barMaxWidth: 24,
+        data: downloads,
+        itemStyle: { borderRadius: [4, 4, 0, 0], color: colors.warning },
         name: '下载量',
         type: 'bar',
-        data: downloads,
-        itemStyle: { color: colors.warning, borderRadius: [4, 4, 0, 0] },
-        barMaxWidth: 24,
       },
     ],
+    tooltip: {
+      axisPointer: { type: 'shadow' },
+      formatter: (params: any) => tooltipHtml(params[0].name, params),
+      trigger: 'axis',
+    },
+    xAxis: commonXAxis(sites),
+    yAxis: commonYAxis('流量'),
   });
 }
 
 function renderPieChart() {
-  if (props.statistics.length === 0) return;
+  if (!hasUploadData()) return;
   const data = props.statistics
     .map((i) => ({ name: i.site_name, value: parseSize(i.upload) }))
     .filter((i) => i.value > 0)
     .toSorted((a, b) => b.value - a.value);
 
-  if (data.length === 0) return;
-
   const palette = getChartPalette(data.length);
 
   renderPie({
-    tooltip: {
-      trigger: 'item',
-      formatter: (params: any) => {
-        return `<div style="font-weight:600;color:${chartTooltipColor.value}">${params.name}</div>
-                <div style="color:${chartTooltipColor.value}">上传量: ${formatSize(params.value)}</div>
-                <div style="color:${chartTooltipColor.value}">占比: ${params.percent}%</div>`;
-      },
-    },
+    color: palette,
     legend: {
-      type: 'scroll',
+      bottom: 20,
       orient: 'vertical',
       right: 10,
+      textStyle: { color: getThemeColors().cardForeground },
       top: 20,
-      bottom: 20,
-      textStyle: { color: getThemeColor('--card-foreground') },
+      type: 'scroll',
     },
-    color: palette,
     series: [
       {
-        name: '上传量分布',
-        type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['35%', '50%'],
         avoidLabelOverlap: false,
+        center: ['35%', '50%'],
+        data,
+        emphasis: {
+          label: {
+            color: getThemeColors().cardForeground,
+            fontSize: 14,
+            fontWeight: 'bold',
+            show: true,
+          },
+        },
         itemStyle: {
+          borderColor: getThemeColors().card,
           borderRadius: 8,
-          borderColor: getThemeColor('--card'),
           borderWidth: 2,
         },
         label: { show: false },
-        emphasis: {
-          label: {
-            show: true,
-            fontSize: 14,
-            fontWeight: 'bold',
-            color: getThemeColor('--card-foreground'),
-          },
-        },
         labelLine: { show: false },
-        data,
+        name: '上传量分布',
+        radius: ['40%', '70%'],
+        type: 'pie',
       },
     ],
+    tooltip: {
+      formatter: (params: any) =>
+        `<div style="font-weight:600">${params.name}</div>
+         <div>上传量: ${formatSize(params.value)}</div>
+         <div>占比: ${params.percent}%</div>`,
+      trigger: 'item',
+    },
   });
 }
 
 function renderTrendChart() {
-  if (props.historyData.length === 0) return;
+  if (!hasHistoryData()) return;
   const sites = props.historyData.map((i) => i[0]);
   const uploads = props.historyData.map((i) => i[1]);
   const downloads = props.historyData.map((i) => i[2]);
   const colors = getThemeColors();
 
   renderTrend({
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-      formatter: (params: any) => tooltipHtml(params[0].name, params),
-    },
+    grid: commonGrid(),
     legend: {
-      data: ['近7天上传', '近7天下载'],
       bottom: 0,
+      data: ['近7天上传', '近7天下载'],
       textStyle: { color: colors.cardForeground },
     },
-    grid: commonGrid(),
-    xAxis: commonXAxis(sites),
-    yAxis: commonYAxis('近7天增量'),
     series: [
       {
+        barMaxWidth: 20,
+        data: uploads,
+        itemStyle: { borderRadius: [4, 4, 0, 0], color: colors.primary },
         name: '近7天上传',
         type: 'bar',
-        data: uploads,
-        itemStyle: { color: colors.primary, borderRadius: [4, 4, 0, 0] },
-        barMaxWidth: 20,
       },
       {
+        barMaxWidth: 20,
+        data: downloads,
+        itemStyle: { borderRadius: [4, 4, 0, 0], color: colors.destructive },
         name: '近7天下载',
         type: 'bar',
-        data: downloads,
-        itemStyle: { color: colors.destructive, borderRadius: [4, 4, 0, 0] },
-        barMaxWidth: 20,
       },
     ],
+    tooltip: {
+      axisPointer: { type: 'shadow' },
+      formatter: (params: any) => tooltipHtml(params[0].name, params),
+      trigger: 'axis',
+    },
+    xAxis: commonXAxis(sites),
+    yAxis: commonYAxis('近7天增量'),
   });
 }
 
 function renderRoseChart() {
-  if (props.statistics.length === 0) return;
+  if (!hasSeedingData()) return;
   const data = props.statistics
     .map((i) => ({ name: i.site_name, value: i.seeding_count || 0 }))
     .filter((i) => i.value > 0)
     .toSorted((a, b) => b.value - a.value);
 
-  if (data.length === 0) return;
-
   const palette = getChartPalette(data.length);
 
   renderRose({
-    tooltip: {
-      trigger: 'item',
-      formatter: (params: any) => {
-        return `<div style="font-weight:600;color:${chartTooltipColor.value}">${params.name}</div>
-                <div style="color:${chartTooltipColor.value}">做种数: ${params.value}</div>
-                <div style="color:${chartTooltipColor.value}">占比: ${params.percent}%</div>`;
-      },
-    },
+    color: palette,
     legend: {
-      type: 'scroll',
+      bottom: 20,
       orient: 'vertical',
       right: 10,
+      textStyle: { color: getThemeColors().cardForeground },
       top: 20,
-      bottom: 20,
-      textStyle: { color: getThemeColor('--card-foreground') },
+      type: 'scroll',
     },
-    color: palette,
     series: [
       {
-        name: '做种分布',
-        type: 'pie',
-        radius: [20, 100],
         center: ['35%', '50%'],
-        roseType: 'area',
+        data,
+        emphasis: {
+          label: {
+            color: getThemeColors().cardForeground,
+            fontSize: 13,
+            fontWeight: 'bold',
+            show: true,
+          },
+        },
         itemStyle: {
+          borderColor: getThemeColors().card,
           borderRadius: 6,
-          borderColor: getThemeColor('--card'),
           borderWidth: 2,
         },
         label: { show: false },
-        emphasis: {
-          label: {
-            show: true,
-            fontSize: 13,
-            fontWeight: 'bold',
-            color: getThemeColor('--card-foreground'),
-          },
-        },
-        data,
+        labelLine: { show: false },
+        name: '做种分布',
+        radius: [20, 100],
+        roseType: 'area',
+        type: 'pie',
       },
     ],
+    tooltip: {
+      formatter: (params: any) =>
+        `<div style="font-weight:600">${params.name}</div>
+         <div>做种数: ${params.value}</div>
+         <div>占比: ${params.percent}%</div>`,
+      trigger: 'item',
+    },
   });
 }
 
 watch(
   () => [props.statistics, props.historyData],
-  async () => {
-    await nextTick();
+  () => {
     renderAllCharts();
   },
-  { deep: true, immediate: true },
+  { deep: true },
 );
 
 onMounted(() => {
-  nextTick().then(renderAllCharts);
+  renderAllCharts();
 });
 </script>
 
@@ -322,11 +318,12 @@ onMounted(() => {
           </div>
         </div>
       </template>
-      <EchartsUI ref="chartBarRef" height="320px" />
-      <div v-if="statistics.length === 0" class="chart-empty">
-        <IconifyIcon icon="lucide:bar-chart-2" class="chart-empty-icon" />
-        <span class="chart-empty-text">暂无站点流量数据</span>
-      </div>
+      <EchartsUI
+        v-if="statistics.length > 0"
+        ref="chartBarRef"
+        class="h-80 w-full"
+      />
+      <NEmpty v-else description="暂无站点流量数据" />
     </NCard>
 
     <NCard size="small" class="chart-card">
@@ -338,14 +335,8 @@ onMounted(() => {
           </div>
         </div>
       </template>
-      <EchartsUI ref="chartPieRef" height="320px" />
-      <div
-        v-if="!statistics.some((s) => parseSize(s.upload) > 0)"
-        class="chart-empty"
-      >
-        <IconifyIcon icon="lucide:pie-chart" class="chart-empty-icon" />
-        <span class="chart-empty-text">暂无上传量数据</span>
-      </div>
+      <EchartsUI v-if="hasUploadData()" ref="chartPieRef" class="h-80 w-full" />
+      <NEmpty v-else description="暂无上传量数据" />
     </NCard>
 
     <NCard size="small" class="chart-card">
@@ -357,11 +348,12 @@ onMounted(() => {
           </div>
         </div>
       </template>
-      <EchartsUI ref="chartTrendRef" height="320px" />
-      <div v-if="historyData.length === 0" class="chart-empty">
-        <IconifyIcon icon="lucide:trending-up" class="chart-empty-icon" />
-        <span class="chart-empty-text">暂无近7天流量数据</span>
-      </div>
+      <EchartsUI
+        v-if="hasHistoryData()"
+        ref="chartTrendRef"
+        class="h-80 w-full"
+      />
+      <NEmpty v-else description="暂无近7天流量数据" />
     </NCard>
 
     <NCard size="small" class="chart-card">
@@ -373,14 +365,12 @@ onMounted(() => {
           </div>
         </div>
       </template>
-      <EchartsUI ref="chartRoseRef" height="320px" />
-      <div
-        v-if="!statistics.some((s) => (s.seeding_count || 0) > 0)"
-        class="chart-empty"
-      >
-        <IconifyIcon icon="lucide:flower-2" class="chart-empty-icon" />
-        <span class="chart-empty-text">暂无做种数据</span>
-      </div>
+      <EchartsUI
+        v-if="hasSeedingData()"
+        ref="chartRoseRef"
+        class="h-80 w-full"
+      />
+      <NEmpty v-else description="暂无做种数据" />
     </NCard>
 
     <NCard
@@ -429,29 +419,7 @@ onMounted(() => {
 }
 
 .chart-card :deep(.n-card__content) {
-  position: relative;
   padding: 0.5rem;
-}
-
-.chart-empty {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  align-items: center;
-  justify-content: center;
-  color: hsl(var(--muted-foreground));
-}
-
-.chart-empty-icon {
-  width: 2rem;
-  height: 2rem;
-  opacity: 0.4;
-}
-
-.chart-empty-text {
-  font-size: 0.8125rem;
 }
 
 .chart-card-full {
@@ -510,23 +478,9 @@ onMounted(() => {
   background: hsl(var(--primary));
 }
 
-@media (max-width: 768px) {
+@media (max-width: 640px) {
   .charts-layout {
     grid-template-columns: 1fr;
-    gap: 0.75rem;
-  }
-
-  .chart-card :deep(.n-card__content) {
-    padding: 0.375rem;
-  }
-
-  .chart-header {
-    gap: 0.375rem;
-  }
-
-  .mode-toggle button {
-    padding: 0.125rem 0.5rem;
-    font-size: 0.6875rem;
   }
 }
 </style>

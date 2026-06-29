@@ -102,6 +102,30 @@ const enabledFeatures = features.filter(
             <span v-else class="site-url-empty">未配置地址</span>
           </div>
         </div>
+
+        <div class="site-header-actions">
+          <NButton
+            text
+            size="small"
+            :loading="testing"
+            title="连通性测试"
+            @click="handleTest"
+          >
+            <IconifyIcon icon="lucide:activity" class="action-icon" />
+          </NButton>
+          <NButton text size="small" title="编辑" @click="handleEdit">
+            <IconifyIcon icon="lucide:pencil" class="action-icon" />
+          </NButton>
+          <NButton
+            text
+            size="small"
+            type="error"
+            title="删除"
+            @click="handleDelete"
+          >
+            <IconifyIcon icon="lucide:trash-2" class="action-icon" />
+          </NButton>
+        </div>
       </div>
 
       <div class="site-status">
@@ -146,21 +170,6 @@ const enabledFeatures = features.filter(
           <span class="feature-label">{{ feature.label }}</span>
         </div>
       </div>
-    </div>
-
-    <div class="site-card-actions">
-      <NButton text size="small" :loading="testing" @click="handleTest">
-        <IconifyIcon icon="lucide:activity" class="action-icon" />
-        <span class="action-text">测试</span>
-      </NButton>
-      <NButton text size="small" @click="handleEdit">
-        <IconifyIcon icon="lucide:pencil" class="action-icon" />
-        <span class="action-text">编辑</span>
-      </NButton>
-      <NButton text size="small" type="error" @click="handleDelete">
-        <IconifyIcon icon="lucide:trash-2" class="action-icon" />
-        <span class="action-text">删除</span>
-      </NButton>
     </div>
   </div>
 </template>
@@ -217,6 +226,13 @@ const enabledFeatures = features.filter(
   font-size: 1.125rem;
   font-weight: 700;
   color: hsl(var(--primary));
+}
+
+.site-header-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.25rem;
+  margin-left: auto;
 }
 
 .site-meta {
@@ -332,6 +348,8 @@ const enabledFeatures = features.filter(
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  padding-top: 0.875rem;
+  border-top: 1px solid hsl(var(--border));
 }
 
 .feature-chip {
@@ -351,30 +369,20 @@ const enabledFeatures = features.filter(
   height: 0.875rem;
 }
 
-.site-card-actions {
-  display: flex;
-  gap: 0.25rem;
-  padding: 0.5rem;
-  border-top: 1px solid hsl(var(--border));
-}
-
-.action-icon {
-  width: 0.875rem;
-  height: 0.875rem;
-  margin-right: 0.25rem;
-}
-
-.action-text {
-  font-size: 0.8125rem;
-}
-
 @media (max-width: 640px) {
-  .site-status {
-    grid-template-columns: repeat(3, 1fr);
+  .site-identity {
+    flex-wrap: wrap;
   }
 
-  .site-identity {
-    align-items: center;
+  .site-header-actions {
+    justify-content: flex-end;
+    width: 100%;
+    margin-top: 0.5rem;
+    margin-left: 0;
+  }
+
+  .site-status {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 </style>

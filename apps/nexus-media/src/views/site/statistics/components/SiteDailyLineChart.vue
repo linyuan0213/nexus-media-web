@@ -8,9 +8,9 @@ import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 import { useSiteStats } from '#/composables/useSiteStats';
 
 interface SeriesItem {
+  download: number[];
   name: string;
   upload: number[];
-  download: number[];
 }
 
 interface Props {
@@ -23,23 +23,25 @@ const props = withDefaults(defineProps<Props>(), {
   mode: 'upload',
 });
 
-const { formatSize, generateChartColor, getThemeColor } = useSiteStats();
+const { formatSize, generateChartColor, getThemeColors } = useSiteStats();
 
 const chartRef = ref<EchartsUIType>();
 const { renderEcharts } = useEcharts(chartRef);
 
+const colors = getThemeColors();
+
 const activeSeries = computed(() => {
   return props.series.map((s, idx) => ({
-    name: s.name,
-    type: 'line' as const,
-    smooth: true,
-    showSymbol: true,
-    symbolSize: 4,
-    lineStyle: { width: 2 },
+    data: props.mode === 'upload' ? s.upload : s.download,
     itemStyle: {
       color: generateChartColor(idx, props.series.length),
     },
-    data: props.mode === 'upload' ? s.upload : s.download,
+    lineStyle: { width: 2 },
+    name: s.name,
+    showSymbol: true,
+    smooth: true,
+    symbolSize: 4,
+    type: 'line' as const,
   }));
 });
 
@@ -56,19 +58,18 @@ function buildOption() {
       bottom: 0,
       itemGap: 12,
       left: 'center',
-      textStyle: { color: getThemeColor('--card-foreground'), fontSize: 11 },
+      textStyle: { color: colors.cardForeground, fontSize: 11 },
       type: 'scroll' as const,
     },
     series: activeSeries.value,
     tooltip: {
       axisPointer: { type: 'line' as const },
       formatter: (params: any) => {
-        const textColor = getThemeColor('--card-foreground');
-        let html = `<div style="font-weight:600;margin-bottom:4px;color:${textColor}">${params[0]?.name}</div>`;
+        let html = `<div style="font-weight:600;margin-bottom:4px">${params[0]?.name}</div>`;
         params.forEach((p: any) => {
           html += `<div style="display:flex;align-items:center;gap:6px">
             <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color}"></span>
-            <span style="color:${textColor}">${p.seriesName}: ${formatSize(p.value)}</span>
+            <span>${p.seriesName}: ${formatSize(p.value)}</span>
           </div>`;
         });
         return html;
@@ -77,7 +78,7 @@ function buildOption() {
     },
     xAxis: {
       axisLabel: {
-        color: getThemeColor('--muted-foreground'),
+        color: colors.mutedForeground,
         fontSize: 10,
         rotate: 30,
       },
@@ -88,7 +89,7 @@ function buildOption() {
     },
     yAxis: {
       axisLabel: {
-        color: getThemeColor('--muted-foreground'),
+        color: colors.mutedForeground,
         fontSize: 10,
         formatter: (v: number) => formatSize(v),
       },
@@ -96,7 +97,7 @@ function buildOption() {
       axisTick: { show: false },
       splitLine: {
         lineStyle: {
-          color: getThemeColor('--border'),
+          color: colors.border,
           type: 'dashed' as const,
         },
       },
@@ -106,18 +107,18 @@ function buildOption() {
 }
 
 onMounted(() => {
-  renderEcharts(buildOption());
+  renderEcharts(buildOption() as any);
 });
 
 watch(
   () => [props.dates, props.series, props.mode],
   () => {
-    renderEcharts(buildOption());
+    renderEcharts(buildOption() as any);
   },
-  { deep: true, immediate: true },
+  { deep: true },
 );
 </script>
 
 <template>
-  <EchartsUI ref="chartRef" class="h-72 w-full" />
+  <EchartsUI ref="chartRef" class="h-80 w-full" />
 </template>
