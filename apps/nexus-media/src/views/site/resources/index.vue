@@ -1,22 +1,11 @@
 <script lang="ts" setup>
+import type { ResourceItem, SiteItem } from './types';
+
 import { onMounted, onUnmounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import {
-  NButton,
-  NCard,
-  NForm,
-  NFormItem,
-  NInput,
-  NModal,
-  NPagination,
-  NSelect,
-  NSpace,
-  NSpin,
-  NTooltip,
-  useNotification,
-} from 'naive-ui';
+import { NButton, NInput, NPagination, NSpin, useNotification } from 'naive-ui';
 
 import {
   addTorrentApi,
@@ -27,29 +16,12 @@ import {
 } from '#/api/modules/download';
 import { getSiteFaviconsApi, getSiteResourcesApi } from '#/api/modules/site';
 import EmptyState from '#/components/empty/EmptyState.vue';
-import PageHeader from '#/components/page/PageHeader.vue';
 import { useDownloadEventStream } from '#/composables/useDownloadEventStream';
 
-interface SiteItem {
-  id: string;
-  name: string;
-}
-
-interface ResourceItem {
-  id: string;
-  indexer: string;
-  title: string;
-  description?: string;
-  size?: number;
-  seeders?: number;
-  leechers?: number;
-  pubdate?: string;
-  labels?: string | string[];
-  enclosure?: string;
-  page_url?: string;
-  uploadvolumefactor?: number;
-  downloadvolumefactor?: number;
-}
+import DownloadModal from './components/DownloadModal.vue';
+import ResourceCard from './components/ResourceCard.vue';
+import ResourceList from './components/ResourceList.vue';
+import SiteSelector from './components/SiteSelector.vue';
 
 const notification = useNotification();
 const loading = ref(false);
@@ -65,7 +37,6 @@ const faviconLoadFailed = ref<Record<string, boolean>>({});
 const viewMode = ref<'grid' | 'list'>('grid');
 const { start: startSSE, stop: stopSSE } = useDownloadEventStream();
 
-// 下载弹窗
 const downloadModalVisible = ref(false);
 const downloadModalLoading = ref(false);
 const downloadResource = ref<null | ResourceItem>(null);
@@ -96,17 +67,6 @@ async function fetchSites() {
   } finally {
     loading.value = false;
   }
-}
-
-function getFavicon(name: string): string {
-  const data = favicons.value[name];
-  if (!data) return '';
-  if (data.startsWith('data:') || data.startsWith('http')) return data;
-  return `${data}`;
-}
-
-function getFaviconFallback(name: string): string {
-  return `https://www.google.com/s2/favicons?domain=${name.toLowerCase()}.com&sz=64`;
 }
 
 function handleFaviconError(name: string) {
@@ -148,8 +108,6 @@ async function fetchData(page = 1) {
     }
     resources.value = data;
     currentPage.value = page;
-    // 由于后端无法返回总记录数，使用动态估算：
-    // 如果当前页有数据，total 至少要是 (page * pageSize + 1)，确保分页组件显示下一页
     total.value =
       data.length > 0
         ? Math.max(total.value, page * pageSize.value + 1)
@@ -181,7 +139,6 @@ function handleOpenUrl(url?: string) {
   }
 }
 
-// 下载弹窗
 async function openDownloadModal(item: ResourceItem) {
   if (!item.enclosure && !item.page_url) {
     notification.warning({ content: '该资源暂无下载链接，请前往详情页查看' });
@@ -249,7 +206,6 @@ async function confirmDownload() {
   downloadModalLoading.value = true;
   try {
     let enclosure = downloadResource.value.enclosure || '';
-    // m-team/yemapt 等特殊站点需要通过 page_url 获取下载链接
     if (!enclosure && downloadResource.value.page_url) {
       const res: any = await resolveDownloadUrlApi({
         page_url: downloadResource.value.page_url,
@@ -287,65 +243,6 @@ async function confirmDownload() {
   }
 }
 
-function getFreeTag(item: ResourceItem) {
-  const up = item.uploadvolumefactor ?? 1;
-  const down = item.downloadvolumefactor ?? 1;
-  if (down === 0 && up === 2)
-    return { label: '2X免费', type: 'warning' as const };
-  if (down === 0) return { label: '免费', type: 'success' as const };
-  return null;
-}
-
-function parseLabels(labels?: string | string[]): string[] {
-  if (!labels) return [];
-  if (Array.isArray(labels)) return labels;
-  return labels.split('|').filter(Boolean);
-}
-
-function getLabelClass(label: string): string {
-  const lower = label.toLowerCase();
-  if (/国语|中字|粤语|双语|中英|英文|简繁|繁体|简体|字幕|sub/.test(lower))
-    return 'resource-tag-lang';
-  if (/禁转|禁止|禁|exclusive/.test(lower)) return 'resource-tag-danger';
-  if (/官组|官方|官|official/.test(lower)) return 'resource-tag-primary';
-  if (
-    /hdr|sdr|杜比视界|dolby.vision|画质|4k|2160p|1080p|720p|hevc|x264|x265|avc|vp9/.test(
-      lower,
-    )
-  )
-    return 'resource-tag-warning';
-  if (
-    /杜比|dobly|atmos|truehd|dts|flac|aac|ac3|eac3|mp3|opus|audio/.test(lower)
-  )
-    return 'resource-tag-info';
-  if (
-    /web-dl|blu-ray|bdrip|brrip|dvdrip|hdtv|tvrip|转制|压制|remux|webrip/.test(
-      lower,
-    )
-  )
-    return 'resource-tag-accent';
-  if (/去广告|纯净版|完整版|未删减|导演剪辑|加长版|uncut|unrated/.test(lower))
-    return 'resource-tag-cyan';
-  return 'resource-tag-default';
-}
-
-function formatSize(size?: number): string {
-  if (size == null || size <= 0) return '-';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let val = size;
-  let idx = 0;
-  while (val >= 1024 && idx < units.length - 1) {
-    val /= 1024;
-    idx++;
-  }
-  return `${val.toFixed(1)} ${units[idx]}`;
-}
-
-function formatDate(date?: string): string {
-  if (!date) return '-';
-  return date;
-}
-
 onMounted(() => {
   fetchSites();
   startSSE();
@@ -358,110 +255,108 @@ onUnmounted(() => {
 
 <template>
   <div class="p-4">
-    <!-- 站点列表视图 -->
-    <template v-if="!selectedSite">
-      <PageHeader title="站点资源">
-        <template #actions>
-          <NSpace>
-            <NButton size="small" @click="fetchSites">
-              <template #icon>
-                <IconifyIcon icon="lucide:refresh-cw" class="h-4 w-4" />
-              </template>
-              刷新
-            </NButton>
-          </NSpace>
-        </template>
-      </PageHeader>
+    <!-- 站点选择 -->
+    <SiteSelector
+      v-if="!selectedSite"
+      :sites="sites"
+      :loading="loading"
+      :favicons="favicons"
+      :favicon-load-failed="faviconLoadFailed"
+      @favicon-error="handleFaviconError"
+      @refresh="fetchSites"
+      @select="selectSite"
+    />
 
-      <NSpin :show="loading">
-        <div v-if="sites.length > 0" class="site-grid">
-          <NCard
-            v-for="site in sites"
-            :key="site.id"
-            size="small"
-            class="site-card"
-            hoverable
-            @click="selectSite(site)"
-          >
-            <div class="site-card-content">
-              <div class="site-logo-wrap">
-                <img
-                  v-show="!faviconLoadFailed[site.name]"
-                  :src="getFavicon(site.name) || getFaviconFallback(site.name)"
-                  :alt="site.name"
-                  class="site-logo-img"
-                  @error="handleFaviconError(site.name)"
-                />
-                <div
-                  v-show="faviconLoadFailed[site.name]"
-                  class="site-logo-placeholder"
-                >
-                  {{ site.name.charAt(0).toUpperCase() }}
-                </div>
-              </div>
-              <div class="site-info">
-                <div class="site-name">{{ site.name }}</div>
-                <div class="site-id">{{ site.id }}</div>
-              </div>
-              <div class="site-arrow">
-                <IconifyIcon icon="lucide:chevron-right" class="h-5 w-5" />
-              </div>
-            </div>
-          </NCard>
-        </div>
-
-        <EmptyState
-          v-else-if="!loading"
-          title="暂无站点"
-          subtitle="没有可用的索引站点"
-        >
-          <template #icon>
-            <IconifyIcon icon="lucide:server-off" class="h-12 w-12" />
-          </template>
-        </EmptyState>
-      </NSpin>
-    </template>
-
-    <!-- 资源列表视图 -->
+    <!-- 资源列表 -->
     <template v-else>
-      <div class="header-row">
-        <h1 class="page-title">{{ selectedSite.name }} - 资源列表</h1>
-        <div class="toolbar-actions">
-          <NButton size="small" @click="backToSites">
+      <div class="header-row" :style="{ borderColor: 'hsl(var(--border))' }">
+        <div class="header-title-group">
+          <NButton
+            size="small"
+            quaternary
+            class="back-button"
+            @click="backToSites"
+          >
             <template #icon>
               <IconifyIcon icon="lucide:arrow-left" class="h-4 w-4" />
             </template>
-            返回
           </NButton>
+          <h1 class="page-title" :style="{ color: 'hsl(var(--foreground))' }">
+            {{ selectedSite.name }}
+          </h1>
+          <span
+            class="page-subtitle"
+            :style="{ color: 'hsl(var(--muted-foreground))' }"
+            >资源列表</span
+          >
+        </div>
+
+        <div class="toolbar-actions">
           <NButton size="small" @click="() => fetchData()">
             <template #icon>
               <IconifyIcon icon="lucide:refresh-cw" class="h-4 w-4" />
             </template>
-            刷新
+            <span class="hidden sm:inline">刷新</span>
           </NButton>
-          <NButton
-            text
-            :type="viewMode === 'grid' ? 'primary' : 'default'"
-            @click="viewMode = 'grid'"
+
+          <!-- 视图切换 -->
+          <div
+            class="view-toggle"
+            :style="{
+              background: 'hsl(var(--accent))',
+              borderColor: 'hsl(var(--border))',
+            }"
           >
-            <template #icon>
+            <button
+              type="button"
+              class="view-toggle-btn"
+              :class="{ active: viewMode === 'grid' }"
+              :style="
+                viewMode === 'grid'
+                  ? {
+                      background: 'hsl(var(--background))',
+                      color: 'hsl(var(--foreground))',
+                    }
+                  : {
+                      color: 'hsl(var(--muted-foreground))',
+                    }
+              "
+              aria-label="网格视图"
+              @click="viewMode = 'grid'"
+            >
               <IconifyIcon icon="lucide:layout-grid" class="h-4 w-4" />
-            </template>
-          </NButton>
-          <NButton
-            text
-            :type="viewMode === 'list' ? 'primary' : 'default'"
-            @click="viewMode = 'list'"
-          >
-            <template #icon>
+            </button>
+            <button
+              type="button"
+              class="view-toggle-btn"
+              :class="{ active: viewMode === 'list' }"
+              :style="
+                viewMode === 'list'
+                  ? {
+                      background: 'hsl(var(--background))',
+                      color: 'hsl(var(--foreground))',
+                    }
+                  : {
+                      color: 'hsl(var(--muted-foreground))',
+                    }
+              "
+              aria-label="列表视图"
+              @click="viewMode = 'list'"
+            >
               <IconifyIcon icon="lucide:list" class="h-4 w-4" />
-            </template>
-          </NButton>
+            </button>
+          </div>
         </div>
       </div>
 
       <!-- 搜索栏 -->
-      <div class="search-bar">
+      <div
+        class="search-bar"
+        :style="{
+          background: 'hsl(var(--card))',
+          borderColor: 'hsl(var(--border))',
+        }"
+      >
         <div class="search-row">
           <NInput
             v-model:value="keyword"
@@ -475,7 +370,7 @@ onUnmounted(() => {
               <IconifyIcon
                 icon="lucide:search"
                 class="h-4 w-4"
-                style="color: hsl(var(--muted-foreground))"
+                :style="{ color: 'hsl(var(--muted-foreground))' }"
               />
             </template>
           </NInput>
@@ -483,15 +378,22 @@ onUnmounted(() => {
             <template #icon>
               <IconifyIcon icon="lucide:search" class="h-4 w-4" />
             </template>
-            搜索
+            <span class="hidden sm:inline">搜索</span>
           </NButton>
         </div>
       </div>
 
       <!-- 统计条 -->
       <div v-if="resources.length > 0" class="stats-bar">
-        <span class="stats-text">
-          共 <strong>{{ total }}</strong> 条资源
+        <span
+          class="stats-text"
+          :style="{ color: 'hsl(var(--muted-foreground))' }"
+        >
+          共
+          <strong :style="{ color: 'hsl(var(--card-foreground))' }">{{
+            total
+          }}</strong>
+          条资源
         </span>
       </div>
 
@@ -499,187 +401,24 @@ onUnmounted(() => {
         <template v-if="resources.length > 0">
           <!-- Grid View -->
           <div v-if="viewMode === 'grid'" class="resource-grid">
-            <NCard
+            <ResourceCard
               v-for="(item, index) in resources"
               :key="`${item.indexer}-${item.title}-${index}`"
-              size="small"
-              class="resource-card"
-            >
-              <!-- 标题行 -->
-              <div class="resource-header">
-                <div class="resource-title-row">
-                  <span v-if="getFreeTag(item)" class="resource-free-inline">
-                    {{ getFreeTag(item)!.label }}
-                  </span>
-                  <NTooltip :show-arrow="false">
-                    <template #trigger>
-                      <div class="resource-title">{{ item.title }}</div>
-                    </template>
-                    {{ item.title }}
-                  </NTooltip>
-                </div>
-                <div class="resource-badges">
-                  <span
-                    v-for="label in parseLabels(item.labels)"
-                    :key="label"
-                    class="resource-tag"
-                    :class="getLabelClass(label)"
-                    >{{ label }}</span
-                  >
-                </div>
-              </div>
-
-              <!-- 副标题 -->
-              <div v-if="item.description" class="resource-description">
-                <IconifyIcon icon="lucide:quote" class="h-3 w-3 shrink-0" />
-                <span>{{ item.description }}</span>
-              </div>
-
-              <!-- 信息行 -->
-              <div class="resource-meta">
-                <div class="meta-group">
-                  <span class="meta-icon">
-                    <IconifyIcon icon="lucide:hard-drive" class="h-3.5 w-3.5" />
-                  </span>
-                  <span class="meta-value">{{ formatSize(item.size) }}</span>
-                </div>
-                <div class="meta-group">
-                  <span class="meta-icon seeders">
-                    <IconifyIcon icon="lucide:arrow-up" class="h-3.5 w-3.5" />
-                  </span>
-                  <span class="meta-value seeders">{{
-                    item.seeders || 0
-                  }}</span>
-                </div>
-                <div class="meta-group">
-                  <span class="meta-icon leechers">
-                    <IconifyIcon icon="lucide:arrow-down" class="h-3.5 w-3.5" />
-                  </span>
-                  <span class="meta-value leechers">{{
-                    item.leechers || 0
-                  }}</span>
-                </div>
-                <div v-if="item.pubdate" class="meta-group">
-                  <span class="meta-icon">
-                    <IconifyIcon icon="lucide:clock" class="h-3.5 w-3.5" />
-                  </span>
-                  <span class="meta-value">{{ formatDate(item.pubdate) }}</span>
-                </div>
-              </div>
-
-              <!-- 操作行 -->
-              <div class="resource-actions">
-                <NButton
-                  size="small"
-                  type="primary"
-                  ghost
-                  @click="openDownloadModal(item)"
-                >
-                  <template #icon>
-                    <IconifyIcon icon="lucide:download" class="h-4 w-4" />
-                  </template>
-                  下载
-                </NButton>
-                <NButton
-                  v-if="item.page_url"
-                  size="small"
-                  @click="handleOpenUrl(item.page_url)"
-                >
-                  <template #icon>
-                    <IconifyIcon icon="lucide:external-link" class="h-4 w-4" />
-                  </template>
-                  详情
-                </NButton>
-              </div>
-            </NCard>
+              :item="item"
+              @download="openDownloadModal"
+              @open-url="handleOpenUrl"
+            />
           </div>
 
           <!-- List View -->
           <div v-else class="resource-list">
-            <div
+            <ResourceList
               v-for="(item, index) in resources"
               :key="`${item.indexer}-${item.title}-${index}`"
-              class="resource-list-item"
-            >
-              <div class="resource-list-main">
-                <div class="resource-list-header">
-                  <span v-if="getFreeTag(item)" class="resource-free-inline">
-                    {{ getFreeTag(item)!.label }}
-                  </span>
-                  <NTooltip :show-arrow="false">
-                    <template #trigger>
-                      <div class="resource-list-title">{{ item.title }}</div>
-                    </template>
-                    {{ item.title }}
-                  </NTooltip>
-                </div>
-                <div class="resource-list-badges">
-                  <span
-                    v-for="label in parseLabels(item.labels)"
-                    :key="label"
-                    class="resource-tag"
-                    :class="getLabelClass(label)"
-                    >{{ label }}</span
-                  >
-                </div>
-              </div>
-
-              <div class="resource-list-meta">
-                <span class="meta-group">
-                  <IconifyIcon icon="lucide:hard-drive" class="h-3.5 w-3.5" />
-                  <span class="meta-value">{{ formatSize(item.size) }}</span>
-                </span>
-                <span class="meta-group">
-                  <IconifyIcon
-                    icon="lucide:arrow-up"
-                    class="h-3.5 w-3.5 seeders"
-                  />
-                  <span class="meta-value seeders">{{
-                    item.seeders || 0
-                  }}</span>
-                </span>
-                <span class="meta-group">
-                  <IconifyIcon
-                    icon="lucide:arrow-down"
-                    class="h-3.5 w-3.5 leechers"
-                  />
-                  <span class="meta-value leechers">{{
-                    item.leechers || 0
-                  }}</span>
-                </span>
-                <span v-if="item.pubdate" class="meta-group">
-                  <IconifyIcon icon="lucide:clock" class="h-3.5 w-3.5" />
-                  <span class="meta-value">{{ formatDate(item.pubdate) }}</span>
-                </span>
-              </div>
-
-              <div class="resource-list-actions">
-                <NButton
-                  size="tiny"
-                  type="primary"
-                  ghost
-                  @click="openDownloadModal(item)"
-                >
-                  <template #icon>
-                    <IconifyIcon icon="lucide:download" class="h-3.5 w-3.5" />
-                  </template>
-                  <span class="hidden sm:inline">下载</span>
-                </NButton>
-                <NButton
-                  v-if="item.page_url"
-                  size="tiny"
-                  @click="handleOpenUrl(item.page_url)"
-                >
-                  <template #icon>
-                    <IconifyIcon
-                      icon="lucide:external-link"
-                      class="h-3.5 w-3.5"
-                    />
-                  </template>
-                  <span class="hidden sm:inline">详情</span>
-                </NButton>
-              </div>
-            </div>
+              :item="item"
+              @download="openDownloadModal"
+              @open-url="handleOpenUrl"
+            />
           </div>
         </template>
 
@@ -689,12 +428,19 @@ onUnmounted(() => {
           subtitle="该站点暂无资源或连接失败"
         >
           <template #icon>
-            <IconifyIcon icon="lucide:database" class="h-12 w-12" />
+            <IconifyIcon
+              icon="lucide:database"
+              class="h-12 w-12"
+              :style="{ color: 'hsl(var(--muted-foreground))' }"
+            />
           </template>
         </EmptyState>
 
-        <!-- 分页 -->
-        <div v-if="total > pageSize" class="pagination-bar">
+        <div
+          v-if="total > pageSize"
+          class="pagination-bar"
+          :style="{ borderColor: 'hsl(var(--border))' }"
+        >
           <NPagination
             v-model:page="currentPage"
             :page-size="pageSize"
@@ -707,146 +453,41 @@ onUnmounted(() => {
       </NSpin>
     </template>
 
-    <!-- 下载弹窗 -->
-    <NModal
-      v-model:show="downloadModalVisible"
-      :title="`下载 - ${downloadResource?.title || ''}`"
-      preset="card"
-      :style="{ width: '480px', maxWidth: '92vw' }"
-      :bordered="false"
-      :segmented="{ content: true }"
-      :mask-closable="false"
-    >
-      <NSpin :show="downloadModalLoading">
-        <NForm label-placement="top" size="small">
-          <NFormItem label="下载设置">
-            <NSelect
-              v-model:value="selectedDownloadSetting"
-              :options="downloadSettings"
-              placeholder="请选择下载设置"
-              clearable
-              @update:value="onDownloadSettingChange"
-            />
-          </NFormItem>
-          <NFormItem label="保存目录">
-            <NSelect
-              v-model:value="selectedDownloadDir"
-              :options="downloadDirs"
-              placeholder="请选择保存目录"
-              clearable
-            />
-          </NFormItem>
-        </NForm>
-      </NSpin>
-
-      <template #footer>
-        <NSpace justify="end">
-          <NButton size="small" @click="downloadModalVisible = false">
-            取消
-          </NButton>
-          <NButton
-            size="small"
-            type="primary"
-            :loading="downloadModalLoading"
-            :disabled="
-              !downloadResource?.enclosure && !downloadResource?.page_url
-            "
-            @click="confirmDownload"
-          >
-            确认下载
-          </NButton>
-        </NSpace>
-      </template>
-    </NModal>
+    <DownloadModal
+      v-model:visible="downloadModalVisible"
+      v-model:model-setting="selectedDownloadSetting"
+      v-model:model-dir="selectedDownloadDir"
+      :loading="downloadModalLoading"
+      :resource="downloadResource"
+      :settings="downloadSettings"
+      :dirs="downloadDirs"
+      @setting-change="onDownloadSettingChange"
+      @confirm="confirmDownload"
+    />
   </div>
 </template>
 
 <style scoped>
-/* ===== 站点列表样式 ===== */
-.site-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 0.75rem;
-}
-
-.site-card {
-  cursor: pointer;
-  border-left: 3px solid transparent;
-  transition: all 0.2s ease;
-}
-
-.site-card:hover {
-  border-left-color: hsl(var(--primary));
-  box-shadow: 0 2px 8px rgb(0 0 0 / 4%);
-}
-
-.site-card :deep(.n-card__content) {
-  padding: 1rem;
-}
-
-.site-card-content {
-  display: flex;
-  gap: 0.875rem;
-  align-items: center;
-}
-
-.site-logo-wrap {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  overflow: hidden;
-  color: hsl(var(--primary));
-  background-color: hsl(var(--primary) / 10%);
-  border-radius: 0.5rem;
-}
-
-.site-logo-img {
-  width: 100%;
-  height: 100%;
-  padding: 0.25rem;
-  object-fit: contain;
-}
-
-.site-logo-placeholder {
-  font-size: 1rem;
-  font-weight: 700;
-  color: hsl(var(--primary));
-}
-
-.site-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.site-name {
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.3;
-  color: hsl(var(--card-foreground));
-}
-
-.site-id {
-  margin-top: 0.125rem;
-  font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
-}
-
-.site-arrow {
-  flex-shrink: 0;
-  color: hsl(var(--muted-foreground));
-}
-
-/* ===== Header Row ===== */
 .header-row {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
   align-items: center;
   justify-content: space-between;
+  padding-bottom: 1rem;
   margin-bottom: 1rem;
+  border-bottom: 1px solid;
+}
+
+.header-title-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.back-button {
+  flex-shrink: 0;
 }
 
 .page-title {
@@ -854,21 +495,48 @@ onUnmounted(() => {
   font-size: 1.25rem;
   font-weight: 600;
   line-height: 1.4;
-  color: hsl(var(--foreground));
+}
+
+.page-subtitle {
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .toolbar-actions {
   display: flex;
-  gap: 0.25rem;
+  gap: 0.5rem;
   align-items: center;
 }
 
-/* ===== 搜索栏 ===== */
+.view-toggle {
+  display: inline-flex;
+  gap: 0.125rem;
+  padding: 0.25rem;
+  border: 1px solid;
+  border-radius: var(--radius);
+}
+
+.view-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  cursor: pointer;
+  border: none;
+  border-radius: calc(var(--radius) - 0.125rem);
+  transition: all 0.2s ease;
+}
+
+.view-toggle-btn:hover:not(.active) {
+  background: hsl(var(--muted) / 40%);
+}
+
 .search-bar {
   padding: 0.75rem;
   margin-bottom: 1rem;
-  background-color: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
+  border: 1px solid;
   border-radius: 0.5rem;
 }
 
@@ -891,292 +559,50 @@ onUnmounted(() => {
 
 .stats-text {
   font-size: 0.875rem;
-  color: hsl(var(--muted-foreground));
 }
 
 .stats-text strong {
   font-weight: 600;
-  color: hsl(var(--card-foreground));
 }
 
-/* ===== Grid View ===== */
 .resource-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 0.75rem;
 }
 
-.resource-card {
-  border-left: 3px solid transparent;
-  transition: all 0.2s ease;
-}
-
-.resource-card:hover {
-  border-left-color: hsl(var(--primary));
-  box-shadow: 0 2px 8px rgb(0 0 0 / 4%);
-}
-
-.resource-card :deep(.n-card__content) {
-  padding: 1rem;
-}
-
-.resource-header {
-  margin-bottom: 0.75rem;
-}
-
-.resource-title {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  line-height: 1.4;
-  color: hsl(var(--card-foreground));
-  overflow-wrap: break-word;
-}
-
-.resource-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-  align-items: center;
-}
-
-.resource-tag {
-  padding: 0.125rem 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  line-height: 1.4;
-  white-space: nowrap;
-  border-radius: 0.25rem;
-}
-
-.resource-tag-default {
-  color: hsl(var(--muted-foreground));
-  background-color: hsl(var(--muted) / 30%);
-}
-
-.resource-tag-primary {
-  color: hsl(var(--primary));
-  background-color: hsl(var(--primary) / 10%);
-}
-
-.resource-tag-danger {
-  color: hsl(var(--destructive));
-  background-color: hsl(var(--destructive) / 10%);
-}
-
-.resource-tag-lang {
-  color: hsl(var(--success));
-  background-color: hsl(var(--success) / 12%);
-}
-
-.resource-tag-warning {
-  color: hsl(var(--warning));
-  background-color: hsl(var(--warning) / 15%);
-}
-
-.resource-tag-info {
-  color: hsl(210deg 80% 55%);
-  background-color: hsl(210deg 80% 55% / 10%);
-}
-
-.resource-tag-accent {
-  color: hsl(var(--card-foreground));
-  background-color: hsl(var(--accent));
-}
-
-.resource-tag-cyan {
-  color: hsl(185deg 70% 45%);
-  background-color: hsl(185deg 70% 45% / 10%);
-}
-
-.resource-title-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: flex-start;
-  margin-bottom: 0.375rem;
-}
-
-.resource-free-inline {
-  flex-shrink: 0;
-  padding: 0.125rem 0.375rem;
-  margin-top: 0.15rem;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  line-height: 1.4;
-  color: hsl(var(--success-foreground, var(--primary-foreground)));
-  background-color: hsl(var(--success));
-  border-radius: 0.25rem;
-}
-
-.resource-description {
-  display: flex;
-  gap: 0.375rem;
-  align-items: flex-start;
-  padding: 0.5rem 0.625rem;
-  margin-bottom: 0.5rem;
-  font-size: 0.8125rem;
-  line-height: 1.5;
-  color: hsl(var(--muted-foreground));
-  overflow-wrap: break-word;
-  background: hsl(var(--accent) / 40%);
-  border-radius: 0.375rem;
-}
-
-.resource-description span {
-  flex: 1;
-  min-width: 0;
-}
-
-.resource-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.875rem;
-  align-items: center;
-  padding: 0.625rem;
-  margin-bottom: 0.75rem;
-  background-color: hsl(var(--accent));
-  border-radius: 0.5rem;
-}
-
-.meta-group {
-  display: inline-flex;
-  gap: 0.25rem;
-  align-items: center;
-}
-
-.meta-icon {
-  display: inline-flex;
-  align-items: center;
-  color: hsl(var(--muted-foreground));
-}
-
-.meta-icon.seeders {
-  color: hsl(var(--success));
-}
-
-.meta-icon.leechers {
-  color: hsl(var(--warning));
-}
-
-.meta-value {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: hsl(var(--card-foreground));
-}
-
-.meta-value.seeders {
-  color: hsl(var(--success));
-}
-
-.meta-value.leechers {
-  color: hsl(var(--warning));
-}
-
-.resource-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-/* ===== List View ===== */
 .resource-list {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.resource-list-item {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  overflow: hidden;
-  background-color: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
-  transition: box-shadow 0.2s;
-}
-
-.resource-list-item:hover {
-  box-shadow: 0 2px 8px rgb(0 0 0 / 4%);
-}
-
-.resource-list-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.resource-list-header {
-  display: flex;
-  gap: 0.5rem;
-  align-items: flex-start;
-  margin-bottom: 0.25rem;
-}
-
-.resource-list-title {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  line-height: 1.4;
-  color: hsl(var(--card-foreground));
-  overflow-wrap: break-word;
-}
-
-.resource-list-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-  align-items: center;
-}
-
-.resource-list-meta {
-  display: flex;
-  flex-shrink: 0;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: center;
-}
-
-.resource-list-meta .meta-group {
-  display: inline-flex;
-  gap: 0.25rem;
-  align-items: center;
-  font-size: 0.8125rem;
-  color: hsl(var(--muted-foreground));
-}
-
-.resource-list-meta .meta-value {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: hsl(var(--card-foreground));
-}
-
-.resource-list-actions {
-  display: flex;
-  flex-shrink: 0;
-  gap: 0.375rem;
-  align-items: center;
-}
-
-/* ===== Pagination ===== */
 .pagination-bar {
   display: flex;
   justify-content: center;
   padding-top: 1rem;
   margin-top: 1.25rem;
-  border-top: 1px solid hsl(var(--border));
+  border-top: 1px solid;
 }
 
-/* ===== Mobile ===== */
-@media (max-width: 768px) {
-  .site-grid {
-    grid-template-columns: 1fr;
-  }
-
+@media (max-width: 640px) {
   .header-row {
     flex-direction: column;
     gap: 0.75rem;
     align-items: flex-start;
     margin-bottom: 0.75rem;
+  }
+
+  .toolbar-actions {
+    width: 100%;
+  }
+
+  .toolbar-actions > *:not(.view-toggle) {
+    flex: 1 1 auto;
+  }
+
+  .view-toggle {
+    margin-left: auto;
   }
 
   .search-row {
@@ -1190,25 +616,6 @@ onUnmounted(() => {
 
   .resource-grid {
     grid-template-columns: 1fr;
-  }
-
-  .resource-meta {
-    gap: 0.5rem;
-  }
-
-  .resource-list-item {
-    flex-wrap: wrap;
-    padding: 0.625rem;
-  }
-
-  .resource-list-meta {
-    order: 3;
-    width: 100%;
-    margin-top: 0.25rem;
-  }
-
-  .resource-list-actions {
-    order: 2;
   }
 }
 </style>
