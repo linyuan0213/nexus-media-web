@@ -29,10 +29,6 @@ function getFavicon(name: string): string {
   if (data.startsWith('data:') || data.startsWith('http')) return data;
   return data;
 }
-
-function getFaviconFallback(name: string): string {
-  return `https://www.google.com/s2/favicons?domain=${name.toLowerCase()}.com&sz=64`;
-}
 </script>
 
 <template>
@@ -69,14 +65,14 @@ function getFaviconFallback(name: string): string {
               }"
             >
               <img
-                v-show="!faviconLoadFailed[site.name]"
-                :src="getFavicon(site.name) || getFaviconFallback(site.name)"
+                v-show="getFavicon(site.name) && !faviconLoadFailed[site.name]"
+                :src="getFavicon(site.name)"
                 :alt="site.name"
                 class="site-logo-img"
                 @error="emit('faviconError', site.name)"
               />
               <div
-                v-show="faviconLoadFailed[site.name]"
+                v-show="!getFavicon(site.name) || faviconLoadFailed[site.name]"
                 class="site-logo-placeholder"
               >
                 {{ site.name.charAt(0).toUpperCase() }}

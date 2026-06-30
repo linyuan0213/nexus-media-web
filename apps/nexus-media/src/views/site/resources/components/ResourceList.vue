@@ -9,6 +9,7 @@ import { useResourceHelpers } from '../composables/useResourceHelpers';
 
 interface Props {
   item: ResourceItem;
+  favicons?: Record<string, string>;
 }
 
 defineProps<Props>();
@@ -34,11 +35,13 @@ const { formatDate, formatSize, getFreeTag, getLabelClass, parseLabels } =
     <div
       class="resource-list-poster"
       :style="{
-        background: 'hsl(var(--muted) / 60%)',
-        color: 'hsl(var(--muted-foreground))',
+        background: 'hsl(var(--accent))',
+        color: 'hsl(var(--accent-foreground))',
       }"
     >
-      <IconifyIcon icon="lucide:film" class="h-4 w-4 opacity-40" />
+      <span class="poster-logo-initial">{{
+        item.indexer?.charAt(0) || ''
+      }}</span>
       <div
         v-if="getFreeTag(item)"
         class="resource-list-poster-badge"
@@ -188,6 +191,18 @@ const { formatDate, formatSize, getFreeTag, getLabelClass, parseLabels } =
   font-weight: 700;
   line-height: 1.3;
   border-radius: 0.25rem 0;
+}
+
+.poster-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.poster-logo-initial {
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .resource-list-main {

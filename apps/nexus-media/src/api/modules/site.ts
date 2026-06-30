@@ -30,6 +30,14 @@ export namespace SiteApi {
     note?: string;
     include?: string;
     rule?: string;
+    /** 站点来源：builtin / jackett / prowlarr */
+    source?: string;
+    /** 是否为第三方索引器站点 */
+    third_party?: boolean;
+    /** 第三方站点是否启用 */
+    enabled?: boolean;
+    /** 第三方站点下载设置 ID */
+    download_setting?: number | string;
   }
 
   export interface SiteStatisticsItem {
@@ -151,7 +159,7 @@ export async function getSiteResourcesApi(params: {
   return requestClient.post<{
     list: SiteApi.SiteResourceItem[];
     total?: number;
-  }>('/site/sites/resources', params);
+  }>('/site/sites/resources', params, { timeout: 120_000 });
 }
 
 /** 获取站点历史 */
@@ -201,4 +209,33 @@ export async function getSiteSeedingApi(name: string) {
 /** 获取所有站点图标 */
 export async function getSiteFaviconsApi() {
   return requestClient.post<Record<string, string>>('/site/sites/favicon', {});
+}
+
+/** 更新站点配置 */
+export async function updateIndexerSiteConfigApi(data: {
+  default_settings?: Record<string, any>;
+  download_setting?: number | string;
+  enabled?: boolean;
+  site_name: string;
+}) {
+  return requestClient.post('/site/sites/indexer-config/update', data);
+}
+
+/** 手动同步指定第三方索引器的站点列表 */
+export async function syncIndexerSitesApi(clientId: string) {
+  return requestClient.post('/site/sites/indexer-config/sync', {
+    client_id: clientId,
+  });
+}
+
+/** 批量更新站点配置 */
+export async function batchUpdateIndexerSiteConfigApi(
+  sites: Array<{
+    default_settings?: Record<string, any>;
+    download_setting?: number | string;
+    enabled?: boolean;
+    site_name: string;
+  }>,
+) {
+  return requestClient.post('/site/sites/indexer-config/batch', { sites });
 }

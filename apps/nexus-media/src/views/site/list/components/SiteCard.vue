@@ -1,9 +1,11 @@
 <script lang="ts" setup>
 import type { SiteItem } from '../types';
 
+import { computed } from 'vue';
+
 import { IconifyIcon } from '@vben/icons';
 
-import { NButton } from 'naive-ui';
+import { NButton, NSelect, NSwitch } from 'naive-ui';
 
 interface Props {
   site: SiteItem;
@@ -11,6 +13,7 @@ interface Props {
   faviconFallback?: string;
   faviconFailed?: boolean;
   testing?: boolean;
+  downloadSettings?: { label: string; value: string }[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -18,6 +21,7 @@ const props = withDefaults(defineProps<Props>(), {
   faviconFallback: '',
   faviconFailed: false,
   testing: false,
+  downloadSettings: () => [],
 });
 
 const emit = defineEmits<{
@@ -25,6 +29,7 @@ const emit = defineEmits<{
   (e: 'edit', site: SiteItem): void;
   (e: 'delete', site: SiteItem): void;
   (e: 'faviconError', name: string): void;
+  (e: 'update', site: SiteItem, data: Partial<SiteItem>): void;
 }>();
 
 function handleFaviconError() {
@@ -43,54 +48,73 @@ function handleDelete() {
   emit('delete', props.site);
 }
 
-function resolveFavicon(): string {
-  if (props.favicon) return props.favicon;
-  return props.faviconFallback;
+function handleEnabledUpdate(enabled: boolean) {
+  emit('update', props.site, { enabled });
 }
 
-const features = [
-  { key: 'rss_enable', label: 'RSS', icon: 'lucide:rss' },
-  { key: 'brush_enable', label: '刷流', icon: 'lucide:refresh-cw' },
-  { key: 'statistic_enable', label: '统计', icon: 'lucide:bar-chart-3' },
-  { key: 'parse', label: '解析', icon: 'lucide:file-search' },
-  { key: 'unread_msg_notify', label: '消息', icon: 'lucide:bell' },
-  { key: 'chrome', label: '仿真', icon: 'lucide:chrome' },
-  { key: 'proxy', label: '代理', icon: 'lucide:globe' },
-];
+function handleDownloadSettingUpdate(value: string) {
+  emit('update', props.site, { download_setting: value });
+}
 
-const enabledFeatures = features.filter(
-  (f) => props.site[f.key as keyof SiteItem],
+function resolveFavicon(): string {
+  return props.favicon || '';
+}
+
+const showPlaceholder = computed(
+  () => !resolveFavicon() || props.faviconFailed || isThirdParty.value,
 );
+
+const isThirdParty = computed(() => props.site.source !== 'builtin');
+
+const features = computed(() => {
+  const allFeatures = [
+    { key: 'search_enabled', label: '搜索', icon: 'lucide:search' },
+    { key: 'rss_enable', label: 'RSS', icon: 'lucide:rss' },
+    { key: 'brush_enable', label: '刷流', icon: 'lucide:refresh-cw' },
+    { key: 'statistic_enable', label: '统计', icon: 'lucide:bar-chart-3' },
+    { key: 'parse', label: '解析', icon: 'lucide:file-search' },
+    { key: 'unread_msg_notify', label: '消息', icon: 'lucide:bell' },
+    { key: 'chrome', label: '仿真', icon: 'lucide:chrome' },
+    { key: 'proxy', label: '代理', icon: 'lucide:globe' },
+    { key: 'subtitle', label: '字幕', icon: 'lucide:subtitles' },
+    { key: 'tag', label: '标签', icon: 'lucide:tag' },
+  ];
+  return allFeatures.filter((f) => {
+    if (f.key === 'search_enabled') return props.site.enabled !== false;
+    return props.site[f.key as keyof SiteItem];
+  });
+});
 </script>
 
 <template>
   <div class="site-card">
     <div class="site-card-main">
-      <div class="site-identity">
+      <div class="site-header">
         <div class="site-logo">
           <img
+            v-if="resolveFavicon() && !isThirdParty"
             v-show="!faviconFailed"
             :src="resolveFavicon()"
             :alt="site.name"
             class="site-logo-img"
             @error="handleFaviconError"
           />
-          <div v-show="faviconFailed" class="site-logo-placeholder">
+          <div v-if="showPlaceholder" class="site-logo-placeholder">
             {{ site.name.charAt(0).toUpperCase() }}
           </div>
         </div>
 
         <div class="site-meta">
           <div class="site-name-row">
-            <span class="site-name">{{ site.name }}</span>
+            <span class="site-name" :title="site.name">{{ site.name }}</span>
             <span
               class="site-type-badge"
-              :class="site.public ? 'site-type-bt' : 'site-type-pt'"
+              :class="site.site_public ? 'site-type-bt' : 'site-type-pt'"
             >
-              {{ site.public ? 'BT' : 'PT' }}
+              {{ site.site_public ? 'BT' : 'PT' }}
             </span>
           </div>
-          <div class="site-url">
+          <div v-if="!isThirdParty" class="site-url">
             <IconifyIcon icon="lucide:link" class="site-url-icon" />
             <a
               v-if="site.signurl"
@@ -103,7 +127,7 @@ const enabledFeatures = features.filter(
           </div>
         </div>
 
-        <div class="site-header-actions">
+        <div v-if="!isThirdParty" class="site-actions">
           <NButton
             text
             size="small"
@@ -136,7 +160,28 @@ const enabledFeatures = features.filter(
         </div>
       </div>
 
-      <div class="site-status">
+      <div v-if="isThirdParty" class="site-control-bar">
+        <div class="control-item">
+          <span class="control-label">启用</span>
+          <NSwitch
+            :value="site.enabled !== false"
+            @update:value="handleEnabledUpdate"
+          />
+        </div>
+        <div class="control-item">
+          <span class="control-label">下载设置</span>
+          <NSelect
+            :value="String(site.download_setting || '')"
+            :options="downloadSettings"
+            placeholder="请选择"
+            size="small"
+            style="width: 130px"
+            @update:value="handleDownloadSettingUpdate"
+          />
+        </div>
+      </div>
+
+      <div v-if="!isThirdParty" class="site-status">
         <div class="status-item">
           <IconifyIcon icon="lucide:gauge" class="status-icon" />
           <span class="status-label">优先级</span>
@@ -167,9 +212,9 @@ const enabledFeatures = features.filter(
         </div>
       </div>
 
-      <div v-if="enabledFeatures.length > 0" class="site-features">
+      <div v-if="!isThirdParty && features.length > 0" class="site-features">
         <div
-          v-for="feature in enabledFeatures"
+          v-for="feature in features"
           :key="feature.key"
           class="feature-chip"
           :title="feature.label"
@@ -187,7 +232,7 @@ const enabledFeatures = features.filter(
   overflow: hidden;
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
-  border-radius: 1rem;
+  border-radius: 0.875rem;
   transition: all 0.2s ease;
 }
 
@@ -200,11 +245,10 @@ const enabledFeatures = features.filter(
   padding: 1rem;
 }
 
-.site-identity {
+.site-header {
   display: flex;
   gap: 0.875rem;
   align-items: center;
-  margin-bottom: 1rem;
 }
 
 .site-logo {
@@ -212,11 +256,11 @@ const enabledFeatures = features.filter(
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 3rem;
-  height: 3rem;
+  width: 2.75rem;
+  height: 2.75rem;
   overflow: hidden;
   background: hsl(var(--accent));
-  border-radius: 0.75rem;
+  border-radius: 0.625rem;
 }
 
 .site-logo-img {
@@ -236,39 +280,6 @@ const enabledFeatures = features.filter(
   color: hsl(var(--primary));
 }
 
-.site-header-actions {
-  display: flex;
-  flex-shrink: 0;
-  gap: 0.5rem;
-  align-items: center;
-  margin-left: auto;
-}
-
-.site-header-actions :deep(.n-button) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  border-radius: 0.5rem;
-  transition: background-color 0.2s ease;
-}
-
-.site-header-actions :deep(.n-button):not(.n-button--disabled):hover {
-  background: hsl(var(--accent));
-}
-
-.site-header-actions
-  :deep(.n-button.n-button--error-type):not(.n-button--disabled):hover {
-  background: hsl(var(--destructive) / 12%);
-}
-
-.action-icon {
-  width: 1rem;
-  height: 1rem;
-}
-
 .site-meta {
   flex: 1;
   min-width: 0;
@@ -278,13 +289,12 @@ const enabledFeatures = features.filter(
   display: flex;
   gap: 0.5rem;
   align-items: center;
-  margin-bottom: 0.375rem;
 }
 
 .site-name {
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   color: hsl(var(--card-foreground));
   white-space: nowrap;
@@ -313,14 +323,15 @@ const enabledFeatures = features.filter(
   display: flex;
   gap: 0.375rem;
   align-items: center;
-  font-size: 0.8125rem;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
 }
 
 .site-url-icon {
   flex-shrink: 0;
-  width: 0.875rem;
-  height: 0.875rem;
+  width: 0.75rem;
+  height: 0.75rem;
 }
 
 .site-url-link {
@@ -339,14 +350,71 @@ const enabledFeatures = features.filter(
   font-style: italic;
 }
 
+.site-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.25rem;
+  align-items: center;
+  margin-left: auto;
+}
+
+.site-actions :deep(.n-button) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 0.5rem;
+  transition: background-color 0.2s ease;
+}
+
+.site-actions :deep(.n-button):not(.n-button--disabled):hover {
+  background: hsl(var(--accent));
+}
+
+.site-actions
+  :deep(.n-button.n-button--error-type):not(.n-button--disabled):hover {
+  background: hsl(var(--destructive) / 12%);
+}
+
+.action-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.site-control-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  margin-top: 0.75rem;
+  background: hsl(var(--accent) / 40%);
+  border-radius: 0.5rem;
+}
+
+.control-item {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.control-label {
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+}
+
 .site-status {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.5rem;
-  padding: 0.75rem;
-  margin-bottom: 0.875rem;
+  padding: 0.625rem;
+  margin-top: 0.875rem;
   background: hsl(var(--accent) / 40%);
-  border-radius: 0.625rem;
+  border-radius: 0.5rem;
 }
 
 .status-item {
@@ -358,8 +426,8 @@ const enabledFeatures = features.filter(
 }
 
 .status-icon {
-  width: 1rem;
-  height: 1rem;
+  width: 0.875rem;
+  height: 0.875rem;
   color: hsl(var(--muted-foreground));
 }
 
@@ -383,6 +451,7 @@ const enabledFeatures = features.filter(
   flex-wrap: wrap;
   gap: 0.5rem;
   padding-top: 0.875rem;
+  margin-top: 0.875rem;
   border-top: 1px solid hsl(var(--border));
 }
 
@@ -404,15 +473,19 @@ const enabledFeatures = features.filter(
 }
 
 @media (max-width: 640px) {
-  .site-identity {
+  .site-header {
     flex-wrap: wrap;
   }
 
-  .site-header-actions {
+  .site-actions {
     justify-content: flex-end;
     width: 100%;
-    margin-top: 0.75rem;
+    margin-top: 0.625rem;
     margin-left: 0;
+  }
+
+  .site-control-bar {
+    gap: 0.75rem;
   }
 
   .site-status {

@@ -110,16 +110,6 @@ const emit = defineEmits<{
           </NFormItem>
         </NGridItem>
         <NGridItem span="1">
-          <NFormItem label="展示更多站点">
-            <NSwitch
-              :value="config['laboratory.show_more_sites']"
-              @update:value="
-                (v) => emit('updateConfig', 'laboratory.show_more_sites', v)
-              "
-            />
-          </NFormItem>
-        </NGridItem>
-        <NGridItem span="1">
           <NFormItem label="验证码识别服务器">
             <NInput
               :value="config['laboratory.ocr_server_host']"

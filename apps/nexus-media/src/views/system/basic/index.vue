@@ -164,7 +164,6 @@ function saveLaboratory() {
       'laboratory.tmdb_cache_expire',
       'laboratory.use_douban_titles',
       'laboratory.search_multi_language',
-      'laboratory.show_more_sites',
       'laboratory.ocr_server_host',
       'laboratory.chrome_server_host',
     ]),

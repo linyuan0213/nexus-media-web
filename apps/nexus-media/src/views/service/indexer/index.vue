@@ -7,13 +7,13 @@ import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 import {
   NButton,
   NCard,
-  NCheckbox,
   NForm,
   NFormItem,
   NInput,
   NModal,
   NSpace,
   NSpin,
+  NSwitch,
   useMessage,
 } from 'naive-ui';
 
@@ -21,6 +21,7 @@ import {
   getIndexersConfigApi,
   getIndexerStatisticsApi,
   saveIndexerConfigApi,
+  syncIndexerSitesApi,
   testIndexerConfigApi,
 } from '#/api';
 import PageHeader from '#/components/page/PageHeader.vue';
@@ -38,11 +39,7 @@ function indexerIcon(type: string): string {
 
 const message = useMessage();
 const indexers = ref<Record<string, IndexerConf>>({});
-const builtinIndexers = ref<{ id: string; name: string; public: boolean }[]>(
-  [],
-);
-const searchIndexer = ref('builtin');
-const selectedSites = ref<string[]>([]);
+const builtinEnabled = ref(true);
 const loading = ref(false);
 const testLoading = ref<Record<string, boolean>>({});
 const editModalShow = ref(false);
@@ -57,12 +54,6 @@ const { renderEcharts } = useEcharts(chartRef);
 const indexerList = computed(() =>
   Object.entries(indexers.value).map(([type, conf]) => ({ type, ...conf })),
 );
-const privateIndexers = computed(() =>
-  builtinIndexers.value.filter((i) => !i.public),
-);
-const publicIndexers = computed(() =>
-  builtinIndexers.value.filter((i) => i.public),
-);
 
 async function fetchData() {
   loading.value = true;
@@ -72,14 +63,8 @@ async function fetchData() {
     if (data.indexer_conf) {
       indexers.value = data.indexer_conf;
     }
-    if (data.indexers) {
-      builtinIndexers.value = data.indexers;
-    }
-    if (data.search_indexer) {
-      searchIndexer.value = data.search_indexer;
-    }
-    if (data.indexer_sites) {
-      selectedSites.value = data.indexer_sites;
+    if (data.builtin_enabled !== undefined) {
+      builtinEnabled.value = data.builtin_enabled;
     }
     if (data.indexer_config) {
       // 预填充外部索引器配置
@@ -121,10 +106,17 @@ async function handleSave() {
     data[key] = value;
   }
   await saveIndexerConfigApi(data);
-  searchIndexer.value = editingType.value;
   editModalShow.value = false;
   message.success('保存成功');
   await fetchData();
+  // 同步第三方索引器站点列表
+  try {
+    await syncIndexerSitesApi(editingType.value);
+    message.success('站点同步成功');
+    await fetchData();
+  } catch (error: any) {
+    message.error(error?.message || '站点同步失败');
+  }
 }
 
 async function handleTest(type: string) {
@@ -185,9 +177,8 @@ async function showStats() {
 async function saveBuiltin() {
   await saveIndexerConfigApi({
     type: 'builtin',
-    indexer_sites: selectedSites.value,
+    enabled: builtinEnabled.value,
   });
-  searchIndexer.value = 'builtin';
   editModalShow.value = false;
   message.success('保存成功');
   await fetchData();
@@ -241,17 +232,18 @@ onMounted(fetchData);
               class="text-sm mt-1"
               style="color: hsl(var(--muted-foreground))"
             >
-              <span
-                v-if="searchIndexer === item.type"
-                class="inline-flex items-center gap-1"
-              >
-                <span
-                  class="w-2 h-2 rounded-full"
-                  style="background-color: hsl(var(--success))"
-                ></span>
-                正在使用
-              </span>
+              {{
+                item.type === 'builtin'
+                  ? builtinEnabled
+                    ? '已启用'
+                    : '已禁用'
+                  : ''
+              }}
             </div>
+            <div
+              class="text-sm mt-1"
+              style="color: hsl(var(--muted-foreground))"
+            ></div>
           </div>
         </NCard>
       </div>
@@ -264,78 +256,15 @@ onMounted(fetchData);
       preset="card"
       :style="{ width: '600px', maxWidth: '92vw' }"
     >
-      <div v-if="editingType === 'builtin'">
-        <div class="mb-4">
-          <div class="flex items-center justify-between mb-2">
-            <span class="font-medium">私有站点</span>
-            <NButton
-              size="tiny"
-              text
-              @click="
-                selectedSites = [
-                  ...new Set([
-                    ...selectedSites,
-                    ...privateIndexers.map((i: any) => i.id),
-                  ]),
-                ]
-              "
-            >
-              全选
-            </NButton>
+      <div v-if="editingType === 'builtin'" class="py-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="font-medium">启用内建索引器</div>
+            <div class="text-sm" style="color: hsl(var(--muted-foreground))">
+              关闭后内置索引器站点将不参与搜索
+            </div>
           </div>
-          <NSpace>
-            <NCheckbox
-              v-for="site in privateIndexers"
-              :key="site.id"
-              :value="site.id"
-              :checked="selectedSites.includes(site.id)"
-              @update:checked="
-                (v: boolean) => {
-                  if (v) selectedSites.push(site.id);
-                  else
-                    selectedSites = selectedSites.filter((s) => s !== site.id);
-                }
-              "
-            >
-              {{ site.name }}
-            </NCheckbox>
-          </NSpace>
-        </div>
-        <div v-if="publicIndexers.length > 0" class="mb-4">
-          <div class="flex items-center justify-between mb-2">
-            <span class="font-medium">公开站点</span>
-            <NButton
-              size="tiny"
-              text
-              @click="
-                selectedSites = [
-                  ...new Set([
-                    ...selectedSites,
-                    ...publicIndexers.map((i: any) => i.id),
-                  ]),
-                ]
-              "
-            >
-              全选
-            </NButton>
-          </div>
-          <NSpace>
-            <NCheckbox
-              v-for="site in publicIndexers"
-              :key="site.id"
-              :value="site.id"
-              :checked="selectedSites.includes(site.id)"
-              @update:checked="
-                (v: boolean) => {
-                  if (v) selectedSites.push(site.id);
-                  else
-                    selectedSites = selectedSites.filter((s) => s !== site.id);
-                }
-              "
-            >
-              {{ site.name }}
-            </NCheckbox>
-          </NSpace>
+          <NSwitch v-model:value="builtinEnabled" />
         </div>
       </div>
       <div v-else>

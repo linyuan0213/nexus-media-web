@@ -55,62 +55,75 @@ const rateLimitOptions = [
   { label: '每小时 100 次', value: '100/h' },
 ];
 
-const featureSwitches = computed(() => [
-  {
-    key: 'rss_enable' as const,
-    label: 'RSS订阅',
-    desc: '自动获取种子列表',
-    icon: 'lucide:rss',
-  },
-  {
-    key: 'brush_enable' as const,
-    label: '刷流任务',
-    desc: '自动下载免费种子',
-    icon: 'lucide:zap',
-  },
-  {
-    key: 'statistic_enable' as const,
-    label: '数据统计',
-    desc: '上传下载做种统计',
-    icon: 'lucide:bar-chart-3',
-  },
-  {
-    key: 'parse' as const,
-    label: '解析种子详情',
-    desc: '获取种子详细信息',
-    icon: 'lucide:file-search',
-  },
-  {
-    key: 'unread_msg_notify' as const,
-    label: '消息通知',
-    desc: '未读消息提醒',
-    icon: 'lucide:bell',
-  },
-  {
-    key: 'chrome' as const,
-    label: '浏览器仿真',
-    desc: '模拟浏览器访问',
-    icon: 'lucide:chrome',
-  },
-  {
-    key: 'proxy' as const,
-    label: '使用代理',
-    desc: '通过代理访问站点',
-    icon: 'lucide:globe',
-  },
-  {
-    key: 'subtitle' as const,
-    label: '下载字幕',
-    desc: '自动获取字幕文件',
-    icon: 'lucide:subtitles',
-  },
-  {
-    key: 'tag' as const,
-    label: '下载器标签',
-    desc: '添加站点标签',
-    icon: 'lucide:tag',
-  },
-]);
+const featureSwitches = computed(() => {
+  const isBt = props.site?.site_public;
+  const allSwitches = [
+    {
+      key: 'search_enabled' as const,
+      label: '启用搜索',
+      desc: '参与索引器搜索',
+      icon: 'lucide:search',
+    },
+    {
+      key: 'rss_enable' as const,
+      label: 'RSS订阅',
+      desc: '自动获取种子列表',
+      icon: 'lucide:rss',
+    },
+    {
+      key: 'brush_enable' as const,
+      label: '刷流任务',
+      desc: '自动下载免费种子',
+      icon: 'lucide:zap',
+    },
+    {
+      key: 'parse' as const,
+      label: '解析种子详情',
+      desc: '获取种子详细信息',
+      icon: 'lucide:file-search',
+    },
+    {
+      key: 'statistic_enable' as const,
+      label: '数据统计',
+      desc: '上传下载做种统计',
+      icon: 'lucide:bar-chart-3',
+    },
+    {
+      key: 'unread_msg_notify' as const,
+      label: '消息通知',
+      desc: '未读消息提醒',
+      icon: 'lucide:bell',
+    },
+    {
+      key: 'chrome' as const,
+      label: '浏览器仿真',
+      desc: '模拟浏览器访问站点',
+      icon: 'lucide:chrome',
+    },
+    {
+      key: 'proxy' as const,
+      label: '使用代理',
+      desc: '通过代理访问站点',
+      icon: 'lucide:globe',
+    },
+    {
+      key: 'subtitle' as const,
+      label: '下载字幕',
+      desc: '自动获取字幕文件',
+      icon: 'lucide:subtitles',
+    },
+    {
+      key: 'tag' as const,
+      label: '下载器标签',
+      desc: '添加站点标签',
+      icon: 'lucide:tag',
+    },
+  ];
+  if (!isBt) return allSwitches;
+  return allSwitches.filter(
+    (s) => !['brush_enable', 'parse', 'statistic_enable'].includes(s.key),
+  );
+});
 
 function updateField<K extends keyof SiteForm>(key: K, value: SiteForm[K]) {
   if (!props.site) return;
@@ -144,9 +157,11 @@ function parseSiteToForm(item: SiteItem): SiteForm {
     bearer_token: item.bearer_token || '',
     rssurl: item.rssurl || '',
     public: !!item.public,
+    site_public: item.site_public !== false,
     rss_enable: !!item.rss_enable,
     brush_enable: !!item.brush_enable,
     statistic_enable: !!item.statistic_enable,
+    search_enabled: item.enabled !== false,
     parse: !!parsedNote?.parse,
     unread_msg_notify: !!parsedNote?.message,
     chrome: !!parsedNote?.chrome,
@@ -268,7 +283,7 @@ defineExpose({
                     @update:value="(v) => updateField('public', v)"
                   />
                   <span class="type-hint">
-                    {{ site.public ? 'BT站点（公开）' : 'PT站点（私有）' }}
+                    {{ site.site_public ? 'BT站点（公开）' : 'PT站点（私有）' }}
                   </span>
                 </div>
               </NFormItem>

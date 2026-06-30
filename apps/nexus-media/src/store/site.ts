@@ -24,6 +24,9 @@ export interface SiteItem {
   unread_msg_notify?: boolean;
   chrome?: boolean;
   proxy?: boolean;
+  source?: string;
+  third_party?: boolean;
+  enabled?: boolean;
 }
 
 export const useSiteStore = defineStore('site', () => {

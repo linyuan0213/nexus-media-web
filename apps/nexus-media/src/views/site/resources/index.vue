@@ -5,7 +5,7 @@ import { onMounted, onUnmounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { NButton, NInput, NPagination, NSpin, useNotification } from 'naive-ui';
+import { NButton, NInput, NPagination, NSpin } from 'naive-ui';
 
 import {
   addTorrentApi,
@@ -17,13 +17,14 @@ import {
 import { getSiteFaviconsApi, getSiteResourcesApi } from '#/api/modules/site';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import { useDownloadEventStream } from '#/composables/useDownloadEventStream';
+import { useAppNotification } from '#/utils/notify';
 
 import DownloadModal from './components/DownloadModal.vue';
 import ResourceCard from './components/ResourceCard.vue';
 import ResourceList from './components/ResourceList.vue';
 import SiteSelector from './components/SiteSelector.vue';
 
-const notification = useNotification();
+const notification = useAppNotification();
 const loading = ref(false);
 const sites = ref<SiteItem[]>([]);
 const resources = ref<ResourceItem[]>([]);
@@ -59,11 +60,8 @@ async function fetchSites() {
       : indexersRes?.data || [];
     sites.value = list.map((s: any) => ({ id: s.id, name: s.name }));
     favicons.value = faviconRes?.data || faviconRes || {};
-  } catch (error: any) {
-    notification.error({
-      content: '获取站点列表失败',
-      description: error?.message || '',
-    });
+  } catch {
+    // 全局请求拦截器已展示错误提示
   } finally {
     loading.value = false;
   }
@@ -112,11 +110,8 @@ async function fetchData(page = 1) {
       data.length > 0
         ? Math.max(total.value, page * pageSize.value + 1)
         : (page - 1) * pageSize.value;
-  } catch (error: any) {
-    notification.error({
-      content: '获取数据失败',
-      description: error?.message || '',
-    });
+  } catch {
+    // 全局请求拦截器已展示错误提示
   } finally {
     loading.value = false;
   }
@@ -141,7 +136,7 @@ function handleOpenUrl(url?: string) {
 
 async function openDownloadModal(item: ResourceItem) {
   if (!item.enclosure && !item.page_url) {
-    notification.warning({ content: '该资源暂无下载链接，请前往详情页查看' });
+    notification.warning('该资源暂无下载链接，请前往详情页查看');
     return;
   }
   downloadResource.value = item;
@@ -171,11 +166,8 @@ async function openDownloadModal(item: ResourceItem) {
       selectedDownloadSetting.value = first;
       await loadDownloadDirs(first);
     }
-  } catch (error: any) {
-    notification.error({
-      content: '获取下载设置失败',
-      description: error?.message || '',
-    });
+  } catch {
+    // 全局请求拦截器已展示错误提示
   } finally {
     downloadModalLoading.value = false;
   }
@@ -214,7 +206,7 @@ async function confirmDownload() {
       enclosure = res?.data?.url || res?.url || '';
     }
     if (!enclosure) {
-      notification.error({ content: '无法获取下载链接' });
+      notification.error('无法获取下载链接');
       return;
     }
     await addTorrentApi({
@@ -231,13 +223,10 @@ async function confirmDownload() {
       site: downloadResource.value.indexer || undefined,
       size: downloadResource.value.size ?? undefined,
     });
-    notification.success({ content: '下载任务已提交', duration: 2000 });
+    notification.success('下载任务已提交');
     downloadModalVisible.value = false;
-  } catch (error: any) {
-    notification.error({
-      content: '下载失败',
-      description: error?.message || '未知错误',
-    });
+  } catch {
+    // 全局请求拦截器已展示错误提示
   } finally {
     downloadModalLoading.value = false;
   }
@@ -405,6 +394,7 @@ onUnmounted(() => {
               v-for="(item, index) in resources"
               :key="`${item.indexer}-${item.title}-${index}`"
               :item="item"
+              :favicons="favicons"
               @download="openDownloadModal"
               @open-url="handleOpenUrl"
             />
@@ -416,6 +406,7 @@ onUnmounted(() => {
               v-for="(item, index) in resources"
               :key="`${item.indexer}-${item.title}-${index}`"
               :item="item"
+              :favicons="favicons"
               @download="openDownloadModal"
               @open-url="handleOpenUrl"
             />

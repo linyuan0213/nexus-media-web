@@ -236,7 +236,14 @@ export async function getIndexersConfigApi() {
     indexers: { id: string; name: string; public: boolean }[];
     private_count: number;
     public_count: number;
-    search_indexer: string;
+    third_party_sites: {
+      download_setting: null | number;
+      enabled: boolean;
+      id: number;
+      public: boolean;
+      site_name: string;
+      source: string;
+    }[];
   }>('/system/indexers');
 }
 

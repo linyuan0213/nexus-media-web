@@ -9,6 +9,7 @@ import { useResourceHelpers } from '../composables/useResourceHelpers';
 
 interface Props {
   item: ResourceItem;
+  favicons?: Record<string, string>;
 }
 
 defineProps<Props>();
@@ -26,11 +27,17 @@ const { formatDate, formatSize, getFreeTag, getLabelClass, parseLabels } =
   <NCard size="small" class="resource-card">
     <div class="resource-card-inner">
       <div class="resource-title-row">
-        <IconifyIcon
-          icon="lucide:film"
-          class="h-8 w-8 shrink-0"
-          :style="{ color: 'hsl(var(--primary))' }"
-        />
+        <div
+          class="resource-site-logo"
+          :style="{
+            background: 'hsl(var(--accent))',
+            color: 'hsl(var(--accent-foreground))',
+          }"
+        >
+          <span class="site-logo-initial">{{
+            item.indexer?.charAt(0) || ''
+          }}</span>
+        </div>
         <div
           class="resource-title"
           :style="{ color: 'hsl(var(--card-foreground))' }"
@@ -150,6 +157,29 @@ const { formatDate, formatSize, getFreeTag, getLabelClass, parseLabels } =
   display: flex;
   gap: 0.375rem;
   align-items: center;
+}
+
+.resource-site-logo {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  overflow: hidden;
+  border-radius: 0.375rem;
+}
+
+.site-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.site-logo-initial {
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .resource-title {
