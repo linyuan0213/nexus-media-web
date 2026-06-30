@@ -109,9 +109,13 @@ const features = computed(() => {
             <span class="site-name" :title="site.name">{{ site.name }}</span>
             <span
               class="site-type-badge"
-              :class="site.site_public ? 'site-type-bt' : 'site-type-pt'"
+              :class="
+                (site.site_public ?? site.public)
+                  ? 'site-type-bt'
+                  : 'site-type-pt'
+              "
             >
-              {{ site.site_public ? 'BT' : 'PT' }}
+              {{ (site.site_public ?? site.public) ? 'BT' : 'PT' }}
             </span>
           </div>
           <div v-if="!isThirdParty" class="site-url">

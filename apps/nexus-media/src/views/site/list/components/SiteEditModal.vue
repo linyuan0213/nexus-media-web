@@ -56,7 +56,7 @@ const rateLimitOptions = [
 ];
 
 const featureSwitches = computed(() => {
-  const isBt = props.site?.site_public;
+  const isBt = props.site?.site_public ?? props.site?.public;
   const allSwitches = [
     {
       key: 'search_enabled' as const,
@@ -283,7 +283,11 @@ defineExpose({
                     @update:value="(v) => updateField('public', v)"
                   />
                   <span class="type-hint">
-                    {{ site.site_public ? 'BT站点（公开）' : 'PT站点（私有）' }}
+                    {{
+                      (site.site_public ?? site.public)
+                        ? 'BT站点（公开）'
+                        : 'PT站点（私有）'
+                    }}
                   </span>
                 </div>
               </NFormItem>

@@ -68,8 +68,8 @@ const filteredSites = computed(() => {
   }
   if (activeType.value !== 'all') {
     list = list.filter((s: any) => {
-      if (activeType.value === 'bt') return s.site_public;
-      return !s.site_public;
+      if (activeType.value === 'bt') return s.site_public ?? s.public;
+      return !(s.site_public ?? s.public);
     });
   }
   return list;
