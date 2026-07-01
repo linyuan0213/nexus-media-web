@@ -33,7 +33,12 @@ interface BrushTaskFormData {
   brushtask_time_range: string;
   brushtask_sendmessage: boolean;
   brushtask_transfer: boolean;
-  brushtask_rule_id: number | undefined;
+  brushtask_rss_rule_id: number | undefined;
+  brushtask_remove_rule_id: number | undefined;
+  brushtask_stop_rule_id: number | undefined;
+  brushtask_rss_rule_enabled: boolean;
+  brushtask_remove_rule_enabled: boolean;
+  brushtask_stop_rule_enabled: boolean;
 }
 
 const props = defineProps<{
@@ -63,7 +68,12 @@ function defaultForm(): BrushTaskFormData {
     brushtask_time_range: '',
     brushtask_sendmessage: false,
     brushtask_transfer: false,
-    brushtask_rule_id: undefined,
+    brushtask_rss_rule_id: undefined,
+    brushtask_remove_rule_id: undefined,
+    brushtask_stop_rule_id: undefined,
+    brushtask_rss_rule_enabled: false,
+    brushtask_remove_rule_enabled: false,
+    brushtask_stop_rule_enabled: false,
   };
 }
 
@@ -72,19 +82,38 @@ const form = ref<BrushTaskFormData>(defaultForm());
 const isEdit = computed(() => !!props.task?.id);
 
 const brushRules = ref<Array<{ label: string; value: number }>>([]);
+const rssRules = ref<Array<{ label: string; value: number }>>([]);
+const removeRules = ref<Array<{ label: string; value: number }>>([]);
+const stopRules = ref<Array<{ label: string; value: number }>>([]);
 const ruleLoading = ref(false);
+
+function mapRules(list: BrushApi.BrushRule[]) {
+  return list.map((r: BrushApi.BrushRule) => ({ label: r.name, value: r.id }));
+}
 
 async function loadBrushRules() {
   ruleLoading.value = true;
   try {
     const res: any = await getBrushRulesApi();
-    const list = Array.isArray(res) ? res : res?.data || [];
-    brushRules.value = list.map((r: BrushApi.BrushRule) => ({
-      label: r.name,
-      value: r.id,
-    }));
+    const list: BrushApi.BrushRule[] = Array.isArray(res)
+      ? res
+      : res?.data || [];
+    brushRules.value = mapRules(list);
+    rssRules.value = mapRules(
+      list.filter((r: any) => r.type === 'rss' || !r.type),
+    );
+    removeRules.value = mapRules(
+      list.filter((r: any) => r.type === 'remove' || !r.type),
+    );
+    stopRules.value = mapRules(
+      list.filter((r: any) => r.type === 'stop' || !r.type),
+    );
   } catch {
-    brushRules.value = [];
+    brushRules.value =
+      rssRules.value =
+      removeRules.value =
+      stopRules.value =
+        [];
   } finally {
     ruleLoading.value = false;
   }
@@ -106,7 +135,12 @@ function loadTask(task: BrushApi.BrushTask) {
     brushtask_time_range: task.time_range || '',
     brushtask_sendmessage: !!task.sendmessage,
     brushtask_transfer: !!task.transfer,
-    brushtask_rule_id: task.rule_id || undefined,
+    brushtask_rss_rule_id: task.rss_rule_id || undefined,
+    brushtask_remove_rule_id: task.remove_rule_id || undefined,
+    brushtask_stop_rule_id: task.stop_rule_id || undefined,
+    brushtask_rss_rule_enabled: false,
+    brushtask_remove_rule_enabled: false,
+    brushtask_stop_rule_enabled: false,
   };
 }
 
@@ -227,26 +261,6 @@ function labelWithHelp(label: string, helpText: string) {
             placeholder="请输入任务名称"
           />
         </NFormItem>
-        <NFormItem path="brushtask_rule_id" required>
-          <template #label>
-            <component
-              :is="
-                () =>
-                  labelWithHelp(
-                    '规则模板',
-                    '选择已保存的刷流规则模板，选种/删种/停种规则从模板读取',
-                  )
-              "
-            />
-          </template>
-          <NSelect
-            v-model:value="form.brushtask_rule_id"
-            :options="brushRules"
-            placeholder="请选择规则模板"
-            clearable
-            :loading="ruleLoading"
-          />
-        </NFormItem>
         <NFormItem label="站点" path="brushtask_site" required>
           <NSelect
             v-model:value="form.brushtask_site"
@@ -357,6 +371,58 @@ function labelWithHelp(label: string, helpText: string) {
           <NInput
             v-model:value="form.brushtask_time_range"
             placeholder="如: 08:00-22:00"
+          />
+        </NFormItem>
+      </div>
+    </div>
+
+    <!-- 规则模板 -->
+    <div class="form-section">
+      <div class="form-section-title">
+        <IconifyIcon icon="lucide:layers" class="h-4 w-4" />
+        规则模板
+      </div>
+      <div class="form-grid form-grid--rules">
+        <NFormItem>
+          <template #label>
+            <span class="rule-label"
+              ><span class="rule-dot dot-rss"></span> 选种规则</span
+            >
+          </template>
+          <NSelect
+            v-model:value="form.brushtask_rss_rule_id"
+            :options="rssRules"
+            placeholder="不选则不处理"
+            clearable
+            :loading="ruleLoading"
+          />
+        </NFormItem>
+        <NFormItem>
+          <template #label>
+            <span class="rule-label"
+              ><span class="rule-dot dot-remove"></span> 删种规则</span
+            >
+          </template>
+          <NSelect
+            v-model:value="form.brushtask_remove_rule_id"
+            :options="removeRules"
+            placeholder="不选则不处理"
+            clearable
+            :loading="ruleLoading"
+          />
+        </NFormItem>
+        <NFormItem>
+          <template #label>
+            <span class="rule-label"
+              ><span class="rule-dot dot-stop"></span> 停种规则</span
+            >
+          </template>
+          <NSelect
+            v-model:value="form.brushtask_stop_rule_id"
+            :options="stopRules"
+            placeholder="不选则不处理"
+            clearable
+            :loading="ruleLoading"
           />
         </NFormItem>
       </div>
@@ -509,6 +575,35 @@ function labelWithHelp(label: string, helpText: string) {
 :deep(.help-icon:hover) {
   color: hsl(var(--primary));
   opacity: 1;
+}
+
+/* ===== 规则选择三列 ===== */
+.rule-label {
+  display: inline-flex;
+  gap: 0.375rem;
+  align-items: center;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: hsl(var(--card-foreground));
+}
+
+.rule-dot {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+}
+
+.dot-rss {
+  background: hsl(var(--primary));
+}
+
+.dot-remove {
+  background: hsl(var(--destructive));
+}
+
+.dot-stop {
+  background: hsl(var(--success));
 }
 
 @media (max-width: 768px) {

@@ -24,7 +24,9 @@ export namespace BrushApi {
     rss_rule?: Record<string, any>;
     remove_rule?: Record<string, any>;
     stop_rule?: Record<string, any>;
-    rule_id?: null | number;
+    rss_rule_id?: null | number;
+    remove_rule_id?: null | number;
+    stop_rule_id?: null | number;
     seed_size?: number;
     time_range?: string;
     total_size?: number;
@@ -59,6 +61,8 @@ export namespace BrushApi {
   export interface BrushRule {
     id: number;
     name: string;
+    type?: string;
+    json_rule?: Record<string, any>;
     rss_rule?: Record<string, any>;
     remove_rule?: Record<string, any>;
     stop_rule?: Record<string, any>;

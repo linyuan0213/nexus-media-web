@@ -51,6 +51,15 @@ const ruleNameMap = computed(() => {
   return map;
 });
 
+function ruleNames(task: BrushApi.BrushTask): string {
+  const ids = [task.rss_rule_id, task.remove_rule_id, task.stop_rule_id].filter(
+    Boolean,
+  );
+  return ids
+    .map((id) => ruleNameMap.value[id as number] || `#${id}`)
+    .join(' · ');
+}
+
 const searchKeyword = ref('');
 const filterState = ref<string>('');
 const filterSite = ref<string>('');
@@ -466,11 +475,11 @@ onMounted(() => {
                     getFreeLabel(task.free)
                   }}</span>
                   <span
-                    v-if="task.rule_id && ruleNameMap[task.rule_id]"
+                    v-if="ruleNames(task)"
                     class="task-badge task-badge-rule"
                   >
                     <IconifyIcon icon="lucide:filter" class="h-3 w-3" />
-                    <span>{{ ruleNameMap[task.rule_id] }}</span>
+                    <span>{{ ruleNames(task) }}</span>
                   </span>
                 </div>
                 <div class="task-actions" @click.stop>
@@ -563,11 +572,11 @@ onMounted(() => {
               {{ getFreeLabel(detailTask.free) }}
             </span>
             <span
-              v-if="detailTask.rule_id && ruleNameMap[detailTask.rule_id]"
+              v-if="ruleNames(detailTask)"
               class="task-badge task-badge-rule"
             >
               <IconifyIcon icon="lucide:filter" class="h-3 w-3" />
-              {{ ruleNameMap[detailTask.rule_id] }}
+              {{ ruleNames(detailTask) }}
             </span>
           </div>
         </div>
