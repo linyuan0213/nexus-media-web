@@ -20,7 +20,6 @@ import {
   NSwitch,
   NTag,
   NTooltip,
-  useNotification,
 } from 'naive-ui';
 
 import {
@@ -31,8 +30,9 @@ import {
 import RangeField from '#/components/brush/RangeField.vue';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
+import { useAppNotification } from '#/utils/notify';
 
-const notification = useNotification();
+const notification = useAppNotification();
 const rules = ref<BrushApi.BrushRule[]>([]);
 const loading = ref(false);
 const modalShow = ref(false);
@@ -106,8 +106,7 @@ async function fetchRules() {
     const res: any = await getBrushRulesApi();
     rules.value = Array.isArray(res) ? res : res?.data || [];
   } catch (error: any) {
-    notification.error({
-      content: '加载失败',
+    notification.error('加载失败', {
       description: error?.message || '',
     });
   } finally {
@@ -234,7 +233,7 @@ function getStopRule() {
 
 async function handleSave() {
   if (!form.value.name.trim()) {
-    notification.error({ content: '请输入规则名称' });
+    notification.error('请输入规则名称');
     return;
   }
   try {
@@ -245,14 +244,11 @@ async function handleSave() {
       remove_rule: getRemoveRule(),
       stop_rule: getStopRule(),
     });
-    notification.success({
-      content: form.value.id ? '规则已更新' : '规则已创建',
-    });
+    notification.success(form.value.id ? '规则已更新' : '规则已创建');
     modalShow.value = false;
     await fetchRules();
   } catch (error: any) {
-    notification.error({
-      content: '保存失败',
+    notification.error('保存失败', {
       description: error?.message || '',
     });
   }
@@ -261,11 +257,10 @@ async function handleSave() {
 async function doDelete(rule: BrushApi.BrushRule) {
   try {
     await deleteBrushRuleApi(rule.id);
-    notification.success({ content: '规则已删除' });
+    notification.success('规则已删除');
     await fetchRules();
   } catch (error: any) {
-    notification.error({
-      content: '删除失败',
+    notification.error('删除失败', {
       description: error?.message || '',
     });
   }

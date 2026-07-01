@@ -3,11 +3,12 @@ import { computed, nextTick, ref, watch } from 'vue';
 
 import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 
-import { NModal, NSpin, useNotification } from 'naive-ui';
+import { NModal, NSpin } from 'naive-ui';
 
 import { getSiteActivityApi } from '#/api/modules/site';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import { useSiteStats } from '#/composables/useSiteStats';
+import { useAppNotification } from '#/utils/notify';
 
 interface Props {
   show: boolean;
@@ -19,7 +20,7 @@ const emit = defineEmits<{
   'update:show': [value: boolean];
 }>();
 
-const notification = useNotification();
+const notification = useAppNotification();
 const { formatSize, getThemeColors } = useSiteStats();
 
 const loading = ref(false);
@@ -44,8 +45,7 @@ async function fetchActivity() {
     await nextTick();
     renderDetailChart();
   } catch (error: any) {
-    notification.error({
-      content: '获取站点统计失败',
+    notification.error('获取站点统计失败', {
       description: error?.message || '',
     });
   } finally {

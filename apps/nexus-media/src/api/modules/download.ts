@@ -99,11 +99,17 @@ export namespace DownloadApi {
 }
 
 /** 获取下载任务列表 */
-export async function getDownloadTasksApi() {
-  return requestClient.post<DownloadApi.DownloadTask[]>(
+export async function getDownloadTasksApi(
+  page: number = 1,
+  pageSize: number = 50,
+) {
+  return requestClient.post<{
+    items: DownloadApi.DownloadTask[];
+    total: number;
+  }>(
     '/download/tasks',
     {},
-    { timeout: 30_000 },
+    { params: { page, page_size: pageSize }, timeout: 30_000 },
   );
 }
 
@@ -131,6 +137,27 @@ export async function resumeTaskApi(id: string) {
 export async function deleteTaskApi(id: string, deleteFiles: boolean = false) {
   return requestClient.post('/download/tasks/remove', {
     id,
+    delete_files: deleteFiles,
+  });
+}
+
+/** 批量暂停任务 */
+export async function batchPauseTasksApi(ids: string[]) {
+  return requestClient.post('/download/tasks/batch/stop', { ids });
+}
+
+/** 批量恢复任务 */
+export async function batchResumeTasksApi(ids: string[]) {
+  return requestClient.post('/download/tasks/batch/start', { ids });
+}
+
+/** 批量删除任务 */
+export async function batchDeleteTasksApi(
+  ids: string[],
+  deleteFiles: boolean = false,
+) {
+  return requestClient.post('/download/tasks/batch/remove', {
+    ids,
     delete_files: deleteFiles,
   });
 }

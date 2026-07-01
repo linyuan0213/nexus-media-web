@@ -20,7 +20,6 @@ import {
   NSelect,
   NSpace,
   NSpin,
-  useNotification,
 } from 'naive-ui';
 
 import {
@@ -38,9 +37,10 @@ import {
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 import { useMediaStore } from '#/store';
+import { useAppNotification } from '#/utils/notify';
 
 const mediaStore = useMediaStore();
-const notification = useNotification();
+const notification = useAppNotification();
 
 const loading = ref(false);
 const keyword = ref('');
@@ -148,14 +148,11 @@ function handleClear() {
 async function confirmClear() {
   try {
     await clearTransferHistoryApi();
-    notification.success({ content: '所有识别记录已清空' });
+    notification.success('所有识别记录已清空');
     await fetchData(1);
     await fetchStatistics();
   } catch (error: any) {
-    notification.error({
-      content: '清空失败',
-      description: error?.message || '',
-    });
+    notification.error('清空失败', { description: error?.message || '' });
   } finally {
     clearModalShow.value = false;
   }
@@ -268,7 +265,7 @@ function handleItemAction(key: string, item: any) {
 
 function handleBulkAction(key: string) {
   if (selectedIds.value.length === 0) {
-    notification.warning({ content: '请先选择记录' });
+    notification.warning('请先选择记录');
     return;
   }
   const labels: Record<string, string> = {
@@ -288,14 +285,11 @@ function handleBulkAction(key: string) {
 async function doReIdentify(ids: number[]) {
   try {
     await reIdentifyTransferHistoryApi({ ids });
-    notification.success({ content: '重新识别任务已提交' });
+    notification.success('重新识别任务已提交');
     await fetchData(currentPage.value);
     await fetchStatistics();
   } catch (error: any) {
-    notification.error({
-      content: '提交失败',
-      description: error?.message || '',
-    });
+    notification.error('提交失败', { description: error?.message || '' });
   }
 }
 
@@ -307,17 +301,14 @@ async function confirmDelete() {
       payload.flag = deletePayload.value.flag;
     }
     await deleteTransferHistoryApi(payload);
-    notification.success({ content: `${deletePayload.value.label} 成功` });
+    notification.success(`${deletePayload.value.label} 成功`);
     selectedIds.value = selectedIds.value.filter(
       (id) => !deletePayload.value!.logids.includes(id),
     );
     await fetchData(currentPage.value);
     await fetchStatistics();
   } catch (error: any) {
-    notification.error({
-      content: '删除失败',
-      description: error?.message || '',
-    });
+    notification.error('删除失败', { description: error?.message || '' });
   } finally {
     deleteModalShow.value = false;
     deletePayload.value = null;
@@ -367,10 +358,7 @@ async function handleTmdbSearch() {
     const raw = Array.isArray(res) ? res : res?.data || [];
     tmdbSearchResults.value = raw;
   } catch (error: any) {
-    notification.error({
-      content: '搜索失败',
-      description: error?.message || '',
-    });
+    notification.error('搜索失败', { description: error?.message || '' });
   } finally {
     tmdbSearchLoading.value = false;
   }
@@ -403,15 +391,12 @@ async function submitManual() {
       episode_part: manualForm.value.episode_part || undefined,
       episode_offset: manualForm.value.episode_offset || undefined,
     });
-    notification.success({ content: '手动识别成功' });
+    notification.success('手动识别成功');
     manualModalShow.value = false;
     await fetchData(currentPage.value);
     await fetchStatistics();
   } catch (error: any) {
-    notification.error({
-      content: '手动识别失败',
-      description: error?.message || '',
-    });
+    notification.error('手动识别失败', { description: error?.message || '' });
   } finally {
     manualLoading.value = false;
   }

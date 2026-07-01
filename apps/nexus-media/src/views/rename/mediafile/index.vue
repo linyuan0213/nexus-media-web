@@ -20,7 +20,6 @@ import {
   NSpace,
   NSpin,
   NTooltip,
-  useNotification,
 } from 'naive-ui';
 
 import { findHardlinksApi } from '#/api/modules/download';
@@ -41,8 +40,9 @@ import {
 import IdentifyResult from '#/components/media/IdentifyResult.vue';
 import TransferModal from '#/components/media/TransferModal.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
+import { useAppNotification } from '#/utils/notify';
 
-const notification = useNotification();
+const notification = useAppNotification();
 
 const loading = ref(false);
 const currentPath = ref('');
@@ -337,10 +337,7 @@ async function fetchDirList(path?: string) {
       dirList.value = [];
       currentPath.value = path || '';
     } else {
-      notification.error({
-        content: '加载目录失败',
-        description: msg,
-      });
+      notification.error('加载目录失败', { description: msg });
     }
   } finally {
     loading.value = false;
@@ -463,24 +460,18 @@ function getLibraryColor(type: string) {
 async function handleScrap(path: string) {
   try {
     await scrapMediaPathApi(path, currentBackendId.value);
-    notification.success({ content: '刮削任务已提交' });
+    notification.success('刮削任务已提交');
   } catch (error: any) {
-    notification.error({
-      content: '刮削失败',
-      description: error?.message || '',
-    });
+    notification.error('刮削失败', { description: error?.message || '' });
   }
 }
 
 async function handleSubtitle(item: any) {
   try {
     await downloadSubtitleApi(item.path, item.name);
-    notification.success({ content: '字幕下载任务已提交' });
+    notification.success('字幕下载任务已提交');
   } catch (error: any) {
-    notification.error({
-      content: '字幕下载失败',
-      description: error?.message || '',
-    });
+    notification.error('字幕下载失败', { description: error?.message || '' });
   }
 }
 
@@ -547,10 +538,7 @@ async function handleGlobalSearch() {
       globalSearchIndexed.value = res.indexed || 0;
     }
   } catch (error: any) {
-    notification.error({
-      content: '搜索失败',
-      description: error?.message || '',
-    });
+    notification.error('搜索失败', { description: error?.message || '' });
   } finally {
     globalSearchLoading.value = false;
   }
@@ -577,7 +565,7 @@ function navigateToSearchResult(item: any) {
 async function handleIdentify(item: any) {
   const filename = item.name || item.path?.split('/').pop() || '';
   if (!filename) {
-    notification.warning({ content: '无法获取文件名' });
+    notification.warning('无法获取文件名');
     return;
   }
   identifyLoading.value = true;
@@ -586,10 +574,7 @@ async function handleIdentify(item: any) {
     identifyResult.value = res || {};
     identifyResultShow.value = true;
   } catch (error: any) {
-    notification.error({
-      content: '识别失败',
-      description: error?.message || '',
-    });
+    notification.error('识别失败', { description: error?.message || '' });
   } finally {
     identifyLoading.value = false;
   }
@@ -612,13 +597,10 @@ async function submitTransfer(data: TransferFormData) {
       season: data.season,
       min_filesize: data.min_filesize,
     });
-    notification.success({ content: '转移任务已提交' });
+    notification.success('转移任务已提交');
     transferModalShow.value = false;
   } catch (error: any) {
-    notification.error({
-      content: '提交失败',
-      description: error?.message || '',
-    });
+    notification.error('提交失败', { description: error?.message || '' });
   } finally {
     transferLoading.value = false;
   }
@@ -635,14 +617,11 @@ async function submitRename() {
       path: renameForm.value.path,
       name: renameForm.value.name,
     });
-    notification.success({ content: '重命名成功' });
+    notification.success('重命名成功');
     renameModalShow.value = false;
     await fetchDirList(currentPath.value || undefined);
   } catch (error: any) {
-    notification.error({
-      content: '重命名失败',
-      description: error?.message || '',
-    });
+    notification.error('重命名失败', { description: error?.message || '' });
   }
 }
 
@@ -669,10 +648,7 @@ async function submitHardlinkQuery() {
     hardlinkResult.value = (res || {}) as any;
     hardlinkModalShow.value = true;
   } catch (error: any) {
-    notification.error({
-      content: '查询失败',
-      description: error?.message || '',
-    });
+    notification.error('查询失败', { description: error?.message || '' });
   } finally {
     hardlinkLoading.value = false;
   }
@@ -694,14 +670,11 @@ async function confirmDelete() {
       files: [deletePayload.value.path],
       backend_id: currentBackendId.value,
     });
-    notification.success({ content: '删除成功' });
+    notification.success('删除成功');
     deleteModalShow.value = false;
     await fetchDirList(currentPath.value || undefined);
   } catch (error: any) {
-    notification.error({
-      content: '删除失败',
-      description: error?.message || '',
-    });
+    notification.error('删除失败', { description: error?.message || '' });
   }
 }
 

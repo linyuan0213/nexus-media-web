@@ -14,7 +14,6 @@ import {
   NPagination,
   NSpace,
   NSpin,
-  useNotification,
 } from 'naive-ui';
 
 import {
@@ -28,9 +27,10 @@ import IdentifyResult from '#/components/media/IdentifyResult.vue';
 import TransferModal from '#/components/media/TransferModal.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 import { useMediaStore } from '#/store';
+import { useAppNotification } from '#/utils/notify';
 
 const mediaStore = useMediaStore();
-const notification = useNotification();
+const notification = useAppNotification();
 
 const loading = ref(false);
 const reIdentifyLoading = ref(false);
@@ -111,19 +111,16 @@ function toggleSelectAll() {
 
 async function handleReIdentify() {
   if (unknownList.value.length === 0) {
-    notification.warning({ content: '当前没有未识别记录' });
+    notification.warning('当前没有未识别记录');
     return;
   }
   reIdentifyLoading.value = true;
   try {
     await reIdentifyUnknownApi();
-    notification.success({ content: '重新识别任务已提交' });
+    notification.success('重新识别任务已提交');
     await fetchData(1);
   } catch (error: any) {
-    notification.error({
-      content: '提交失败',
-      description: error?.message || '',
-    });
+    notification.error('提交失败', { description: error?.message || '' });
   } finally {
     reIdentifyLoading.value = false;
   }
@@ -131,39 +128,33 @@ async function handleReIdentify() {
 
 async function handleBatchDelete() {
   if (selectedIds.value.length === 0) {
-    notification.warning({ content: '请先选择要删除的记录' });
+    notification.warning('请先选择要删除的记录');
     return;
   }
   try {
     await deleteTransferUnknownApi({ ids: selectedIds.value });
-    notification.success({ content: '删除成功' });
+    notification.success('删除成功');
     selectedIds.value = [];
     await fetchData(currentPage.value);
   } catch (error: any) {
-    notification.error({
-      content: '删除失败',
-      description: error?.message || '',
-    });
+    notification.error('删除失败', { description: error?.message || '' });
   }
 }
 
 async function handleDelete(item: any) {
   try {
     await deleteTransferUnknownApi({ ids: [item.id] });
-    notification.success({ content: '删除成功' });
+    notification.success('删除成功');
     await fetchData(currentPage.value);
   } catch (error: any) {
-    notification.error({
-      content: '删除失败',
-      description: error?.message || '',
-    });
+    notification.error('删除失败', { description: error?.message || '' });
   }
 }
 
 async function handleIdentify(item: any) {
   const filename = item.name || item.path?.split('/').pop() || '';
   if (!filename) {
-    notification.warning({ content: '无法获取文件名' });
+    notification.warning('无法获取文件名');
     return;
   }
   identifyLoading.value = true;
@@ -173,10 +164,7 @@ async function handleIdentify(item: any) {
     identifyResult.value = res || {};
     identifyShow.value = true;
   } catch (error: any) {
-    notification.error({
-      content: '识别失败',
-      description: error?.message || '',
-    });
+    notification.error('识别失败', { description: error?.message || '' });
   } finally {
     identifyLoading.value = false;
   }
@@ -210,14 +198,11 @@ async function submitTransfer(data: TransferFormData) {
       season: data.season,
       min_filesize: data.min_filesize,
     });
-    notification.success({ content: '转移任务已提交' });
+    notification.success('转移任务已提交');
     transferModalShow.value = false;
     await fetchData(currentPage.value);
   } catch (error: any) {
-    notification.error({
-      content: '提交失败',
-      description: error?.message || '',
-    });
+    notification.error('提交失败', { description: error?.message || '' });
   } finally {
     transferLoading.value = false;
   }

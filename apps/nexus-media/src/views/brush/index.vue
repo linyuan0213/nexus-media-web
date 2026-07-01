@@ -17,7 +17,6 @@ import {
   NSpin,
   NSwitch,
   NTag,
-  useNotification,
 } from 'naive-ui';
 
 import {
@@ -35,8 +34,9 @@ import { getSitesApi } from '#/api/modules/site';
 import BrushTaskForm from '#/components/brush/BrushTaskForm.vue';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
+import { useAppNotification } from '#/utils/notify';
 
-const notification = useNotification();
+const notification = useAppNotification();
 const loading = ref(false);
 const tasks = ref<BrushApi.BrushTask[]>([]);
 const sites = ref<Array<{ label: string; value: string }>>([]);
@@ -184,13 +184,10 @@ async function handleToggle(task: BrushApi.BrushTask, enable?: boolean) {
   const target = enable ?? task.state !== 'Y';
   try {
     await toggleBrushTaskApi(task.id, target);
-    notification.success({ content: target ? '任务已启用' : '任务已停用' });
+    notification.success(target ? '任务已启用' : '任务已停用');
     await fetchData();
   } catch (error: any) {
-    notification.error({
-      content: '操作失败',
-      description: error?.message || '',
-    });
+    notification.error('操作失败', { description: error?.message || '' });
   }
 }
 
@@ -232,25 +229,19 @@ function handleMoreSelect(key: string, row: BrushApi.BrushTask) {
 async function handleRun(task: BrushApi.BrushTask) {
   try {
     await runBrushTaskApi(task.id);
-    notification.success({ content: '任务已触发运行' });
+    notification.success('任务已触发运行');
   } catch (error: any) {
-    notification.error({
-      content: '运行失败',
-      description: error?.message || '',
-    });
+    notification.error('运行失败', { description: error?.message || '' });
   }
 }
 
 async function handleDelete(task: BrushApi.BrushTask) {
   try {
     await deleteBrushTaskApi(task.id);
-    notification.success({ content: '任务已删除' });
+    notification.success('任务已删除');
     await fetchData();
   } catch (error: any) {
-    notification.error({
-      content: '删除失败',
-      description: error?.message || '',
-    });
+    notification.error('删除失败', { description: error?.message || '' });
   }
 }
 
@@ -264,8 +255,7 @@ async function openTorrents(task: BrushApi.BrushTask) {
     const list = Array.isArray(res) ? res : res?.data || res?.list || [];
     torrents.value = list;
   } catch (error: any) {
-    notification.error({
-      content: '获取种子列表失败',
+    notification.error('获取种子列表失败', {
       description: error?.message || '',
     });
     torrents.value = [];
@@ -356,17 +346,12 @@ async function handleFormSubmit(data: any) {
     await (editingTask.value
       ? updateBrushTaskApi(data as any)
       : addBrushTaskApi(data as any));
-    notification.success({
-      content: editingTask.value ? '任务已更新' : '任务已创建',
-    });
+    notification.success(editingTask.value ? '任务已更新' : '任务已创建');
     editModalShow.value = false;
     editingTask.value = null;
     await fetchData();
   } catch (error: any) {
-    notification.error({
-      content: '保存失败',
-      description: error?.message || '',
-    });
+    notification.error('保存失败', { description: error?.message || '' });
   }
 }
 

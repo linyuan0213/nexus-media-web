@@ -19,7 +19,6 @@ import {
   NSelect,
   NSpin,
   NTag,
-  useNotification,
 } from 'naive-ui';
 
 import { getSearchResultApi, searchMediaApi, webSearchApi } from '#/api';
@@ -32,6 +31,7 @@ import { getProgressApi } from '#/api/modules/system';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 import { useDownloadEventStream } from '#/composables/useDownloadEventStream';
+import { useAppNotification } from '#/utils/notify';
 
 interface TorrentItem {
   id: string;
@@ -101,7 +101,7 @@ interface SearchResultWithFilter extends SearchResult {
 }
 
 const route = useRoute();
-const notification = useNotification();
+const notification = useAppNotification();
 const { start: startSSE, stop: stopSSE } = useDownloadEventStream();
 
 /** 图片 URL 处理：后端已统一转换代理路径，直接使用 */
@@ -225,8 +225,7 @@ async function handleSearch() {
     // requestClient 在 code===0 时自动解包返回 data，所以 res 直接是数组
     mediaResults.value = Array.isArray(res) ? res : res?.data || [];
   } catch (error: any) {
-    notification.error({
-      content: '搜索失败',
+    notification.error('搜索失败', {
       description: error?.message || '未知错误',
     });
   } finally {
@@ -249,8 +248,7 @@ async function handleMediaSearch(media: MediaItem) {
   } catch (error: any) {
     loading.value = false;
     stopProgressPoll();
-    notification.error({
-      content: '搜索失败',
+    notification.error('搜索失败', {
       description: error?.message || '未知错误',
     });
   }
@@ -274,8 +272,7 @@ async function handleAdvancedSearch() {
   } catch (error: any) {
     loading.value = false;
     stopProgressPoll();
-    notification.error({
-      content: '搜索失败',
+    notification.error('搜索失败', {
       description: error?.message || '未知错误',
     });
   }
@@ -370,8 +367,7 @@ onMounted(() => {
       webSearchApi({ search_word: s }).catch((error: any) => {
         loading.value = false;
         stopProgressPoll();
-        notification.error({
-          content: '搜索失败',
+        notification.error('搜索失败', {
           description: error?.message || '未知错误',
         });
       });
@@ -655,11 +651,10 @@ async function confirmDownload() {
       selectedDownloadDir.value || undefined,
       selectedDownloadSetting.value || undefined,
     );
-    notification.success({ content: '下载任务已提交', duration: 2000 });
+    notification.success('下载任务已提交');
     downloadModalVisible.value = false;
   } catch (error: any) {
-    notification.error({
-      content: '下载失败',
+    notification.error('下载失败', {
       description: error?.message || '未知错误',
     });
   } finally {

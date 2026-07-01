@@ -1,17 +1,10 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 
-import {
-  NButton,
-  NForm,
-  NFormItem,
-  NInput,
-  NModal,
-  NSpace,
-  useNotification,
-} from 'naive-ui';
+import { NButton, NForm, NFormItem, NInput, NModal, NSpace } from 'naive-ui';
 
 import { testFilterRuleApi } from '#/api/modules/filter';
+import { useAppNotification } from '#/utils/notify';
 
 const props = defineProps<{
   groupName?: string;
@@ -22,7 +15,7 @@ const emit = defineEmits<{
   'update:show': [value: boolean];
 }>();
 
-const notification = useNotification();
+const notification = useAppNotification();
 const loading = ref(false);
 const form = ref({
   title: '',
@@ -57,10 +50,7 @@ async function handleTest() {
     });
     result.value = res?.data || res;
   } catch (error: any) {
-    notification.error({
-      content: '测试失败',
-      description: error?.message || '',
-    });
+    notification.error('测试失败', { description: error?.message || '' });
   } finally {
     loading.value = false;
   }

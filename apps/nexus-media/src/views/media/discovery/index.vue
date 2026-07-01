@@ -7,7 +7,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { NButton, NModal, NProgress, NSpin, useNotification } from 'naive-ui';
+import { NButton, NModal, NProgress, NSpin } from 'naive-ui';
 
 import { getRecommendApi, webSearchApi } from '#/api';
 import {
@@ -18,6 +18,7 @@ import { getProgressApi } from '#/api/modules/system';
 import PageHeader from '#/components/page/PageHeader.vue';
 import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.vue';
 import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
+import { useAppNotification } from '#/utils/notify';
 
 interface RecommendItem {
   id: string;
@@ -45,7 +46,7 @@ interface CategoryConfig {
 
 const route = useRoute();
 const router = useRouter();
-const notification = useNotification();
+const notification = useAppNotification();
 
 const loadingMap = ref<Record<string, boolean>>({});
 const categoryItems = ref<Record<string, RecommendItem[]>>({});
@@ -258,8 +259,7 @@ async function handleSearch(item: RecommendItem, e: Event) {
   } catch (error: any) {
     stopSearchProgressPoll();
     searchModalVisible.value = false;
-    notification.error({
-      content: '搜索失败',
+    notification.error('搜索失败', {
       description: error?.message || '未知错误',
     });
   }
@@ -311,8 +311,7 @@ async function handleConfirmSubscribe(seasons: number[], _autoMode: boolean) {
           season: String(season),
         });
       }
-      notification.success({
-        content: '订阅成功',
+      notification.success('订阅成功', {
         description: `${item.title} 已订阅 ${seasons.length} 季`,
       });
     } else {
@@ -329,20 +328,17 @@ async function handleConfirmSubscribe(seasons: number[], _autoMode: boolean) {
         res?.msg?.includes('成功') ||
         !res;
       if (success) {
-        notification.success({
-          content: '订阅成功',
+        notification.success('订阅成功', {
           description: res?.msg || `${item.title} 已添加订阅`,
         });
       } else {
-        notification.error({
-          content: '订阅失败',
+        notification.error('订阅失败', {
           description: res?.msg || '未知错误',
         });
       }
     }
   } catch (error: any) {
-    notification.error({
-      content: '订阅失败',
+    notification.error('订阅失败', {
       description: error?.message || '未知错误',
     });
   } finally {
@@ -367,13 +363,11 @@ function handleEditSubscribe() {
 async function handleConfirmEdit(data: Record<string, any>) {
   try {
     await addSubscriptionApi(data);
-    notification.success({
-      content: '订阅成功',
+    notification.success('订阅成功', {
       description: `${data.name} 已添加订阅`,
     });
   } catch (error: any) {
-    notification.error({
-      content: '订阅失败',
+    notification.error('订阅失败', {
       description: error?.message || '未知错误',
     });
   }

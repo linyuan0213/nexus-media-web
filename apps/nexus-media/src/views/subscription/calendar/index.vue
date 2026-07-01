@@ -9,7 +9,6 @@ import {
   NSpace,
   NSpin,
   NTag,
-  useNotification,
 } from 'naive-ui';
 
 import { getMovieCalendarApi, getTvCalendarApi } from '#/api/modules/media';
@@ -19,6 +18,7 @@ import {
   getSubscriptionCalendarWebcalUrlApi,
   getTvSubscriptionItemsApi,
 } from '#/api/modules/subscription';
+import { useAppNotification } from '#/utils/notify';
 
 interface CalendarEvent {
   id: string;
@@ -37,7 +37,7 @@ const calendarValue = ref(Date.now());
 const calendarKey = ref(0);
 const detailModalShow = ref(false);
 const selectedEvent = ref<CalendarEvent | null>(null);
-const notification = useNotification();
+const notification = useAppNotification();
 const webcalLink = ref('');
 const httpCalLink = ref('');
 const webcalLoading = ref(false);
@@ -94,10 +94,7 @@ async function exportCalendar() {
     a.remove();
     URL.revokeObjectURL(url);
   } catch (error: any) {
-    notification.error({
-      content: '导出失败',
-      description: error?.message || '',
-    });
+    notification.error('导出失败', { description: error?.message || '' });
   }
 }
 
@@ -109,7 +106,7 @@ async function ensureCalendarLinks() {
     const data = res?.data || res || {};
     const { token } = data;
     if (!token) {
-      notification.error({ content: '获取订阅 Token 失败' });
+      notification.error('获取订阅 Token 失败');
       return;
     }
     const host = calServerHost.value || window.location.host;
@@ -120,8 +117,7 @@ async function ensureCalendarLinks() {
     httpCalLink.value = `${absBase}/subscription/calendar/ical/webcal?apikey=${token}`;
     webcalLink.value = httpCalLink.value.replace(/^https?:\/\//, 'webcal://');
   } catch (error: any) {
-    notification.error({
-      content: '获取订阅链接失败',
+    notification.error('获取订阅链接失败', {
       description: error?.message || '',
     });
   } finally {
@@ -149,9 +145,9 @@ async function copyHttpCalLink() {
   if (!httpCalLink.value) return;
   try {
     await navigator.clipboard.writeText(httpCalLink.value);
-    notification.success({ content: '已复制 HTTP 订阅链接' });
+    notification.success('已复制 HTTP 订阅链接');
   } catch {
-    notification.error({ content: '复制失败' });
+    notification.error('复制失败');
   }
 }
 

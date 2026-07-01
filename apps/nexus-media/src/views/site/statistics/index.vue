@@ -3,14 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import {
-  NButton,
-  NCard,
-  NSelect,
-  NSpace,
-  NSpin,
-  useNotification,
-} from 'naive-ui';
+import { NButton, NCard, NSelect, NSpace, NSpin } from 'naive-ui';
 
 import {
   getSiteDailyHistoryApi,
@@ -22,12 +15,13 @@ import {
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 import { type StatisticsItem, useSiteStats } from '#/composables/useSiteStats';
+import { useAppNotification } from '#/utils/notify';
 
 import ChartCards from './components/ChartCards.vue';
 import SiteDetailModal from './components/SiteDetailModal.vue';
 import StatTable from './components/StatTable.vue';
 
-const notification = useNotification();
+const notification = useAppNotification();
 const { formatCompactSize, parseNumber, parseSize } = useSiteStats();
 
 const loading = ref(false);
@@ -175,13 +169,11 @@ async function handleRefresh() {
   refreshing.value = true;
   try {
     await refreshSiteStatisticsApi();
-    notification.success({
-      content: '站点数据刷新已启动',
+    notification.success('站点数据刷新已启动', {
       description: '数据正在后台刷新中，请稍候重新查看',
     });
   } catch (error: any) {
-    notification.error({
-      content: '刷新失败',
+    notification.error('刷新失败', {
       description: error?.message || '',
     });
   } finally {
@@ -192,13 +184,11 @@ async function handleRefresh() {
 async function handleRefreshSite(siteName: string) {
   try {
     await refreshSiteStatisticsApi([siteName]);
-    notification.success({
-      content: `${siteName} 刷新已启动`,
+    notification.success(`${siteName} 刷新已启动`, {
       description: '数据正在后台刷新中，请稍候重新查看',
     });
   } catch (error: any) {
-    notification.error({
-      content: '刷新失败',
+    notification.error('刷新失败', {
       description: error?.message || '',
     });
   }
@@ -230,8 +220,7 @@ async function fetchData() {
         : favRes?.data || {};
     favicons.value = favData;
   } catch (error: any) {
-    notification.error({
-      content: '获取数据失败',
+    notification.error('获取数据失败', {
       description: error?.message || '',
     });
   } finally {

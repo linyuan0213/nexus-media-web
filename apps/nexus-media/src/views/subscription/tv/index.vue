@@ -17,7 +17,6 @@ import {
   NSpace,
   NSpin,
   NTag,
-  useNotification,
 } from 'naive-ui';
 
 import { getDownloadSettingsApi, getIndexersApi } from '#/api/modules/download';
@@ -38,10 +37,11 @@ import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
 import { useSubscriptionStore } from '#/store';
+import { useAppNotification } from '#/utils/notify';
 
 const subscriptionStore = useSubscriptionStore();
 const router = useRouter();
-const notification = useNotification();
+const notification = useAppNotification();
 
 const loading = ref(false);
 const deleteModalShow = ref(false);
@@ -263,7 +263,7 @@ function handleDetailDelete() {
 function handleDetailSearch() {
   const name = detailItem.value?.name;
   if (!name) {
-    notification.warning({ content: '缺少名称，无法搜索' });
+    notification.warning('缺少名称，无法搜索');
     return;
   }
   router.push(`/media/search?s=${encodeURIComponent(name)}`);
@@ -271,12 +271,9 @@ function handleDetailSearch() {
 async function handleDetailRefresh() {
   try {
     await refreshSubscriptionApi('tv', String(detailItem.value.id));
-    notification.success({ content: '已触发刷新' });
+    notification.success('已触发刷新');
   } catch (error: any) {
-    notification.error({
-      content: '刷新失败',
-      description: error?.message || '',
-    });
+    notification.error('刷新失败', { description: error?.message || '' });
   }
 }
 
@@ -321,18 +318,15 @@ async function handleConfirmEdit(data: Record<string, any>) {
   try {
     if (data.rssid) {
       await updateSubscriptionApi(data);
-      notification.success({ content: '保存成功' });
+      notification.success('保存成功');
     } else {
       await addSubscriptionApi(data);
-      notification.success({ content: '订阅成功' });
+      notification.success('订阅成功');
     }
     subscribeEditShow.value = false;
     await fetchData();
   } catch (error: any) {
-    notification.error({
-      content: '保存失败',
-      description: error?.message || '',
-    });
+    notification.error('保存失败', { description: error?.message || '' });
   }
 }
 
@@ -352,12 +346,9 @@ async function confirmDelete() {
       rssid: String(t.id),
       tmdbid: t.tmdbid ? String(t.tmdbid) : undefined,
     });
-    notification.success({ content: '已删除订阅' });
+    notification.success('已删除订阅');
   } catch (error: any) {
-    notification.error({
-      content: '删除失败',
-      description: error?.message || '',
-    });
+    notification.error('删除失败', { description: error?.message || '' });
   } finally {
     deleteModalShow.value = false;
     deleteTarget.value = null;
@@ -407,13 +398,10 @@ async function confirmSetting() {
       rss_sites: settingForm.value.rss_sites,
       search_sites: settingForm.value.search_sites,
     });
-    notification.success({ content: '默认设置已保存' });
+    notification.success('默认设置已保存');
     settingModalShow.value = false;
   } catch (error: any) {
-    notification.error({
-      content: '保存失败',
-      description: error?.message || '',
-    });
+    notification.error('保存失败', { description: error?.message || '' });
   }
 }
 
@@ -440,10 +428,7 @@ async function handleAddSearch() {
       return t !== 'movie';
     });
   } catch (error: any) {
-    notification.error({
-      content: '搜索失败',
-      description: error?.message || '',
-    });
+    notification.error('搜索失败', { description: error?.message || '' });
   } finally {
     addSearchLoading.value = false;
   }

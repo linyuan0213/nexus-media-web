@@ -24,6 +24,9 @@ import {
 
 import {
   addTorrentApi,
+  batchDeleteTasksApi,
+  batchPauseTasksApi,
+  batchResumeTasksApi,
   deleteTaskApi,
   getDownloadDirsApi,
   getDownloadSettingsApi,
@@ -44,6 +47,9 @@ const deleteTargetId = ref('');
 const deleteWithFiles = ref(false);
 
 const torrents = ref<any[]>([]);
+const totalCount = ref(0);
+const currentPage = ref(1);
+const pageSize = ref(50);
 const selectedDownloader = ref('');
 const viewMode = ref<'grid' | 'list'>('grid');
 const addModalShow = ref(false);
@@ -55,7 +61,9 @@ const downloadSettings = ref<any[]>([]);
 const selectedDir = ref('');
 const selectedSetting = ref('');
 const addLoading = ref(false);
-const { start: startSSE, stop: stopSSE } = useDownloadEventStream(fetchTasks);
+const { start: startSSE, stop: stopSSE } = useDownloadEventStream(() =>
+  fetchTasks(currentPage.value),
+);
 
 // 下载器颜色映射（基于 client_id）
 const DOWNLOADER_STYLES: Record<
@@ -94,6 +102,138 @@ function getDownloaderStyle(clientId: string) {
   );
 }
 
+function proxyImage(url: string): string {
+  if (!url) return '';
+  const m = url.match(/\/t\/p\/(\w+)(\/.+)/);
+  return m?.[1] && m?.[2]
+    ? `/img/tmdb/${m[1]}/${m[2].slice(1)}`
+    : `/img?url=${encodeURIComponent(url)}`;
+}
+
+function downloaderMetaStyle(torrent: any) {
+  const s = getDownloaderStyle(torrent.client_id);
+  return { backgroundColor: s.bg, color: s.text };
+}
+
+function tagBadgeStyle(tag: string) {
+  const c = getTagColor(tag);
+  return { backgroundColor: c + '20', color: c, borderColor: c + '40' };
+}
+
+function stateLabel(torrent: any): string {
+  if (torrent.state === 'Stopped' || torrent.state === 'pausedDL')
+    return '已暂停';
+  if (torrent.state === 'Downloading') return '下载中';
+  if (torrent.state === 'Seeding') return '做种中';
+  return torrent.state || '';
+}
+
+function stateClass(torrent: any): string {
+  if (torrent.state === 'Stopped' || torrent.state === 'pausedDL')
+    return 'state-paused';
+  if (torrent.state === 'Downloading') return 'state-downloading';
+  if (torrent.state === 'Seeding') return 'state-seeding';
+  return '';
+}
+
+const selectedIds = ref<Set<string>>(new Set());
+const allSelected = computed(() => {
+  const items = filteredTorrents.value;
+  return items.length > 0 && items.every((t) => selectedIds.value.has(t.id));
+});
+const isIndeterminate = computed(() => {
+  const items = filteredTorrents.value;
+  const count = items.filter((t) => selectedIds.value.has(t.id)).length;
+  return count > 0 && count < items.length;
+});
+
+function toggleSelectAll() {
+  selectedIds.value = allSelected.value
+    ? new Set()
+    : new Set(filteredTorrents.value.map((t: any) => t.id));
+}
+
+function toggleSelect(id: string) {
+  const next = new Set(selectedIds.value);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  selectedIds.value = next;
+}
+
+function clearSelection() {
+  selectedIds.value = new Set();
+}
+
+const batchDeleteConfirmShow = ref(false);
+const batchDeleteWithFiles = ref(false);
+const batchLoading = ref(false);
+async function handleBatchPause() {
+  batchLoading.value = true;
+  try {
+    await batchPauseTasksApi([...selectedIds.value]);
+    clearSelection();
+    await fetchTasks(currentPage.value);
+  } finally {
+    batchLoading.value = false;
+  }
+}
+async function handleBatchResume() {
+  batchLoading.value = true;
+  try {
+    await batchResumeTasksApi([...selectedIds.value]);
+    clearSelection();
+    await fetchTasks(currentPage.value);
+  } finally {
+    batchLoading.value = false;
+  }
+}
+async function handleBatchDelete() {
+  batchDeleteWithFiles.value = false;
+  batchDeleteConfirmShow.value = true;
+}
+
+async function handleConfirmBatchDelete() {
+  batchDeleteConfirmShow.value = false;
+  batchLoading.value = true;
+  try {
+    await batchDeleteTasksApi(
+      [...selectedIds.value],
+      batchDeleteWithFiles.value,
+    );
+    clearSelection();
+    await fetchTasks(currentPage.value);
+  } finally {
+    batchLoading.value = false;
+  }
+}
+
+const TAG_COLORS: string[] = [
+  'hsl(var(--primary))',
+  'hsl(var(--success))',
+  'hsl(var(--warning))',
+  'hsl(var(--destructive))',
+  '#8b5cf6',
+  '#06b6d4',
+  '#f59e0b',
+  '#ec4899',
+  '#14b8a6',
+  '#6366f1',
+  '#84cc16',
+  '#f97316',
+];
+
+const tagColorMap = ref<Record<string, string>>({});
+function getTagColor(tag: string): string {
+  if (!tagColorMap.value[tag]) {
+    const existing = Object.keys(tagColorMap.value).length;
+    tagColorMap.value = {
+      ...tagColorMap.value,
+      [tag]: TAG_COLORS[existing % TAG_COLORS.length] ?? 'hsl(var(--primary))',
+    };
+  }
+  return tagColorMap.value[tag] ?? TAG_COLORS[0] ?? 'hsl(var(--primary))';
+}
+
 // 按下载器筛选后的列表
 const filteredTorrents = computed(() => {
   if (!selectedDownloader.value) return torrents.value;
@@ -110,7 +250,8 @@ const downloaderStats = computed(() => {
     id: string;
     name: string;
   }> = [];
-  const allCount = torrents.value.length;
+  const allCount =
+    totalCount.value > 0 ? totalCount.value : torrents.value.length;
   if (allCount === 0) return stats;
 
   stats.push({ id: '', name: '全部', count: allCount, clientId: '' });
@@ -142,12 +283,16 @@ const downloaderStats = computed(() => {
   return stats;
 });
 
-async function fetchTasks() {
+async function fetchTasks(page?: number) {
   loading.value = true;
   try {
-    const res = (await getDownloadTasksApi()) as any;
-    const list = Array.isArray(res) ? res : res?.data || [];
+    const p = page || currentPage.value;
+    const res = (await getDownloadTasksApi(p, pageSize.value)) as any;
+    const data = res?.data || res || {};
+    const list = Array.isArray(data) ? data : data.items || [];
     torrents.value = list;
+    if (data.total !== undefined) totalCount.value = data.total;
+    currentPage.value = p;
     downloadStore.setTasks(
       list.map((t: any) => ({
         ...t,
@@ -162,12 +307,12 @@ async function fetchTasks() {
 
 async function handlePause(id: string) {
   await pauseTaskApi(id);
-  await fetchTasks();
+  await fetchTasks(currentPage.value);
 }
 
 async function handleResume(id: string) {
   await resumeTaskApi(id);
-  await fetchTasks();
+  await fetchTasks(currentPage.value);
 }
 
 function confirmDelete(id: string) {
@@ -181,12 +326,12 @@ async function handleConfirmDelete() {
   await deleteTaskApi(deleteTargetId.value, deleteWithFiles.value);
   deleteConfirmShow.value = false;
   deleteTargetId.value = '';
-  await fetchTasks();
+  await fetchTasks(currentPage.value);
 }
 
 function startAutoRefresh() {
   refreshTimer.value = window.setInterval(() => {
-    fetchTasks();
+    fetchTasks(currentPage.value);
   }, 5000);
 }
 
@@ -265,7 +410,7 @@ async function handleAddDownload() {
     });
     message.success('添加下载成功');
     addModalShow.value = false;
-    await fetchTasks();
+    await fetchTasks(1);
   } catch (error: any) {
     message.error(error?.message || '添加下载失败');
   } finally {
@@ -326,7 +471,7 @@ function startDownloadEventStream() {
 }
 
 onMounted(() => {
-  fetchTasks();
+  fetchTasks(1);
   startAutoRefresh();
   startDownloadEventStream();
 });
@@ -367,42 +512,100 @@ onUnmounted(() => {
           <span class="tab-count">{{ stat.count }}</span>
         </button>
       </div>
-      <div class="view-actions">
-        <NButton
-          text
-          :type="viewMode === 'grid' ? 'primary' : 'default'"
-          @click="viewMode = 'grid'"
+      <div class="flex items-center gap-2">
+        <div
+          v-if="selectedIds.size > 0"
+          class="batch-bar flex items-center gap-2"
         >
-          <template #icon>
-            <IconifyIcon icon="lucide:layout-grid" class="size-4" />
-          </template>
-        </NButton>
-        <NButton
-          text
-          :type="viewMode === 'list' ? 'primary' : 'default'"
-          @click="viewMode = 'list'"
-        >
-          <template #icon>
-            <IconifyIcon icon="lucide:list" class="size-4" />
-          </template>
-        </NButton>
+          <span class="batch-count">已选 {{ selectedIds.size }}</span>
+          <NButton
+            size="small"
+            @click="handleBatchResume"
+            :loading="batchLoading"
+          >
+            <template #icon>
+              <IconifyIcon icon="lucide:play" class="size-3.5" />
+            </template>
+            开始
+          </NButton>
+          <NButton
+            size="small"
+            @click="handleBatchPause"
+            :loading="batchLoading"
+          >
+            <template #icon>
+              <IconifyIcon icon="lucide:pause" class="size-3.5" />
+            </template>
+            暂停
+          </NButton>
+          <NButton
+            size="small"
+            type="error"
+            @click="handleBatchDelete"
+            :loading="batchLoading"
+          >
+            <template #icon>
+              <IconifyIcon icon="lucide:trash-2" class="size-3.5" />
+            </template>
+            删除
+          </NButton>
+        </div>
+        <div class="view-actions">
+          <NButton
+            text
+            :type="viewMode === 'grid' ? 'primary' : 'default'"
+            @click="viewMode = 'grid'"
+          >
+            <template #icon>
+              <IconifyIcon icon="lucide:layout-grid" class="size-4" />
+            </template>
+          </NButton>
+          <NButton
+            text
+            :type="viewMode === 'list' ? 'primary' : 'default'"
+            @click="viewMode = 'list'"
+          >
+            <template #icon>
+              <IconifyIcon icon="lucide:list" class="size-4" />
+            </template>
+          </NButton>
+        </div>
       </div>
     </div>
 
     <NSpin :show="loading && torrents.length === 0">
       <template v-if="filteredTorrents.length > 0">
+        <div class="select-all-row">
+          <label class="flex items-center gap-2 text-sm select-all-label">
+            <input
+              type="checkbox"
+              :checked="allSelected"
+              :indeterminate.prop="isIndeterminate"
+              @change="toggleSelectAll"
+            />
+            全选
+          </label>
+        </div>
         <!-- Grid View -->
         <div v-if="viewMode === 'grid'" class="torrent-grid">
           <div
             v-for="torrent in filteredTorrents"
             :key="torrent.id"
             class="torrent-card"
+            :class="{ 'torrent-card-selected': selectedIds.has(torrent.id) }"
           >
             <div class="torrent-card-inner">
-              <div class="flex items-center gap-3">
+              <div class="card-top-row">
+                <input
+                  type="checkbox"
+                  :checked="selectedIds.has(torrent.id)"
+                  class="torrent-checkbox"
+                  @click.stop
+                  @change="toggleSelect(torrent.id)"
+                />
                 <img
                   v-if="torrent.image"
-                  :src="`/img?url=${torrent.image}`"
+                  :src="proxyImage(torrent.image)"
                   class="torrent-poster rounded"
                   alt=""
                 />
@@ -425,15 +628,11 @@ onUnmounted(() => {
                     </template>
                     {{ torrent.title || torrent.name }}
                   </NTooltip>
-                  <div class="flex items-center gap-2 mt-1">
+                  <div class="card-meta-row">
                     <span
                       v-if="torrent.downloader_name"
                       class="downloader-tag"
-                      :style="{
-                        backgroundColor: getDownloaderStyle(torrent.client_id)
-                          .bg,
-                        color: getDownloaderStyle(torrent.client_id).text,
-                      }"
+                      :style="downloaderMetaStyle(torrent)"
                     >
                       <span
                         class="downloader-dot"
@@ -444,31 +643,34 @@ onUnmounted(() => {
                       ></span>
                       {{ torrent.downloader_name }}
                     </span>
-                    <span v-if="torrent.save_path" class="save-path truncate">
-                      {{ torrent.save_path }}
+                    <span v-if="torrent.category" class="category-badge">
+                      <IconifyIcon icon="lucide:folder" class="size-3" />{{
+                        torrent.category
+                      }}
+                    </span>
+                    <span
+                      v-if="!torrent.noprogress"
+                      class="state-badge"
+                      :class="stateClass(torrent)"
+                    >
+                      {{ stateLabel(torrent) }}
                     </span>
                   </div>
-                  <div class="torrent-speed">
-                    {{ torrent.speed }}
+                  <div v-if="torrent.labels?.length" class="card-tags-row">
+                    <span
+                      v-for="tag in torrent.labels"
+                      :key="tag"
+                      class="tag-badge"
+                      :style="tagBadgeStyle(tag)"
+                    >
+                      {{ tag }}
+                    </span>
                   </div>
-                  <div v-if="!torrent.noprogress" class="mt-2">
-                    <div class="flex items-center gap-2">
-                      <div class="progress-text">{{ torrent.progress }}%</div>
-                      <div class="progress-track">
-                        <div
-                          class="progress-fill"
-                          :style="{
-                            width: `${torrent.progress}%`,
-                            backgroundColor: getDownloaderStyle(
-                              torrent.client_id,
-                            ).dot,
-                          }"
-                        ></div>
-                      </div>
-                    </div>
+                  <div v-if="torrent.save_path" class="save-path truncate">
+                    {{ torrent.save_path }}
                   </div>
                 </div>
-                <div class="flex-shrink-0">
+                <div class="card-right">
                   <NDropdown
                     v-if="!torrent.nomenu"
                     :options="getDropdownOptions(torrent)"
@@ -482,6 +684,22 @@ onUnmounted(() => {
                   </NDropdown>
                 </div>
               </div>
+              <div class="card-bottom-row">
+                <div v-if="!torrent.noprogress" class="progress-bar-wrap">
+                  <div class="progress-text">{{ torrent.progress }}%</div>
+                  <div class="progress-track">
+                    <div
+                      class="progress-fill"
+                      :style="{
+                        width: `${torrent.progress}%`,
+                        backgroundColor: getDownloaderStyle(torrent.client_id)
+                          .dot,
+                      }"
+                    ></div>
+                  </div>
+                </div>
+                <div class="torrent-speed">{{ torrent.speed }}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -492,7 +710,15 @@ onUnmounted(() => {
             v-for="torrent in filteredTorrents"
             :key="torrent.id"
             class="torrent-list-item"
+            :class="{ 'torrent-list-selected': selectedIds.has(torrent.id) }"
           >
+            <input
+              type="checkbox"
+              :checked="selectedIds.has(torrent.id)"
+              class="torrent-checkbox"
+              @click.stop
+              @change="toggleSelect(torrent.id)"
+            />
             <img
               v-if="torrent.image"
               :src="`/img?url=${torrent.image}`"
@@ -521,26 +747,49 @@ onUnmounted(() => {
               </NTooltip>
 
               <div class="torrent-list-meta">
-                <span
-                  v-if="torrent.downloader_name"
-                  class="downloader-tag"
-                  :style="{
-                    backgroundColor: getDownloaderStyle(torrent.client_id).bg,
-                    color: getDownloaderStyle(torrent.client_id).text,
-                  }"
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span
+                    v-if="torrent.downloader_name"
+                    class="downloader-tag"
+                    :style="downloaderMetaStyle(torrent)"
+                  >
+                    <span
+                      class="downloader-dot"
+                      :style="{
+                        backgroundColor: getDownloaderStyle(torrent.client_id)
+                          .dot,
+                      }"
+                    ></span>
+                    {{ torrent.downloader_name }}
+                  </span>
+                  <span v-if="torrent.category" class="category-badge">
+                    <IconifyIcon icon="lucide:folder" class="size-3" />{{
+                      torrent.category
+                    }}
+                  </span>
+                  <span
+                    v-if="!torrent.noprogress"
+                    class="state-badge"
+                    :class="stateClass(torrent)"
+                  >
+                    {{ stateLabel(torrent) }}
+                  </span>
+                </div>
+                <div
+                  v-if="torrent.labels?.length"
+                  class="flex items-center gap-1 flex-wrap mt-0.5"
                 >
                   <span
-                    class="downloader-dot"
-                    :style="{
-                      backgroundColor: getDownloaderStyle(torrent.client_id)
-                        .dot,
-                    }"
-                  ></span>
-                  {{ torrent.downloader_name }}
-                </span>
-                <span v-if="torrent.save_path" class="save-path truncate">
-                  {{ torrent.save_path }}
-                </span>
+                    v-for="tag in torrent.labels"
+                    :key="tag"
+                    class="tag-badge"
+                    :style="tagBadgeStyle(tag)"
+                    >{{ tag }}</span
+                  >
+                </div>
+                <span v-if="torrent.save_path" class="save-path truncate">{{
+                  torrent.save_path
+                }}</span>
               </div>
             </div>
 
@@ -574,25 +823,58 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
+
+        <div v-if="totalCount > pageSize" class="pagination-row">
+          <NButton
+            text
+            :disabled="currentPage <= 1"
+            @click="
+              currentPage--;
+              fetchTasks(currentPage);
+            "
+          >
+            <template #icon>
+              <IconifyIcon icon="lucide:chevron-left" class="size-4" />
+            </template>
+          </NButton>
+          <span class="pagination-text">
+            {{ currentPage }} / {{ Math.ceil(totalCount / pageSize) }}
+            <span class="pagination-total">（共 {{ totalCount }} 个）</span>
+          </span>
+          <NButton
+            text
+            :disabled="currentPage >= Math.ceil(totalCount / pageSize)"
+            @click="
+              currentPage++;
+              fetchTasks(currentPage);
+            "
+          >
+            <template #icon>
+              <IconifyIcon icon="lucide:chevron-right" class="size-4" />
+            </template>
+          </NButton>
+        </div>
       </template>
 
-      <EmptyState
-        v-else-if="!loading"
-        title="没有下载任务"
-        :subtitle="
-          selectedDownloader
-            ? '当前筛选的下载器中没有正在下载的任务'
-            : '所有下载器中均没有正在下载的任务'
-        "
-      >
-        <template #icon>
-          <IconifyIcon
-            icon="lucide:download-cloud"
-            class="size-16"
-            style="color: hsl(var(--muted-foreground))"
-          />
-        </template>
-      </EmptyState>
+      <template v-else>
+        <EmptyState
+          v-if="!loading"
+          title="没有下载任务"
+          :subtitle="
+            selectedDownloader
+              ? '当前筛选的下载器中没有正在下载的任务'
+              : '所有下载器中均没有正在下载的任务'
+          "
+        >
+          <template #icon>
+            <IconifyIcon
+              icon="lucide:download-cloud"
+              class="size-16"
+              style="color: hsl(var(--muted-foreground))"
+            />
+          </template>
+        </EmptyState>
+      </template>
     </NSpin>
 
     <!-- 删除确认 -->
@@ -609,6 +891,27 @@ onUnmounted(() => {
       <div class="mt-2">
         <label class="flex items-center gap-2 text-sm">
           <input v-model="deleteWithFiles" type="checkbox" />
+          同时删除文件
+        </label>
+      </div>
+    </NModal>
+
+    <!-- 批量删除确认 -->
+    <NModal
+      v-model:show="batchDeleteConfirmShow"
+      title="确认批量删除"
+      preset="dialog"
+      type="warning"
+      positive-text="删除"
+      negative-text="取消"
+      @positive-click="handleConfirmBatchDelete"
+    >
+      <div>
+        确定要删除已选的 {{ selectedIds.size }} 个下载任务吗？此操作不可撤销。
+      </div>
+      <div class="mt-2">
+        <label class="flex items-center gap-2 text-sm">
+          <input v-model="batchDeleteWithFiles" type="checkbox" />
           同时删除文件
         </label>
       </div>
@@ -806,7 +1109,51 @@ onUnmounted(() => {
 }
 
 .torrent-card-inner {
-  padding: 1rem;
+  padding: 0.875rem 1rem;
+}
+
+.card-top-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.card-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  align-items: center;
+  margin-top: 0.375rem;
+}
+
+.card-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+  margin-top: 0.375rem;
+}
+
+.card-right {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.card-bottom-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding-top: 0.5rem;
+  margin-top: 0.625rem;
+  border-top: 1px solid hsl(var(--border) / 50%);
+}
+
+.progress-bar-wrap {
+  display: flex;
+  flex: 1;
+  gap: 0.5rem;
+  align-items: center;
+  min-width: 0;
 }
 
 .torrent-poster {
@@ -957,6 +1304,122 @@ onUnmounted(() => {
   transition: width 0.5s ease;
 }
 
+/* ===== Batch actions ===== */
+.batch-bar {
+  padding: 0.25rem 0.5rem;
+  background-color: hsl(var(--muted) / 40%);
+  border-radius: 0.5rem;
+}
+
+.batch-count {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+}
+
+.select-all-row {
+  padding: 0.25rem 0 0.5rem;
+}
+
+.select-all-label {
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+}
+
+.torrent-checkbox {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  accent-color: hsl(var(--primary));
+  cursor: pointer;
+}
+
+.torrent-card-selected {
+  border-color: hsl(var(--primary) / 40%);
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 20%);
+}
+
+.torrent-list-selected {
+  border-color: hsl(var(--primary) / 40%);
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 20%);
+}
+
+/* ===== Tag & Category Badges ===== */
+.tag-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  border: 1px solid;
+  border-radius: 0.25rem;
+}
+
+.category-badge {
+  display: inline-flex;
+  gap: 0.2rem;
+  align-items: center;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.3;
+  color: hsl(var(--primary-foreground));
+  white-space: nowrap;
+  background-color: hsl(var(--primary) / 20%);
+  border: 1px solid hsl(var(--primary) / 30%);
+  border-radius: 0.25rem;
+}
+
+/* ===== State Badge ===== */
+.state-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  border-radius: 0.25rem;
+}
+
+.state-downloading {
+  color: hsl(var(--success));
+  background-color: hsl(var(--success) / 12%);
+  border: 1px solid hsl(var(--success) / 30%);
+}
+
+.state-paused {
+  color: hsl(var(--warning));
+  background-color: hsl(var(--warning) / 12%);
+  border: 1px solid hsl(var(--warning) / 30%);
+}
+
+.state-seeding {
+  color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 12%);
+  border: 1px solid hsl(var(--primary) / 30%);
+}
+
+/* ===== Pagination ===== */
+.pagination-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 0;
+}
+
+.pagination-text {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.pagination-total {
+  font-size: 0.8125rem;
+}
+
 /* ===== Mobile ===== */
 @media (max-width: 768px) {
   .header-row {
@@ -975,7 +1438,7 @@ onUnmounted(() => {
   }
 
   .torrent-card-inner {
-    padding: 0.625rem;
+    padding: 0.625rem 0.75rem;
   }
 
   .torrent-poster,
@@ -1047,6 +1510,15 @@ onUnmounted(() => {
     padding: 0.3rem 0.75rem;
     font-size: 0.8125rem;
     white-space: nowrap;
+  }
+
+  .card-bottom-row {
+    padding-top: 0.375rem;
+    margin-top: 0.5rem;
+  }
+
+  .card-top-row {
+    gap: 0.5rem;
   }
 }
 </style>

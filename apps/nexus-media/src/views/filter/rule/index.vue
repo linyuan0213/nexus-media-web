@@ -5,7 +5,7 @@ import { onMounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { NButton, NInput, NSpin, useNotification } from 'naive-ui';
+import { NButton, NInput, NSpin } from 'naive-ui';
 
 import { getFilterGroupsApi, restoreFilterGroupApi } from '#/api';
 import EmptyState from '#/components/empty/EmptyState.vue';
@@ -18,9 +18,10 @@ import {
 } from '#/components/filter';
 import PageHeader from '#/components/page/PageHeader.vue';
 import { useFilterStore } from '#/store';
+import { useAppNotification } from '#/utils/notify';
 
 const filterStore = useFilterStore();
-const notification = useNotification();
+const notification = useAppNotification();
 
 const loading = ref(false);
 
@@ -41,10 +42,7 @@ async function fetchData() {
     const ruleGroups = Array.isArray(res) ? res : res?.data || [];
     filterStore.setGroups(ruleGroups);
   } catch (error: any) {
-    notification.error({
-      content: '获取数据失败',
-      description: error?.message || '',
-    });
+    notification.error('获取数据失败', { description: error?.message || '' });
   } finally {
     loading.value = false;
   }
@@ -53,13 +51,10 @@ async function fetchData() {
 async function handleRestore() {
   try {
     await restoreFilterGroupApi({});
-    notification.success({ content: '已恢复默认规则组' });
+    notification.success('已恢复默认规则组');
     await fetchData();
   } catch (error: any) {
-    notification.error({
-      content: '恢复失败',
-      description: error?.message || '',
-    });
+    notification.error('恢复失败', { description: error?.message || '' });
   }
 }
 

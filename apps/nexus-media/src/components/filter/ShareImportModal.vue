@@ -3,9 +3,10 @@ import { ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { NButton, NInput, NModal, NSpace, useNotification } from 'naive-ui';
+import { NButton, NInput, NModal, NSpace } from 'naive-ui';
 
 import { importFilterGroupApi } from '#/api/modules/filter';
+import { useAppNotification } from '#/utils/notify';
 
 const props = defineProps<{
   shareContent?: string;
@@ -17,7 +18,7 @@ const emit = defineEmits<{
   'update:show': [value: boolean];
 }>();
 
-const notification = useNotification();
+const notification = useAppNotification();
 const importText = ref('');
 const loading = ref(false);
 const localShareContent = ref('');
@@ -37,14 +38,11 @@ async function handleImport() {
   loading.value = true;
   try {
     await importFilterGroupApi(importText.value.trim());
-    notification.success({ content: '导入成功' });
+    notification.success('导入成功');
     emit('update:show', false);
     emit('success');
   } catch (error: any) {
-    notification.error({
-      content: '导入失败',
-      description: error?.message || '',
-    });
+    notification.error('导入失败', { description: error?.message || '' });
   } finally {
     loading.value = false;
   }
@@ -55,10 +53,10 @@ function handleCopy() {
   navigator.clipboard
     .writeText(localShareContent.value)
     .then(() => {
-      notification.success({ content: '已复制到剪贴板' });
+      notification.success('已复制到剪贴板');
     })
     .catch(() => {
-      notification.error({ content: '复制失败' });
+      notification.error('复制失败');
     });
 }
 </script>

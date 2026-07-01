@@ -15,7 +15,6 @@ import {
   NSelect,
   NSpace,
   NSpin,
-  useNotification,
 } from 'naive-ui';
 
 import {
@@ -26,8 +25,9 @@ import {
 } from '#/api/modules/media';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
+import { useAppNotification } from '#/utils/notify';
 
-const notification = useNotification();
+const notification = useAppNotification();
 
 const loading = ref(false);
 const keyword = ref('');
@@ -88,11 +88,11 @@ function openAddModal() {
 
 async function submitAdd() {
   if (!addForm.value.tmdb_id.trim()) {
-    notification.warning({ content: '请输入 TMDB ID' });
+    notification.warning('请输入 TMDB ID');
     return;
   }
   if (!addForm.value.media_type) {
-    notification.warning({ content: '请选择媒体类型' });
+    notification.warning('请选择媒体类型');
     return;
   }
   addLoading.value = true;
@@ -101,14 +101,11 @@ async function submitAdd() {
       tmdb_id: addForm.value.tmdb_id.trim(),
       media_type: addForm.value.media_type,
     });
-    notification.success({ content: '已添加到黑名单' });
+    notification.success('已添加到黑名单');
     addModalShow.value = false;
     await fetchData(currentPage.value);
   } catch (error: any) {
-    notification.error({
-      content: '添加失败',
-      description: error?.message || '',
-    });
+    notification.error('添加失败', { description: error?.message || '' });
   } finally {
     addLoading.value = false;
   }
@@ -120,26 +117,20 @@ async function handleDelete(item: any) {
       tmdb_id: String(item.tmdb_id),
       media_type: item.media_type,
     });
-    notification.success({ content: '已删除' });
+    notification.success('已删除');
     await fetchData(currentPage.value);
   } catch (error: any) {
-    notification.error({
-      content: '删除失败',
-      description: error?.message || '',
-    });
+    notification.error('删除失败', { description: error?.message || '' });
   }
 }
 
 async function handleClear() {
   try {
     await clearTmdbBlacklistApi();
-    notification.success({ content: '黑名单已清空' });
+    notification.success('黑名单已清空');
     await fetchData(1);
   } catch (error: any) {
-    notification.error({
-      content: '清空失败',
-      description: error?.message || '',
-    });
+    notification.error('清空失败', { description: error?.message || '' });
   }
 }
 

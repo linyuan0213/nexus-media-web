@@ -6,7 +6,7 @@ import { computed, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { NButton, NTag, NTooltip, useNotification } from 'naive-ui';
+import { NButton, NTag, NTooltip } from 'naive-ui';
 
 import {
   deleteFilterGroupApi,
@@ -14,6 +14,7 @@ import {
   setDefaultFilterGroupApi,
   shareFilterGroupApi,
 } from '#/api/modules/filter';
+import { useAppNotification } from '#/utils/notify';
 
 interface Props {
   group: FilterApi.FilterRuleGroup;
@@ -28,7 +29,7 @@ const emit = defineEmits<{
   test: [groupName: string];
 }>();
 
-const notification = useNotification();
+const notification = useAppNotification();
 const expandedRuleId = ref<null | number>(null);
 
 const isDefault = computed(() => props.group.default === 'Y');
@@ -50,28 +51,20 @@ function getRuleSummary(rule: FilterApi.FilterRuleItem): string {
 async function handleDeleteGroup() {
   try {
     await deleteFilterGroupApi(props.group.id);
-    notification.success({ content: '规则组已删除' });
+    notification.success('规则组已删除');
     emit('refresh');
   } catch (error: any) {
-    notification.error({
-      content: '删除失败',
-      description: error?.message || '',
-    });
+    notification.error('删除失败', { description: error?.message || '' });
   }
 }
 
 async function handleToggleDefault() {
   try {
     await setDefaultFilterGroupApi(props.group.id);
-    notification.success({
-      content: isDefault.value ? '已取消默认' : '已设为默认',
-    });
+    notification.success(isDefault.value ? '已取消默认' : '已设为默认');
     emit('refresh');
   } catch (error: any) {
-    notification.error({
-      content: '设置失败',
-      description: error?.message || '',
-    });
+    notification.error('设置失败', { description: error?.message || '' });
   }
 }
 
@@ -81,23 +74,17 @@ async function handleShare() {
     const content = res?.data || res || '';
     emit('share', String(content));
   } catch (error: any) {
-    notification.error({
-      content: '分享失败',
-      description: error?.message || '',
-    });
+    notification.error('分享失败', { description: error?.message || '' });
   }
 }
 
 async function handleDeleteRule(ruleId: number, ruleName: string) {
   try {
     await deleteFilterRuleApi(ruleId);
-    notification.success({ content: `规则「${ruleName}」已删除` });
+    notification.success(`规则「${ruleName}」已删除`);
     emit('refresh');
   } catch (error: any) {
-    notification.error({
-      content: '删除失败',
-      description: error?.message || '',
-    });
+    notification.error('删除失败', { description: error?.message || '' });
   }
 }
 

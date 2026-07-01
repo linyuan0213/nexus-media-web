@@ -13,7 +13,6 @@ import {
   NSpin,
   NSwitch,
   NTag,
-  useNotification,
 } from 'naive-ui';
 
 import {
@@ -27,11 +26,12 @@ import {
 import PageHeader from '#/components/page/PageHeader.vue';
 import { generateAccess } from '#/router/access';
 import { accessRoutes } from '#/router/routes';
+import { useAppNotification } from '#/utils/notify';
 
 import PluginConfigModal from './components/PluginConfigModal.vue';
 import PluginLogDrawer from './components/PluginLogDrawer.vue';
 
-const notification = useNotification();
+const notification = useAppNotification();
 const router = useRouter();
 const loading = ref(false);
 const plugins = ref<any[]>([]);
@@ -79,8 +79,7 @@ async function fetchPlugins() {
   try {
     plugins.value = await getPluginsApi();
   } catch (error: any) {
-    notification.error({
-      content: '获取插件列表失败',
+    notification.error('获取插件列表失败', {
       description: error?.message || '',
     });
   } finally {
@@ -92,56 +91,44 @@ async function handleToggle(plugin: any) {
   try {
     if (plugin.enabled) {
       await disablePluginApi(plugin.id);
-      notification.success({ content: `${plugin.name} 已禁用` });
+      notification.success(`${plugin.name} 已禁用`);
     } else {
       await enablePluginApi(plugin.id);
-      notification.success({ content: `${plugin.name} 已启用` });
+      notification.success(`${plugin.name} 已启用`);
     }
     await fetchPlugins();
     await refreshSidebarMenus();
   } catch (error: any) {
-    notification.error({
-      content: '操作失败',
-      description: error?.message || '',
-    });
+    notification.error('操作失败', { description: error?.message || '' });
   }
 }
 
 async function handleUninstall(plugin: any) {
   try {
     await uninstallPluginApi(plugin.id);
-    notification.success({ content: `${plugin.name} 已卸载` });
+    notification.success(`${plugin.name} 已卸载`);
     await fetchPlugins();
     await refreshSidebarMenus();
   } catch (error: any) {
-    notification.error({
-      content: '卸载失败',
-      description: error?.message || '',
-    });
+    notification.error('卸载失败', { description: error?.message || '' });
   }
 }
 
 async function handleRun(plugin: any) {
   try {
     await runPluginApi(plugin.id);
-    notification.success({ content: `${plugin.name} 运行任务已启动` });
+    notification.success(`${plugin.name} 运行任务已启动`);
   } catch (error: any) {
-    notification.error({
-      content: '运行失败',
-      description: error?.message || '',
-    });
+    notification.error('运行失败', { description: error?.message || '' });
   }
 }
 
 async function handleReload(plugin: any) {
   try {
     await reloadPluginApi(plugin.id);
-    notification.success({ content: `${plugin.name} 已重载` });
+    notification.success(`${plugin.name} 已重载`);
   } catch (error: any) {
-    notification.error({
-      content: '重载失败',
-      description: error?.message || '',
-    });
+    notification.error('重载失败', { description: error?.message || '' });
   }
 }
 

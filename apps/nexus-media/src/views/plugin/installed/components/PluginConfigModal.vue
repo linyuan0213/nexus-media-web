@@ -12,7 +12,6 @@ import {
   NSpin,
   NSwitch,
   NTooltip,
-  useNotification,
 } from 'naive-ui';
 
 import {
@@ -20,6 +19,7 @@ import {
   savePluginConfigApi,
 } from '#/api/modules/plugin_framework';
 import { getSitesApi } from '#/api/modules/site';
+import { useAppNotification } from '#/utils/notify';
 
 const props = defineProps<{
   plugin: any;
@@ -28,7 +28,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:show', 'saved']);
 
-const notification = useNotification();
+const notification = useAppNotification();
 const loading = ref(false);
 const saving = ref(false);
 const config = ref<Record<string, any>>({});
@@ -68,10 +68,7 @@ async function loadConfig() {
       }
     }
   } catch (error: any) {
-    notification.error({
-      content: '加载配置失败',
-      description: error?.message || '',
-    });
+    notification.error('加载配置失败', { description: error?.message || '' });
   } finally {
     loading.value = false;
   }
@@ -82,14 +79,11 @@ async function handleSave() {
   saving.value = true;
   try {
     await savePluginConfigApi(props.plugin.id, config.value);
-    notification.success({ content: '保存成功' });
+    notification.success('保存成功');
     emit('saved');
     visible.value = false;
   } catch (error: any) {
-    notification.error({
-      content: '保存失败',
-      description: error?.message || '',
-    });
+    notification.error('保存失败', { description: error?.message || '' });
   } finally {
     saving.value = false;
   }

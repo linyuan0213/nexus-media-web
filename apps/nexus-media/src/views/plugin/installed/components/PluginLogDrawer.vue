@@ -11,13 +11,13 @@ import {
   NPagination,
   NPopconfirm,
   NSpin,
-  useNotification,
 } from 'naive-ui';
 
 import {
   clearPluginLogsApi,
   getPluginLogsApi,
 } from '#/api/modules/plugin_framework';
+import { useAppNotification } from '#/utils/notify';
 
 const props = defineProps<{
   pluginId: string;
@@ -26,7 +26,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:show']);
 
-const notification = useNotification();
+const notification = useAppNotification();
 const loading = ref(false);
 const logs = ref<any[]>([]);
 const page = ref(1);
@@ -50,10 +50,7 @@ async function fetchLogs() {
     logs.value = res?.items || [];
     total.value = res?.total || 0;
   } catch (error: any) {
-    notification.error({
-      content: '获取日志失败',
-      description: error?.message || '',
-    });
+    notification.error('获取日志失败', { description: error?.message || '' });
   } finally {
     loading.value = false;
   }
@@ -62,14 +59,11 @@ async function fetchLogs() {
 async function handleClear() {
   try {
     await clearPluginLogsApi(props.pluginId);
-    notification.success({ content: '日志已清空' });
+    notification.success('日志已清空');
     logs.value = [];
     total.value = 0;
   } catch (error: any) {
-    notification.error({
-      content: '清空失败',
-      description: error?.message || '',
-    });
+    notification.error('清空失败', { description: error?.message || '' });
   }
 }
 

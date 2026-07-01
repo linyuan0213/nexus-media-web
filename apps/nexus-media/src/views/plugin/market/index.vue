@@ -5,16 +5,7 @@ import { useRouter } from 'vue-router';
 import { IconifyIcon } from '@vben/icons';
 import { useAccessStore, useUserStore } from '@vben/stores';
 
-import {
-  NBadge,
-  NButton,
-  NCard,
-  NEmpty,
-  NInput,
-  NSpin,
-  NTag,
-  useNotification,
-} from 'naive-ui';
+import { NBadge, NButton, NCard, NEmpty, NInput, NSpin, NTag } from 'naive-ui';
 
 import {
   enablePluginApi,
@@ -24,8 +15,9 @@ import {
 import PageHeader from '#/components/page/PageHeader.vue';
 import { generateAccess } from '#/router/access';
 import { accessRoutes } from '#/router/routes';
+import { useAppNotification } from '#/utils/notify';
 
-const notification = useNotification();
+const notification = useAppNotification();
 const router = useRouter();
 const loading = ref(false);
 const plugins = ref<any[]>([]);
@@ -93,8 +85,7 @@ async function fetchPlugins() {
   try {
     plugins.value = await getPluginsApi();
   } catch (error: any) {
-    notification.error({
-      content: '获取插件列表失败',
+    notification.error('获取插件列表失败', {
       description: error?.message || '',
     });
   } finally {
@@ -105,14 +96,11 @@ async function fetchPlugins() {
 async function handleInstall(pluginId: string) {
   try {
     await enablePluginApi(pluginId);
-    notification.success({ content: '安装成功' });
+    notification.success('安装成功');
     await fetchPlugins();
     await refreshSidebarMenus();
   } catch (error: any) {
-    notification.error({
-      content: '安装失败',
-      description: error?.message || '',
-    });
+    notification.error('安装失败', { description: error?.message || '' });
   }
 }
 
@@ -124,14 +112,11 @@ async function handleFileUpload(e: Event) {
   uploading.value = true;
   try {
     await installPluginApi(file);
-    notification.success({ content: '安装成功' });
+    notification.success('安装成功');
     await fetchPlugins();
     await refreshSidebarMenus();
   } catch (error: any) {
-    notification.error({
-      content: '安装失败',
-      description: error?.message || '',
-    });
+    notification.error('安装失败', { description: error?.message || '' });
   } finally {
     uploading.value = false;
     input.value = '';

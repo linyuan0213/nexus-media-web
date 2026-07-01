@@ -2,14 +2,7 @@
 import { computed, h, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import {
-  NButton,
-  NDataTable,
-  NModal,
-  NSpace,
-  NSpin,
-  useNotification,
-} from 'naive-ui';
+import { NButton, NDataTable, NModal, NSpace, NSpin } from 'naive-ui';
 
 import {
   deleteSubscriptionHistoryApi,
@@ -19,11 +12,12 @@ import {
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 import { useSubscriptionStore } from '#/store';
+import { useAppNotification } from '#/utils/notify';
 
 const route = useRoute();
 const router = useRouter();
 const subscriptionStore = useSubscriptionStore();
-const notification = useNotification();
+const notification = useAppNotification();
 
 const loading = ref(false);
 const deleteModalShow = ref(false);
@@ -84,13 +78,10 @@ async function fetchData() {
 async function handleReRss(row: any) {
   try {
     await redoSubscriptionHistoryApi(row.id, type.value);
-    notification.success({ content: '重新订阅成功' });
+    notification.success('重新订阅成功');
     await fetchData();
   } catch (error: any) {
-    notification.error({
-      content: '重新订阅失败',
-      description: error?.message || '',
-    });
+    notification.error('重新订阅失败', { description: error?.message || '' });
   }
 }
 
@@ -103,13 +94,10 @@ async function confirmDelete() {
   if (!deleteTarget.value) return;
   try {
     await deleteSubscriptionHistoryApi(deleteTarget.value.id);
-    notification.success({ content: '已删除' });
+    notification.success('已删除');
     await fetchData();
   } catch (error: any) {
-    notification.error({
-      content: '删除失败',
-      description: error?.message || '',
-    });
+    notification.error('删除失败', { description: error?.message || '' });
   } finally {
     deleteModalShow.value = false;
     deleteTarget.value = null;
