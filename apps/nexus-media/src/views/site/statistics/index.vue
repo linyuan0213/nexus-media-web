@@ -57,49 +57,49 @@ const summaryCards = computed(() => {
     {
       icon: 'lucide:globe',
       label: '站点总数',
-      tone: 'primary',
+      tone: 'card-blue',
       value: String(s.total),
     },
     {
       icon: 'lucide:activity',
       label: '活跃站点',
-      tone: 'success',
+      tone: 'card-green',
       value: String(s.active),
     },
     {
       icon: 'lucide:arrow-up',
       label: '总上传',
-      tone: 'success',
+      tone: 'card-purple',
       value: formatCompactSize(s.upload),
     },
     {
       icon: 'lucide:arrow-down',
       label: '总下载',
-      tone: 'warning',
+      tone: 'card-amber',
       value: formatCompactSize(s.download),
     },
     {
       icon: 'lucide:bar-chart-3',
       label: '平均分享率',
-      tone: 'primary',
+      tone: 'card-cyan',
       value: s.avgRatio,
     },
     {
       icon: 'lucide:hard-drive',
       label: '总做种数',
-      tone: 'success',
+      tone: 'card-rose',
       value: String(s.seeding),
     },
     {
       icon: 'lucide:sparkles',
       label: '总魔力值',
-      tone: 'primary',
+      tone: 'card-gold',
       value: Number(s.bonus).toFixed(0),
     },
     {
       icon: 'lucide:mail',
       label: '未读消息',
-      tone: 'destructive',
+      tone: 'card-red',
       value: String(s.messages),
     },
   ];
@@ -352,29 +352,47 @@ onBeforeUnmount(() => {
   justify-content: center;
   width: 2.5rem;
   height: 2.5rem;
-  color: hsl(var(--primary));
-  background-color: hsl(var(--primary) / 12%);
   border-radius: 0.625rem;
 }
 
-.stat-icon-success {
-  color: hsl(var(--success));
-  background-color: hsl(var(--success) / 12%);
+.stat-icon-card-blue {
+  color: hsl(217deg 91% 60%);
+  background: hsl(217deg 91% 60% / 12%);
 }
 
-.stat-icon-warning {
-  color: hsl(var(--warning));
-  background-color: hsl(var(--warning) / 12%);
+.stat-icon-card-green {
+  color: hsl(160deg 84% 39%);
+  background: hsl(160deg 84% 39% / 12%);
 }
 
-.stat-icon-destructive {
-  color: hsl(var(--destructive));
-  background-color: hsl(var(--destructive) / 12%);
+.stat-icon-card-purple {
+  color: hsl(270deg 72% 58%);
+  background: hsl(270deg 72% 58% / 12%);
 }
 
-.stat-icon-primary {
-  color: hsl(var(--primary));
-  background-color: hsl(var(--primary) / 12%);
+.stat-icon-card-amber {
+  color: hsl(35deg 92% 50%);
+  background: hsl(35deg 92% 50% / 12%);
+}
+
+.stat-icon-card-cyan {
+  color: hsl(190deg 94% 42%);
+  background: hsl(190deg 94% 42% / 12%);
+}
+
+.stat-icon-card-rose {
+  color: hsl(340deg 82% 54%);
+  background: hsl(340deg 82% 54% / 12%);
+}
+
+.stat-icon-card-gold {
+  color: hsl(45deg 93% 47%);
+  background: hsl(45deg 93% 47% / 12%);
+}
+
+.stat-icon-card-red {
+  color: hsl(0deg 84% 60%);
+  background: hsl(0deg 84% 60% / 12%);
 }
 
 .stat-body {
@@ -390,20 +408,36 @@ onBeforeUnmount(() => {
   color: hsl(var(--card-foreground));
 }
 
-.stat-success {
-  color: hsl(var(--success));
+.stat-card-blue {
+  color: hsl(217deg 91% 60%);
 }
 
-.stat-warning {
-  color: hsl(var(--warning));
+.stat-card-green {
+  color: hsl(160deg 84% 39%);
 }
 
-.stat-destructive {
-  color: hsl(var(--destructive));
+.stat-card-purple {
+  color: hsl(270deg 72% 58%);
 }
 
-.stat-primary {
-  color: hsl(var(--primary));
+.stat-card-amber {
+  color: hsl(35deg 92% 50%);
+}
+
+.stat-card-cyan {
+  color: hsl(190deg 94% 42%);
+}
+
+.stat-card-rose {
+  color: hsl(340deg 82% 54%);
+}
+
+.stat-card-gold {
+  color: hsl(45deg 93% 47%);
+}
+
+.stat-card-red {
+  color: hsl(0deg 84% 60%);
 }
 
 .stat-label {

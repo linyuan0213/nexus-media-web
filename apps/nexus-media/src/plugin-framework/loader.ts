@@ -1,11 +1,43 @@
 import type { Component } from 'vue';
 /**
  * PluginLoader - 插件前端加载器
- * 负责动态加载插件 UMD 包、注册组件、注入路由和插槽
+ * 通过 DI（依赖注入）模式加载插件：plugins/{id}/frontend/index.mjs
+ * 默认导出为一个函数，接收宿主能力对象，返回组件映射。
+ *
+ *   export default function(host) {
+ *     const { h, ref } = host.Vue;
+ *     const IconifyIcon = host.IconifyIcon;
+ *     const rc = host.api;
+ *     return { MyPage, DashboardWidget };
+ *   }
  */
 import type { RouteRecordRaw } from 'vue-router';
 
-import { h, reactive } from 'vue';
+import {
+  computed,
+  defineComponent,
+  getCurrentInstance,
+  h,
+  inject,
+  isRef,
+  markRaw,
+  nextTick,
+  onBeforeMount,
+  onBeforeUnmount,
+  onMounted,
+  onUnmounted,
+  provide,
+  reactive,
+  ref,
+  shallowRef,
+  toRaw,
+  toRef,
+  toRefs,
+  triggerRef,
+  unref,
+  watch,
+  watchEffect,
+} from 'vue';
 
 import { useAppConfig } from '@vben/hooks';
 import { IconifyIcon } from '@vben/icons';
@@ -17,14 +49,42 @@ const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
 
 // requestClient 已携带 baseURL（/api），API 调用不需要再加 /api 前缀
 const PLUGIN_API_BASE = '/plugin-framework';
-// loadScript 直接访问浏览器地址，需要拼上完整 /api 前缀
+// import() 直接访问浏览器地址，需要拼上完整 /api 前缀
 const PLUGIN_ASSET_BASE = `${apiURL}/plugin-framework`;
 
-/** 已加载的插件组件缓存 */
-const loadedComponents = new Map<string, Component>();
+/** DI 宿主能力对象，注入给插件的 host 参数 */
+const host = {
+  Vue: {
+    h,
+    ref,
+    reactive,
+    computed,
+    watch,
+    watchEffect,
+    onMounted,
+    onUnmounted,
+    onBeforeMount,
+    onBeforeUnmount,
+    getCurrentInstance,
+    defineComponent,
+    provide,
+    inject,
+    toRefs,
+    shallowRef,
+    triggerRef,
+    nextTick,
+    isRef,
+    unref,
+    toRef,
+    toRaw,
+    markRaw,
+  },
+  IconifyIcon,
+  api: requestClient,
+};
 
-/** 已加载的插件脚本标记 */
-const loadedScripts = new Set<string>();
+/** 已加载的插件组件映射: pluginId -> { componentName: Component } */
+const loadedModules = new Map<string, Record<string, Component>>();
 
 /** 插槽注册表: slotTarget -> { pluginId, componentName, name, icon, color }[] */
 const slotRegistry = reactive<
@@ -98,63 +158,28 @@ const PluginErrorComponent = (props: {
       h(
         'div',
         { style: { fontSize: '0.875rem' } },
-        `插件 ${props.pluginId || ''} 的组件 ${props.componentName || ''} 加载失败，请检查插件是否已正确安装或 UMD 包是否存在。`,
+        `插件 ${props.pluginId || ''} 的组件 ${props.componentName || ''} 加载失败，请检查插件是否已正确安装或 ESM 模块是否存在。`,
       ),
     ],
   );
 
 /**
- * 加载插件 UMD 脚本
- */
-function loadScript(src: string): Promise<void> {
-  if (loadedScripts.has(src)) {
-    return Promise.resolve();
-  }
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = src;
-    script.async = true;
-    script.addEventListener('load', () => {
-      loadedScripts.add(src);
-      resolve();
-    });
-    script.addEventListener('error', () =>
-      reject(new Error(`加载脚本失败: ${src}`)),
-    );
-    document.head.append(script);
-  });
-}
-
-/**
- * 从全局 window 对象获取插件暴露的组件
+ * 从已加载的插件组件映射中获取组件
  */
 function getPluginComponent(
   pluginId: string,
   componentName: string,
 ): Component | null {
-  const globalKey = `__PLUGIN_${pluginId}__`;
-  const pluginModule = (window as any)[globalKey];
-  if (!pluginModule) return null;
-  const comp = pluginModule[componentName] || pluginModule.default;
-  return comp || null;
+  const mod = loadedModules.get(pluginId);
+  if (!mod) return null;
+  return mod[componentName] || null;
 }
 
-/**
- * 获取插件组件（优先缓存）
- */
 export function getComponent(
   pluginId: string,
   componentName: string,
 ): Component | null {
-  const cacheKey = `${pluginId}::${componentName}`;
-  if (loadedComponents.has(cacheKey)) {
-    return loadedComponents.get(cacheKey) as Component;
-  }
-  const comp = getPluginComponent(pluginId, componentName);
-  if (comp) {
-    loadedComponents.set(cacheKey, comp);
-  }
-  return comp;
+  return getPluginComponent(pluginId, componentName);
 }
 
 /**
@@ -221,17 +246,15 @@ async function loadPluginComponent(
   if (comp) return comp;
 
   try {
-    // 确保 Vue 全局可用（UMD 依赖 window.Vue）
-    if (!(window as any).Vue) {
-      const vueModule = await import('vue');
-      (window as any).Vue = vueModule;
-    }
+    const mjsUrl = `${PLUGIN_ASSET_BASE}/plugins/${pluginId}/assets/frontend/index.mjs`;
+    const module = await import(/* @vite-ignore */ mjsUrl);
+    const components =
+      typeof module.default === 'function'
+        ? module.default(host)
+        : module.default || {};
+    loadedModules.set(pluginId, components || {});
 
-    // 尝试加载 UMD 包
-    const umdUrl = `${PLUGIN_ASSET_BASE}/plugins/${pluginId}/assets/frontend/index.umd.js`;
-    await loadScript(umdUrl);
-
-    const loaded = getComponent(pluginId, componentName);
+    const loaded = getPluginComponent(pluginId, componentName);
     if (loaded) return loaded;
   } catch (error) {
     console.error(
@@ -275,36 +298,22 @@ export async function loadPluginFrontend(
   if (!plugin.enabled) return;
 
   try {
-    // 如果有前端组件，先加载 UMD
+    // 如果有前端组件，先 import ESM 模块
     const hasComponents =
       plugin.frontend.routes?.length > 0 || plugin.frontend.slots?.length > 0;
 
     if (hasComponents) {
-      // 确保 Vue 全局可用（供插件 UMD 使用，避免 tree-shaking 删除暴露代码）
-      if (!(window as any).Vue) {
-        const vueModule = await import('vue');
-        (window as any).Vue = vueModule;
-        console.warn('[PluginLoader] window.Vue 已动态注入');
-      }
-      // 暴露 IconifyIcon 组件供插件 UMD 使用
-      if (!(window as any).IconifyIcon) {
-        (window as any).IconifyIcon = IconifyIcon;
-        console.warn('[PluginLoader] window.IconifyIcon 已动态注入');
-      }
+      const mjsUrl = `${PLUGIN_ASSET_BASE}/plugins/${plugin.id}/assets/frontend/index.mjs`;
+      const module = await import(/* @vite-ignore */ mjsUrl);
+      const components =
+        typeof module.default === 'function'
+          ? module.default(host)
+          : module.default || {};
+      loadedModules.set(plugin.id, components || {});
 
-      const umdUrl = `${PLUGIN_ASSET_BASE}/plugins/${plugin.id}/assets/frontend/index.umd.js`;
-      await loadScript(umdUrl);
-
-      // 验证 UMD 是否正确注册
-      const globalKey = `__PLUGIN_${plugin.id}__`;
-      const module = (window as any)[globalKey];
-      if (!module) {
-        console.error(`[PluginLoader] UMD 加载后全局变量未注册: ${globalKey}`);
-        return;
-      }
       console.warn(
-        `[PluginLoader] 插件 ${plugin.id} UMD 加载成功，暴露的组件:`,
-        Object.keys(module),
+        `[PluginLoader] 插件 ${plugin.id} 加载成功，暴露的组件:`,
+        Object.keys(components || {}),
       );
     }
 
@@ -393,16 +402,8 @@ export function unloadPluginFrontend(pluginId: string): void {
     }
   }
 
-  // 清除组件缓存
-  for (const key of loadedComponents.keys()) {
-    if (key.startsWith(`${pluginId}::`)) {
-      loadedComponents.delete(key);
-    }
-  }
-
-  // 移除全局模块
-  const globalKey = `__PLUGIN_${pluginId}__`;
-  Reflect.deleteProperty(window as any, globalKey);
+  // 清除 ESM 模块缓存
+  loadedModules.delete(pluginId);
 }
 
 export default {

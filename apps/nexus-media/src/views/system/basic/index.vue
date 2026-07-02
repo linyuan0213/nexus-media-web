@@ -31,6 +31,9 @@ const activeTab = ref('system');
 
 const config = ref<Record<string, any>>({});
 
+// 记录原始为数字的字段，保存时还原类型避免后端收到字符串
+const numericKeys = new Set<string>();
+
 const siteConfigVersion = ref({
   local: '',
   remote: '',
@@ -47,6 +50,14 @@ async function fetchData() {
   loading.value = true;
   try {
     const res = await getAllSystemConfigApi();
+    if (res) {
+      for (const key of Object.keys(res)) {
+        if (typeof res[key] === 'number') {
+          numericKeys.add(key);
+          res[key] = String(res[key]);
+        }
+      }
+    }
     config.value = res || {};
   } finally {
     loading.value = false;
@@ -67,10 +78,14 @@ async function saveSection(sectionKey: string, data: Record<string, any>) {
 
 function buildPayload(fields: string[]) {
   const data: Record<string, any> = {};
-  fields.forEach((f) => {
-    const v = config.value[f];
-    if (v !== undefined && v !== '') data[f] = v;
-  });
+  for (const f of fields) {
+    let v = config.value[f];
+    if (v === undefined || v === '') continue;
+    if (numericKeys.has(f) && typeof v === 'string') {
+      v = v.includes('.') ? Number.parseFloat(v) : Number.parseInt(v, 10);
+    }
+    data[f] = v;
+  }
   return data;
 }
 

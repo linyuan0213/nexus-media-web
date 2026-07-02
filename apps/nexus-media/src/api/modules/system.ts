@@ -249,12 +249,20 @@ export async function getIndexersConfigApi() {
 
 /** 保存索引器配置 */
 export async function saveIndexerConfigApi(data: Record<string, any>) {
-  return requestClient.post('/system/indexers/config', { data });
+  return requestClient.post(
+    '/system/indexers/config',
+    { data },
+    { timeout: 120_000 },
+  );
 }
 
 /** 测试索引器连接 */
 export async function testIndexerConfigApi(data: Record<string, any>) {
-  return requestClient.post('/system/indexers/test', { data });
+  return requestClient.post(
+    '/system/indexers/test',
+    { data },
+    { timeout: 120_000 },
+  );
 }
 
 /** 获取媒体服务器配置 */

@@ -31,6 +31,7 @@ interface IndexerConf {
   icon_url?: string;
   test_command?: string;
   config?: Record<string, any>;
+  host?: string;
 }
 
 function indexerIcon(type: string): string {
@@ -39,12 +40,15 @@ function indexerIcon(type: string): string {
 
 const message = useMessage();
 const indexers = ref<Record<string, IndexerConf>>({});
-const builtinEnabled = ref(true);
+const indexerStatus = ref<
+  Record<string, { configured: boolean; enabled: boolean }>
+>({});
 const loading = ref(false);
 const testLoading = ref<Record<string, boolean>>({});
 const editModalShow = ref(false);
 const editingType = ref('');
 const editingConfig = ref<Record<string, any>>({});
+const editingEnabled = ref(true);
 const statsModal = ref(false);
 const statsData = ref<any[]>([]);
 const statsDataset = ref<any[]>([]);
@@ -63,8 +67,14 @@ async function fetchData() {
     if (data.indexer_conf) {
       indexers.value = data.indexer_conf;
     }
-    if (data.builtin_enabled !== undefined) {
-      builtinEnabled.value = data.builtin_enabled;
+    if (data.indexer_status) {
+      indexerStatus.value = data.indexer_status;
+    }
+    if (data.builtin_enabled !== undefined && !indexerStatus.value.builtin) {
+      indexerStatus.value.builtin = {
+        enabled: data.builtin_enabled,
+        configured: true,
+      };
     }
     if (data.indexer_config) {
       // 预填充外部索引器配置
@@ -86,6 +96,7 @@ async function fetchData() {
 function openModal(type: string) {
   editingType.value = type;
   editingConfig.value = {};
+  editingEnabled.value = indexerStatus.value[type]?.enabled ?? true;
   // 预填充已有配置
   const conf = indexers.value[type];
   if (conf?.config) {
@@ -97,9 +108,16 @@ function openModal(type: string) {
 }
 
 async function handleSave() {
+  const current = indexerStatus.value[editingType.value];
+  indexerStatus.value[editingType.value] = {
+    enabled: editingEnabled.value,
+    configured: current?.configured ?? false,
+  };
+
   const data: Record<string, any> = {
     type: editingType.value,
     test: false,
+    enabled: editingEnabled.value,
   };
   // 构造 key.value 格式的配置
   for (const [key, value] of Object.entries(editingConfig.value)) {
@@ -177,7 +195,7 @@ async function showStats() {
 async function saveBuiltin() {
   await saveIndexerConfigApi({
     type: 'builtin',
-    enabled: builtinEnabled.value,
+    enabled: editingEnabled.value,
   });
   editModalShow.value = false;
   message.success('保存成功');
@@ -233,11 +251,11 @@ onMounted(fetchData);
               style="color: hsl(var(--muted-foreground))"
             >
               {{
-                item.type === 'builtin'
-                  ? builtinEnabled
+                indexerStatus[item.type]?.configured
+                  ? indexerStatus[item.type]?.enabled
                     ? '已启用'
                     : '已禁用'
-                  : ''
+                  : '未配置'
               }}
             </div>
             <div
@@ -264,10 +282,25 @@ onMounted(fetchData);
               关闭后内置索引器站点将不参与搜索
             </div>
           </div>
-          <NSwitch v-model:value="builtinEnabled" />
+          <NSwitch v-model:value="editingEnabled" />
         </div>
       </div>
-      <div v-else>
+      <div v-else class="py-4">
+        <div
+          v-if="indexers[editingType]?.host"
+          class="flex items-center justify-between mb-4 pb-4 border-b"
+          :style="{ borderColor: 'hsl(var(--border))' }"
+        >
+          <div>
+            <div class="font-medium">
+              启用 {{ indexers[editingType]?.name }}
+            </div>
+            <div class="text-sm" style="color: hsl(var(--muted-foreground))">
+              关闭后该索引器的站点将不参与搜索
+            </div>
+          </div>
+          <NSwitch v-model:value="editingEnabled" />
+        </div>
         <NForm label-placement="left" :label-width="140">
           <NFormItem
             v-for="(field, key) in indexers[editingType]?.config"
