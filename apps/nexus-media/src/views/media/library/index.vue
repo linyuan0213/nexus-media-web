@@ -176,12 +176,12 @@ onMounted(fetchData);
         <!-- 底部：存储 + 动态 -->
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <StorageUsage
+            style="height: 100%"
             :free-space="librarySpaces.FreeSpace"
             :total-space="librarySpaces.TotalSpace"
             :used-space="librarySpaces.UsedSpace"
             :used-percent="librarySpaces.UsedPercent"
           />
-
           <ActivityList class="lg:col-span-2" :items="activitys" />
         </div>
       </template>

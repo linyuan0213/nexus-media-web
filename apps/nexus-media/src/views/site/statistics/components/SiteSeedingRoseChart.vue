@@ -6,6 +6,7 @@ import { onMounted, ref, watch } from 'vue';
 import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 
 import { useSiteStats } from '#/composables/useSiteStats';
+import { CHART_PALETTE } from '#/constants/chartColors';
 
 interface Props {
   data: Array<{ name: string; value: number }>;
@@ -19,17 +20,6 @@ const chartRef = ref<EchartsUIType>();
 const { renderEcharts, updateData } = useEcharts(chartRef);
 
 const TEXT_COLOR = 'hsl(var(--card-foreground))';
-
-const COLORS = [
-  'hsl(217, 90%, 58%)',
-  'hsl(340, 85%, 58%)',
-  'hsl(160, 75%, 45%)',
-  'hsl(35, 95%, 55%)',
-  'hsl(280, 70%, 60%)',
-  'hsl(15, 85%, 58%)',
-  'hsl(195, 85%, 45%)',
-  'hsl(55, 90%, 50%)',
-];
 
 const SERIES_BASE = {
   center: ['50%', '45%'],
@@ -72,7 +62,7 @@ const TOOLTIP = {
 function buildOption() {
   return {
     animation: false,
-    color: COLORS,
+    color: CHART_PALETTE,
     legend: LEGEND,
     series: [{ ...SERIES_BASE, data: props.data }],
     tooltip: TOOLTIP,

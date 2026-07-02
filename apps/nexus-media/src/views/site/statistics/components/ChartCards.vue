@@ -79,19 +79,6 @@ const seedingRoseData = computed(() =>
       :bordered="false"
       :segmented="{ content: true }"
       class="chart-card"
-      title="上传量分布"
-    >
-      <SiteUploadPieChart
-        v-if="uploadPieData.length > 0"
-        :data="uploadPieData"
-      />
-      <NEmpty v-else description="暂无上传量数据" />
-    </NCard>
-
-    <NCard
-      :bordered="false"
-      :segmented="{ content: true }"
-      class="chart-card"
       title="近7天流量增量"
     >
       <SiteHistoryTrendChart
@@ -101,6 +88,19 @@ const seedingRoseData = computed(() =>
         :download-data="trendDownloads"
       />
       <NEmpty v-else description="暂无近7天流量数据" />
+    </NCard>
+
+    <NCard
+      :bordered="false"
+      :segmented="{ content: true }"
+      class="chart-card"
+      title="上传量分布"
+    >
+      <SiteUploadPieChart
+        v-if="uploadPieData.length > 0"
+        :data="uploadPieData"
+      />
+      <NEmpty v-else description="暂无上传量数据" />
     </NCard>
 
     <NCard

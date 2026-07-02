@@ -28,20 +28,16 @@ function parseItem(item: ActivityItem): { date: string; text: string } {
   return { text: JSON.stringify(item), date: item.date || item.time || '' };
 }
 
-function typeIcon(type?: string) {
+function dotColor(type?: string): string {
   const map: Record<string, string> = {
-    download: 'lucide:download',
-    LG: 'lucide:log-in',
-    login: 'lucide:log-in',
-    playback: 'lucide:play',
-    play: 'lucide:play',
-    stop: 'lucide:square',
-    transfer: 'lucide:folder-sync',
-    sync: 'lucide:refresh-cw',
-    rss: 'lucide:rss',
-    subscribe: 'lucide:heart',
+    download: 'hsl(var(--primary))',
+    transfer: 'hsl(var(--success))',
+    play: 'hsl(var(--warning))',
+    playback: 'hsl(var(--warning))',
+    subscribe: 'hsl(346, 74%, 67%)',
+    rss: 'hsl(26, 85%, 65%)',
   };
-  return map[(type || '').toLowerCase()] || 'lucide:activity';
+  return map[(type || '').toLowerCase()] || 'hsl(var(--border))';
 }
 </script>
 
@@ -59,40 +55,32 @@ function typeIcon(type?: string) {
         class="size-5"
         style="color: hsl(var(--primary))"
       />
-      <span class="font-semibold" style="color: hsl(var(--card-foreground))"
-        >最近动态</span
-      >
+      <span class="font-semibold" style="color: hsl(var(--card-foreground))">
+        最近动态
+      </span>
     </div>
 
-    <div class="max-h-[360px] overflow-y-auto p-2">
-      <div
-        v-for="(item, index) in items"
-        :key="index"
-        class="flex items-start gap-3 rounded-lg p-3 transition-colors hover:bg-accent/30"
-      >
-        <div
-          class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-          style="background: hsl(var(--accent))"
-        >
-          <IconifyIcon
-            :icon="typeIcon(item.type)"
-            class="size-4"
-            style="color: hsl(var(--primary))"
-          />
-        </div>
-        <div class="min-w-0 flex-1">
+    <div class="max-h-[360px] overflow-y-auto px-5 py-4">
+      <div class="timeline">
+        <div v-for="(item, index) in items" :key="index" class="timeline-item">
           <div
-            class="break-words text-sm leading-relaxed"
-            style="color: hsl(var(--card-foreground))"
-          >
-            {{ parseItem(item).text }}
-          </div>
-          <div
-            v-if="parseItem(item).date"
-            class="mt-1 text-xs"
-            style="color: hsl(var(--muted-foreground))"
-          >
-            {{ parseItem(item).date }}
+            class="timeline-dot"
+            :style="{ background: dotColor(item.type) }"
+          ></div>
+          <div class="timeline-content">
+            <div
+              class="break-words text-sm leading-relaxed"
+              style="color: hsl(var(--card-foreground))"
+            >
+              {{ parseItem(item).text }}
+            </div>
+            <div
+              v-if="parseItem(item).date"
+              class="mt-0.5 text-xs"
+              style="color: hsl(var(--muted-foreground))"
+            >
+              {{ parseItem(item).date }}
+            </div>
           </div>
         </div>
       </div>
@@ -113,3 +101,48 @@ function typeIcon(type?: string) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.timeline {
+  position: relative;
+  padding-left: 8px;
+}
+
+.timeline::before {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 4px;
+  width: 1px;
+  content: '';
+  background: hsl(var(--border));
+}
+
+.timeline-item {
+  position: relative;
+  display: flex;
+  gap: 0.75rem;
+  padding-bottom: 1rem;
+  padding-left: 20px;
+}
+
+.timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+.timeline-dot {
+  position: absolute;
+  top: 6px;
+  left: -12px;
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border: 2px solid hsl(var(--card));
+  border-radius: 50%;
+}
+
+.timeline-content {
+  flex: 1;
+  min-width: 0;
+}
+</style>

@@ -14,11 +14,12 @@ import {
 } from '#/api';
 import { PluginSlot } from '#/plugin-framework';
 
-import DownloaderRingChart from './components/DownloaderRingChart.vue';
 import MediaPieChart from './components/MediaPieChart.vue';
+import RankBarChart from './components/RankBarChart.vue';
 import SiteBarChart from './components/SiteBarChart.vue';
 import SiteRoseChart from './components/SiteRoseChart.vue';
 import StatCard from './components/StatCard.vue';
+import StorageGauge from './components/StorageGauge.vue';
 import TransferLineChart from './components/TransferLineChart.vue';
 import WelcomeHeader from './components/WelcomeHeader.vue';
 
@@ -30,10 +31,10 @@ const systemStatus = ref<{ uptime: number; version: string }>();
 // 媒体库
 const libraryData = ref<{
   library_spaces: {
-    free_space: string;
-    total_space: string;
-    used_percent: number;
-    used_space: string;
+    FreeSpace: string;
+    TotalSpace: string;
+    UsedPercent: number;
+    UsedSpace: string;
   };
   media_counts: Record<string, number>;
 }>();
@@ -197,6 +198,7 @@ async function fetchData() {
       library_spaces: ((libRes as any)?.library_spaces || {}) as any,
     };
     transferStats.value = transferRes;
+
     siteStats.value = (siteRes || []) as any;
     indexerStats.value = indexerRes;
     brushTasks.value = brushRes || [];
@@ -289,7 +291,7 @@ onMounted(fetchData);
       </NCard>
 
       <!-- 第二行图表 -->
-      <div class="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div class="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <NCard
           :bordered="false"
           :segmented="{ content: true }"
@@ -297,6 +299,22 @@ onMounted(fetchData);
         >
           <MediaPieChart v-if="mediaPieData.length > 0" :data="mediaPieData" />
           <NEmpty v-else description="暂无媒体库数据" />
+        </NCard>
+
+        <NCard
+          :bordered="false"
+          :segmented="{ content: true }"
+          title="存储空间"
+        >
+          <StorageGauge
+            v-if="libraryData?.library_spaces"
+            :used-percent="Number(libraryData.library_spaces.UsedPercent ?? 0)"
+            :free-space="libraryData.library_spaces.FreeSpace ?? '-'"
+            :total-space="libraryData.library_spaces.TotalSpace ?? '-'"
+            :used-space="libraryData.library_spaces.UsedSpace ?? '-'"
+          />
+          <!-- keep empty for now -->
+          <NEmpty v-else description="暂无存储信息" />
         </NCard>
 
         <NCard
@@ -319,9 +337,10 @@ onMounted(fetchData);
           <template #header-extra>
             <NTag size="small" :bordered="false" type="info">24h</NTag>
           </template>
-          <DownloaderRingChart
+          <RankBarChart
             v-if="downloaderRingData.length > 0"
             :data="downloaderRingData"
+            title="请求数"
           />
           <NEmpty v-else description="暂无索引器数据" />
         </NCard>

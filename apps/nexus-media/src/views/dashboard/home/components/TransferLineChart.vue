@@ -5,6 +5,8 @@ import { onMounted, ref, watch } from 'vue';
 
 import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 
+import { useChartTheme } from '#/composables/useChartTheme';
+
 interface Props {
   labels: string[];
   movieData: number[];
@@ -16,6 +18,19 @@ const props = defineProps<Props>();
 
 const chartRef = ref<EchartsUIType>();
 const { renderEcharts } = useEcharts(chartRef);
+const { mutedColor, borderColor } = useChartTheme();
+
+const SERIES_CONFIG = [
+  { name: '电影', dataKey: 'movieData' as const, color: 'hsl(26, 85%, 65%)' },
+  { name: '电视剧', dataKey: 'tvData' as const, color: 'hsl(201, 66%, 57%)' },
+  { name: '动漫', dataKey: 'animeData' as const, color: 'hsl(346, 74%, 67%)' },
+];
+
+function toTransparent(hsl: string): string {
+  const m = hsl.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
+  if (m) return `hsla(${m[1]}, ${m[2]}%, ${m[3]}%, 0)`;
+  return hsl;
+}
 
 function buildOption() {
   return {
@@ -24,49 +39,42 @@ function buildOption() {
       containLabel: true,
       left: 12,
       right: 12,
-      top: 32,
+      top: 40,
     },
     legend: {
-      data: ['电影', '电视剧', '动漫'],
+      data: SERIES_CONFIG.map((s) => s.name),
       top: 0,
     },
-    series: [
-      {
-        areaStyle: { opacity: 0.15 },
-        data: props.movieData,
-        itemStyle: { color: 'hsl(217, 90%, 58%)' },
-        lineStyle: { width: 2 },
-        name: '电影',
-        showSymbol: false,
-        smooth: true,
-        type: 'line',
+    series: SERIES_CONFIG.map((s) => ({
+      areaStyle: {
+        color: {
+          colorStops: [
+            { color: s.color, offset: 0 },
+            { color: toTransparent(s.color), offset: 1 },
+          ],
+          type: 'linear',
+          x: 0,
+          x2: 0,
+          y: 0,
+          y2: 1,
+        },
       },
-      {
-        areaStyle: { opacity: 0.15 },
-        data: props.tvData,
-        itemStyle: { color: 'hsl(145, 75%, 42%)' },
-        lineStyle: { width: 2 },
-        name: '电视剧',
-        showSymbol: false,
-        smooth: true,
-        type: 'line',
-      },
-      {
-        areaStyle: { opacity: 0.15 },
-        data: props.animeData,
-        itemStyle: { color: 'hsl(340, 85%, 58%)' },
-        lineStyle: { width: 2 },
-        name: '动漫',
-        showSymbol: false,
-        smooth: true,
-        type: 'line',
-      },
-    ],
+      data: props[s.dataKey],
+      emphasis: { focus: 'series' },
+      itemStyle: { color: s.color },
+      lineStyle: { width: 2.5 },
+      name: s.name,
+      showSymbol: false,
+      smooth: true,
+      stack: 'total',
+      type: 'line',
+    })),
     tooltip: {
-      axisPointer: { type: 'line' },
+      axisPointer: { type: 'shadow' },
       trigger: 'axis',
     },
     xAxis: {
+      axisLabel: { color: mutedColor.value as any },
       axisLine: { show: false },
       axisTick: { show: false },
       boundaryGap: false,
@@ -74,11 +82,12 @@ function buildOption() {
       type: 'category' as const,
     },
     yAxis: {
+      axisLabel: { color: mutedColor.value as any },
       axisLine: { show: false },
       axisTick: { show: false },
       splitLine: {
         lineStyle: {
-          color: 'hsl(var(--border) / 0.5)',
+          color: borderColor.value,
           type: 'dashed',
         },
       },
@@ -92,7 +101,14 @@ onMounted(() => {
 });
 
 watch(
-  () => [props.labels, props.movieData, props.tvData, props.animeData],
+  () => [
+    props.labels,
+    props.movieData,
+    props.tvData,
+    props.animeData,
+    mutedColor.value,
+    borderColor.value,
+  ],
   () => {
     renderEcharts(buildOption() as any);
   },

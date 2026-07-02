@@ -5,6 +5,9 @@ import { onMounted, ref, watch } from 'vue';
 
 import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 
+import { useChartTheme } from '#/composables/useChartTheme';
+import { CHART_PALETTE } from '#/constants/chartColors';
+
 interface Props {
   data: Array<{ name: string; value: number }>;
 }
@@ -13,54 +16,25 @@ const props = defineProps<Props>();
 
 const chartRef = ref<EchartsUIType>();
 const { renderEcharts } = useEcharts(chartRef);
+const { legendColor } = useChartTheme();
 
 function buildOption() {
   return {
     legend: {
       bottom: 0,
-      itemGap: 8,
+      itemGap: 12,
       left: 'center',
-      textStyle: { fontSize: 11 },
+      textStyle: { color: legendColor.value, fontSize: 11 },
       type: 'scroll' as const,
     },
     series: [
       {
-        center: ['50%', '45%'],
-        color: [
-          'hsl(217, 90%, 58%)',
-          'hsl(340, 85%, 58%)',
-          'hsl(160, 75%, 45%)',
-          'hsl(35, 95%, 55%)',
-          'hsl(280, 70%, 60%)',
-          'hsl(15, 85%, 58%)',
-          'hsl(195, 85%, 45%)',
-          'hsl(55, 90%, 50%)',
-        ],
+        center: ['50%', '42%'],
+        color: CHART_PALETTE,
         data: props.data,
-        itemStyle: {
-          borderRadius: 4,
-        },
-        emphasis: {
-          label: {
-            formatter: '{b}\n{c}',
-            show: true,
-          },
-          labelLine: {
-            lineStyle: {
-              width: 1.5,
-            },
-            show: true,
-            smooth: true,
-          },
-          scale: true,
-          scaleSize: 8,
-        },
-        label: {
-          show: false,
-        },
-        labelLine: {
-          show: false,
-        },
+        itemStyle: { borderRadius: 4 },
+        emphasis: { scale: true, scaleSize: 6 },
+        label: { show: false },
         radius: [16, 100],
         roseType: 'area',
         type: 'pie',
@@ -73,15 +47,10 @@ function buildOption() {
   };
 }
 
-onMounted(() => {
-  renderEcharts(buildOption() as any);
-});
-
+onMounted(() => renderEcharts(buildOption() as any));
 watch(
-  () => props.data,
-  () => {
-    renderEcharts(buildOption() as any);
-  },
+  () => [props.data, legendColor.value],
+  () => renderEcharts(buildOption() as any),
   { deep: true },
 );
 </script>

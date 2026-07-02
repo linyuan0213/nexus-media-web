@@ -6,6 +6,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 
 import { useSiteStats } from '#/composables/useSiteStats';
+import { CHART_PALETTE } from '#/constants/chartColors';
 
 interface SeriesItem {
   download: number[];
@@ -30,19 +31,8 @@ const { renderEcharts, updateData } = useEcharts(chartRef);
 
 const TEXT_COLOR = 'hsl(var(--card-foreground))';
 
-const PALETTE = [
-  'hsl(217, 90%, 58%)',
-  'hsl(145, 75%, 42%)',
-  'hsl(340, 85%, 58%)',
-  'hsl(24, 95%, 55%)',
-  'hsl(280, 70%, 60%)',
-  'hsl(160, 75%, 45%)',
-  'hsl(195, 85%, 45%)',
-  'hsl(55, 90%, 50%)',
-];
-
 function getColor(index: number): string {
-  return PALETTE[index % PALETTE.length] || PALETTE[0]!;
+  return CHART_PALETTE[index % CHART_PALETTE.length] || CHART_PALETTE[0]!;
 }
 
 const activeSeries = computed(() => {

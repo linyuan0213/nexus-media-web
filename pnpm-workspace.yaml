@@ -118,6 +118,7 @@ catalog:
   defu: ^6.1.7
   dotenv: ^17.4.2
   echarts: ^6.1.0
+  echarts-liquidfill: ^3.1.0
   element-plus: ^2.14.0
   es-toolkit: ^1.46.1
   eslint: ^10.4.0

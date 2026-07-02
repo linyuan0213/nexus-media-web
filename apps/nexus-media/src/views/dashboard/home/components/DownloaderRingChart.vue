@@ -5,6 +5,8 @@ import { onMounted, ref, watch } from 'vue';
 
 import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 
+import { pickColors } from '#/constants/chartColors';
+
 interface Props {
   data: Array<{ name: string; value: number }>;
 }
@@ -13,17 +15,6 @@ const props = defineProps<Props>();
 
 const chartRef = ref<EchartsUIType>();
 const { renderEcharts } = useEcharts(chartRef);
-
-function generateColors(count: number): string[] {
-  const colors: string[] = [];
-  const goldenAngle = 137.508;
-  let hue = 0;
-  for (let i = 0; i < count; i++) {
-    hue = (hue + goldenAngle) % 360;
-    colors.push(`hsl(${Math.round(hue)}, 70%, 55%)`);
-  }
-  return colors;
-}
 
 function buildOption() {
   return {
@@ -44,7 +35,7 @@ function buildOption() {
         animationEasing: 'exponentialInOut',
         animationType: 'scale',
         avoidLabelOverlap: true,
-        color: generateColors(props.data.length),
+        color: pickColors(props.data.length),
         data: props.data,
         emphasis: {
           label: {
