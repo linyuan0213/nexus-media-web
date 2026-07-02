@@ -19,6 +19,9 @@ import PageHeader from '#/components/page/PageHeader.vue';
 const loading = ref(false);
 const systemInfo = ref<any>({});
 const logoUrl = '/static/img/logo/logo-web-apple-180-light.png';
+const frontendVersion = import.meta.env.VITE_APP_VERSION
+  ? `v${import.meta.env.VITE_APP_VERSION}`
+  : '-';
 
 async function fetchSystemInfo() {
   loading.value = true;
@@ -88,8 +91,14 @@ onMounted(fetchSystemInfo);
                   >Nexus Media</span
                 >
                 <NTag size="small" type="primary" round>
-                  {{ systemInfo.version || 'v3.7.0' }}
+                  {{ systemInfo.version || '-' }}
                 </NTag>
+                <span
+                  class="text-xs"
+                  style="color: hsl(var(--muted-foreground))"
+                >
+                  前端 {{ frontendVersion }}
+                </span>
               </div>
               <p
                 class="mt-2 text-sm"
@@ -146,6 +155,11 @@ onMounted(fetchSystemInfo);
             <NDescriptionsItem label="系统版本">
               <span style="color: hsl(var(--card-foreground))">{{
                 systemInfo.version || '-'
+              }}</span>
+            </NDescriptionsItem>
+            <NDescriptionsItem label="前端版本">
+              <span style="color: hsl(var(--card-foreground))">{{
+                frontendVersion
               }}</span>
             </NDescriptionsItem>
             <NDescriptionsItem label="Python 版本">

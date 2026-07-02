@@ -1,9 +1,14 @@
 import { defineConfig } from '@vben/vite-config';
 
+import pkg from './package.json';
+
 export default defineConfig(async () => {
   return {
     application: {},
     vite: {
+      define: {
+        'import.meta.env.VITE_APP_VERSION': JSON.stringify(pkg.version),
+      },
       server: {
         proxy: {
           '/api': {
