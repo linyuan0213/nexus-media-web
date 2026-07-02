@@ -187,17 +187,16 @@ export function getComponent(
  */
 function registerPluginRoutes(plugin: PluginManifestFrontend) {
   const routes: RouteRecordRaw[] = [];
-  const basePath = `/plugin/${plugin.id}`;
 
   for (const route of plugin.frontend.routes) {
-    const fullPath = route.path.startsWith('/')
-      ? route.path
-      : `${basePath}/${route.path}`;
+    const childPath = route.path.startsWith('/')
+      ? route.path.slice(1)
+      : `${plugin.id}/${route.path}`;
     const routeName = `Plugin_${plugin.id}_${route.path.replaceAll('/', '_')}`;
 
     const routeDef: RouteRecordRaw = {
       name: routeName,
-      path: fullPath,
+      path: childPath,
       component: () => loadPluginComponent(plugin.id, route.component),
       meta: {
         icon: route.icon || 'lucide:puzzle',
@@ -209,7 +208,6 @@ function registerPluginRoutes(plugin: PluginManifestFrontend) {
   }
 
   if (routes.length > 0) {
-    // 确保 Plugin 父路由存在
     const pluginParent = router.getRoutes().find((r) => r.name === 'Plugin');
     if (!pluginParent) {
       router.addRoute('Root', {
@@ -224,6 +222,7 @@ function registerPluginRoutes(plugin: PluginManifestFrontend) {
       });
     }
     for (const r of routes) {
+      router.removeRoute(r.name as string);
       router.addRoute('Plugin', r);
     }
     pluginRoutes.set(plugin.id, routes);
@@ -231,7 +230,6 @@ function registerPluginRoutes(plugin: PluginManifestFrontend) {
       `[PluginLoader] 插件 ${plugin.id} 路由已注册:`,
       routes.map((r) => r.path),
     );
-    // 菜单由后端 RBAC 统一管理，前端不再手动注入 accessMenus
   }
 }
 
@@ -336,6 +334,10 @@ export async function loadPluginFrontend(
 }
 
 let _pluginsLoaded = false;
+
+export function resetPluginLoadedFlag(): void {
+  _pluginsLoaded = false;
+}
 
 /**
  * 加载所有已启用插件的前端资源

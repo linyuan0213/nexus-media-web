@@ -1,11 +1,12 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, h, onMounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 import { useUserStore } from '@vben/stores';
 
 import {
   NButton,
+  NDropdown,
   NForm,
   NFormItem,
   NInput,
@@ -14,7 +15,6 @@ import {
   NSpace,
   NSpin,
   NSwitch,
-  NTooltip,
   useMessage,
 } from 'naive-ui';
 
@@ -230,6 +230,49 @@ onMounted(() => {
   fetchData();
   fetchRoles();
 });
+
+function getUserActions(_row: UserItem) {
+  return [
+    {
+      label: '编辑',
+      key: 'edit',
+      icon: () => h(IconifyIcon, { icon: 'lucide:pencil', class: 'size-3.5' }),
+    },
+    {
+      label: '重置密码',
+      key: 'reset-pwd',
+      icon: () =>
+        h(IconifyIcon, { icon: 'lucide:key-round', class: 'size-3.5' }),
+    },
+    {
+      type: 'divider',
+      key: 'd1',
+    },
+    {
+      label: '删除',
+      key: 'delete',
+      icon: () => h(IconifyIcon, { icon: 'lucide:trash-2', class: 'size-3.5' }),
+      props: { style: { color: 'hsl(var(--destructive))' } },
+    },
+  ] as any;
+}
+
+function handleActionSelect(key: string, row: UserItem) {
+  switch (key) {
+    case 'delete': {
+      confirmDelete(row);
+      break;
+    }
+    case 'edit': {
+      handleEdit(row);
+      break;
+    }
+    case 'reset-pwd': {
+      openResetPwd(row);
+      break;
+    }
+  }
+}
 </script>
 
 <template>
@@ -328,35 +371,15 @@ onMounted(() => {
             </div>
 
             <div class="user-actions">
-              <NTooltip>
-                <template #trigger>
-                  <NButton text size="tiny" @click="handleEdit(item)">
-                    <IconifyIcon icon="lucide:pencil" class="size-3.5" />
-                  </NButton>
-                </template>
-                编辑
-              </NTooltip>
-              <NTooltip>
-                <template #trigger>
-                  <NButton text size="tiny" @click="openResetPwd(item)">
-                    <IconifyIcon icon="lucide:key-round" class="size-3.5" />
-                  </NButton>
-                </template>
-                重置密码
-              </NTooltip>
-              <NTooltip>
-                <template #trigger>
-                  <NButton
-                    text
-                    size="tiny"
-                    type="error"
-                    @click="confirmDelete(item)"
-                  >
-                    <IconifyIcon icon="lucide:trash-2" class="size-3.5" />
-                  </NButton>
-                </template>
-                删除
-              </NTooltip>
+              <NDropdown
+                trigger="click"
+                :options="getUserActions(item)"
+                @select="(key: string) => handleActionSelect(key, item)"
+              >
+                <NButton text size="small" class="action-more-btn">
+                  <IconifyIcon icon="lucide:more-vertical" class="size-4" />
+                </NButton>
+              </NDropdown>
             </div>
           </div>
         </div>
@@ -759,8 +782,14 @@ onMounted(() => {
 
 .user-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.25rem;
   align-items: center;
+}
+
+.action-more-btn {
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0.375rem 0.5rem;
 }
 
 /* 空状态 */

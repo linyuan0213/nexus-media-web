@@ -24,6 +24,10 @@ import {
   uninstallPluginApi,
 } from '#/api/modules/plugin_framework';
 import PageHeader from '#/components/page/PageHeader.vue';
+import {
+  loadAllPluginFrontends,
+  resetPluginLoadedFlag,
+} from '#/plugin-framework/loader';
 import { generateAccess } from '#/router/access';
 import { accessRoutes } from '#/router/routes';
 import { useAppNotification } from '#/utils/notify';
@@ -72,6 +76,10 @@ async function refreshSidebarMenus() {
   accessStore.setAccessMenus(accessibleMenus);
   accessStore.setAccessRoutes(accessibleRoutes);
   accessStore.setIsAccessChecked(true);
+  resetPluginLoadedFlag();
+  loadAllPluginFrontends().catch((error) =>
+    console.error('[PluginPage] 重新加载插件路由失败:', error),
+  );
 }
 
 async function fetchPlugins() {
@@ -446,6 +454,9 @@ onMounted(fetchPlugins);
 
     <!-- 日志抽屉 -->
     <PluginLogDrawer v-model:show="logShow" :plugin-id="logPluginId" />
+
+    <!-- 插件子页面渲染出口 -->
+    <RouterView />
   </div>
 </template>
 
