@@ -387,8 +387,7 @@ onUnmounted(() => {
       </div>
 
       <NSpin :show="loading">
-        <template v-if="resources.length > 0">
-          <!-- Grid View -->
+        <div v-if="resources.length > 0">
           <div v-if="viewMode === 'grid'" class="resource-grid">
             <ResourceCard
               v-for="(item, index) in resources"
@@ -400,7 +399,6 @@ onUnmounted(() => {
             />
           </div>
 
-          <!-- List View -->
           <div v-else class="resource-list">
             <ResourceList
               v-for="(item, index) in resources"
@@ -411,7 +409,7 @@ onUnmounted(() => {
               @open-url="handleOpenUrl"
             />
           </div>
-        </template>
+        </div>
 
         <EmptyState
           v-else-if="!loading"

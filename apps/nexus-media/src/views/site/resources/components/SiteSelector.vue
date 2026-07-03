@@ -47,63 +47,69 @@ function getFavicon(name: string): string {
     </PageHeader>
 
     <NSpin :show="loading">
-      <div v-if="sites.length > 0" class="site-grid">
-        <NCard
-          v-for="site in sites"
-          :key="site.id"
-          size="small"
-          class="site-card"
-          hoverable
-          @click="emit('select', site)"
-        >
-          <div class="site-card-content">
-            <div
-              class="site-logo-wrap"
-              :style="{
-                background: 'hsl(var(--primary) / 10%)',
-                color: 'hsl(var(--primary))',
-              }"
-            >
-              <img
-                v-show="getFavicon(site.name) && !faviconLoadFailed[site.name]"
-                :src="getFavicon(site.name)"
-                :alt="site.name"
-                class="site-logo-img"
-                @error="emit('faviconError', site.name)"
-              />
+      <div>
+        <div v-if="sites.length > 0" class="site-grid">
+          <NCard
+            v-for="site in sites"
+            :key="site.id"
+            size="small"
+            class="site-card"
+            hoverable
+            @click="emit('select', site)"
+          >
+            <div class="site-card-content">
               <div
-                v-show="!getFavicon(site.name) || faviconLoadFailed[site.name]"
-                class="site-logo-placeholder"
+                class="site-logo-wrap"
+                :style="{
+                  background: 'hsl(var(--primary) / 10%)',
+                  color: 'hsl(var(--primary))',
+                }"
               >
-                {{ site.name.charAt(0).toUpperCase() }}
+                <img
+                  v-show="
+                    getFavicon(site.name) && !faviconLoadFailed[site.name]
+                  "
+                  :src="getFavicon(site.name)"
+                  :alt="site.name"
+                  class="site-logo-img"
+                  @error="emit('faviconError', site.name)"
+                />
+                <div
+                  v-show="
+                    !getFavicon(site.name) || faviconLoadFailed[site.name]
+                  "
+                  class="site-logo-placeholder"
+                >
+                  {{ site.name.charAt(0).toUpperCase() }}
+                </div>
               </div>
-            </div>
-            <div class="site-info">
-              <div
-                class="site-name"
-                :style="{ color: 'hsl(var(--card-foreground))' }"
-              >
-                {{ site.name }}
+              <div class="site-info">
+                <div
+                  class="site-name"
+                  :style="{ color: 'hsl(var(--card-foreground))' }"
+                >
+                  {{ site.name }}
+                </div>
+                <div
+                  class="site-id"
+                  :style="{ color: 'hsl(var(--muted-foreground))' }"
+                >
+                  {{ site.id }}
+                </div>
               </div>
               <div
-                class="site-id"
+                class="site-arrow"
                 :style="{ color: 'hsl(var(--muted-foreground))' }"
               >
-                {{ site.id }}
+                <IconifyIcon icon="lucide:chevron-right" class="h-5 w-5" />
               </div>
             </div>
-            <div
-              class="site-arrow"
-              :style="{ color: 'hsl(var(--muted-foreground))' }"
-            >
-              <IconifyIcon icon="lucide:chevron-right" class="h-5 w-5" />
-            </div>
-          </div>
-        </NCard>
+          </NCard>
+        </div>
       </div>
 
       <EmptyState
-        v-else-if="!loading"
+        v-if="!loading && sites.length === 0"
         title="暂无站点"
         subtitle="没有可用的索引站点"
       >

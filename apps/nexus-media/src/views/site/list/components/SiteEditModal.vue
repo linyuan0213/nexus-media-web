@@ -283,11 +283,7 @@ defineExpose({
                     @update:value="(v) => updateField('public', v)"
                   />
                   <span class="type-hint">
-                    {{
-                      (site.site_public ?? site.public)
-                        ? 'BT站点（公开）'
-                        : 'PT站点（私有）'
-                    }}
+                    {{ site.public ? 'BT站点（公开）' : 'PT站点（私有）' }}
                   </span>
                 </div>
               </NFormItem>

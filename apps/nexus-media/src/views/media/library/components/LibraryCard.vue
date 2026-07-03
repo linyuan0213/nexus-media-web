@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import { computed } from 'vue';
+
 import { IconifyIcon } from '@vben/icons';
 
 interface Props {
@@ -13,6 +15,12 @@ const props = withDefaults(defineProps<Props>(), {
   image: '',
   imageList: () => [],
 });
+
+const hasCollage = computed(() => props.imageList.length >= 2);
+
+const collageImages = computed(() => props.imageList.slice(0, 3));
+
+const collageCols = computed(() => Math.min(props.imageList.length, 3));
 
 function replaceLocalhost(url?: string) {
   if (!url) return '';
@@ -31,7 +39,7 @@ function replaceLocalhost(url?: string) {
   return url;
 }
 
-function coverImage() {
+function singleImage() {
   return props.image || props.imageList[0] || '';
 }
 </script>
@@ -44,15 +52,33 @@ function coverImage() {
     style="background: hsl(var(--card)); border-color: hsl(var(--border))"
   >
     <div class="relative aspect-[16/9] overflow-hidden">
-      <img
-        v-if="coverImage()"
-        :src="coverImage()"
-        class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-        :alt="name"
-        @error="($event.target as HTMLImageElement).style.display = 'none'"
-      />
+      <div v-if="singleImage() || hasCollage" class="h-full w-full">
+        <div
+          v-if="hasCollage"
+          class="grid h-full w-full gap-px"
+          :style="`grid-template-columns: repeat(${collageCols}, 1fr)`"
+          style="background: hsl(var(--border))"
+        >
+          <img
+            v-for="(url, i) in collageImages"
+            :key="i"
+            :src="replaceLocalhost(url)"
+            class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            loading="lazy"
+            :alt="`${name}-${i + 1}`"
+            @error="($event.target as HTMLImageElement).style.display = 'none'"
+          />
+        </div>
+        <img
+          v-else
+          :src="singleImage()"
+          class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          :alt="name"
+          @error="($event.target as HTMLImageElement).style.display = 'none'"
+        />
+      </div>
       <div
-        v-else
+        v-if="!singleImage() && !hasCollage"
         class="flex h-full w-full flex-col items-center justify-center gap-2"
         style="background: hsl(var(--muted))"
       >

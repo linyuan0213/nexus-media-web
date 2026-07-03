@@ -725,74 +725,84 @@ async function confirmDownload() {
 
     <!-- 普通搜索：媒体词条结果 -->
     <NSpin v-if="displayMode === 'media'" :show="loading">
-      <div
-        v-if="mediaResults.length > 0"
-        class="grid gap-4"
-        style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr))"
-      >
+      <div>
         <div
-          v-for="media in mediaResults"
-          :key="media.id"
-          class="cursor-pointer relative rounded-lg overflow-hidden shadow-sm hover:shadow-md transition"
-          @click="handleMediaSearch(media)"
+          v-if="mediaResults.length > 0"
+          class="grid gap-4"
+          style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr))"
         >
-          <div style="aspect-ratio: 2/3; background: hsl(var(--muted))">
-            <img
-              :src="getImgUrl(media.image || media.poster)"
-              class="w-full h-full object-cover"
-              alt=""
-              @error="
-                (e: any) => {
-                  e.target.src = '/static/img/no-image.png';
-                }
-              "
-            />
-          </div>
-          <span
-            v-if="media.media_type || media.type"
-            class="absolute top-1.5 left-1.5 text-white text-[10px] px-1.5 py-0.5 rounded"
-            :class="
-              (media.media_type || media.type) === 'movie'
-                ? 'bg-[hsl(var(--success))]'
-                : 'bg-[hsl(var(--info))]'
-            "
-          >
-            {{ getMediaTypeLabel(media.media_type || media.type) }}
-          </span>
-          <span
-            v-if="media.vote && media.vote !== '0.0' && media.vote !== '0'"
-            style="
-              position: absolute;
-              top: 0.375rem;
-              right: 0.375rem;
-              padding: 0.125rem 0.375rem;
-              font-size: 10px;
-              color: hsl(var(--warning-foreground));
-              background: hsl(var(--warning));
-              border-radius: 0.25rem;
-            "
-          >
-            {{ media.vote }}
-          </span>
           <div
-            class="absolute bottom-0 left-0 right-0 p-2 text-white"
-            style="background: linear-gradient(transparent, rgb(0 0 0 / 75%))"
+            v-for="media in mediaResults"
+            :key="media.id"
+            class="cursor-pointer relative rounded-lg overflow-hidden shadow-sm hover:shadow-md transition"
+            @click="handleMediaSearch(media)"
           >
-            <div class="text-sm font-bold truncate">{{ media.title }}</div>
-            <div class="flex items-center gap-2 text-xs mt-0.5">
-              <span v-if="media.year">{{ media.year }}</span>
+            <div style="aspect-ratio: 2/3; background: hsl(var(--muted))">
+              <img
+                :src="getImgUrl(media.image || media.poster)"
+                class="w-full h-full object-cover"
+                alt=""
+                @error="
+                  (e: any) => {
+                    e.target.src = '/static/img/no-image.png';
+                  }
+                "
+              />
             </div>
-          </div>
-          <div
-            class="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200"
-            style="background: rgb(0 0 0 / 50%)"
-          >
-            <NButton size="small" type="primary" round>搜索资源</NButton>
+            <span
+              v-if="media.media_type || media.type"
+              class="absolute top-1.5 left-1.5 text-white text-[10px] px-1.5 py-0.5 rounded"
+              :class="
+                (media.media_type || media.type) === 'movie'
+                  ? 'bg-[hsl(var(--success))]'
+                  : 'bg-[hsl(var(--info))]'
+              "
+            >
+              {{ getMediaTypeLabel(media.media_type || media.type) }}
+            </span>
+            <span
+              v-if="media.vote && media.vote !== '0.0' && media.vote !== '0'"
+              style="
+                position: absolute;
+                top: 0.375rem;
+                right: 0.375rem;
+                padding: 0.125rem 0.375rem;
+                font-size: 10px;
+                color: hsl(var(--warning-foreground));
+                background: hsl(var(--warning));
+                border-radius: 0.25rem;
+              "
+            >
+              {{ media.vote }}
+            </span>
+            <div
+              class="absolute bottom-0 left-0 right-0 p-2 text-white"
+              style="background: linear-gradient(transparent, rgb(0 0 0 / 75%))"
+            >
+              <div class="text-sm font-bold truncate">{{ media.title }}</div>
+              <div class="flex items-center gap-2 text-xs mt-0.5">
+                <span v-if="media.year">{{ media.year }}</span>
+              </div>
+            </div>
+            <div
+              class="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200"
+              style="background: rgb(0 0 0 / 50%)"
+            >
+              <NButton size="small" type="primary" round>搜索资源</NButton>
+            </div>
           </div>
         </div>
       </div>
-      <NEmpty v-else-if="!loading && keyword" description="未找到相关媒体" />
+      <NEmpty v-if="!loading && keyword" description="未找到相关媒体" />
     </NSpin>
+
+    <!-- 初始加载中 -->
+    <div
+      v-if="loading && displayMode === 'empty'"
+      class="flex items-center justify-center py-24"
+    >
+      <NSpin :show="true"><span></span></NSpin>
+    </div>
 
     <!-- 种子搜索：进度 + 结果 -->
     <template v-else-if="displayMode === 'torrent'">
