@@ -536,7 +536,7 @@ onMounted(() => {
         >
           <div class="relative flex-shrink-0 p-1.5 pb-0">
             <img
-              :src="getImgUrl(item.image)"
+              :src="getImgUrl(item.image || (item as any).poster)"
               class="w-full object-cover rounded-md"
               style="aspect-ratio: 3/4"
               alt=""
@@ -606,7 +606,7 @@ onMounted(() => {
     >
       <div v-if="detailItem" class="flex gap-6">
         <img
-          :src="getImgUrl(detailItem.image)"
+          :src="getImgUrl(detailItem.image || (detailItem as any).poster)"
           class="rounded-xl shadow-lg"
           style="
             flex-shrink: 0;

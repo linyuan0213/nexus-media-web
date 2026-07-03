@@ -13,6 +13,7 @@ import { getRecommendApi, webSearchApi } from '#/api';
 import {
   addSubscriptionApi,
   addSubscriptionMediaApi,
+  deleteSubscriptionApi,
 } from '#/api/modules/subscription';
 import PageHeader from '#/components/page/PageHeader.vue';
 import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.vue';
@@ -34,6 +35,7 @@ interface RecommendItem {
   media_type?: string;
   tmdbid?: string;
   doubanid?: string;
+  rssid?: string;
 }
 
 const route = useRoute();
@@ -51,6 +53,16 @@ const hoveredId = ref<null | string>(null);
 const subscribeConfirmShow = ref(false);
 const subscribeConfirmItem = ref<null | SubscribeConfirmItem>(null);
 const subscribeConfirmPending = ref(false);
+
+function updateCardSubscribeState(title: string, fav: string, rssid?: string) {
+  for (const item of items.value) {
+    if (item.title === title) {
+      item.fav = fav;
+      if (rssid !== undefined) item.rssid = rssid;
+      return;
+    }
+  }
+}
 
 const subscribeEditShow = ref(false);
 const subscribeEditItem = ref<null | SubscribeEditItem>(null);
@@ -130,8 +142,18 @@ function getMediaTypeLabel(type?: string) {
   return map[normalizeMediaType(type)] || '未知';
 }
 
-function handleSubscribe(item: RecommendItem, e: Event) {
+async function handleSubscribe(item: RecommendItem, e: Event) {
   e.stopPropagation();
+  if (item.fav === '1' && item.rssid) {
+    try {
+      await deleteSubscriptionApi(Number(item.rssid));
+      updateCardSubscribeState(item.title, '');
+      notification.success('已取消订阅', { description: item.title });
+    } catch (error: any) {
+      notification.error('取消订阅失败', { description: error?.message || '' });
+    }
+    return;
+  }
   subscribeConfirmItem.value = {
     id: item.id,
     tmdbid: item.tmdbid,
@@ -151,18 +173,21 @@ async function handleConfirmSubscribe(seasons: number[], _autoMode: boolean) {
   try {
     const typeParam = item.type === 'movie' ? 'movie' : 'tv';
     if (typeParam === 'tv' && seasons.length > 0) {
+      let lastRssid = '';
       for (const season of seasons) {
-        await addSubscriptionMediaApi({
+        const r: any = await addSubscriptionMediaApi({
           name: item.title,
           year: item.year || '',
           type: 'tv',
           mediaid: String(item.id),
           season: String(season),
         });
+        lastRssid = r?.rssid ? String(r.rssid) : lastRssid;
       }
       notification.success('订阅成功', {
         description: `${item.title} 已订阅 ${seasons.length} 季`,
       });
+      updateCardSubscribeState(item.title, '1', lastRssid || undefined);
     } else {
       const res: any = await addSubscriptionMediaApi({
         name: item.title,
@@ -180,6 +205,11 @@ async function handleConfirmSubscribe(seasons: number[], _autoMode: boolean) {
         notification.success('订阅成功', {
           description: res?.msg || `${item.title} 已添加订阅`,
         });
+        updateCardSubscribeState(
+          item.title,
+          '1',
+          res?.rssid ? String(res.rssid) : undefined,
+        );
       } else {
         notification.error('订阅失败', {
           description: res?.msg || '未知错误',
@@ -215,6 +245,7 @@ async function handleConfirmEdit(data: Record<string, any>) {
     notification.success('订阅成功', {
       description: `${data.name} 已添加订阅`,
     });
+    updateCardSubscribeState(data.name, '1');
   } catch (error: any) {
     notification.error('订阅失败', {
       description: error?.message || '未知错误',
