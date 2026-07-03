@@ -4,7 +4,7 @@ import type { MenuRecordRaw } from '@vben/types';
 import { nextTick, onMounted, ref, shallowRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { SearchX, X } from '@vben/icons';
+import { Search, X } from '@vben/icons';
 import { $t } from '@vben/locales';
 import { mapTree, traverseTreeValues, uniqueByField } from '@vben/utils';
 
@@ -99,8 +99,12 @@ async function handleEnter() {
   if (searchResults.value.length === 0) {
     const kw = props.keyword?.trim();
     if (kw) {
+      addResourceSearchHistory(kw);
       handleClose();
-      router.push({ path: `/media/search?s=${encodeURIComponent(kw)}` });
+      router.push({
+        path: '/media/search',
+        query: { s: kw, from: 'global-search' },
+      });
     }
     return;
   }
@@ -111,15 +115,54 @@ async function handleEnter() {
   }
   const to = result[index];
   if (to) {
-    searchHistory.value = uniqueByField([...searchHistory.value, to], 'path');
+    handleNavigateResult(to);
+  }
+}
+
+function handleNavigateResult(to: MenuRecordRaw) {
+  if (isResourceHistoryItem(to)) {
+    const kw = (to.name || props.keyword)?.trim();
     handleClose();
-    await nextTick();
+    router.push({
+      path: '/media/search',
+      query: kw ? { s: kw, from: 'global-search' } : { from: 'global-search' },
+    });
+    return;
+  }
+  searchHistory.value = uniqueByField([...searchHistory.value, to], 'path');
+  handleClose();
+  nextTick(() => {
     if (isHttpUrl(to.path)) {
       window.open(to.path, '_blank');
     } else {
       router.push({ path: to.path, replace: true });
     }
+  });
+}
+
+function isResourceHistoryItem(item: MenuRecordRaw) {
+  return item.path?.startsWith('__rs__');
+}
+
+function addResourceSearchHistory(keyword: string) {
+  const item: MenuRecordRaw = {
+    name: keyword,
+    path: `__rs__${Date.now()}`,
+    icon: 'lucide:search',
+  };
+  searchHistory.value = uniqueByField([item, ...searchHistory.value], 'name');
+}
+
+function handleResourceSearch(name?: string) {
+  const kw = (name || props.keyword)?.trim();
+  if (kw) {
+    addResourceSearchHistory(kw);
   }
+  handleClose();
+  router.push({
+    path: '/media/search',
+    query: kw ? { s: kw, from: 'global-search' } : { from: 'global-search' },
+  });
 }
 
 // Arrow key up
@@ -244,18 +287,15 @@ useEventListener('mousemove', () => {
 <template>
   <VbenScrollbar>
     <div class="flex! h-full justify-center px-2 sm:max-h-112.5">
-      <!-- 无搜索结果 -->
-      <div
-        v-if="keyword && searchResults.length === 0"
-        class="text-center text-muted-foreground"
-      >
-        <SearchX class="mx-auto mt-4 size-12" />
-        <p class="mt-6 mb-10 text-xs">
-          {{ $t('ui.widgets.search.noResults') }}
-          <span class="text-sm font-medium text-foreground">
-            "{{ keyword }}"
-          </span>
-        </p>
+      <!-- 无菜单匹配 -> 资源搜索入口 -->
+      <div v-if="keyword && searchResults.length === 0" class="text-center">
+        <div
+          class="mx-auto mt-4 flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-accent px-6 py-3 text-sm transition-colors hover:bg-primary/10"
+          @click="handleResourceSearch()"
+        >
+          <Search class="size-5" />
+          <span>搜索资源「{{ keyword }}」</span>
+        </div>
       </div>
       <!-- 历史搜索记录 & 没有搜索结果 -->
       <div
@@ -285,7 +325,7 @@ useEventListener('mousemove', () => {
           :data-index="index"
           :data-search-item="index"
           class="group mb-3 flex-center w-full cursor-pointer rounded-lg bg-accent p-4"
-          @click="handleEnter"
+          @click="handleNavigateResult(item)"
           @mouseenter="handleMouseenter"
         >
           <VbenIcon :icon="item.icon" class="mr-2 size-5 shrink-0" fallback />

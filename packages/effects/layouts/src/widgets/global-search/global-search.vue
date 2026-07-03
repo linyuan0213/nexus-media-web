@@ -109,7 +109,7 @@ onMounted(() => {
           <input
             ref="searchInputRef"
             v-model="keyword"
-            :placeholder="$t('ui.widgets.search.searchNavigate')"
+            placeholder="搜索菜单、资源..."
             class="ring-none w-[80%] rounded-md border border-none bg-transparent p-2 pl-0 text-sm font-normal ring-0 ring-offset-transparent outline-hidden placeholder:text-muted-foreground focus-visible:ring-transparent"
           />
         </div>

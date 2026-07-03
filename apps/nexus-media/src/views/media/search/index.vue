@@ -350,18 +350,20 @@ onMounted(() => {
   const from = route.query.from as string;
   if (s) {
     keyword.value = s;
-    displayMode.value = 'torrent';
-    results.value = [];
     if (from === 'discovery' || from === 'detail') {
-      // 从探索页/详情页跳转时已在外部触发过搜索，直接加载结果
+      displayMode.value = 'torrent';
+      results.value = [];
       loading.value = true;
       loadSearchResults().then(() => {
         if (results.value.length === 0) {
-          // 搜索尚未完成，启动进度轮询等待结果
           startProgressPoll();
         }
       });
+    } else if (from === 'global-search' || !from) {
+      handleSearch();
     } else {
+      displayMode.value = 'torrent';
+      results.value = [];
       loading.value = true;
       startProgressPoll();
       webSearchApi({ search_word: s }).catch((error: any) => {
@@ -373,7 +375,6 @@ onMounted(() => {
       });
     }
   } else {
-    // 无搜索词时加载最近一次搜索结果
     loadSearchResults();
   }
 });
