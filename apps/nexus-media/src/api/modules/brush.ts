@@ -29,6 +29,13 @@ export namespace BrushApi {
     stop_rule_id?: null | number;
     seed_size?: number;
     time_range?: string;
+    active_weekdays?: string;
+    download_switch?: string;
+    remove_switch?: string;
+    stop_switch?: string;
+    daily_delete_limit?: string;
+    max_seeding?: string;
+    hr_limit?: string;
     total_size?: number;
     rss_url?: string;
     rss_url_show?: string;
@@ -40,6 +47,24 @@ export namespace BrushApi {
     cookie?: string;
     ua?: string;
     headers?: string;
+  }
+
+  export interface BrushEvent {
+    ID: number;
+    TASK_ID: number;
+    TASK_NAME: string;
+    TORRENT_NAME: string;
+    DOWNLOAD_ID: string;
+    ACTION: 'delete' | 'stop';
+    REASON: string;
+    DOWNLOADER_NAME: string;
+    SITE_NAME: string;
+    CREATED_AT: string;
+  }
+
+  export interface BrushEventList {
+    total: number;
+    rows: BrushEvent[];
   }
 
   export interface BrushTorrent {
@@ -144,4 +169,14 @@ export async function saveBrushRuleApi(data: Partial<BrushApi.BrushRule>) {
 /** 删除刷流规则 */
 export async function deleteBrushRuleApi(id: number | string) {
   return requestClient.post('/brush/rules/delete', { id });
+}
+
+/** 获取刷流事件日志 */
+export async function getBrushEventsApi(params: {
+  action?: string;
+  page?: number;
+  page_size?: number;
+  task_id?: number;
+}) {
+  return requestClient.post<BrushApi.BrushEventList>('/brush/events', params);
 }

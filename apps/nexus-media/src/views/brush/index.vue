@@ -122,6 +122,23 @@ const summary = computed(() => {
   };
 });
 
+const weekdayLabels: Record<string, string> = {
+  '1': '周一',
+  '2': '周二',
+  '3': '周三',
+  '4': '周四',
+  '5': '周五',
+  '6': '周六',
+  '7': '周日',
+};
+
+function formatWeekdays(val?: string): string {
+  if (!val) return '每天';
+  const parts = val.split(',').filter(Boolean);
+  if (parts.length === 0) return '每天';
+  return parts.map((v) => weekdayLabels[v.trim()] || v.trim()).join('、');
+}
+
 async function fetchData() {
   loading.value = true;
   try {
@@ -685,9 +702,78 @@ onMounted(() => {
               </span>
             </div>
             <div class="brush-detail-config-item">
+              <span class="brush-detail-config-label">新增下载</span>
+              <span class="brush-detail-config-value">
+                <span
+                  class="task-badge"
+                  :class="
+                    detailTask.download_switch !== 'N'
+                      ? 'task-badge-success'
+                      : 'task-badge-default'
+                  "
+                >
+                  {{ detailTask.download_switch !== 'N' ? '开启' : '关闭' }}
+                </span>
+              </span>
+            </div>
+            <div class="brush-detail-config-item">
+              <span class="brush-detail-config-label">自动删种</span>
+              <span class="brush-detail-config-value">
+                <span
+                  class="task-badge"
+                  :class="
+                    detailTask.remove_switch !== 'N'
+                      ? 'task-badge-success'
+                      : 'task-badge-default'
+                  "
+                >
+                  {{ detailTask.remove_switch !== 'N' ? '开启' : '关闭' }}
+                </span>
+              </span>
+            </div>
+            <div class="brush-detail-config-item">
+              <span class="brush-detail-config-label">自动停种</span>
+              <span class="brush-detail-config-value">
+                <span
+                  class="task-badge"
+                  :class="
+                    detailTask.stop_switch !== 'N'
+                      ? 'task-badge-success'
+                      : 'task-badge-default'
+                  "
+                >
+                  {{ detailTask.stop_switch !== 'N' ? '开启' : '关闭' }}
+                </span>
+              </span>
+            </div>
+            <div class="brush-detail-config-item">
+              <span class="brush-detail-config-label">做种数上限</span>
+              <span class="brush-detail-config-value">{{
+                detailTask.max_seeding || '不限'
+              }}</span>
+            </div>
+            <div class="brush-detail-config-item">
+              <span class="brush-detail-config-label">H&R上限</span>
+              <span class="brush-detail-config-value">{{
+                detailTask.hr_limit || '不限'
+              }}</span>
+            </div>
+            <div class="brush-detail-config-item">
+              <span class="brush-detail-config-label">每日删种上限</span>
+              <span class="brush-detail-config-value">{{
+                detailTask.daily_delete_limit || '不限'
+              }}</span>
+            </div>
+            <div class="brush-detail-config-item">
               <span class="brush-detail-config-label">开启时段</span>
               <span class="brush-detail-config-value">{{
                 detailTask.time_range || '全天'
+              }}</span>
+            </div>
+            <div class="brush-detail-config-item">
+              <span class="brush-detail-config-label">活跃星期</span>
+              <span class="brush-detail-config-value">{{
+                formatWeekdays(detailTask.active_weekdays)
               }}</span>
             </div>
             <div class="brush-detail-config-item">

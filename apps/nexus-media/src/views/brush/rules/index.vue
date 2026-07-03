@@ -7,7 +7,6 @@ import { IconifyIcon } from '@vben/icons';
 
 import {
   NButton,
-  NDivider,
   NForm,
   NFormItem,
   NIcon,
@@ -70,6 +69,10 @@ const form = ref({
   free: '',
   hr: '',
   exclude_subscribe: false,
+  category_include: '',
+  category_exclude: '',
+  label_include: '',
+  label_exclude: '',
   dlcount: '',
   include: '',
   exclude: '',
@@ -87,6 +90,9 @@ const form = ref({
   avg_upspeed: '',
   iatime: '',
   pending_time: '',
+  alive_time: '',
+  cur_upspeed: '',
+  tracker_error: false,
   freespace: '',
   freestatus: false,
   stopfree: false,
@@ -167,6 +173,10 @@ function openEdit(rule?: BrushApi.BrushRule) {
         dlcount: rss.dlcount || '',
         include: rss.include || '',
         exclude: rss.exclude || '',
+        category_include: rss.category_include || '',
+        category_exclude: rss.category_exclude || '',
+        label_include: rss.label_include || '',
+        label_exclude: rss.label_exclude || '',
         upspeed: rss.upspeed || '',
         downspeed: rss.downspeed || '',
         torrent_size: rss.size || '',
@@ -183,6 +193,9 @@ function openEdit(rule?: BrushApi.BrushRule) {
         pending_time: '',
         freespace: '',
         freestatus: false,
+        alive_time: '',
+        cur_upspeed: '',
+        tracker_error: false,
         stopfree: false,
       };
     } else if (ruleType === 'remove') {
@@ -194,6 +207,10 @@ function openEdit(rule?: BrushApi.BrushRule) {
         free: '',
         hr: '',
         exclude_subscribe: false,
+        category_include: '',
+        category_exclude: '',
+        label_include: '',
+        label_exclude: '',
         dlcount: '',
         include: '',
         exclude: '',
@@ -212,6 +229,10 @@ function openEdit(rule?: BrushApi.BrushRule) {
         iatime: remove.iatime || '',
         pending_time: remove.pending_time || '',
         freespace: remove.freespace || '',
+        alive_time: remove.alive_time || '',
+        cur_upspeed: remove.upspeed || '',
+        tracker_error:
+          remove.tracker_error === 'Y' || remove.tracker_error === true,
         freestatus: remove.freestatus === 'Y' || remove.freestatus === true,
         stopfree: false,
       };
@@ -224,6 +245,10 @@ function openEdit(rule?: BrushApi.BrushRule) {
         free: '',
         hr: '',
         exclude_subscribe: false,
+        category_include: '',
+        category_exclude: '',
+        label_include: '',
+        label_exclude: '',
         dlcount: '',
         include: '',
         exclude: '',
@@ -241,6 +266,9 @@ function openEdit(rule?: BrushApi.BrushRule) {
         avg_upspeed: '',
         iatime: '',
         pending_time: '',
+        alive_time: '',
+        cur_upspeed: '',
+        tracker_error: false,
         freespace: '',
         freestatus: false,
         stopfree: stop.stopfree === 'Y' || stop.stopfree === true,
@@ -257,6 +285,10 @@ function openEdit(rule?: BrushApi.BrushRule) {
       dlcount: '',
       include: '',
       exclude: '',
+      category_include: '',
+      category_exclude: '',
+      label_include: '',
+      label_exclude: '',
       upspeed: '',
       downspeed: '',
       torrent_size: '',
@@ -271,6 +303,9 @@ function openEdit(rule?: BrushApi.BrushRule) {
       avg_upspeed: '',
       iatime: '',
       pending_time: '',
+      alive_time: '',
+      cur_upspeed: '',
+      tracker_error: false,
       freespace: '',
       freestatus: false,
       stopfree: false,
@@ -288,6 +323,10 @@ function getRssRule() {
   if (f.dlcount) rule.dlcount = f.dlcount;
   if (f.include) rule.include = f.include;
   if (f.exclude) rule.exclude = f.exclude;
+  if (f.category_include) rule.category_include = f.category_include;
+  if (f.category_exclude) rule.category_exclude = f.category_exclude;
+  if (f.label_include) rule.label_include = f.label_include;
+  if (f.label_exclude) rule.label_exclude = f.label_exclude;
   if (f.upspeed) rule.upspeed = f.upspeed;
   if (f.downspeed) rule.downspeed = f.downspeed;
   if (f.torrent_size) rule.size = f.torrent_size;
@@ -310,6 +349,9 @@ function getRemoveRule() {
   if (f.pending_time) rule.pending_time = f.pending_time;
   if (f.freespace) rule.freespace = f.freespace;
   if (f.freestatus) rule.freestatus = 'Y';
+  if (f.alive_time) rule.alive_time = f.alive_time;
+  if (f.upspeed) rule.upspeed = f.upspeed;
+  if (f.tracker_error) rule.tracker_error = 'Y';
   return rule;
 }
 
@@ -317,6 +359,10 @@ function getStopRule() {
   const f = form.value;
   const rule: Record<string, any> = {};
   if (f.stopfree) rule.stopfree = 'Y';
+  if (f.seedratio) rule.ratio = f.seedratio;
+  if (f.seedsize) rule.uploadsize = f.seedsize;
+  if (f.seedtime) rule.seedtime = f.seedtime;
+  if (f.avg_upspeed) rule.avg_upspeed = f.avg_upspeed;
   return rule;
 }
 
@@ -342,6 +388,9 @@ async function handleSave() {
         if (f.pending_time) r.pending_time = f.pending_time;
         if (f.freespace) r.freespace = f.freespace;
         if (f.freestatus) r.freestatus = 'Y';
+        if (f.alive_time) r.alive_time = f.alive_time;
+        if (f.upspeed) r.upspeed = f.upspeed;
+        if (f.tracker_error) r.tracker_error = 'Y';
         return r;
       }
       case 'rss': {
@@ -352,6 +401,10 @@ async function handleSave() {
         if (f.dlcount) r.dlcount = f.dlcount;
         if (f.include) r.include = f.include;
         if (f.exclude) r.exclude = f.exclude;
+        if (f.category_include) r.category_include = f.category_include;
+        if (f.category_exclude) r.category_exclude = f.category_exclude;
+        if (f.label_include) r.label_include = f.label_include;
+        if (f.label_exclude) r.label_exclude = f.label_exclude;
         if (f.upspeed) r.upspeed = f.upspeed;
         if (f.downspeed) r.downspeed = f.downspeed;
         if (f.torrent_size) r.size = f.torrent_size;
@@ -425,6 +478,16 @@ function buildRuleSummary(rule: BrushApi.BrushRule) {
     rssItems.push({ icon: 'lucide:search', text: `包含: ${rss.include}` });
   if (rss.exclude)
     rssItems.push({ icon: 'lucide:ban', text: `排除: ${rss.exclude}` });
+  if (rss.category_include)
+    rssItems.push({
+      icon: 'lucide:folder-search',
+      text: `包含分类: ${rss.category_include}`,
+    });
+  if (rss.category_exclude)
+    rssItems.push({
+      icon: 'lucide:folder-x',
+      text: `排除分类: ${rss.category_exclude}`,
+    });
   if (rss.size > 0)
     rssItems.push({ icon: 'lucide:hard-drive', text: `大小 ${rss.size}GB` });
   if (rss.peercount)
@@ -477,10 +540,36 @@ function buildRuleSummary(rule: BrushApi.BrushRule) {
     });
   if (remove.freestatus)
     removeItems.push({ icon: 'lucide:zap', text: 'Free到期删' });
+  if (remove.alive_time)
+    removeItems.push({
+      icon: 'lucide:calendar-clock',
+      text: `存活>${remove.alive_time}h`,
+    });
+  if (remove.upspeed)
+    removeItems.push({
+      icon: 'lucide:arrow-up',
+      text: `当前上传${remove.upspeed}KB/s`,
+    });
+  if (remove.tracker_error)
+    removeItems.push({ icon: 'lucide:alert-triangle', text: 'Tracker错误删' });
 
   const stopItems: Array<{ icon: string; text: string }> = [];
   if (stop.stopfree)
     stopItems.push({ icon: 'lucide:pause-circle', text: 'Free到期停' });
+  if (stop.ratio)
+    stopItems.push({ icon: 'lucide:divide', text: `分享率>${stop.ratio}` });
+  if (stop.uploadsize)
+    stopItems.push({
+      icon: 'lucide:upload',
+      text: `上传>${stop.uploadsize}GB`,
+    });
+  if (stop.seedtime)
+    stopItems.push({ icon: 'lucide:timer', text: `做种>${stop.seedtime}h` });
+  if (stop.avg_upspeed)
+    stopItems.push({
+      icon: 'lucide:arrow-up',
+      text: `平均上传${stop.avg_upspeed}KB/s`,
+    });
 
   return {
     type: ruleType,
@@ -681,25 +770,26 @@ onMounted(() => {
       v-model:show="modalShow"
       :title="editingRule ? '编辑规则' : '新增规则'"
       preset="card"
-      :style="{ width: '780px', maxWidth: '92vw' }"
+      :style="{ width: '900px', maxWidth: '95vw' }"
       :bordered="false"
       :segmented="{ content: true }"
       :mask-closable="false"
     >
       <NForm label-placement="top" size="small" class="brush-form">
         <NFormItem label="规则名称" required>
-          <NInput v-model:value="form.name" placeholder="请输入规则名称" />
+          <NInput
+            v-model:value="form.name"
+            placeholder="请输入规则名称"
+            style="max-width: 280px"
+          />
         </NFormItem>
 
         <template v-if="form.type === 'rss'">
-          <NDivider>
-            <div class="divider-content">
-              <IconifyIcon icon="lucide:filter" class="h-3.5 w-3.5" />
-              选种规则（与）
-            </div>
-          </NDivider>
-
           <div class="form-grid">
+            <div class="group-title">
+              <IconifyIcon icon="lucide:badge-percent" class="h-3.5 w-3.5" />
+              促销状态
+            </div>
             <NFormItem path="free">
               <template #label>
                 <component
@@ -721,6 +811,10 @@ onMounted(() => {
             <NFormItem label="Hit&Run" path="hr">
               <NSelect v-model:value="form.hr" :options="hrOptions" clearable />
             </NFormItem>
+            <div class="group-title">
+              <IconifyIcon icon="lucide:filter" class="h-3.5 w-3.5" />
+              过滤条件
+            </div>
             <NFormItem path="exclude_subscribe">
               <template #label>
                 <component
@@ -783,6 +877,78 @@ onMounted(() => {
                 placeholder="关键字或正则表达式"
               />
             </NFormItem>
+            <NFormItem path="category_include">
+              <template #label>
+                <component
+                  :is="
+                    () =>
+                      labelWithHelp(
+                        '包含分类',
+                        '种子分类匹配正则式时才会下载（依赖站点RSS包含分类标签）',
+                      )
+                  "
+                />
+              </template>
+              <NInput
+                v-model:value="form.category_include"
+                placeholder="Movie|电影"
+              />
+            </NFormItem>
+            <NFormItem path="category_exclude">
+              <template #label>
+                <component
+                  :is="
+                    () =>
+                      labelWithHelp(
+                        '排除分类',
+                        '种子分类匹配正则式时不会下载（依赖站点RSS包含分类标签）',
+                      )
+                  "
+                />
+              </template>
+              <NInput
+                v-model:value="form.category_exclude"
+                placeholder="Music|音乐"
+              />
+            </NFormItem>
+            <NFormItem path="label_include">
+              <template #label>
+                <component
+                  :is="
+                    () =>
+                      labelWithHelp(
+                        '包含标签',
+                        '种子标签匹配正则式时才会下载，如 DIY|国配|中字（需站点详情页支持）',
+                      )
+                  "
+                />
+              </template>
+              <NInput
+                v-model:value="form.label_include"
+                placeholder="DIY|国配|中字"
+              />
+            </NFormItem>
+            <NFormItem path="label_exclude">
+              <template #label>
+                <component
+                  :is="
+                    () =>
+                      labelWithHelp(
+                        '排除标签',
+                        '种子标签匹配正则式时不会下载（需站点详情页支持）',
+                      )
+                  "
+                />
+              </template>
+              <NInput
+                v-model:value="form.label_exclude"
+                placeholder="官方|官组"
+              />
+            </NFormItem>
+            <div class="group-title">
+              <IconifyIcon icon="lucide:hard-drive" class="h-3.5 w-3.5" />
+              种子条件
+            </div>
             <NFormItem path="upspeed">
               <template #label>
                 <component
@@ -865,13 +1031,6 @@ onMounted(() => {
         </template>
 
         <template v-if="form.type === 'remove'">
-          <NDivider>
-            <div class="divider-content">
-              <IconifyIcon icon="lucide:trash-2" class="h-3.5 w-3.5" />
-              删种规则（{{ form.mode === 'and' ? '与' : '或' }}）
-            </div>
-          </NDivider>
-
           <div class="form-grid">
             <NFormItem path="mode">
               <template #label>
@@ -887,6 +1046,10 @@ onMounted(() => {
               </template>
               <NSelect v-model:value="form.mode" :options="modeOptions" />
             </NFormItem>
+            <div class="group-title">
+              <IconifyIcon icon="lucide:clock" class="h-3.5 w-3.5" />
+              时间条件
+            </div>
             <NFormItem path="seedtime">
               <template #label>
                 <component
@@ -923,6 +1086,10 @@ onMounted(() => {
                 placeholder="如: 72"
               />
             </NFormItem>
+            <div class="group-title">
+              <IconifyIcon icon="lucide:arrow-up" class="h-3.5 w-3.5" />
+              流量条件
+            </div>
             <NFormItem path="seedratio">
               <template #label>
                 <component
@@ -1031,6 +1198,60 @@ onMounted(() => {
                 placeholder="如: 1"
               />
             </NFormItem>
+            <NFormItem path="alive_time">
+              <template #label>
+                <component
+                  :is="
+                    () =>
+                      labelWithHelp(
+                        '存活时间(小时)',
+                        '种子在下载器中存活超过设定时间后删除，不依赖做种数据',
+                      )
+                  "
+                />
+              </template>
+              <RangeField
+                v-model="form.alive_time"
+                :options="ignoreGtOptions"
+                placeholder="如: 168（7天）"
+              />
+            </NFormItem>
+            <NFormItem path="upspeed">
+              <template #label>
+                <component
+                  :is="
+                    () =>
+                      labelWithHelp(
+                        '当前上传速度(KB/S)',
+                        '种子当前上传速度低于阈值时删除（区别于平均上传速度）',
+                      )
+                  "
+                />
+              </template>
+              <RangeField
+                v-model="form.upspeed"
+                :options="ignoreLtOptions"
+                placeholder="如: 10"
+              />
+            </NFormItem>
+            <NFormItem path="tracker_error">
+              <template #label>
+                <component
+                  :is="
+                    () =>
+                      labelWithHelp(
+                        'Tracker错误',
+                        '开启后tracker报错（未注册/连接失败）时删除种子',
+                      )
+                  "
+                />
+              </template>
+              <NSwitch v-model:value="form.tracker_error" />
+            </NFormItem>
+            <div class="group-title">
+              <IconifyIcon icon="lucide:shield" class="h-3.5 w-3.5" />
+              资源保护
+            </div>
             <NFormItem path="freespace">
               <template #label>
                 <component
@@ -1067,14 +1288,11 @@ onMounted(() => {
         </template>
 
         <template v-if="form.type === 'stop'">
-          <NDivider>
-            <div class="divider-content">
-              <IconifyIcon icon="lucide:octagon" class="h-3.5 w-3.5" />
-              停种规则（或）
-            </div>
-          </NDivider>
-
           <div class="form-grid">
+            <div class="group-title">
+              <IconifyIcon icon="lucide:octagon-pause" class="h-3.5 w-3.5" />
+              停种条件
+            </div>
             <NFormItem path="stopfree">
               <template #label>
                 <component
@@ -1088,6 +1306,65 @@ onMounted(() => {
                 />
               </template>
               <NSwitch v-model:value="form.stopfree" />
+            </NFormItem>
+            <NFormItem path="seedratio">
+              <template #label>
+                <component
+                  :is="() => labelWithHelp('分享率', '达到分享率后暂停种子')"
+                />
+              </template>
+              <RangeField
+                v-model="form.seedratio"
+                :options="ignoreGtOptions"
+                placeholder="如: 1"
+              />
+            </NFormItem>
+            <NFormItem path="seedsize">
+              <template #label>
+                <component
+                  :is="
+                    () => labelWithHelp('上传量(GB)', '达到上传量后暂停种子')
+                  "
+                />
+              </template>
+              <RangeField
+                v-model="form.seedsize"
+                :options="ignoreGtOptions"
+                placeholder="如: 10"
+              />
+            </NFormItem>
+            <NFormItem path="seedtime">
+              <template #label>
+                <component
+                  :is="
+                    () =>
+                      labelWithHelp('做种时间(小时)', '达到做种时间后暂停种子')
+                  "
+                />
+              </template>
+              <RangeField
+                v-model="form.seedtime"
+                :options="ignoreGtOptions"
+                placeholder="如: 24"
+              />
+            </NFormItem>
+            <NFormItem path="avg_upspeed">
+              <template #label>
+                <component
+                  :is="
+                    () =>
+                      labelWithHelp(
+                        '平均上传速度(KB/S)',
+                        '平均上传速度低于阈值时暂停种子',
+                      )
+                  "
+                />
+              </template>
+              <RangeField
+                v-model="form.avg_upspeed"
+                :options="ignoreLtOptions"
+                placeholder="如: 10"
+              />
             </NFormItem>
           </div>
         </template>
@@ -1116,9 +1393,7 @@ onMounted(() => {
 <style scoped>
 /* ========== Page Layout ========== */
 .rules-page {
-  max-width: 1200px;
   padding: 1.5rem;
-  margin: 0 auto;
 }
 
 /* ========== Type Tabs ========== */
@@ -1384,6 +1659,23 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.75rem 1rem;
+}
+
+.group-title {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 0.375rem;
+  align-items: center;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: hsl(var(--card-foreground));
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.group-title:not(:first-child) {
+  margin-top: 1rem;
 }
 
 .form-footer {
