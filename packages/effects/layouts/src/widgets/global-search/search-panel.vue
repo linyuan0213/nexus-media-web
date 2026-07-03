@@ -97,6 +97,11 @@ function scrollIntoView() {
 // enter keyboard event
 async function handleEnter() {
   if (searchResults.value.length === 0) {
+    const kw = props.keyword?.trim();
+    if (kw) {
+      handleClose();
+      router.push({ path: `/media/search?s=${encodeURIComponent(kw)}` });
+    }
     return;
   }
   const result = searchResults.value;
