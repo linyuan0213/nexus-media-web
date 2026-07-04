@@ -600,8 +600,10 @@ onMounted(fetchData);
                   </template>
                   <div
                     class="max-w-xs whitespace-normal text-xs"
-                    v-html="field.tooltip"
-                  ></div>
+                    style="color: hsl(var(--card-foreground))"
+                  >
+                    {{ field.tooltip }}
+                  </div>
                 </NTooltip>
               </template>
               <NSelect

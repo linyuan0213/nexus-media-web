@@ -698,6 +698,12 @@ onUnmounted(() => {
                     ></div>
                   </div>
                 </div>
+                <div
+                  v-if="torrent.size != null && torrent.size !== ''"
+                  class="torrent-size"
+                >
+                  {{ torrent.size }}
+                </div>
                 <div class="torrent-speed">{{ torrent.speed }}</div>
               </div>
             </div>
@@ -806,6 +812,12 @@ onUnmounted(() => {
                     }"
                   ></div>
                 </div>
+              </div>
+              <div
+                v-if="torrent.size != null && torrent.size !== ''"
+                class="torrent-list-size"
+              >
+                {{ torrent.size }}
               </div>
               <div class="torrent-list-speed">{{ torrent.speed }}</div>
             </div>
@@ -1247,6 +1259,13 @@ onUnmounted(() => {
   text-align: right;
 }
 
+.torrent-list-size {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  text-align: right;
+}
+
 .torrent-list-actions {
   flex-shrink: 0;
 }
@@ -1256,6 +1275,13 @@ onUnmounted(() => {
   margin-top: 0.25rem;
   font-size: 0.875rem;
   color: hsl(var(--muted-foreground));
+}
+
+.torrent-size {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
 }
 
 .downloader-tag {

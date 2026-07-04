@@ -18,6 +18,7 @@ import {
   getSubscriptionCalendarWebcalUrlApi,
   getTvSubscriptionItemsApi,
 } from '#/api/modules/subscription';
+import { getImgUrl } from '#/utils/image';
 import { useAppNotification } from '#/utils/notify';
 
 interface CalendarEvent {
@@ -68,11 +69,6 @@ const eventsByDate = computed(() => {
 function getDayEvents(year: number, month: number, date: number) {
   const key = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
   return eventsByDate.value.get(key) || [];
-}
-
-function getImgUrl(src?: string) {
-  if (!src) return '/static/img/no-image.png';
-  return `/img?url=${encodeURIComponent(src)}`;
 }
 
 function handleEventClick(event: CalendarEvent) {

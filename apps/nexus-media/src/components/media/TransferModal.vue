@@ -21,6 +21,7 @@ import {
 
 import { searchMediaApi } from '#/api/modules/media';
 import { SYNC_MODES } from '#/api/modules/sync';
+import { getImgUrl } from '#/utils/image';
 
 export interface TransferFormData {
   path: string;
@@ -113,12 +114,6 @@ function selectTmdbMedia(media: any) {
   form.value.tmdb = media.id || media.tmdb_id || undefined;
   tmdbSearchShow.value = false;
   tmdbSearchResults.value = [];
-}
-
-function getImgUrl(url?: string) {
-  if (!url) return '/static/img/no-image.png';
-  if (url.startsWith('http')) return `/img?url=${url}`;
-  return url;
 }
 </script>
 

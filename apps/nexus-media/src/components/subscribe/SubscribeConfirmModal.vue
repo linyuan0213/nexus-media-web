@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue';
 import { NButton, NCard, NCheckbox, NModal, NSpace, NSpin } from 'naive-ui';
 
 import { getTvSeasonListApi } from '#/api/modules/media';
+import { getImgUrl } from '#/utils/image';
 
 export interface SubscribeConfirmItem {
   id: string;
@@ -86,11 +87,6 @@ function handleConfirm(autoMode: boolean) {
 function handleEdit() {
   emit('edit');
   emit('update:show', false);
-}
-
-function getImgUrl(src?: string) {
-  if (!src) return '/static/img/no-image.png';
-  return src;
 }
 
 function toggleSeason(num: number) {

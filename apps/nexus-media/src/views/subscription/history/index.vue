@@ -1,8 +1,10 @@
 <script lang="ts" setup>
-import { computed, h, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import { NButton, NDataTable, NModal, NSpace, NSpin } from 'naive-ui';
+import { IconifyIcon } from '@vben/icons';
+
+import { NButton, NModal, NSpin, NTab, NTabs } from 'naive-ui';
 
 import {
   deleteSubscriptionHistoryApi,
@@ -14,6 +16,8 @@ import PageHeader from '#/components/page/PageHeader.vue';
 import { useSubscriptionStore } from '#/store';
 import { useAppNotification } from '#/utils/notify';
 
+import HistoryCard from './components/HistoryCard.vue';
+
 const route = useRoute();
 const router = useRouter();
 const subscriptionStore = useSubscriptionStore();
@@ -23,32 +27,24 @@ const loading = ref(false);
 const deleteModalShow = ref(false);
 const deleteTarget = ref<any>(null);
 
-const type = computed(() => {
-  const t = route.query.t as string;
-  return t === 'TV' ? 'tv' : 'movie';
-});
+const filterType = ref<'movie' | 'tv'>(
+  String(route.query.t || '').toLowerCase() === 'tv' ? 'tv' : 'movie',
+);
 
 const pageTitle = computed(() =>
-  type.value === 'tv' ? '电视剧订阅历史' : '电影订阅历史',
+  filterType.value === 'tv' ? '电视剧订阅历史' : '电影订阅历史',
 );
 
 const backPath = computed(() =>
-  type.value === 'tv' ? '/subscription/tv' : '/subscription/movie',
+  filterType.value === 'tv' ? '/subscription/tv' : '/subscription/movie',
 );
 
-function getImgUrl(src?: string) {
-  if (!src) return '/static/img/no-image.png';
-  if (src.startsWith('/img/')) return src;
-
-  const tmdbMatch = src.match(/https?:\/\/image\.tmdb\.org\/t\/p\/(\w+)(\/.+)/);
-  if (tmdbMatch) {
-    return `/img/tmdb/${tmdbMatch[1]}${tmdbMatch[2]}`;
-  }
-
-  return `/img?url=${encodeURIComponent(src)}`;
+function handleTypeChange(value: 'movie' | 'tv') {
+  if (value === filterType.value) return;
+  filterType.value = value;
+  fetchData();
 }
 
-// 统一将后端可能返回的大小写字段转换为小写格式
 const historyList = computed(() => {
   return subscriptionStore.subscriptionHistory.map((item: any) => ({
     id: (item.ID ?? item.id) as number | string,
@@ -61,23 +57,23 @@ const historyList = computed(() => {
     start: (item.START ?? item.start ?? 0) as number,
     desc: (item.DESC ?? item.desc ?? '') as string,
     finishTime: (item.FINISH_TIME ?? item.date ?? '') as string,
-    type: (item.type ?? type.value) as 'movie' | 'tv',
+    type: (item.type ?? filterType.value) as 'movie' | 'tv',
   }));
 });
 
 async function fetchData() {
   loading.value = true;
   try {
-    const res = await getSubscriptionHistoryApi(type.value);
+    const res = await getSubscriptionHistoryApi(filterType.value);
     subscriptionStore.setSubscriptionHistory(res);
   } finally {
     loading.value = false;
   }
 }
 
-async function handleReRss(row: any) {
+async function handleReRss(item: any) {
   try {
-    await redoSubscriptionHistoryApi(row.id, type.value);
+    await redoSubscriptionHistoryApi(item.id, filterType.value);
     notification.success('重新订阅成功');
     await fetchData();
   } catch (error: any) {
@@ -85,8 +81,8 @@ async function handleReRss(row: any) {
   }
 }
 
-function handleDelete(row: any) {
-  deleteTarget.value = row;
+function handleDelete(item: any) {
+  deleteTarget.value = item;
   deleteModalShow.value = true;
 }
 
@@ -104,110 +100,6 @@ async function confirmDelete() {
   }
 }
 
-function renderImage(row: any) {
-  return h('img', {
-    src: getImgUrl(row.image),
-    class: 'rounded shadow-sm',
-    style: 'width: 50px; aspect-ratio: 2/3; object-fit: cover',
-    onError: (e: any) => {
-      e.target.src = '/static/img/no-image.png';
-    },
-  });
-}
-
-function renderTitle(row: any) {
-  return h('div', null, [
-    h('div', { class: 'font-medium' }, [
-      row.title,
-      row.year ? ` (${row.year})` : '',
-      row.season ? ` ${row.season}` : '',
-    ]),
-    ...(row.tmdbid
-      ? [
-          h(
-            'a',
-            {
-              href: `https://www.themoviedb.org/${row.type === 'tv' ? 'tv' : 'movie'}/${row.tmdbid}`,
-              target: '_blank',
-              class: 'text-xs hover:underline',
-              style: 'color: hsl(var(--success))',
-            },
-            row.tmdbid,
-          ),
-        ]
-      : []),
-    ...(row.total > 0
-      ? [
-          h(
-            'div',
-            {
-              class: 'text-xs mt-0.5',
-              style: 'color: hsl(var(--muted-foreground))',
-            },
-            `共 ${row.total - row.start} 集`,
-          ),
-        ]
-      : []),
-  ]);
-}
-
-function renderDesc(row: any) {
-  return h('span', { class: 'hidden md:inline' }, row.desc);
-}
-
-function renderTime(row: any) {
-  return h(
-    'span',
-    { class: 'text-sm', style: 'color: hsl(var(--muted-foreground))' },
-    row.finishTime,
-  );
-}
-
-function renderActions(row: any) {
-  return h(
-    NSpace,
-    { size: 'small' },
-    {
-      default: () => [
-        h(
-          NButton,
-          {
-            size: 'tiny',
-            type: 'primary',
-            ghost: true,
-            onClick: () => handleReRss(row),
-          },
-          { default: () => '重新订阅' },
-        ),
-        h(
-          NButton,
-          {
-            size: 'tiny',
-            type: 'error',
-            ghost: true,
-            onClick: () => handleDelete(row),
-          },
-          { default: () => '删除' },
-        ),
-      ],
-    },
-  );
-}
-
-const columns = [
-  { title: '', key: 'image', width: 70, render: renderImage },
-  { title: '标题', key: 'title', minWidth: 200, render: renderTitle },
-  {
-    title: '简介',
-    key: 'desc',
-    minWidth: 240,
-    ellipsis: { tooltip: true },
-    render: renderDesc,
-  },
-  { title: '完成时间', key: 'finishTime', width: 160, render: renderTime },
-  { title: '操作', key: 'actions', width: 160, render: renderActions },
-];
-
 onMounted(fetchData);
 </script>
 
@@ -219,19 +111,31 @@ onMounted(fetchData);
       </template>
     </PageHeader>
 
+    <NTabs
+      :value="filterType"
+      type="segment"
+      class="history-tabs"
+      @update:value="handleTypeChange"
+    >
+      <NTab name="movie" tab="电影" />
+      <NTab name="tv" tab="电视剧" />
+    </NTabs>
+
     <NSpin :show="loading">
-      <div v-if="historyList.length > 0" class="mt-4">
-        <div class="text-sm mb-3" style="color: hsl(var(--muted-foreground))">
-          共 {{ historyList.length }} 条记录
+      <div v-if="historyList.length > 0" class="history-layout">
+        <div class="history-stats">
+          <IconifyIcon icon="lucide:history" class="h-4 w-4" />
+          <span>共 {{ historyList.length }} 条记录</span>
         </div>
-        <NDataTable
-          :columns="columns"
-          :data="historyList"
-          :bordered="false"
-          :single-line="false"
-          size="small"
-          :scroll-x="700"
-        />
+        <div class="history-list">
+          <HistoryCard
+            v-for="item in historyList"
+            :key="item.id"
+            :item="item"
+            @re-rss="handleReRss"
+            @delete="handleDelete"
+          />
+        </div>
       </div>
       <EmptyState
         v-else
@@ -241,7 +145,6 @@ onMounted(fetchData);
       />
     </NSpin>
 
-    <!-- 删除确认 -->
     <NModal
       v-model:show="deleteModalShow"
       title="确认删除"
@@ -257,11 +160,32 @@ onMounted(fetchData);
 </template>
 
 <style scoped>
-/* stylelint-disable selector-class-pattern */
-@media (max-width: 768px) {
-  .hidden.md\:inline {
-    display: none;
+.history-tabs {
+  margin-top: 1rem;
+}
+
+.history-layout {
+  margin-top: 1rem;
+}
+
+.history-stats {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .history-list {
+    gap: 0.5rem;
   }
 }
-/* stylelint-enable selector-class-pattern */
 </style>

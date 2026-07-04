@@ -8,22 +8,17 @@ import { IconifyIcon } from '@vben/icons';
 
 import {
   NButton,
-  NCheckbox,
   NDivider,
-  NForm,
-  NFormItem,
   NInput,
   NModal,
-  NSelect,
   NSpace,
   NSpin,
   NTag,
 } from 'naive-ui';
 
-import { getDownloadSettingsApi, getIndexersApi } from '#/api/modules/download';
+import { getDownloadSettingsApi } from '#/api/modules/download';
 import { getFilterRulesApi } from '#/api/modules/filter';
 import { searchMediaApi } from '#/api/modules/media';
-import { getSitesApi } from '#/api/modules/site';
 import {
   addSubscriptionApi,
   getDefaultSubscriptionSettingApi,
@@ -36,9 +31,12 @@ import {
 } from '#/api/modules/subscription';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
+import SubscribeDefaultSettingModal from '#/components/subscribe/SubscribeDefaultSettingModal.vue';
 import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
 import { useSubscriptionStore } from '#/store';
+import { getImgUrl } from '#/utils/image';
 import { useAppNotification } from '#/utils/notify';
+import { formatPix, formatRestype } from '#/utils/subscribe';
 
 const subscriptionStore = useSubscriptionStore();
 const router = useRouter();
@@ -49,9 +47,6 @@ const deleteModalShow = ref(false);
 const deleteTarget = ref<any>(null);
 
 // 站点/规则/下载设置缓存
-const subscriptionSites = ref<{ label: string; value: string }[]>([]);
-const searchSites = ref<{ label: string; value: string }[]>([]);
-const filterRules = ref<{ label: string; value: string }[]>([]);
 const downloadSettings = ref<{ label: string; value: string }[]>([]);
 const downloadSettingMap = ref<Record<string, string>>({});
 function getDownloadSettingLabel(val: any): string {
@@ -66,24 +61,6 @@ function getFilterRuleLabel(val: any): string {
   const s = String(val);
   return filterRuleMap.value[s] || s;
 }
-
-// 质量/分辨率选项（与旧版模板一致）
-const restypeOptions = [
-  { label: '全部', value: '' },
-  { label: 'BluRay', value: 'BluRay' },
-  { label: 'Remux', value: 'Remux' },
-  { label: 'UHD', value: 'UHD' },
-  { label: 'WEB-DL', value: 'WEB-DL' },
-  { label: 'HDTV', value: 'HDTV' },
-  { label: 'H265', value: 'H265' },
-  { label: 'H264', value: 'H264' },
-];
-const pixOptions = [
-  { label: '全部', value: '' },
-  { label: '4k', value: '4k' },
-  { label: '1080p', value: '1080p' },
-  { label: '720p', value: '720p' },
-];
 
 // 详情弹窗
 const detailModalShow = ref(false);
@@ -101,18 +78,6 @@ const addSearchLoading = ref(false);
 
 // 默认设置
 const settingModalShow = ref(false);
-const settingForm = ref({
-  over_edition: '0',
-  restype: '',
-  pix: '',
-  team: '',
-  rule: '',
-  include: '',
-  exclude: '',
-  download_setting: '',
-  rss_sites: [] as string[],
-  search_sites: [] as string[],
-});
 
 async function fetchData() {
   loading.value = true;
@@ -125,46 +90,16 @@ async function fetchData() {
   }
 }
 
-async function fetchSites() {
-  try {
-    const res: any = await getSitesApi();
-    const sites = Array.isArray(res) ? res : res?.data || [];
-    subscriptionSites.value = sites
-      .filter((s: any) => s.rss_enable)
-      .map((s: any) => ({ label: s.name, value: s.name }));
-  } catch {
-    // ignore
-  }
-}
-
-async function fetchIndexers() {
-  try {
-    const res: any = await getIndexersApi();
-    const idx = Array.isArray(res) ? res : res?.data || [];
-    searchSites.value = idx.map((i: any) => ({ label: i.name, value: i.name }));
-  } catch {
-    // ignore
-  }
-}
-
 async function fetchFilterRules() {
   try {
     const res: any = await getFilterRulesApi();
     const rules = Array.isArray(res) ? res : res?.data || [];
-    filterRules.value = [
-      { label: '站点规则', value: '' },
-      ...rules.map((r: any) => ({
-        label: r.name || r.id,
-        value: String(r.id),
-      })),
-    ];
     const map: Record<string, string> = {};
     rules.forEach((r: any) => {
       if (r.id != null) map[String(r.id)] = r.name || String(r.id);
     });
     filterRuleMap.value = map;
   } catch {
-    filterRules.value = [{ label: '站点规则', value: '' }];
     filterRuleMap.value = {};
   }
 }
@@ -189,11 +124,6 @@ async function fetchDownloadSettings() {
     downloadSettings.value = [{ label: '站点设置', value: '' }];
     downloadSettingMap.value = {};
   }
-}
-
-function getImgUrl(src?: string) {
-  if (!src) return '/static/img/no-image.png';
-  return `/img?url=${encodeURIComponent(src)}`;
 }
 
 function getStateDot(state: string) {
@@ -233,7 +163,9 @@ function hasCardTags(item: any) {
       String(item.filter_rule) !== '0') ||
     item.over_edition ||
     item.rss_sites?.length ||
-    item.search_sites?.length
+    item.search_sites?.length ||
+    item.filter_restype ||
+    item.filter_pix
   );
 }
 
@@ -392,7 +324,7 @@ async function selectAddMedia(media: any) {
   let defaults: any = {};
   try {
     const res: any = await getDefaultSubscriptionSettingApi('movie');
-    defaults = res?.data || {};
+    defaults = res?.data || res || {};
   } catch {
     // ignore
   }
@@ -427,82 +359,13 @@ async function selectAddMedia(media: any) {
 }
 
 // ---------- 默认设置 ----------
-async function openSettingModal() {
-  settingModalShow.value = true;
-  await Promise.all([fetchSites(), fetchIndexers(), fetchFilterRules()]);
+async function handleConfirmSetting(data: Record<string, any>) {
   try {
-    const res: any = await getDefaultSubscriptionSettingApi('movie');
-    const data = res?.data || {};
-    settingForm.value = {
-      over_edition:
-        data.over_edition && String(data.over_edition) === '1' ? '1' : '0',
-      restype: data.restype || data.filter_restype || '',
-      pix: data.pix || data.filter_pix || '',
-      team: data.team || data.filter_team || '',
-      rule: data.rule == null ? '' : String(data.rule),
-      include: data.include || data.filter_include || '',
-      exclude: data.exclude || data.filter_exclude || '',
-      download_setting:
-        data.download_setting == null ? '' : String(data.download_setting),
-      rss_sites: (Array.isArray(data.rss_sites) ? data.rss_sites : []).filter(
-        (s: string) => subscriptionSites.value.some((x) => x.value === s),
-      ),
-      search_sites: (Array.isArray(data.search_sites)
-        ? data.search_sites
-        : []
-      ).filter((s: string) => searchSites.value.some((x) => x.value === s)),
-    };
-  } catch {
-    // ignore
-  }
-}
-
-async function confirmSetting() {
-  try {
-    await saveDefaultSubscriptionSettingApi('movie', {
-      over_edition: settingForm.value.over_edition,
-      restype: settingForm.value.restype,
-      pix: settingForm.value.pix,
-      team: settingForm.value.team,
-      rule: settingForm.value.rule,
-      include: settingForm.value.include,
-      exclude: settingForm.value.exclude,
-      download_setting: settingForm.value.download_setting,
-      rss_sites: settingForm.value.rss_sites,
-      search_sites: settingForm.value.search_sites,
-    });
+    await saveDefaultSubscriptionSettingApi('movie', data);
     notification.success('默认设置已保存');
-    settingModalShow.value = false;
   } catch (error: any) {
     notification.error('保存失败', { description: error?.message || '' });
   }
-}
-
-// ---------- 站点全选 ----------
-function toggleAllSites(
-  target: 'settingSearch' | 'settingSubscription',
-  checked: boolean,
-) {
-  const all = subscriptionSites.value.map((s) => s.value);
-  const allSearch = searchSites.value.map((s) => s.value);
-  if (target === 'settingSubscription')
-    settingForm.value.rss_sites = checked ? [...all] : [];
-  if (target === 'settingSearch')
-    settingForm.value.search_sites = checked ? [...allSearch] : [];
-}
-
-function isAllSelected(target: 'settingSearch' | 'settingSubscription') {
-  let arr: string[] = [];
-  let all: string[] = [];
-  if (target === 'settingSubscription') {
-    arr = settingForm.value.rss_sites;
-    all = subscriptionSites.value.map((s) => s.value);
-  }
-  if (target === 'settingSearch') {
-    arr = settingForm.value.search_sites;
-    all = searchSites.value.map((s) => s.value);
-  }
-  return all.length > 0 && arr.length === all.length;
 }
 
 onMounted(() => {
@@ -518,7 +381,7 @@ onMounted(() => {
       <template #actions>
         <NSpace>
           <NButton type="primary" @click="openAddModal">新增订阅</NButton>
-          <NButton @click="openSettingModal">默认设置</NButton>
+          <NButton @click="settingModalShow = true">默认设置</NButton>
         </NSpace>
       </template>
     </PageHeader>
@@ -569,23 +432,43 @@ onMounted(() => {
               v-if="hasCardTags(item)"
               class="flex flex-wrap items-center gap-1"
             >
-              <NTag v-if="item.filter_rule" size="tiny" class="rule-tag">
+              <NTag v-if="item.filter_rule" size="tiny" class="tag-rule">
                 {{ getFilterRuleLabel(item.filter_rule) }}
               </NTag>
-              <NTag v-if="item.over_edition" size="tiny" class="meta-tag">
+              <NTag
+                v-if="item.over_edition"
+                size="tiny"
+                class="tag-over-edition"
+              >
                 洗版
+              </NTag>
+              <NTag
+                v-if="item.filter_restype"
+                size="tiny"
+                class="tag-quality"
+                :title="formatRestype(item.filter_restype)"
+              >
+                {{ formatRestype(item.filter_restype) }}
+              </NTag>
+              <NTag
+                v-if="item.filter_pix"
+                size="tiny"
+                class="tag-resolution"
+                :title="formatPix(item.filter_pix)"
+              >
+                {{ formatPix(item.filter_pix) }}
               </NTag>
               <NTag
                 v-if="item.rss_sites?.length"
                 size="tiny"
-                class="site-tag site-tag-count"
+                class="tag-rss-site"
               >
                 订阅 {{ item.rss_sites.length }}
               </NTag>
               <NTag
                 v-if="item.search_sites?.length"
                 size="tiny"
-                class="site-tag site-tag-count"
+                class="tag-search-site"
               >
                 搜索 {{ item.search_sites.length }}
               </NTag>
@@ -666,7 +549,7 @@ onMounted(() => {
             <NTag
               v-if="detailItem.over_edition"
               size="small"
-              type="error"
+              class="tag-over-edition"
               round
             >
               洗版
@@ -674,29 +557,41 @@ onMounted(() => {
             <NTag
               v-if="detailItem.filter_restype"
               size="small"
-              type="warning"
+              class="tag-quality"
               round
+              :title="formatRestype(detailItem.filter_restype)"
             >
-              {{ detailItem.filter_restype }}
+              {{ formatRestype(detailItem.filter_restype) }}
             </NTag>
             <NTag
               v-if="detailItem.filter_pix"
               size="small"
-              type="warning"
+              class="tag-resolution"
+              round
+              :title="formatPix(detailItem.filter_pix)"
+            >
+              {{ formatPix(detailItem.filter_pix) }}
+            </NTag>
+            <NTag
+              v-if="detailItem.filter_team"
+              size="small"
+              class="tag-team"
               round
             >
-              {{ detailItem.filter_pix }}
-            </NTag>
-            <NTag v-if="detailItem.filter_team" size="small" type="info" round>
               {{ detailItem.filter_team }}
             </NTag>
-            <NTag v-if="detailItem.filter_rule" size="small" type="error" round>
+            <NTag
+              v-if="detailItem.filter_rule"
+              size="small"
+              class="tag-rule"
+              round
+            >
               {{ getFilterRuleLabel(detailItem.filter_rule) }}
             </NTag>
             <NTag
               v-if="detailItem.filter_include"
               size="small"
-              type="success"
+              class="tag-include"
               round
             >
               {{ detailItem.filter_include }}
@@ -704,7 +599,7 @@ onMounted(() => {
             <NTag
               v-if="detailItem.filter_exclude"
               size="small"
-              type="error"
+              class="tag-exclude"
               round
             >
               {{ detailItem.filter_exclude }}
@@ -827,127 +722,11 @@ onMounted(() => {
     </NModal>
 
     <!-- 默认设置 -->
-    <NModal
+    <SubscribeDefaultSettingModal
       v-model:show="settingModalShow"
-      title="订阅默认设置"
-      preset="card"
-      :style="{ width: '720px', maxHeight: '85vh' }"
-      :bordered="false"
-    >
-      <NForm label-placement="left" label-width="100">
-        <div class="grid grid-cols-3 gap-2">
-          <NFormItem label="质量">
-            <NSelect
-              v-model:value="settingForm.restype"
-              :options="restypeOptions"
-            />
-          </NFormItem>
-          <NFormItem label="分辨率">
-            <NSelect v-model:value="settingForm.pix" :options="pixOptions" />
-          </NFormItem>
-          <NFormItem label="制作组">
-            <NInput v-model:value="settingForm.team" placeholder="支持正则" />
-          </NFormItem>
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <NFormItem label="包含">
-            <NInput
-              v-model:value="settingForm.include"
-              placeholder="关键字或正则"
-            />
-          </NFormItem>
-          <NFormItem label="排除">
-            <NInput
-              v-model:value="settingForm.exclude"
-              placeholder="关键字或正则"
-            />
-          </NFormItem>
-        </div>
-        <div class="grid grid-cols-3 gap-2">
-          <NFormItem label="过滤规则">
-            <NSelect v-model:value="settingForm.rule" :options="filterRules" />
-          </NFormItem>
-          <NFormItem label="下载设置">
-            <NSelect
-              v-model:value="settingForm.download_setting"
-              :options="downloadSettings"
-              clearable
-            />
-          </NFormItem>
-          <NFormItem label="洗版">
-            <NSelect
-              v-model:value="settingForm.over_edition"
-              :options="[
-                { label: '否', value: '0' },
-                { label: '是', value: '1' },
-              ]"
-            />
-          </NFormItem>
-        </div>
-        <NFormItem label="订阅站点">
-          <div class="flex items-center gap-2 mb-1">
-            <NCheckbox
-              :checked="isAllSelected('settingSubscription')"
-              @update:checked="(v) => toggleAllSites('settingSubscription', v)"
-            >
-              全选
-            </NCheckbox>
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <NCheckbox
-              v-for="site in subscriptionSites"
-              :key="site.value"
-              :value="site.value"
-              :checked="settingForm.rss_sites.includes(site.value)"
-              @update:checked="
-                (v: boolean) => {
-                  const set = new Set(settingForm.rss_sites);
-                  if (v) set.add(site.value);
-                  else set.delete(site.value);
-                  settingForm.rss_sites = Array.from(set);
-                }
-              "
-            >
-              {{ site.label }}
-            </NCheckbox>
-          </div>
-        </NFormItem>
-        <NFormItem label="搜索站点">
-          <div class="flex items-center gap-2 mb-1">
-            <NCheckbox
-              :checked="isAllSelected('settingSearch')"
-              @update:checked="(v) => toggleAllSites('settingSearch', v)"
-            >
-              全选
-            </NCheckbox>
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <NCheckbox
-              v-for="site in searchSites"
-              :key="site.value"
-              :value="site.value"
-              :checked="settingForm.search_sites.includes(site.value)"
-              @update:checked="
-                (v: boolean) => {
-                  const set = new Set(settingForm.search_sites);
-                  if (v) set.add(site.value);
-                  else set.delete(site.value);
-                  settingForm.search_sites = Array.from(set);
-                }
-              "
-            >
-              {{ site.label }}
-            </NCheckbox>
-          </div>
-        </NFormItem>
-      </NForm>
-      <template #footer>
-        <NSpace justify="end">
-          <NButton @click="settingModalShow = false">取消</NButton>
-          <NButton type="primary" @click="confirmSetting">保存</NButton>
-        </NSpace>
-      </template>
-    </NModal>
+      mtype="movie"
+      @confirm="handleConfirmSetting"
+    />
 
     <!-- 编辑/新增订阅 -->
     <SubscribeEditModal
@@ -989,32 +768,74 @@ onMounted(() => {
   padding: 0 6px !important;
 }
 
-:deep(.rule-tag) {
-  --n-color: hsl(var(--destructive) / 12%) !important;
-  --n-text-color: hsl(var(--destructive)) !important;
-  --n-border: 1px solid hsl(var(--destructive) / 25%) !important;
+:deep(.tag-rule) {
+  --n-color: hsl(340deg 75% 95%) !important;
+  --n-text-color: hsl(340deg 75% 50%) !important;
+  --n-border: 1px solid hsl(340deg 75% 85%) !important;
 
   border-radius: 9999px;
 }
 
-:deep(.meta-tag) {
-  --n-color: hsl(var(--muted) / 25%) !important;
-  --n-text-color: hsl(var(--muted-foreground)) !important;
-  --n-border: 1px solid hsl(var(--border)) !important;
+:deep(.tag-over-edition) {
+  --n-color: hsl(35deg 90% 93%) !important;
+  --n-text-color: hsl(35deg 90% 45%) !important;
+  --n-border: 1px solid hsl(35deg 90% 80%) !important;
 
   border-radius: 9999px;
 }
 
-:deep(.site-tag) {
-  --n-border: none !important;
+:deep(.tag-quality) {
+  --n-color: hsl(255deg 85% 95%) !important;
+  --n-text-color: hsl(255deg 75% 55%) !important;
+  --n-border: 1px solid hsl(255deg 75% 85%) !important;
 
   border-radius: 9999px;
 }
 
-:deep(.site-tag-count) {
-  --n-color: transparent !important;
-  --n-text-color: hsl(var(--muted-foreground)) !important;
-  --n-border: 1px solid hsl(var(--border)) !important;
+:deep(.tag-resolution) {
+  --n-color: hsl(185deg 80% 93%) !important;
+  --n-text-color: hsl(185deg 80% 35%) !important;
+  --n-border: 1px solid hsl(185deg 70% 80%) !important;
+
+  border-radius: 9999px;
+}
+
+:deep(.tag-rss-site) {
+  --n-color: hsl(220deg 70% 95%) !important;
+  --n-text-color: hsl(220deg 70% 50%) !important;
+  --n-border: 1px solid hsl(220deg 70% 85%) !important;
+
+  border-radius: 9999px;
+}
+
+:deep(.tag-search-site) {
+  --n-color: hsl(215deg 20% 95%) !important;
+  --n-text-color: hsl(215deg 20% 45%) !important;
+  --n-border: 1px solid hsl(215deg 20% 85%) !important;
+
+  border-radius: 9999px;
+}
+
+:deep(.tag-team) {
+  --n-color: hsl(160deg 70% 94%) !important;
+  --n-text-color: hsl(160deg 70% 35%) !important;
+  --n-border: 1px solid hsl(160deg 60% 80%) !important;
+
+  border-radius: 9999px;
+}
+
+:deep(.tag-include) {
+  --n-color: hsl(145deg 70% 94%) !important;
+  --n-text-color: hsl(145deg 70% 35%) !important;
+  --n-border: 1px solid hsl(145deg 60% 80%) !important;
+
+  border-radius: 9999px;
+}
+
+:deep(.tag-exclude) {
+  --n-color: hsl(340deg 75% 95%) !important;
+  --n-text-color: hsl(340deg 75% 50%) !important;
+  --n-border: 1px solid hsl(340deg 75% 85%) !important;
 
   border-radius: 9999px;
 }

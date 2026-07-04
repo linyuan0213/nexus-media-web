@@ -21,6 +21,12 @@ import {
 } from '#/api/modules/download';
 import { getFilterRulesApi } from '#/api/modules/filter';
 import { getSitesApi } from '#/api/modules/site';
+import {
+  joinMultiSelect,
+  pixOptions,
+  restypeOptions,
+  splitMultiSelect,
+} from '#/utils/subscribe';
 
 export interface SubscribeEditItem {
   rssid?: string;
@@ -33,8 +39,8 @@ export interface SubscribeEditItem {
   keyword?: string;
   fuzzy_match?: boolean;
   over_edition?: boolean;
-  filter_restype?: string;
-  filter_pix?: string;
+  filter_restype?: string | string[];
+  filter_pix?: string | string[];
   filter_team?: string;
   filter_rule?: string;
   filter_include?: string;
@@ -73,24 +79,6 @@ const seasonOptions = Array.from({ length: 51 }, (_, i) =>
     : { label: `第${i}季`, value: String(i) },
 );
 
-const restypeOptions = [
-  { label: '全部', value: '' },
-  { label: 'BluRay', value: 'BluRay' },
-  { label: 'Remux', value: 'Remux' },
-  { label: 'UHD', value: 'UHD' },
-  { label: 'WEB-DL', value: 'WEB-DL' },
-  { label: 'HDTV', value: 'HDTV' },
-  { label: 'H265', value: 'H265' },
-  { label: 'H264', value: 'H264' },
-];
-
-const pixOptions = [
-  { label: '全部', value: '' },
-  { label: '4k', value: '4k' },
-  { label: '1080p', value: '1080p' },
-  { label: '720p', value: '720p' },
-];
-
 const form = ref({
   name: '',
   year: '',
@@ -101,8 +89,8 @@ const form = ref({
   keyword: '',
   fuzzy_match: false,
   over_edition: false,
-  filter_restype: '',
-  filter_pix: '',
+  filter_restype: [] as string[],
+  filter_pix: [] as string[],
   filter_team: '',
   filter_rule: '',
   filter_include: '',
@@ -129,8 +117,8 @@ watch([() => props.show, () => props.item], async ([visible, item]) => {
       keyword: item.keyword || '',
       fuzzy_match: item.fuzzy_match ?? false,
       over_edition: item.over_edition ?? false,
-      filter_restype: item.filter_restype || '',
-      filter_pix: item.filter_pix || '',
+      filter_restype: splitMultiSelect(item.filter_restype),
+      filter_pix: splitMultiSelect(item.filter_pix).map((v) => v.toUpperCase()),
       filter_team: item.filter_team || '',
       filter_rule:
         item.filter_rule != null && String(item.filter_rule) !== '0'
@@ -257,8 +245,8 @@ function handleConfirm() {
     keyword: form.value.keyword || undefined,
     fuzzy_match: form.value.fuzzy_match,
     over_edition: form.value.over_edition,
-    filter_restype: form.value.filter_restype,
-    filter_pix: form.value.filter_pix,
+    filter_restype: joinMultiSelect(form.value.filter_restype),
+    filter_pix: joinMultiSelect(form.value.filter_pix),
     filter_team: form.value.filter_team,
     filter_rule: form.value.filter_rule,
     filter_include: form.value.filter_include,
@@ -354,12 +342,18 @@ function handleConfirm() {
                 <NSelect
                   v-model:value="form.filter_restype"
                   :options="restypeOptions"
+                  multiple
+                  clearable
+                  placeholder="留空不限制"
                 />
               </NFormItem>
               <NFormItem label="分辨率">
                 <NSelect
                   v-model:value="form.filter_pix"
                   :options="pixOptions"
+                  multiple
+                  clearable
+                  placeholder="留空不限制"
                 />
               </NFormItem>
               <NFormItem label="制作组">

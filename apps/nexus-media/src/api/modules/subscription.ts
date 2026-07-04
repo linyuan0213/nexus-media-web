@@ -4,6 +4,13 @@
  */
 import { requestClient } from '#/api/request';
 
+function toRssId(
+  value: null | number | string | undefined,
+): number | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  return typeof value === 'number' ? value : Number(value);
+}
+
 export namespace SubscriptionApi {
   export interface Subscription {
     id: number;
@@ -95,12 +102,15 @@ export async function addSubscriptionApi(data: Record<string, any>) {
 
 /** 更新订阅 */
 export async function updateSubscriptionApi(data: Record<string, any>) {
-  return requestClient.post('/subscription/update', data);
+  return requestClient.post('/subscription/update', {
+    ...data,
+    rssid: toRssId(data.rssid),
+  });
 }
 
 /** 删除订阅（简化版，优先使用 removeSubscriptionApi） */
 export async function deleteSubscriptionApi(id: number) {
-  return requestClient.post('/subscription/remove', { rssid: String(id) });
+  return requestClient.post('/subscription/remove', { rssid: toRssId(id) });
 }
 
 /** 获取默认订阅设置 */
@@ -120,10 +130,13 @@ export async function saveDefaultSubscriptionSettingApi(
 }
 
 /** 刷新订阅 */
-export async function refreshSubscriptionApi(mtype: string, rssid?: string) {
+export async function refreshSubscriptionApi(
+  mtype: string,
+  rssid?: number | string,
+) {
   return requestClient.post('/subscription/refresh', {
     type: mtype,
-    rssid,
+    rssid: toRssId(rssid),
   });
 }
 
@@ -133,7 +146,7 @@ export async function getSubscriptionDetailApi(
   rsstype: string,
 ) {
   return requestClient.post('/subscription/detail', {
-    rssid: String(rssid),
+    rssid: toRssId(rssid),
     rsstype,
   });
 }
@@ -151,7 +164,10 @@ export async function redoSubscriptionHistoryApi(
   rssid: number | string,
   type: 'movie' | 'tv',
 ) {
-  return requestClient.post('/subscription/history/redo', { rssid, type });
+  return requestClient.post('/subscription/history/redo', {
+    rssid: toRssId(rssid),
+    type,
+  });
 }
 
 /** 添加订阅（从发现页触发） */
@@ -170,17 +186,23 @@ export async function addSubscriptionMediaApi(data: {
 export async function removeSubscriptionApi(data: {
   name: string;
   page?: string;
-  rssid?: string;
-  tmdbid?: string;
+  rssid?: number | string;
+  tmdbid?: number | string;
   type: string;
   year?: string;
 }) {
-  return requestClient.post('/subscription/remove', data);
+  return requestClient.post('/subscription/remove', {
+    ...data,
+    rssid: toRssId(data.rssid),
+    tmdbid: data.tmdbid ? String(data.tmdbid) : undefined,
+  });
 }
 
 /** 删除订阅历史 */
 export async function deleteSubscriptionHistoryApi(rssid: number | string) {
-  return requestClient.post('/subscription/history/delete', { rssid });
+  return requestClient.post('/subscription/history/delete', {
+    rssid: toRssId(rssid),
+  });
 }
 
 /** 清理订阅缓存 */

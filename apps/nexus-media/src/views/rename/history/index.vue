@@ -37,6 +37,7 @@ import {
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 import { useMediaStore } from '#/store';
+import { getImgUrl } from '#/utils/image';
 import { useAppNotification } from '#/utils/notify';
 
 const mediaStore = useMediaStore();
@@ -368,12 +369,6 @@ function selectTmdbMedia(media: any) {
   manualForm.value.tmdb = media.id || media.tmdb_id || undefined;
   tmdbSearchShow.value = false;
   tmdbSearchResults.value = [];
-}
-
-function getImgUrl(url?: string) {
-  if (!url) return '/static/img/no-image.png';
-  if (url.startsWith('http')) return `/img?url=${url}`;
-  return url;
 }
 
 async function submitManual() {

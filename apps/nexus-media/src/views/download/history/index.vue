@@ -16,6 +16,7 @@ import {
 import { getDownloadHistoryApi } from '#/api';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import { useDownloadStore } from '#/store';
+import { getImgUrl } from '#/utils/image';
 
 const downloadStore = useDownloadStore();
 const message = useMessage();
@@ -24,16 +25,6 @@ const currentPage = ref(1);
 const pageSize = ref(30);
 const total = ref(0);
 const viewMode = ref<'grid' | 'list'>('grid');
-
-function getImgUrl(src?: string) {
-  if (!src) return '';
-  if (src.startsWith('/img/')) return src;
-  const tmdbMatch = src.match(/https?:\/\/image\.tmdb\.org\/t\/p\/(\w+)(\/.+)/);
-  if (tmdbMatch) {
-    return `/img/tmdb/${tmdbMatch[1]}${tmdbMatch[2]}`;
-  }
-  return `/img?url=${encodeURIComponent(src)}`;
-}
 
 const history = computed(() => downloadStore.history);
 
