@@ -15,9 +15,44 @@ interface EventRow {
   TORRENT_NAME: string;
   ACTION: string;
   REASON: string;
+  TORRENT_URL: string;
   DOWNLOADER_NAME: string;
   SITE_NAME: string;
   CREATED_AT: string;
+}
+
+interface ParsedReason {
+  rules: string;
+  statusTags: string[];
+}
+
+function parseReason(raw: string): ParsedReason {
+  if (!raw) return { rules: '', statusTags: [] };
+  const parts = raw.split(/\s*\|\s*/);
+  if (parts.length < 2) return { rules: raw, statusTags: [] };
+  const statusPart = parts.slice(1).join(' | ');
+  const tagsStr = statusPart.replace(/^状态:\s*/, '');
+  return {
+    rules: parts[0] || raw,
+    statusTags: tagsStr ? tagsStr.split(/,\s*/).filter(Boolean) : [],
+  };
+}
+
+function statusTagClass(tag: string): string {
+  const lower = tag.toLowerCase();
+  if (lower.includes('免费') && !lower.includes('2x')) return 'status-free';
+  if (lower.includes('2x免费') || lower.includes('2xfree'))
+    return 'status-2xfree';
+  if (lower.includes('hr')) return 'status-hr';
+  if (lower.includes('做种') || lower.includes('peer')) return 'status-peers';
+  if (
+    lower.includes('gb') ||
+    lower.includes('tb') ||
+    lower.includes('mb') ||
+    /^\d/.test(tag)
+  )
+    return 'status-size';
+  return 'status-default';
 }
 
 const loading = ref(false);
@@ -70,12 +105,14 @@ function loadMore() {
 function indicatorClass(action: string) {
   if (action === 'delete') return 'indicator-delete';
   if (action === 'stop') return 'indicator-stop';
+  if (action === 'skip') return 'indicator-skip';
   return 'indicator-download';
 }
 
 function actionTag(action: string): [string, string] {
   if (action === 'delete') return ['删种', 'text-delete'];
   if (action === 'stop') return ['停种', 'text-stop'];
+  if (action === 'skip') return ['跳过', 'text-skip'];
   return ['进种', 'text-download'];
 }
 
@@ -111,9 +148,10 @@ onMounted(async () => {
         v-model:value="filterAction"
         :options="[
           { label: '全部操作', value: undefined },
-          { label: '删种', value: 'delete' },
-          { label: '停种', value: 'stop' },
           { label: '进种', value: 'download' },
+          { label: '跳过', value: 'skip' },
+          { label: '停种', value: 'stop' },
+          { label: '删种', value: 'delete' },
         ]"
         placeholder="按操作筛选"
         clearable
@@ -132,11 +170,38 @@ onMounted(async () => {
             <span class="event-action" :class="actionTag(row.ACTION)[1]">
               {{ actionTag(row.ACTION)[0] }}
             </span>
-            <span class="event-reason">{{ row.REASON }}</span>
+            <span class="event-reason">{{
+              parseReason(row.REASON).rules || row.REASON
+            }}</span>
             <span class="event-time">{{ row.CREATED_AT }}</span>
           </div>
           <div class="event-torrent" :title="row.TORRENT_NAME">
-            {{ row.TORRENT_NAME }}
+            <a
+              v-if="row.TORRENT_URL"
+              :href="row.TORRENT_URL"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="torrent-link"
+            >
+              {{ row.TORRENT_NAME }}
+            </a>
+            <span v-else>{{ row.TORRENT_NAME }}</span>
+          </div>
+          <div
+            v-if="
+              row.ACTION === 'download' &&
+              parseReason(row.REASON).statusTags.length > 0
+            "
+            class="event-tags"
+          >
+            <span
+              v-for="tag in parseReason(row.REASON).statusTags"
+              :key="tag"
+              class="status-tag"
+              :class="statusTagClass(tag)"
+            >
+              {{ tag }}
+            </span>
           </div>
           <div class="event-meta">
             <span class="meta-item">
@@ -227,6 +292,10 @@ onMounted(async () => {
   background: hsl(var(--success) / 60%);
 }
 
+.indicator-skip {
+  background: hsl(var(--muted-foreground) / 40%);
+}
+
 /* ---- content ---- */
 .event-body {
   display: flex;
@@ -268,10 +337,34 @@ onMounted(async () => {
   background: hsl(var(--success) / 8%);
 }
 
+.text-skip {
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted-foreground) / 8%);
+}
+
 .event-reason {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 0.8125rem;
   font-weight: 500;
   color: hsl(var(--card-foreground));
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .event-header {
+    flex-wrap: wrap;
+  }
+
+  .event-reason {
+    flex: 1 1 100%;
+    order: 2;
+  }
+
+  .event-time {
+    order: 3;
+  }
 }
 
 .event-time {
@@ -289,6 +382,15 @@ onMounted(async () => {
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
   white-space: nowrap;
+}
+
+.torrent-link {
+  color: hsl(var(--primary));
+  text-decoration: none;
+}
+
+.torrent-link:hover {
+  text-decoration: underline;
 }
 
 .event-meta {
@@ -320,5 +422,54 @@ onMounted(async () => {
   justify-content: center;
   padding: 0.75rem 0;
   border-bottom: 1px solid hsl(var(--border));
+}
+
+/* ---- status tags ---- */
+.event-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3125rem;
+  padding-left: 0.125rem;
+  margin-top: 0.125rem;
+}
+
+.status-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.0625rem 0.375rem;
+  font-size: 0.625rem;
+  font-weight: 500;
+  line-height: 1.4;
+  border-radius: 3px;
+}
+
+.status-free {
+  color: hsl(var(--success));
+  background: hsl(var(--success) / 10%);
+}
+
+.status-2xfree {
+  color: hsl(var(--info, 210 100% 50%));
+  background: hsl(var(--info, 210 100% 50%) / 10%);
+}
+
+.status-hr {
+  color: hsl(var(--destructive));
+  background: hsl(var(--destructive) / 10%);
+}
+
+.status-peers {
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 10%);
+}
+
+.status-size {
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted-foreground) / 10%);
+}
+
+.status-default {
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted-foreground) / 8%);
 }
 </style>

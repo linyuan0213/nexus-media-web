@@ -55,8 +55,9 @@ export namespace BrushApi {
     TASK_NAME: string;
     TORRENT_NAME: string;
     DOWNLOAD_ID: string;
-    ACTION: 'delete' | 'stop';
+    ACTION: 'delete' | 'download' | 'skip' | 'stop';
     REASON: string;
+    TORRENT_URL: string;
     DOWNLOADER_NAME: string;
     SITE_NAME: string;
     CREATED_AT: string;
