@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import type { SubscribeConfirmItem } from '#/components/subscribe/SubscribeConfirmModal.vue';
+
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 
@@ -27,9 +29,14 @@ import {
   getDownloadDirsApi,
   getDownloadSettingsApi,
 } from '#/api/modules/download';
+import {
+  addSubscriptionMediaApi,
+  deleteSubscriptionApi,
+} from '#/api/modules/subscription';
 import { getProgressApi } from '#/api/modules/system';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
+import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.vue';
 import { useDownloadEventStream } from '#/composables/useDownloadEventStream';
 import { useAppNotification } from '#/utils/notify';
 
@@ -104,6 +111,155 @@ const route = useRoute();
 const notification = useAppNotification();
 const { start: startSSE, stop: stopSSE } = useDownloadEventStream();
 
+const subscribeConfirmShow = ref(false);
+const subscribeConfirmItem = ref<null | SubscribeConfirmItem>(null);
+const unsubscribingMedia = ref<MediaItem | null>(null);
+const subscribeConfirmPending = ref(false);
+
+function normalizeMediaType(type?: string): 'movie' | 'tv' {
+  if (!type) return 'tv';
+  const t = type.toLowerCase();
+  if (t === 'movie' || t === '电影') return 'movie';
+  if (t === 'tv' || t === '剧集' || t === '电视剧') return 'tv';
+  return 'tv';
+}
+
+function updateCardSubscribeState(title: string, fav: string, rssid?: string) {
+  for (const item of results.value) {
+    if (item.title === title) {
+      item.fav = fav;
+      if (rssid !== undefined) item.rssid = String(rssid);
+    }
+  }
+}
+
+async function handleSubscribe(item: SearchResult, e: Event) {
+  e.stopPropagation();
+  if (item.fav === '1' && item.rssid) {
+    try {
+      await deleteSubscriptionApi(Number(item.rssid));
+      updateCardSubscribeState(item.title, '');
+      notification.success('已取消订阅', { description: item.title });
+    } catch (error: any) {
+      notification.error('取消订阅失败', { description: error?.message || '' });
+    }
+    return;
+  }
+  subscribeConfirmItem.value = {
+    id: String(item.tmdbid || item.key),
+    tmdbid: item.tmdbid,
+    title: item.title,
+    year: item.year || '',
+    type: normalizeMediaType(item.type_key || item.type),
+    image: item.poster,
+    overview: item.overview,
+  };
+  subscribeConfirmShow.value = true;
+}
+
+async function handleConfirmSubscribe(seasons: number[], _autoMode: boolean) {
+  const it = subscribeConfirmItem.value;
+  if (!it) return;
+  subscribeConfirmPending.value = true;
+  try {
+    const typeParam = it.type === 'movie' ? 'movie' : 'tv';
+    if (typeParam === 'tv' && seasons.length > 0) {
+      let lastRssid = '';
+      for (const season of seasons) {
+        const r: any = await addSubscriptionMediaApi({
+          name: it.title,
+          year: it.year || '',
+          type: 'tv',
+          mediaid: String(it.id),
+          season: String(season),
+        });
+        lastRssid = r?.rssid ? String(r.rssid) : lastRssid;
+      }
+      notification.success('订阅成功', {
+        description: `${it.title} 已订阅 ${seasons.length} 季`,
+      });
+      updateCardSubscribeState(it.title, '1', lastRssid || undefined);
+      updateMediaSubscribeState(it.id, '1', lastRssid || undefined);
+    } else {
+      const res: any = await addSubscriptionMediaApi({
+        name: it.title,
+        year: it.year || '',
+        type: typeParam,
+        mediaid: String(it.id),
+      });
+      const success = res?.code === 0 || res?.success || res?.rssid || !res;
+      if (success) {
+        notification.success('订阅成功', {
+          description: res?.msg || `${it.title} 已添加订阅`,
+        });
+        updateCardSubscribeState(
+          it.title,
+          '1',
+          res?.rssid ? String(res.rssid) : undefined,
+        );
+        updateMediaSubscribeState(
+          it.id,
+          '1',
+          res?.rssid ? String(res.rssid) : undefined,
+        );
+      } else {
+        notification.error('订阅失败', { description: res?.msg || '未知错误' });
+      }
+    }
+  } catch (error: any) {
+    notification.error('订阅失败', { description: error?.message || '' });
+  } finally {
+    subscribeConfirmPending.value = false;
+    subscribeConfirmShow.value = false;
+  }
+}
+
+function updateMediaSubscribeState(
+  mediaId: string,
+  fav: string,
+  rssid?: string,
+) {
+  for (const m of mediaResults.value) {
+    if (String(m.tmdb_id || m.id) === mediaId) {
+      m.fav = fav;
+      if (rssid !== undefined) m.rssid = String(rssid);
+    }
+  }
+}
+
+function handleMediaSubscribe(media: MediaItem) {
+  subscribeConfirmItem.value = {
+    id: String(media.tmdb_id || media.id),
+    tmdbid: String(media.tmdb_id || media.id),
+    title: media.title,
+    year: media.year || '',
+    type: normalizeMediaType(media.media_type || media.type),
+    image: media.image || media.poster,
+    overview: media.overview,
+  };
+  subscribeConfirmShow.value = true;
+}
+
+async function handleMediaUnsubscribe(media: MediaItem) {
+  if (!media.rssid) return;
+  unsubscribingMedia.value = media;
+}
+
+async function confirmUnsubscribe() {
+  const media = unsubscribingMedia.value;
+  if (!media?.rssid) return;
+  try {
+    await deleteSubscriptionApi(Number(media.rssid));
+    updateMediaSubscribeState(String(media.tmdb_id || media.id), '');
+    updateCardSubscribeState(media.title, '');
+    notification.success('已取消订阅', { description: media.title });
+  } catch (error: any) {
+    notification.error('取消订阅失败', { description: error?.message || '' });
+  } finally {
+    unsubscribingMedia.value = null;
+  }
+}
+
 /** 图片 URL 处理：后端已统一转换代理路径，直接使用 */
 function getImgUrl(src?: string) {
   if (!src) return '/static/img/no-image.png';
@@ -129,6 +285,8 @@ interface MediaItem {
   poster?: string;
   overview?: string;
   tmdb_id?: number | string;
+  fav?: string;
+  rssid?: string;
 }
 const mediaResults = ref<MediaItem[]>([]);
 
@@ -752,12 +910,11 @@ async function confirmDownload() {
             </div>
             <span
               v-if="media.media_type || media.type"
-              class="absolute top-1.5 left-1.5 text-white text-[10px] px-1.5 py-0.5 rounded"
-              :class="
-                (media.media_type || media.type) === 'movie'
-                  ? 'bg-[hsl(var(--success))]'
-                  : 'bg-[hsl(var(--info))]'
-              "
+              class="absolute top-1.5 left-1.5 text-[10px] px-1.5 py-0.5 rounded"
+              :style="{
+                backgroundColor: 'hsl(var(--primary))',
+                color: 'hsl(var(--primary-foreground))',
+              }"
             >
               {{ getMediaTypeLabel(media.media_type || media.type) }}
             </span>
@@ -769,8 +926,8 @@ async function confirmDownload() {
                 right: 0.375rem;
                 padding: 0.125rem 0.375rem;
                 font-size: 10px;
-                color: hsl(var(--warning-foreground));
-                background: hsl(var(--warning));
+                color: #fff;
+                background: #7c3aed;
                 border-radius: 0.25rem;
               "
             >
@@ -786,10 +943,43 @@ async function confirmDownload() {
               </div>
             </div>
             <div
-              class="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200"
+              class="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-0 hover:opacity-100 transition-opacity duration-200"
               style="background: rgb(0 0 0 / 50%)"
             >
-              <NButton size="small" type="primary" round>搜索资源</NButton>
+              <NButton
+                size="small"
+                type="primary"
+                round
+                @click.stop="handleMediaSearch(media)"
+              >
+                搜索资源
+              </NButton>
+              <NButton
+                v-if="media.fav !== '1'"
+                size="small"
+                round
+                style="color: #fff; border-color: #fff"
+                ghost
+                @click.stop="handleMediaSubscribe(media)"
+              >
+                <template #icon>
+                  <IconifyIcon icon="lucide:heart" />
+                </template>
+                订阅
+              </NButton>
+              <NButton
+                v-else
+                size="small"
+                type="error"
+                ghost
+                round
+                @click.stop="handleMediaUnsubscribe(media)"
+              >
+                <template #icon>
+                  <IconifyIcon icon="lucide:heart" style="fill: currentcolor" />
+                </template>
+                已订阅
+              </NButton>
             </div>
           </div>
         </div>
@@ -846,7 +1036,9 @@ async function confirmDownload() {
                         name: 'MediaDetail',
                         query: {
                           id: item.tmdbid,
-                          type: item.type === 'movie' ? 'movie' : 'tv',
+                          type:
+                            item.type_key ||
+                            (item.type === 'movie' ? 'movie' : 'tv'),
                         },
                       })
                     : null
@@ -885,6 +1077,24 @@ async function confirmDownload() {
                         item.vote
                       }}
                     </span>
+                    <button
+                      v-if="item.tmdbid && item.tmdbid !== '0'"
+                      :class="
+                        item.fav === '1'
+                          ? 'text-destructive'
+                          : 'text-foreground hover:text-destructive/80'
+                      "
+                      class="subscribe-btn"
+                      @click="(e) => handleSubscribe(item, e)"
+                    >
+                      <IconifyIcon
+                        icon="lucide:heart"
+                        class="size-[18px]"
+                        :style="{
+                          fill: item.fav === '1' ? 'currentColor' : 'none',
+                        }"
+                      />
+                    </button>
                     <NButton
                       v-if="hasFilters(item)"
                       size="small"
@@ -1298,6 +1508,24 @@ async function confirmDownload() {
         </div>
       </template>
     </NModal>
+    <NModal
+      :show="unsubscribingMedia !== null"
+      preset="dialog"
+      type="warning"
+      title="取消订阅"
+      positive-text="确认"
+      negative-text="取消"
+      @positive-click="confirmUnsubscribe"
+      @negative-click="unsubscribingMedia = null"
+      @update:show="unsubscribingMedia = null"
+    >
+      确认取消订阅「{{ unsubscribingMedia?.title }}」？
+    </NModal>
+    <SubscribeConfirmModal
+      v-model:show="subscribeConfirmShow"
+      :item="subscribeConfirmItem"
+      @confirm="handleConfirmSubscribe"
+    />
   </div>
 </template>
 
@@ -1441,6 +1669,21 @@ async function confirmDownload() {
   display: inline-flex;
   gap: 0.375rem;
   align-items: center;
+}
+
+.subscribe-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem;
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-radius: 0.375rem;
+  transition: opacity 0.2s;
+}
+
+.subscribe-btn:hover {
+  opacity: 0.8;
 }
 
 .filter-badge {
