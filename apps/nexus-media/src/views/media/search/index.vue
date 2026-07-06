@@ -984,7 +984,10 @@ async function confirmDownload() {
           </div>
         </div>
       </div>
-      <NEmpty v-if="!loading && keyword" description="未找到相关媒体" />
+      <NEmpty
+        v-if="!loading && mediaResults.length === 0 && keyword"
+        description="未找到相关媒体"
+      />
     </NSpin>
 
     <!-- 初始加载中 -->
