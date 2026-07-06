@@ -42,7 +42,9 @@ export namespace SiteApi {
 
   export interface SiteStatisticsItem {
     site_name: string;
+    username?: string;
     user_level?: string;
+    join_at?: string;
     upload: string;
     download: string;
     ratio: string;

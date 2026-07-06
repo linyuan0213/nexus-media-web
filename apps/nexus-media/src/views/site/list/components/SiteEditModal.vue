@@ -13,6 +13,8 @@ import {
   NFormItem,
   NInput,
   NModal,
+  NRadioButton,
+  NRadioGroup,
   NSelect,
   NSpace,
   NSwitch,
@@ -277,15 +279,14 @@ defineExpose({
             </NFormItem>
             <div class="form-grid-2">
               <NFormItem label="站点类型">
-                <div class="inline-flex items-center gap-2">
-                  <NSwitch
-                    :value="site.public"
-                    @update:value="(v) => updateField('public', v)"
-                  />
-                  <span class="type-hint">
-                    {{ site.public ? 'BT站点（公开）' : 'PT站点（私有）' }}
-                  </span>
-                </div>
+                <NRadioGroup
+                  :value="site.public"
+                  size="small"
+                  @update:value="(v) => updateField('public', v)"
+                >
+                  <NRadioButton :value="false"> PT </NRadioButton>
+                  <NRadioButton :value="true"> BT </NRadioButton>
+                </NRadioGroup>
               </NFormItem>
               <NFormItem label="过滤规则">
                 <NSelect
@@ -467,23 +468,6 @@ defineExpose({
 
 .tab-panel {
   padding-top: 0.25rem;
-}
-
-.type-hint {
-  font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
-}
-
-.inline-flex {
-  display: inline-flex;
-}
-
-.items-center {
-  align-items: center;
-}
-
-.gap-2 {
-  gap: 0.5rem;
 }
 
 .form-hint {

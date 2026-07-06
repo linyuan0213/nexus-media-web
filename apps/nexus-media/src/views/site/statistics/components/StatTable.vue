@@ -54,11 +54,31 @@ function getColumns(isMobile: boolean): any[] {
       },
     },
     {
+      title: '用户名',
+      key: 'username',
+      width: isMobile ? 80 : 100,
+      render(row: StatisticsItem) {
+        return row.username || '-';
+      },
+    },
+    {
       title: '等级',
       key: 'user_level',
       width: isMobile ? 60 : 80,
       render(row: StatisticsItem) {
         return row.user_level || '-';
+      },
+    },
+    {
+      title: '加入日期',
+      key: 'join_at',
+      width: isMobile ? 100 : 140,
+      render(row: StatisticsItem) {
+        if (!row.join_at) return '-';
+        const d = new Date(row.join_at);
+        if (Number.isNaN(d.getTime())) return row.join_at;
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
       },
     },
     {

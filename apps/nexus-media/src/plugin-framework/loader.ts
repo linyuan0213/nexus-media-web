@@ -262,7 +262,9 @@ async function loadPluginComponent(
   }
 
   // 返回占位组件，避免 Vue Router 报 missing component
-  return () => h(PluginErrorComponent, { pluginId, componentName });
+  return function PluginErrorFallback() {
+    return h(PluginErrorComponent, { pluginId, componentName });
+  };
 }
 
 /**

@@ -36,7 +36,14 @@ function log_message() {
     else
         echo "docker image with tag '${IMAGE_NAME}' built sussessfully. Use below sample command to run the container"
         echo ""
+        echo "# 与后端在同一 docker-compose 时（默认值即可）："
         echo "docker run -d -p 8010:8080 --name ${IMAGE_NAME} ${IMAGE_NAME}"
+        echo ""
+        echo "# docker run 独立部署时（指定后端地址）："
+        echo "docker run -d -p 8010:8080 --name ${IMAGE_NAME} \\"
+        echo "  -e BACKEND_HOST=192.168.1.100 \\"
+        echo "  -e BACKEND_PORT=8080 \\"
+        echo "  ${IMAGE_NAME}"
     fi
 }
 
