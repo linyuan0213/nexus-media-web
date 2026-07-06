@@ -34,6 +34,12 @@ function getFaviconFallback(name: string): string {
   return `https://www.google.com/s2/favicons?domain=${name.toLowerCase()}.com&sz=64`;
 }
 
+function getRowClassName(row: StatisticsItem): string {
+  return parseSize(row.upload) <= 0 && parseSize(row.download) <= 0
+    ? 'row-inactive'
+    : '';
+}
+
 function getColumns(isMobile: boolean): any[] {
   const baseColumns = [
     {
@@ -205,6 +211,7 @@ const columns = computed(() => getColumns(props.isMobile));
     :bordered="false"
     size="small"
     striped
+    :row-class-name="getRowClassName"
     :scroll-x="isMobile ? 500 : 1000"
   />
 </template>
@@ -226,6 +233,10 @@ const columns = computed(() => getColumns(props.isMobile));
 
 .text-muted {
   color: hsl(var(--muted-foreground));
+}
+
+:deep(.row-inactive td) {
+  opacity: 0.5;
 }
 
 @media (max-width: 640px) {
