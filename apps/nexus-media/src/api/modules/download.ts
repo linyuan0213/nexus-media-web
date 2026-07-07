@@ -170,6 +170,12 @@ export async function getDownloadersApi(did?: string) {
   );
 }
 
+export async function getDownloadersSimpleApi() {
+  return requestClient.post<{ id: string; name: string }[]>(
+    '/download/downloaders/simple',
+  );
+}
+
 /** 获取支持的下载器类型配置 */
 export async function getDownloaderTypesApi() {
   return requestClient.post<

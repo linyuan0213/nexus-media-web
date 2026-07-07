@@ -14,6 +14,7 @@ import {
   NTooltip,
 } from 'naive-ui';
 
+import { getDownloadersSimpleApi } from '#/api/modules/download';
 import {
   getPluginConfigApi,
   savePluginConfigApi,
@@ -34,6 +35,7 @@ const saving = ref(false);
 const config = ref<Record<string, any>>({});
 const fields = ref<any[]>([]);
 const siteOptions = ref<{ label: string; value: string }[]>([]);
+const downloaderOptions = ref<{ label: string; value: string }[]>([]);
 
 const visible = computed({
   get: () => props.show,
@@ -44,9 +46,10 @@ async function loadConfig() {
   if (!props.plugin?.id) return;
   loading.value = true;
   try {
-    const [res, sitesRes] = await Promise.all([
+    const [res, sitesRes, dlRes] = await Promise.all([
       getPluginConfigApi(props.plugin.id),
-      getSitesApi({ basic: true }),
+      getSitesApi({ basic: true, source: 'builtin' }),
+      getDownloadersSimpleApi().catch(() => []),
     ]);
     config.value = res?.config || {};
     fields.value = res?.fields || [];
@@ -55,7 +58,12 @@ async function loadConfig() {
       .map((s: any) => ({
         label: s.name,
         value: String(s.id),
+        source: s.source,
       }));
+    downloaderOptions.value = ((dlRes as any) || []).map((d: any) => ({
+      label: d.name,
+      value: String(d.id),
+    }));
     // multi_select 字段兼容旧数据（逗号分隔的字符串转数组）
     for (const field of fields.value) {
       if (field.type === 'multi_select') {
@@ -91,7 +99,14 @@ async function handleSave() {
 
 function resolveOptions(field: any) {
   if (field.source === 'sites') {
-    return siteOptions.value;
+    let opts = siteOptions.value;
+    if (field.source_filter === 'builtin') {
+      opts = opts.filter((s: any) => s.source === 'builtin');
+    }
+    return opts;
+  }
+  if (field.source === 'downloaders') {
+    return downloaderOptions.value;
   }
   return field.options || [];
 }

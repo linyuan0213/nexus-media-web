@@ -84,6 +84,7 @@ export async function getSitesApi(filter?: {
   basic?: boolean;
   brush?: boolean;
   rss?: boolean;
+  source?: string;
   statistic?: boolean;
 }) {
   return requestClient.post<SiteApi.SiteItem[]>('/site/sites', filter || {});
