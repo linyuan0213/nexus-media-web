@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { SubscribeConfirmItem } from '#/components/subscribe/SubscribeConfirmModal.vue';
+import type { SubscribeEditItem } from '#/components/subscribe/SubscribeEditModal.vue';
 
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -9,10 +10,13 @@ import { IconifyIcon } from '@vben/icons';
 import { NButton, NModal } from 'naive-ui';
 
 import {
+  addSubscriptionApi,
   addSubscriptionMediaApi,
   deleteSubscriptionApi,
+  getDefaultSubscriptionSettingApi,
 } from '#/api/modules/subscription';
 import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.vue';
+import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
 import { useAppNotification } from '#/utils/notify';
 
 interface Props {
@@ -40,6 +44,8 @@ const notification = useAppNotification();
 const hovered = ref(false);
 const subscribeShow = ref(false);
 const subscribeItem = ref<null | SubscribeConfirmItem>(null);
+const subscribeEditShow = ref(false);
+const subscribeEditItem = ref<null | SubscribeEditItem>(null);
 const unsubscribing = ref(false);
 const _fav = ref(props.fav || '0');
 const _rssid = ref(props.rssid || '');
@@ -139,6 +145,66 @@ async function handleConfirmSubscribe(seasons: number[]) {
     notification.error('订阅失败', { description: error?.message || '' });
   } finally {
     subscribeShow.value = false;
+  }
+}
+
+async function handleEditSubscribe() {
+  const it = subscribeItem.value;
+  if (!it) return;
+  const mtype = it.type === 'movie' ? 'movie' : 'tv';
+  let defaults: any = {};
+  try {
+    const res: any = await getDefaultSubscriptionSettingApi(mtype);
+    defaults = res?.data || res || {};
+  } catch {
+    // ignore
+  }
+  subscribeEditItem.value = {
+    name: it.title,
+    year: it.year || '',
+    type: mtype,
+    tmdbid: String(it.tmdbid || it.id || ''),
+    image: it.image,
+    season: '',
+    fuzzy_match: false,
+    over_edition: !!(
+      defaults.over_edition && String(defaults.over_edition) === '1'
+    ),
+    filter_restype: defaults.restype || defaults.filter_restype || '',
+    filter_pix: defaults.pix || defaults.filter_pix || '',
+    filter_team: defaults.team || defaults.filter_team || '',
+    filter_rule: defaults.rule == null ? '' : String(defaults.rule),
+    filter_include: defaults.include || defaults.filter_include || '',
+    filter_exclude: defaults.exclude || defaults.filter_exclude || '',
+    filter_free:
+      defaults.free != null && String(defaults.free) === '1'
+        ? true
+        : (defaults.filter_free ?? false),
+    download_setting:
+      defaults.download_setting == null
+        ? ''
+        : String(defaults.download_setting),
+    rss_sites: Array.isArray(defaults.rss_sites) ? defaults.rss_sites : [],
+    search_sites: Array.isArray(defaults.search_sites)
+      ? defaults.search_sites
+      : [],
+  } as SubscribeEditItem;
+  subscribeShow.value = false;
+  subscribeEditShow.value = true;
+}
+
+async function handleConfirmEdit(data: Record<string, any>) {
+  try {
+    const res: any = await addSubscriptionApi(data);
+    _fav.value = '1';
+    if (res?.rssid) _rssid.value = String(res.rssid);
+    notification.success('订阅成功', {
+      description: `${data.name} 已添加订阅`,
+    });
+  } catch (error: any) {
+    notification.error('订阅失败', { description: error?.message || '' });
+  } finally {
+    subscribeEditShow.value = false;
   }
 }
 
@@ -243,6 +309,12 @@ function onImgError(e: Event) {
       v-model:show="subscribeShow"
       :item="subscribeItem"
       @confirm="handleConfirmSubscribe"
+      @edit="handleEditSubscribe"
+    />
+    <SubscribeEditModal
+      v-model:show="subscribeEditShow"
+      :item="subscribeEditItem"
+      @confirm="handleConfirmEdit"
     />
     <NModal
       :show="unsubscribing"
