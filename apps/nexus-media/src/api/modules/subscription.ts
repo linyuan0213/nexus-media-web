@@ -35,6 +35,7 @@ export namespace SubscriptionApi {
     filter_rule?: number | string;
     filter_include?: string;
     filter_exclude?: string;
+    filter_free?: boolean;
     download_setting?: number | string;
     rss_sites?: string[];
     search_sites?: string[];

@@ -254,6 +254,10 @@ async function handleEditSubscribe() {
     filter_rule: defaults.rule == null ? '' : String(defaults.rule),
     filter_include: defaults.include || defaults.filter_include || '',
     filter_exclude: defaults.exclude || defaults.filter_exclude || '',
+    filter_free:
+      defaults.free != null && String(defaults.free) === '1'
+        ? true
+        : (defaults.filter_free ?? false),
     download_setting:
       defaults.download_setting == null
         ? ''

@@ -237,6 +237,7 @@ async function handleEdit(item: any) {
     filter_rule: nullableString(detail.filter_rule),
     filter_include: detail.filter_include || detail.include || '',
     filter_exclude: detail.filter_exclude || detail.exclude || '',
+    filter_free: detail.filter_free ?? false,
     download_setting: nullableString(detail.download_setting),
     save_path: detail.save_path || '',
     total_ep: String(detail.total_ep || detail.total || item.total || ''),
@@ -363,6 +364,10 @@ async function selectAddMedia(media: any) {
     filter_rule: nullableString(defaults.rule),
     filter_include: defaults.include || defaults.filter_include || '',
     filter_exclude: defaults.exclude || defaults.filter_exclude || '',
+    filter_free:
+      defaults.free != null && String(defaults.free) === '1'
+        ? true
+        : (defaults.filter_free ?? false),
     download_setting: nullableString(defaults.download_setting),
     save_path: defaults.save_path || '',
     total_ep: '',

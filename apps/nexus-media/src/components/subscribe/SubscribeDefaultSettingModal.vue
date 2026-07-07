@@ -51,6 +51,7 @@ const form = ref({
   rule: '',
   include: '',
   exclude: '',
+  free: '0',
   download_setting: '',
   rss_sites: [] as string[],
   search_sites: [] as string[],
@@ -126,6 +127,7 @@ async function loadSettings() {
       rule: nullableString(data.rule),
       include: data.include || data.filter_include || '',
       exclude: data.exclude || data.filter_exclude || '',
+      free: data.free && String(data.free) === '1' ? '1' : '0',
       download_setting: nullableString(data.download_setting),
       rss_sites: (Array.isArray(data.rss_sites) ? data.rss_sites : []).filter(
         (s: string) => rssSites.value.some((x) => x.value === s),
@@ -183,6 +185,7 @@ function handleConfirm() {
     rule: form.value.rule,
     include: form.value.include,
     exclude: form.value.exclude,
+    free: form.value.free,
     download_setting: form.value.download_setting,
     rss_sites: form.value.rss_sites,
     search_sites: form.value.search_sites,
@@ -249,6 +252,17 @@ function handleConfirm() {
             <NFormItem label="洗版">
               <NSelect
                 v-model:value="form.over_edition"
+                :options="[
+                  { label: '否', value: '0' },
+                  { label: '是', value: '1' },
+                ]"
+              />
+            </NFormItem>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <NFormItem label="只订阅免费">
+              <NSelect
+                v-model:value="form.free"
                 :options="[
                   { label: '否', value: '0' },
                   { label: '是', value: '1' },

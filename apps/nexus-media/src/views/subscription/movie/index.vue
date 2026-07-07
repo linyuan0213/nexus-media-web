@@ -229,6 +229,7 @@ async function handleEdit(item: any) {
     filter_rule: detail.filter_rule == null ? '' : String(detail.filter_rule),
     filter_include: detail.filter_include || detail.include || '',
     filter_exclude: detail.filter_exclude || detail.exclude || '',
+    filter_free: detail.filter_free ?? false,
     download_setting:
       detail.download_setting == null ? '' : String(detail.download_setting),
     save_path: detail.save_path || '',
@@ -345,6 +346,10 @@ async function selectAddMedia(media: any) {
     filter_rule: defaults.rule == null ? '' : String(defaults.rule),
     filter_include: defaults.include || defaults.filter_include || '',
     filter_exclude: defaults.exclude || defaults.filter_exclude || '',
+    filter_free:
+      defaults.free != null && String(defaults.free) === '1'
+        ? true
+        : (defaults.filter_free ?? false),
     download_setting:
       defaults.download_setting == null
         ? ''

@@ -45,6 +45,7 @@ export interface SubscribeEditItem {
   filter_rule?: string;
   filter_include?: string;
   filter_exclude?: string;
+  filter_free?: boolean;
   download_setting?: string;
   save_path?: string;
   total_ep?: number | string;
@@ -95,6 +96,7 @@ const form = ref({
   filter_rule: '',
   filter_include: '',
   filter_exclude: '',
+  filter_free: false,
   download_setting: '',
   save_path: '',
   total_ep: '',
@@ -126,6 +128,7 @@ watch([() => props.show, () => props.item], async ([visible, item]) => {
           : '',
       filter_include: item.filter_include || '',
       filter_exclude: item.filter_exclude || '',
+      filter_free: item.filter_free ?? false,
       download_setting:
         item.download_setting == null ? '' : String(item.download_setting),
       save_path: item.save_path || '',
@@ -251,6 +254,7 @@ function handleConfirm() {
     filter_rule: form.value.filter_rule,
     filter_include: form.value.filter_include,
     filter_exclude: form.value.filter_exclude,
+    filter_free: form.value.filter_free,
     download_setting: form.value.download_setting || undefined,
     save_path: form.value.save_path || undefined,
     rss_sites: form.value.rss_sites,
@@ -382,6 +386,9 @@ function handleConfirm() {
                 v-model:value="form.filter_rule"
                 :options="filterRules"
               />
+            </NFormItem>
+            <NFormItem label="只订阅免费">
+              <NCheckbox v-model:checked="form.filter_free"> 开启 </NCheckbox>
             </NFormItem>
           </div>
         </div>
