@@ -508,7 +508,7 @@ onMounted(() => {
   const from = route.query.from as string;
   if (s) {
     keyword.value = s;
-    if (from === 'discovery' || from === 'detail') {
+    if (from === 'discovery' || from === 'detail' || from === 'subscription') {
       displayMode.value = 'torrent';
       results.value = [];
       loading.value = true;

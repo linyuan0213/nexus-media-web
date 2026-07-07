@@ -1,24 +1,14 @@
 <script lang="ts" setup>
 import type { SubscribeEditItem } from '#/components/subscribe/SubscribeEditModal.vue';
 
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { IconifyIcon } from '@vben/icons';
-
-import {
-  NButton,
-  NDivider,
-  NInput,
-  NModal,
-  NSpace,
-  NSpin,
-  NTag,
-} from 'naive-ui';
+import { NButton, NInput, NModal, NProgress, NSpace, NSpin } from 'naive-ui';
 
 import { getDownloadSettingsApi } from '#/api/modules/download';
 import { getFilterRulesApi } from '#/api/modules/filter';
-import { searchMediaApi } from '#/api/modules/media';
+import { searchMediaApi, webSearchApi } from '#/api/modules/media';
 import {
   addSubscriptionApi,
   getDefaultSubscriptionSettingApi,
@@ -29,14 +19,15 @@ import {
   saveDefaultSubscriptionSettingApi,
   updateSubscriptionApi,
 } from '#/api/modules/subscription';
+import { getProgressApi } from '#/api/modules/system';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 import SubscribeDefaultSettingModal from '#/components/subscribe/SubscribeDefaultSettingModal.vue';
 import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
+import SubscriptionHoverCard from '#/components/subscribe/SubscriptionHoverCard.vue';
 import { useSubscriptionStore } from '#/store';
 import { getImgUrl } from '#/utils/image';
 import { useAppNotification } from '#/utils/notify';
-import { formatPix, formatRestype } from '#/utils/subscribe';
 
 const subscriptionStore = useSubscriptionStore();
 const router = useRouter();
@@ -46,25 +37,44 @@ const loading = ref(false);
 const deleteModalShow = ref(false);
 const deleteTarget = ref<any>(null);
 
+// 资源搜索进度弹窗（与探索页一致）
+const searchModalVisible = ref(false);
+const searchModalTitle = ref('');
+const searchModalProgress = ref(0);
+const searchModalText = ref('请稍候...');
+let searchProgressTimer: null | ReturnType<typeof setInterval> = null;
+
+function startSearchProgressPoll() {
+  stopSearchProgressPoll();
+  searchModalProgress.value = 0;
+  searchModalText.value = '正在检索资源...';
+  searchProgressTimer = setInterval(async () => {
+    try {
+      const res: any = await getProgressApi('search');
+      if (res) {
+        searchModalProgress.value = Math.min(res.value || 0, 100);
+        searchModalText.value = res.text || '请稍候...';
+        if (searchModalProgress.value >= 100) {
+          stopSearchProgressPoll();
+          searchModalVisible.value = false;
+        }
+      }
+    } catch {}
+  }, 3000);
+}
+
+function stopSearchProgressPoll() {
+  if (searchProgressTimer) {
+    clearInterval(searchProgressTimer);
+    searchProgressTimer = null;
+  }
+}
+
 // 站点/规则/下载设置缓存
 const downloadSettings = ref<{ label: string; value: string }[]>([]);
 const downloadSettingMap = ref<Record<string, string>>({});
-function getDownloadSettingLabel(val: any): string {
-  if (val == null || val === '' || val === '-1') return '';
-  const s = String(val);
-  return downloadSettingMap.value[s] || s;
-}
 
 const filterRuleMap = ref<Record<string, string>>({});
-function getFilterRuleLabel(val: any): string {
-  if (val == null || val === '' || val === '-1') return '';
-  const s = String(val);
-  return filterRuleMap.value[s] || s;
-}
-
-// 详情弹窗
-const detailModalShow = ref(false);
-const detailItem = ref<any>(null);
 
 // 编辑弹窗 (复用组件)
 const subscribeEditShow = ref(false);
@@ -126,78 +136,48 @@ async function fetchDownloadSettings() {
   }
 }
 
-function getStateDot(state: string) {
-  const map: Record<string, string> = {
-    D: 'bg-yellow-500',
-    S: 'bg-yellow-500',
-    R: 'bg-green-500',
-    C: 'bg-blue-500',
-    E: 'bg-red-500',
-    N: 'bg-gray-400',
-  };
-  return map[state] || 'bg-gray-400';
-}
-
-function getStateLabel(state: string) {
-  const map: Record<string, string> = {
-    D: '待处理',
-    S: '搜索中',
-    R: '监控中',
-    C: '已完成',
-    E: '错误',
-    N: '已取消',
-  };
-  return map[state] || state;
-}
-
-// ---------- 详情弹窗 ----------
+// ---------- 卡片操作 ----------
 function handleCardClick(item: any) {
-  detailItem.value = item;
-  detailModalShow.value = true;
+  const id = item.tmdbid || item.id;
+  if (!id) return;
+  router.push({ name: 'MediaDetail', query: { type: 'movie', id } });
 }
 
-function hasCardTags(item: any) {
-  return (
-    (item.filter_rule != null &&
-      String(item.filter_rule) !== '' &&
-      String(item.filter_rule) !== '0') ||
-    item.over_edition ||
-    item.rss_sites?.length ||
-    item.search_sites?.length ||
-    item.filter_restype ||
-    item.filter_pix
-  );
-}
-
-function getOverviewText(item: any): string {
-  const ov = item?.overview;
-  if (typeof ov === 'string' && ov.trim() && !ov.trim().startsWith('{'))
-    return ov.trim();
-  return '';
-}
-
-function handleDetailEdit() {
-  detailModalShow.value = false;
-  handleEdit(detailItem.value);
-}
-
-function handleDetailDelete() {
-  detailModalShow.value = false;
-  handleDelete(detailItem.value);
-}
-
-function handleDetailSearch() {
-  const name = detailItem.value?.name;
-  if (!name) {
+function handleCardSearch(item: any) {
+  if (!item?.name) {
     notification.warning('缺少名称，无法搜索');
     return;
   }
-  router.push(`/media/search?s=${encodeURIComponent(name)}`);
+  searchModalTitle.value = `正在搜索 ${item.name} ...`;
+  searchModalVisible.value = true;
+  startSearchProgressPoll();
+  webSearchApi({
+    search_word: item.name,
+    tmdbid: item.tmdbid ? String(item.tmdbid) : undefined,
+    media_type: 'movie',
+  })
+    .then(() => {
+      const checkAndNavigate = setInterval(() => {
+        if (!searchModalVisible.value) {
+          clearInterval(checkAndNavigate);
+          router.push(
+            `/media/search?s=${encodeURIComponent(item.name)}&from=subscription`,
+          );
+        }
+      }, 500);
+    })
+    .catch((error: any) => {
+      stopSearchProgressPoll();
+      searchModalVisible.value = false;
+      notification.error('搜索失败', {
+        description: error?.message || '未知错误',
+      });
+    });
 }
 
-async function handleDetailRefresh() {
+async function handleCardRefresh(item: any) {
   try {
-    await refreshSubscriptionApi('movie', String(detailItem.value.id));
+    await refreshSubscriptionApi('movie', String(item.id));
     notification.success('已触发刷新');
   } catch (error: any) {
     notification.error('刷新失败', { description: error?.message || '' });
@@ -378,6 +358,10 @@ onMounted(() => {
   fetchFilterRules();
   fetchDownloadSettings();
 });
+
+onUnmounted(() => {
+  stopSearchProgressPoll();
+});
 </script>
 
 <template>
@@ -394,282 +378,24 @@ onMounted(() => {
     <NSpin :show="loading">
       <div
         v-if="subscriptionStore.movieSubscriptions.length > 0"
-        class="grid-subscription-card"
+        class="subscription-flow"
       >
-        <div
+        <SubscriptionHoverCard
           v-for="item in subscriptionStore.movieSubscriptions"
           :key="item.id"
-          class="subscription-card overflow-hidden rounded-lg cursor-pointer tbl-card tbl-card-hover flex flex-col"
-          @click="handleCardClick(item)"
-        >
-          <div class="relative flex-shrink-0 p-1.5 pb-0">
-            <img
-              :src="getImgUrl(item.image || (item as any).poster)"
-              class="w-full object-cover rounded-md"
-              style="aspect-ratio: 3/4"
-              alt=""
-              @error="(e: any) => (e.target.src = '/static/img/no-image.png')"
-            />
-            <div
-              class="absolute top-3 left-3 flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-white/95 bg-black/50 backdrop-blur-sm"
-            >
-              <span
-                class="inline-block w-1.5 h-1.5 rounded-full"
-                :class="getStateDot(item.state || '')"
-              ></span>
-              {{ getStateLabel(item.state || '') }}
-            </div>
-          </div>
-          <div class="p-2 flex flex-col flex-1">
-            <div
-              class="text-[13px] font-semibold leading-tight line-clamp-2"
-              :title="item.name"
-            >
-              {{ item.name }}
-            </div>
-            <div
-              class="text-xs text-muted-foreground mt-1 flex items-center gap-2"
-            >
-              <span v-if="item.year">{{ item.year }}</span>
-            </div>
-            <NDivider style="margin: 0.5rem 0" />
-            <div
-              v-if="hasCardTags(item)"
-              class="flex flex-wrap items-center gap-1"
-            >
-              <NTag v-if="item.filter_rule" size="tiny" class="tag-rule">
-                {{ getFilterRuleLabel(item.filter_rule) }}
-              </NTag>
-              <NTag
-                v-if="item.over_edition"
-                size="tiny"
-                class="tag-over-edition"
-              >
-                洗版
-              </NTag>
-              <NTag
-                v-if="item.filter_restype"
-                size="tiny"
-                class="tag-quality"
-                :title="formatRestype(item.filter_restype)"
-              >
-                {{ formatRestype(item.filter_restype) }}
-              </NTag>
-              <NTag
-                v-if="item.filter_pix"
-                size="tiny"
-                class="tag-resolution"
-                :title="formatPix(item.filter_pix)"
-              >
-                {{ formatPix(item.filter_pix) }}
-              </NTag>
-              <NTag
-                v-if="item.rss_sites?.length"
-                size="tiny"
-                class="tag-rss-site"
-              >
-                订阅 {{ item.rss_sites.length }}
-              </NTag>
-              <NTag
-                v-if="item.search_sites?.length"
-                size="tiny"
-                class="tag-search-site"
-              >
-                搜索 {{ item.search_sites.length }}
-              </NTag>
-            </div>
-          </div>
-        </div>
+          :item="item"
+          type="movie"
+          :filter-rule-map="filterRuleMap"
+          :download-setting-map="downloadSettingMap"
+          @click="handleCardClick"
+          @edit="handleEdit"
+          @delete="handleDelete"
+          @search="handleCardSearch"
+          @refresh="handleCardRefresh"
+        />
       </div>
       <EmptyState v-else title="没有订阅" subtitle="当前没有正在订阅的电影" />
     </NSpin>
-
-    <!-- 详情弹窗 -->
-    <NModal
-      v-model:show="detailModalShow"
-      title="订阅详情"
-      preset="card"
-      :style="{ width: '600px' }"
-      :bordered="false"
-    >
-      <div v-if="detailItem" class="flex gap-6">
-        <img
-          :src="getImgUrl(detailItem.image || (detailItem as any).poster)"
-          class="rounded-xl shadow-lg"
-          style="
-            flex-shrink: 0;
-            width: 220px;
-            aspect-ratio: 2/3;
-            object-fit: cover;
-          "
-          alt=""
-          @error="(e: any) => (e.target.src = '/static/img/no-image.png')"
-        />
-        <div class="flex-1 min-w-0 flex flex-col">
-          <div class="flex items-start justify-between">
-            <div class="min-w-0">
-              <h3 class="text-xl font-bold truncate" :title="detailItem.name">
-                {{ detailItem.name }}
-              </h3>
-              <p v-if="detailItem.year" class="text-gray-500 mt-1 text-sm">
-                {{ detailItem.year }}
-              </p>
-            </div>
-            <div
-              class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 flex-shrink-0 ml-2"
-            >
-              <span
-                class="inline-block w-2 h-2 rounded-full"
-                :class="getStateDot(detailItem.state || '')"
-              ></span>
-              <span class="text-xs text-gray-600">{{
-                getStateLabel(detailItem.state || '')
-              }}</span>
-            </div>
-          </div>
-
-          <div
-            v-if="getOverviewText(detailItem)"
-            class="mt-3 text-sm text-gray-600 leading-relaxed"
-          >
-            {{ getOverviewText(detailItem) }}
-          </div>
-
-          <div v-if="detailItem.keyword" class="mt-2 text-sm text-gray-500">
-            <span class="text-gray-400">搜索词：</span>{{ detailItem.keyword }}
-          </div>
-
-          <div
-            v-if="
-              detailItem.over_edition ||
-              detailItem.filter_restype ||
-              detailItem.filter_pix ||
-              detailItem.filter_team ||
-              detailItem.filter_rule ||
-              detailItem.filter_include ||
-              detailItem.filter_exclude
-            "
-            class="flex flex-wrap gap-1.5 mt-4"
-          >
-            <NTag
-              v-if="detailItem.over_edition"
-              size="small"
-              class="tag-over-edition"
-              round
-            >
-              洗版
-            </NTag>
-            <NTag
-              v-if="detailItem.filter_restype"
-              size="small"
-              class="tag-quality"
-              round
-              :title="formatRestype(detailItem.filter_restype)"
-            >
-              {{ formatRestype(detailItem.filter_restype) }}
-            </NTag>
-            <NTag
-              v-if="detailItem.filter_pix"
-              size="small"
-              class="tag-resolution"
-              round
-              :title="formatPix(detailItem.filter_pix)"
-            >
-              {{ formatPix(detailItem.filter_pix) }}
-            </NTag>
-            <NTag
-              v-if="detailItem.filter_team"
-              size="small"
-              class="tag-team"
-              round
-            >
-              {{ detailItem.filter_team }}
-            </NTag>
-            <NTag
-              v-if="detailItem.filter_rule"
-              size="small"
-              class="tag-rule"
-              round
-            >
-              {{ getFilterRuleLabel(detailItem.filter_rule) }}
-            </NTag>
-            <NTag
-              v-if="detailItem.filter_include"
-              size="small"
-              class="tag-include"
-              round
-            >
-              {{ detailItem.filter_include }}
-            </NTag>
-            <NTag
-              v-if="detailItem.filter_exclude"
-              size="small"
-              class="tag-exclude"
-              round
-            >
-              {{ detailItem.filter_exclude }}
-            </NTag>
-          </div>
-
-          <div
-            v-if="
-              detailItem.download_setting != null &&
-              String(detailItem.download_setting) !== '' &&
-              String(detailItem.download_setting) !== '-1'
-            "
-            class="mt-3"
-          >
-            <span class="text-xs text-gray-400">下载设置：</span>
-            <NTag size="small" type="default" round>
-              {{ getDownloadSettingLabel(detailItem.download_setting) }}
-            </NTag>
-          </div>
-
-          <div class="mt-auto pt-3">
-            <div v-if="detailItem.rss_sites?.length" class="mb-2">
-              <span class="text-xs text-gray-400">订阅站点：</span>
-              <span class="text-xs text-gray-600 ml-1">{{
-                detailItem.rss_sites.join(' · ')
-              }}</span>
-            </div>
-            <div v-if="detailItem.search_sites?.length">
-              <span class="text-xs text-gray-400">搜索站点：</span>
-              <span class="text-xs text-gray-600 ml-1">{{
-                detailItem.search_sites.join(' · ')
-              }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <template #footer>
-        <NSpace justify="end" :size="12">
-          <NButton type="error" ghost size="small" @click="handleDetailDelete">
-            <template #icon>
-              <IconifyIcon icon="lucide:trash-2" class="h-4 w-4" />
-            </template>
-            取消订阅
-          </NButton>
-          <NButton quaternary size="small" @click="handleDetailSearch">
-            <template #icon>
-              <IconifyIcon icon="lucide:search" class="h-4 w-4" />
-            </template>
-            搜索
-          </NButton>
-          <NButton quaternary size="small" @click="handleDetailRefresh">
-            <template #icon>
-              <IconifyIcon icon="lucide:refresh-cw" class="h-4 w-4" />
-            </template>
-            刷新
-          </NButton>
-          <NButton type="primary" size="small" @click="handleDetailEdit">
-            <template #icon>
-              <IconifyIcon icon="lucide:pencil" class="h-4 w-4" />
-            </template>
-            编辑
-          </NButton>
-        </NSpace>
-      </template>
-    </NModal>
 
     <!-- 新增订阅 -->
     <NModal
@@ -752,6 +478,28 @@ onMounted(() => {
     >
       <p>确定要删除订阅「{{ deleteTarget?.name }}」吗？</p>
     </NModal>
+
+    <!-- 资源搜索进度 -->
+    <NModal
+      v-model:show="searchModalVisible"
+      preset="card"
+      :title="searchModalTitle"
+      style="width: 420px"
+      :mask-closable="false"
+      :closable="false"
+    >
+      <div class="text-center py-2">
+        <NProgress
+          type="line"
+          :percentage="searchModalProgress"
+          processing
+          class="mb-2"
+        />
+        <div class="text-sm text-gray-500">
+          {{ searchModalText }}
+        </div>
+      </div>
+    </NModal>
   </div>
 </template>
 
@@ -760,6 +508,13 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 1rem;
+}
+
+.subscription-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-content: flex-start;
 }
 
 .subscription-card {

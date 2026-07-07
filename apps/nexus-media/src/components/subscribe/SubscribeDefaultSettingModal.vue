@@ -204,7 +204,7 @@ function handleConfirm() {
     :bordered="false"
     @update:show="(v) => emit('update:show', v)"
   >
-    <NForm label-placement="left" label-width="90" size="small">
+    <NForm label-placement="top" size="small">
       <!-- 过滤设置 -->
       <div class="form-section">
         <div class="form-section-header">
@@ -214,13 +214,14 @@ function handleConfirm() {
           <span class="form-section-title">过滤设置</span>
         </div>
         <div class="form-section-body">
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <NFormItem label="质量">
               <NSelect
                 v-model:value="form.restype"
                 :options="restypeOptions"
                 multiple
                 clearable
+                max-tag-count="responsive"
                 placeholder="留空不限制"
               />
             </NFormItem>
@@ -230,6 +231,7 @@ function handleConfirm() {
                 :options="pixOptions"
                 multiple
                 clearable
+                max-tag-count="responsive"
                 placeholder="留空不限制"
               />
             </NFormItem>
@@ -237,7 +239,7 @@ function handleConfirm() {
               <NInput v-model:value="form.team" placeholder="支持正则" />
             </NFormItem>
           </div>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <NFormItem label="包含">
               <NInput v-model:value="form.include" placeholder="关键字或正则" />
             </NFormItem>
@@ -245,7 +247,7 @@ function handleConfirm() {
               <NInput v-model:value="form.exclude" placeholder="关键字或正则" />
             </NFormItem>
           </div>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <NFormItem label="过滤规则">
               <NSelect v-model:value="form.rule" :options="filterRules" />
             </NFormItem>
@@ -259,7 +261,7 @@ function handleConfirm() {
               />
             </NFormItem>
           </div>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <NFormItem label="只订阅免费">
               <NSelect
                 v-model:value="form.free"

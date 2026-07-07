@@ -289,7 +289,7 @@ function handleConfirm() {
     :bordered="false"
   >
     <div v-if="item" class="space-y-3">
-      <NForm label-placement="left" label-width="90" size="small">
+      <NForm label-placement="top" size="small">
         <!-- 基础信息 -->
         <div class="form-section">
           <div class="form-section-header">
@@ -305,7 +305,7 @@ function handleConfirm() {
                 placeholder="留空使用TMDB数据"
               />
             </NFormItem>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <NFormItem label="模糊匹配">
                 <NCheckbox v-model:checked="form.fuzzy_match"> 开启 </NCheckbox>
               </NFormItem>
@@ -315,7 +315,7 @@ function handleConfirm() {
                 </NCheckbox>
               </NFormItem>
             </div>
-            <div v-if="isTv" class="grid grid-cols-3 gap-3">
+            <div v-if="isTv" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <NFormItem label="季">
                 <NSelect v-model:value="form.season" :options="seasonOptions" />
               </NFormItem>
@@ -341,13 +341,14 @@ function handleConfirm() {
             <span class="form-section-title">过滤设置</span>
           </div>
           <div class="form-section-body">
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <NFormItem label="质量">
                 <NSelect
                   v-model:value="form.filter_restype"
                   :options="restypeOptions"
                   multiple
                   clearable
+                  max-tag-count="responsive"
                   placeholder="留空不限制"
                 />
               </NFormItem>
@@ -357,6 +358,7 @@ function handleConfirm() {
                   :options="pixOptions"
                   multiple
                   clearable
+                  max-tag-count="responsive"
                   placeholder="留空不限制"
                 />
               </NFormItem>
@@ -367,7 +369,7 @@ function handleConfirm() {
                 />
               </NFormItem>
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <NFormItem label="包含">
                 <NInput
                   v-model:value="form.filter_include"
@@ -402,7 +404,7 @@ function handleConfirm() {
             <span class="form-section-title">下载设置</span>
           </div>
           <div class="form-section-body">
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <NFormItem label="下载设置">
                 <NSelect
                   v-model:value="form.download_setting"
