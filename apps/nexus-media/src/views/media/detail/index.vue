@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import type { SubscribeConfirmItem } from '#/components/subscribe/SubscribeConfirmModal.vue';
+
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -15,6 +17,7 @@ import {
   removeSubscriptionApi,
 } from '#/api/modules/subscription';
 import PageHeader from '#/components/page/PageHeader.vue';
+import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.vue';
 
 import CastList from './components/CastList.vue';
 import FactPanel from './components/FactPanel.vue';
@@ -29,6 +32,7 @@ const message = useMessage();
 const loading = ref(true);
 const detail = ref<Record<string, any>>({});
 const seasons = ref<any[]>([]);
+const subSeasons = ref<number[]>([]);
 const similar = ref<any[]>([]);
 const recommends = ref<any[]>([]);
 const fav = ref<string>('0');
@@ -40,6 +44,7 @@ const mediaType = computed(() => {
   if (t.toLowerCase() === 'tv') return 'tv';
   return t;
 });
+const isTv = computed(() => mediaType.value !== 'movie');
 
 async function loadDetail() {
   if (!mediaId.value) {
@@ -53,6 +58,9 @@ async function loadDetail() {
       detail.value = res;
       fav.value = String(res.fav || '0');
       seasons.value = Array.isArray(res.seasons) ? res.seasons : [];
+      subSeasons.value = Array.isArray(res.sub_seasons)
+        ? res.sub_seasons.map(Number)
+        : [];
       if (detail.value.tmdbid) {
         loadSimilar();
         loadRecommends();
@@ -121,7 +129,24 @@ async function handleSearch() {
   searching.value = false;
 }
 
+const subscribeConfirmShow = ref(false);
+const subscribeConfirmItem = ref<null | SubscribeConfirmItem>(null);
+
 async function handleSubscribe() {
+  // 电视剧：始终打开季选择框（未订阅=订阅，已订阅=追加其他季）
+  if (isTv.value) {
+    subscribeConfirmItem.value = {
+      id: mediaId.value,
+      tmdbid: mediaId.value,
+      title: detail.value.title,
+      year: detail.value.year || '',
+      type: 'tv',
+      image: detail.value.image || detail.value.poster,
+      overview: detail.value.overview,
+    };
+    subscribeConfirmShow.value = true;
+    return;
+  }
   try {
     if (fav.value === '1') {
       await removeSubscriptionApi({
@@ -145,6 +170,46 @@ async function handleSubscribe() {
     }
   } catch {
     message.error('操作失败');
+  }
+}
+
+async function handleConfirmSubscribe(payload: {
+  add: number[];
+  autoMode: boolean;
+  remove: number[];
+  selected: number[];
+}) {
+  const { add, remove, selected } = payload;
+  if (add.length === 0 && remove.length === 0) return;
+  try {
+    for (const season of add) {
+      await addSubscriptionMediaApi({
+        name: detail.value.title,
+        year: detail.value.year || '',
+        type: 'tv',
+        mediaid: mediaId.value,
+        season: String(season),
+      });
+    }
+    for (const season of remove) {
+      await removeSubscriptionApi({
+        name: detail.value.title,
+        year: detail.value.year || '',
+        type: 'tv',
+        tmdbid: mediaId.value,
+        season: String(season),
+      });
+    }
+    fav.value = selected.length > 0 ? '1' : '0';
+    subSeasons.value = [...selected].toSorted((a, b) => a - b);
+    const parts: string[] = [];
+    if (add.length > 0) parts.push(`订阅 ${add.length} 季`);
+    if (remove.length > 0) parts.push(`退订 ${remove.length} 季`);
+    message.success(`已${parts.join('、')}`);
+  } catch {
+    message.error('操作失败');
+  } finally {
+    subscribeConfirmShow.value = false;
   }
 }
 
@@ -183,6 +248,7 @@ watch([() => route.query.id, () => route.query.type], () => {
           :fav="fav"
           :searching="searching"
           :seasons="seasons"
+          :sub-seasons="subSeasons"
           @search="handleSearch"
           @subscribe="handleSubscribe"
         />
@@ -237,5 +303,11 @@ watch([() => route.query.id, () => route.query.type], () => {
         </NButton>
       </div>
     </NSpin>
+
+    <SubscribeConfirmModal
+      v-model:show="subscribeConfirmShow"
+      :item="subscribeConfirmItem"
+      @confirm="handleConfirmSubscribe"
+    />
   </div>
 </template>
