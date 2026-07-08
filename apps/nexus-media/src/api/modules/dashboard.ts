@@ -74,6 +74,8 @@ export async function getDashboardLibraryApi() {
   return requestClient.post<DashboardApi.LibraryHome>(
     '/media/library/home',
     {},
+    // 媒体库聚合较慢，放宽超时避免请求超时
+    { timeout: 120_000 },
   );
 }
 
