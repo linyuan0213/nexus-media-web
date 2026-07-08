@@ -517,6 +517,13 @@ onUnmounted(() => {
   align-content: flex-start;
 }
 
+@media (hover: none) {
+  .subscription-flow {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  }
+}
+
 .subscription-card {
   transition: all 0.2s ease;
 }

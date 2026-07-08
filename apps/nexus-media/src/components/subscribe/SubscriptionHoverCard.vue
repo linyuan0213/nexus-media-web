@@ -225,6 +225,20 @@ function isTouchMode() {
   );
 }
 
+// 靠近右边缘时，信息面板翻转到左侧展开，避免被视口截断
+const flipLeft = ref(false);
+const POSTER_WIDTH = 180;
+const PANEL_WIDTH = 340;
+
+function onCardEnter(e: MouseEvent) {
+  if (isTouchMode()) return;
+  const el = e.currentTarget as HTMLElement | null;
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  flipLeft.value =
+    rect.left + POSTER_WIDTH + PANEL_WIDTH + 16 > window.innerWidth;
+}
+
 function onPosterClick() {
   if (!isTouchMode()) {
     emit('click', props.item);
@@ -241,7 +255,11 @@ onMounted(ensureOutsideListener);
 </script>
 
 <template>
-  <div class="shc" :class="{ 'is-expanded': isPopup }">
+  <div
+    class="shc"
+    :class="{ 'is-expanded': isPopup, 'shc--flip-left': flipLeft }"
+    @mouseenter="onCardEnter"
+  >
     <!-- 移动端浮层遮罩 -->
     <Teleport to="body">
       <div v-if="isPopup" class="shc-backdrop" @click="closePopover"></div>
@@ -573,17 +591,25 @@ onMounted(ensureOutsideListener);
   margin-top: 0.35rem;
 }
 
-/* 信息面板：始终绝对定位，避免撑高卡片；用淡入而非直接显示 */
+/* 信息面板：绝对定位覆盖到右侧，hover 时不改变卡片在流中的宽度，避免多行换行时的回流闪烁 */
 .shc-info {
   position: absolute;
-  inset: 0 0 0 180px;
+  top: 0;
+  left: 180px;
   box-sizing: border-box;
   display: flex;
   visibility: hidden;
   flex-direction: column;
+  width: 340px;
   min-width: 0;
+  height: 100%;
   padding: 0.85rem 0.9rem;
   overflow: hidden;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-left: none;
+  border-radius: 0 0.5rem 0.5rem 0;
+  box-shadow: 12px 0 32px hsl(var(--foreground) / 18%);
   opacity: 0;
   transform: translateX(8px);
   transition:
@@ -915,13 +941,11 @@ onMounted(ensureOutsideListener);
   border-radius: 9999px;
 }
 
-/* 悬停展开：把后续卡片往右推（占据文档流，不覆盖） */
+/* 悬停展开：信息面板以覆盖层浮出，卡片在流中的尺寸保持不变，避免回流闪烁 */
 @media (hover: hover) {
   .shc:hover {
-    flex: none;
-    width: 520px;
-    max-width: none;
-    height: auto;
+    z-index: 50;
+    overflow: visible;
     box-shadow: 0 12px 32px hsl(var(--foreground) / 22%);
   }
 
@@ -939,6 +963,21 @@ onMounted(ensureOutsideListener);
     opacity: 1;
     transform: none;
   }
+
+  /* 靠近右边缘：面板翻转到海报左侧展开 */
+  .shc--flip-left .shc-info {
+    right: 180px;
+    left: auto;
+    border-right: none;
+    border-left: 1px solid hsl(var(--border));
+    border-radius: 0.5rem 0 0 0.5rem;
+    box-shadow: -12px 0 32px hsl(var(--foreground) / 18%);
+    transform: translateX(-8px);
+  }
+
+  .shc--flip-left:hover .shc-info {
+    transform: none;
+  }
 }
 
 /* 移动端/触屏：点击弹出屏幕居中纯信息浮层（Teleport 到 body） */
@@ -948,9 +987,9 @@ onMounted(ensureOutsideListener);
 
 @media (hover: none) {
   .shc {
-    flex: 1 1 140px;
-    min-width: 130px;
-    max-width: 220px;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
   }
 
   .shc-poster {
