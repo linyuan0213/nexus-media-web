@@ -199,6 +199,14 @@ export async function deleteMenuApi(id: number) {
   return requestClient.post('/rbac/menus/delete', { id });
 }
 
+/** 重置菜单到初始状态（恢复默认菜单，清除删除墓碑） */
+export async function resetMenusApi() {
+  return requestClient.post<{ affected: number; success: boolean }>(
+    '/rbac/menus/reset',
+    {},
+  );
+}
+
 /** 更新菜单排序 */
 export async function updateMenuSortApi(
   menuOrders: Array<{ id: number; parent_id?: number; sort_order: number }>,
