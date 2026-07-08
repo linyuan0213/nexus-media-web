@@ -17,6 +17,7 @@ import {
   NFormItem,
   NInput,
   NInputNumber,
+  NModal,
   NPopconfirm,
   NSelect,
   NSpace,
@@ -25,10 +26,12 @@ import {
   NTree,
 } from 'naive-ui';
 
+import { message } from '#/adapter/naive';
 import {
   createMenuApi,
   deleteMenuApi,
   getAllMenusForManagementApi,
+  resetMenusApi,
   updateMenuApi,
   updateMenuSortApi,
 } from '#/api';
@@ -178,6 +181,16 @@ async function handleDelete(id: number) {
   selectedMenu.value = null;
   await fetchData();
   await refreshSidebarMenus();
+}
+
+const resetModalShow = ref(false);
+
+async function confirmReset() {
+  await resetMenusApi();
+  selectedMenu.value = null;
+  await fetchData();
+  await refreshSidebarMenus();
+  message.success('菜单已重置为默认');
 }
 
 watch(selectedKeys, (keys) => {
@@ -374,6 +387,12 @@ onMounted(fetchData);
   <div class="p-5" style="background: hsl(var(--background))">
     <PageHeader title="菜单管理" subtitle="管理系统菜单结构、路由及权限">
       <template #actions>
+        <NButton @click="resetModalShow = true">
+          <template #icon>
+            <IconifyIcon icon="lucide:rotate-ccw" class="size-4" />
+          </template>
+          重置菜单
+        </NButton>
         <NButton type="primary" @click="handleAdd()">
           <template #icon>
             <IconifyIcon icon="lucide:plus" class="size-4" />
@@ -820,5 +839,25 @@ onMounted(fetchData);
         </template>
       </NDrawerContent>
     </NDrawer>
+
+    <!-- 重置菜单确认 -->
+    <NModal
+      v-model:show="resetModalShow"
+      preset="dialog"
+      type="warning"
+      title="重置菜单"
+      positive-text="确认重置"
+      negative-text="取消"
+      @positive-click="confirmReset"
+    >
+      <div class="text-sm" style="color: hsl(var(--muted-foreground))">
+        <p>确定要将菜单重置为初始状态吗？此操作将：</p>
+        <ul class="mt-2 list-disc pl-5 space-y-1">
+          <li>把内置菜单的名称、图标、排序、层级、显隐等恢复为默认</li>
+          <li>恢复此前被删除的内置菜单</li>
+          <li>保留你自建的菜单与插件菜单</li>
+        </ul>
+      </div>
+    </NModal>
   </div>
 </template>
