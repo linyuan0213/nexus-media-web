@@ -23,6 +23,7 @@ import PageHeader from '#/components/page/PageHeader.vue';
 import { useSiteStore } from '#/store';
 import { useAppNotification } from '#/utils/notify';
 
+import SiteBatchTestModal from './components/SiteBatchTestModal.vue';
 import SiteCard from './components/SiteCard.vue';
 import SiteDeleteModal from './components/SiteDeleteModal.vue';
 import SiteEditModal from './components/SiteEditModal.vue';
@@ -36,6 +37,7 @@ const activeSource = ref('all');
 const activeType = ref('all');
 const editModalShow = ref(false);
 const deleteModalShow = ref(false);
+const batchTestShow = ref(false);
 const deleteTarget = ref<null | SiteItem>(null);
 const editingSite = ref<null | SiteForm>(null);
 
@@ -272,6 +274,24 @@ async function handleTest(item: SiteItem) {
   }
 }
 
+// 批量测试当前筛选出的非公开（PT）站点，排除第三方索引器（jackett/prowlarr）
+const batchTestSites = computed(() =>
+  filteredSites.value.filter(
+    (s: any) =>
+      !(s.site_public ?? s.public) &&
+      (s.source || 'builtin') === 'builtin' &&
+      !s.third_party,
+  ),
+);
+
+function handleBatchTest() {
+  if (batchTestSites.value.length === 0) {
+    notification.warning('当前没有可测试的站点');
+    return;
+  }
+  batchTestShow.value = true;
+}
+
 async function handleSyncThirdParty() {
   if (syncLoading.value) return;
   syncLoading.value = true;
@@ -328,6 +348,12 @@ onMounted(fetchSites);
               <IconifyIcon icon="lucide:refresh-cw" class="h-4 w-4" />
             </template>
             同步站点
+          </NButton>
+          <NButton @click="handleBatchTest">
+            <template #icon>
+              <IconifyIcon icon="lucide:activity" class="h-4 w-4" />
+            </template>
+            批量测试
           </NButton>
           <NButton type="primary" @click="handleAdd">
             <template #icon>
@@ -428,6 +454,7 @@ onMounted(fetchSites);
       :target="deleteTarget"
       @confirm="confirmDelete"
     />
+    <SiteBatchTestModal v-model:show="batchTestShow" :sites="batchTestSites" />
   </div>
 </template>
 

@@ -130,7 +130,7 @@ export async function getProgressApi(type: string) {
   }
   const promise = requestClient.post<{
     code: number;
-    data?: { text: string; value: number };
+    data?: { enable?: boolean; exists?: boolean; text: string; value: number };
   }>('/system/refresh', { type });
   _progressLocks[type] = { promise, time: now };
   return promise;

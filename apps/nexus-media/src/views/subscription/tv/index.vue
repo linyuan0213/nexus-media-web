@@ -506,6 +506,20 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.subscription-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-content: flex-start;
+}
+
+@media (hover: none) {
+  .subscription-flow {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  }
+}
+
 .grid-subscription-card {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));

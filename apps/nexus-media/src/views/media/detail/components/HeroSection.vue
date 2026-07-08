@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import { computed } from 'vue';
+
 import { IconifyIcon } from '@vben/icons';
 
 import { NButton, NTag } from 'naive-ui';
@@ -8,17 +10,30 @@ interface Props {
   fav: string;
   searching?: boolean;
   seasons?: any[];
+  subSeasons?: number[];
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   searching: false,
   seasons: () => [],
+  subSeasons: () => [],
 });
 
 const emit = defineEmits<{
   search: [];
   subscribe: [];
 }>();
+
+const isTv = computed(() => props.detail.type === 'tv');
+
+const subscribedLabel = computed(() => {
+  if (props.fav !== '1') return '';
+  if (props.subSeasons.length > 0) {
+    const text = props.subSeasons.map((n) => `第${n}季`).join('、');
+    return `已订阅 ${text}`;
+  }
+  return '已订阅';
+});
 
 function replaceLocalhost(url?: any) {
   if (!url) return '';
@@ -81,7 +96,9 @@ function replaceLocalhost(url?: any) {
       <div class="flex flex-1 flex-col justify-center">
         <div class="mb-3 flex flex-wrap items-center gap-2">
           <NTag v-if="fav === '2'" type="success" size="small">已入库</NTag>
-          <NTag v-if="fav === '1'" type="warning" size="small">已订阅</NTag>
+          <NTag v-if="fav === '1'" type="warning" size="small">
+            {{ subscribedLabel }}
+          </NTag>
           <NTag
             v-if="detail.type"
             size="small"
@@ -140,7 +157,9 @@ function replaceLocalhost(url?: any) {
                 class="size-4"
               />
             </template>
-            {{ fav === '1' ? '已订阅' : '订阅' }}
+            {{
+              fav === '1' && isTv ? '管理订阅' : fav === '1' ? '已订阅' : '订阅'
+            }}
           </NButton>
 
           <NButton
