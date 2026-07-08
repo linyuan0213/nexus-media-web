@@ -2,7 +2,7 @@
 import type { SubscribeConfirmItem } from '#/components/subscribe/SubscribeConfirmModal.vue';
 
 import { onMounted, onUnmounted, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
 
@@ -32,6 +32,7 @@ import {
 import {
   addSubscriptionMediaApi,
   deleteSubscriptionApi,
+  removeSubscriptionApi,
 } from '#/api/modules/subscription';
 import { getProgressApi } from '#/api/modules/system';
 import EmptyState from '#/components/empty/EmptyState.vue';
@@ -108,6 +109,7 @@ interface SearchResultWithFilter extends SearchResult {
 }
 
 const route = useRoute();
+const router = useRouter();
 const notification = useAppNotification();
 const { start: startSSE, stop: stopSSE } = useDownloadEventStream();
 
@@ -135,7 +137,9 @@ function updateCardSubscribeState(title: string, fav: string, rssid?: string) {
 
 async function handleSubscribe(item: SearchResult, e: Event) {
   e.stopPropagation();
-  if (item.fav === '1' && item.rssid) {
+  const mtype = normalizeMediaType(item.type_key || item.type);
+  // 电影已订阅 → 取消订阅；电视剧已订阅 → 仍打开季选择框以追加其他季
+  if (item.fav === '1' && item.rssid && mtype === 'movie') {
     try {
       await deleteSubscriptionApi(Number(item.rssid));
       updateCardSubscribeState(item.title, '');
@@ -150,22 +154,28 @@ async function handleSubscribe(item: SearchResult, e: Event) {
     tmdbid: item.tmdbid,
     title: item.title,
     year: item.year || '',
-    type: normalizeMediaType(item.type_key || item.type),
+    type: mtype,
     image: item.poster,
     overview: item.overview,
   };
   subscribeConfirmShow.value = true;
 }
 
-async function handleConfirmSubscribe(seasons: number[], _autoMode: boolean) {
+async function handleConfirmSubscribe(payload: {
+  add: number[];
+  autoMode: boolean;
+  remove: number[];
+  selected: number[];
+}) {
   const it = subscribeConfirmItem.value;
   if (!it) return;
+  const { add, remove, selected } = payload;
   subscribeConfirmPending.value = true;
   try {
     const typeParam = it.type === 'movie' ? 'movie' : 'tv';
-    if (typeParam === 'tv' && seasons.length > 0) {
+    if (typeParam === 'tv') {
       let lastRssid = '';
-      for (const season of seasons) {
+      for (const season of add) {
         const r: any = await addSubscriptionMediaApi({
           name: it.title,
           year: it.year || '',
@@ -175,11 +185,24 @@ async function handleConfirmSubscribe(seasons: number[], _autoMode: boolean) {
         });
         lastRssid = r?.rssid ? String(r.rssid) : lastRssid;
       }
-      notification.success('订阅成功', {
-        description: `${it.title} 已订阅 ${seasons.length} 季`,
+      for (const season of remove) {
+        await removeSubscriptionApi({
+          name: it.title,
+          year: it.year || '',
+          type: 'tv',
+          tmdbid: String(it.tmdbid || it.id),
+          season: String(season),
+        });
+      }
+      const fav = selected.length > 0 ? '1' : '';
+      const parts: string[] = [];
+      if (add.length > 0) parts.push(`订阅 ${add.length} 季`);
+      if (remove.length > 0) parts.push(`退订 ${remove.length} 季`);
+      notification.success('操作成功', {
+        description: `${it.title} 已${parts.join('、')}`,
       });
-      updateCardSubscribeState(it.title, '1', lastRssid || undefined);
-      updateMediaSubscribeState(it.id, '1', lastRssid || undefined);
+      updateCardSubscribeState(it.title, fav, lastRssid || undefined);
+      updateMediaSubscribeState(it.id, fav, lastRssid || undefined);
     } else {
       const res: any = await addSubscriptionMediaApi({
         name: it.title,
@@ -207,7 +230,7 @@ async function handleConfirmSubscribe(seasons: number[], _autoMode: boolean) {
       }
     }
   } catch (error: any) {
-    notification.error('订阅失败', { description: error?.message || '' });
+    notification.error('操作失败', { description: error?.message || '' });
   } finally {
     subscribeConfirmPending.value = false;
     subscribeConfirmShow.value = false;
@@ -245,6 +268,15 @@ async function handleMediaUnsubscribe(media: MediaItem) {
   unsubscribingMedia.value = media;
 }
 
+/** 已订阅按钮：电影 → 取消订阅；电视剧 → 打开季选择框追加其他季 */
+function handleMediaSubscribedClick(media: MediaItem) {
+  if (normalizeMediaType(media.media_type || media.type) === 'movie') {
+    handleMediaUnsubscribe(media);
+  } else {
+    handleMediaSubscribe(media);
+  }
+}
+
 async function confirmUnsubscribe() {
   const media = unsubscribingMedia.value;
   if (!media?.rssid) return;
@@ -269,6 +301,22 @@ function getImgUrl(src?: string) {
 const loading = ref(false);
 const keyword = ref('');
 const searchtype = ref<'' | 'douban' | 'tmdb'>('tmdb');
+
+// 持久化当前搜索关键词，用于从其他页面切回（无 query 参数）时恢复标题显示
+const SEARCH_KEYWORD_KEY = 'nexus:search:keyword';
+function setSearchKeyword(k: string) {
+  keyword.value = k;
+  try {
+    if (k) sessionStorage.setItem(SEARCH_KEYWORD_KEY, k);
+  } catch {}
+}
+function readStoredKeyword(): string {
+  try {
+    return sessionStorage.getItem(SEARCH_KEYWORD_KEY) || '';
+  } catch {
+    return '';
+  }
+}
 
 // 显示模式：empty | media(普通搜索媒体结果) | torrent(种子结果)
 const displayMode = ref<'empty' | 'media' | 'torrent'>('empty');
@@ -363,6 +411,28 @@ function stopProgressPoll() {
   }
 }
 
+/**
+ * 检查后端是否有正在进行的搜索，若有则恢复进度显示并继续轮询。
+ * 用于从其他页面切回时，展示当前搜索进度而非上一次的旧结果。
+ */
+async function resumeOngoingSearch(): Promise<boolean> {
+  try {
+    const res: any = await getProgressApi('search');
+    if (res && res.enable && (res.value || 0) < 100) {
+      const s = (route.query.s as string) || readStoredKeyword();
+      if (s) keyword.value = s;
+      displayMode.value = 'torrent';
+      results.value = [];
+      loading.value = true;
+      searchProgress.value = Math.min(res.value || 0, 100);
+      searchProgressText.value = res.text || '正在检索资源...';
+      progressTimer = setInterval(pollSearchProgress, 3000);
+      return true;
+    }
+  } catch {}
+  return false;
+}
+
 const typeOptions = [
   { label: '全部来源', value: '' },
   { label: 'TMDB', value: 'tmdb' },
@@ -391,11 +461,23 @@ async function handleSearch() {
   }
 }
 
-/** 点击媒体卡片 → 触发种子搜索 */
+/** 点击媒体卡片 → 进入媒体详情 */
+function handleMediaCardClick(media: MediaItem) {
+  const id = media.tmdb_id || media.id;
+  if (!id) return;
+  const t = normalizeMediaType(media.media_type || media.type);
+  router.push({
+    name: 'MediaDetail',
+    query: { id: String(id), type: t },
+  });
+}
+
+/** 点击「搜索资源」→ 触发种子搜索 */
 async function handleMediaSearch(media: MediaItem) {
   displayMode.value = 'torrent';
   results.value = [];
   loading.value = true;
+  setSearchKeyword(media.title);
   startProgressPoll();
   try {
     await webSearchApi({
@@ -412,12 +494,11 @@ async function handleMediaSearch(media: MediaItem) {
   }
 }
 
-/** 高级搜索：直接搜索种子 */
 async function handleAdvancedSearch() {
   if (!advancedForm.value.name.trim()) return;
   advancedModalVisible.value = false;
   displayMode.value = 'torrent';
-  keyword.value = advancedForm.value.name;
+  setSearchKeyword(advancedForm.value.name);
   results.value = [];
   loading.value = true;
   startProgressPoll();
@@ -439,6 +520,7 @@ async function handleAdvancedSearch() {
 async function loadSearchResults() {
   loading.value = true;
   results.value = [];
+  torrentLimits.value = {};
   try {
     const res: any = await getSearchResultApi();
     const searchData = res?.result || {};
@@ -504,37 +586,46 @@ function handleKeydown(e: KeyboardEvent) {
 
 onMounted(() => {
   startSSE();
-  const s = route.query.s as string;
-  const from = route.query.from as string;
-  if (s) {
-    keyword.value = s;
-    if (from === 'discovery' || from === 'detail' || from === 'subscription') {
-      displayMode.value = 'torrent';
-      results.value = [];
-      loading.value = true;
-      loadSearchResults().then(() => {
-        if (results.value.length === 0) {
-          startProgressPoll();
-        }
-      });
-    } else if (from === 'global-search' || !from) {
-      handleSearch();
-    } else {
-      displayMode.value = 'torrent';
-      results.value = [];
-      loading.value = true;
-      startProgressPoll();
-      webSearchApi({ search_word: s }).catch((error: any) => {
-        loading.value = false;
-        stopProgressPoll();
-        notification.error('搜索失败', {
-          description: error?.message || '未知错误',
+  // 若后端存在正在进行的搜索，优先恢复进度显示，避免展示上一次的旧结果
+  resumeOngoingSearch().then((resumed) => {
+    if (resumed) return;
+
+    const s = route.query.s as string;
+    const from = route.query.from as string;
+    if (s) {
+      setSearchKeyword(s);
+      if (
+        from === 'discovery' ||
+        from === 'detail' ||
+        from === 'subscription'
+      ) {
+        displayMode.value = 'torrent';
+        results.value = [];
+        loading.value = true;
+        loadSearchResults().then(() => {
+          if (results.value.length === 0) {
+            startProgressPoll();
+          }
         });
-      });
+      } else if (from === 'global-search' || !from) {
+        handleSearch();
+      } else {
+        displayMode.value = 'torrent';
+        results.value = [];
+        loading.value = true;
+        startProgressPoll();
+        webSearchApi({ search_word: s }).catch((error: any) => {
+          loading.value = false;
+          stopProgressPoll();
+          notification.error('搜索失败', {
+            description: error?.message || '未知错误',
+          });
+        });
+      }
+    } else {
+      loadSearchResults();
     }
-  } else {
-    loadSearchResults();
-  }
+  });
 });
 
 onUnmounted(() => {
@@ -744,6 +835,57 @@ function filteredTorrentDict(
     .filter(([, seDict]) => Object.keys(seDict).length > 0);
 }
 
+// 每个分组默认渲染的种子数量，避免一次性渲染上千条导致卡顿
+const TORRENT_PAGE_SIZE = 30;
+const torrentLimits = ref<Record<string, number>>({});
+
+function groupKey(itemKey: string, seKey: string, gKey: string): string {
+  return `${itemKey}|${seKey}|${gKey}`;
+}
+
+/** 将分组内所有 unique 的种子扁平化为一个列表 */
+function flattenGroupTorrents(group: GroupItem): TorrentItem[] {
+  const list: TorrentItem[] = [];
+  for (const unique of Object.values(group.group_torrents)) {
+    list.push(...unique.torrent_list);
+  }
+  return list;
+}
+
+/** 返回当前分组应渲染的种子（受分页限制） */
+function visibleGroupTorrents(
+  itemKey: string,
+  seKey: string,
+  gKey: string,
+  group: GroupItem,
+): TorrentItem[] {
+  const all = flattenGroupTorrents(group);
+  const limit = torrentLimits.value[groupKey(itemKey, seKey, gKey)];
+  if (limit == null) return all.slice(0, TORRENT_PAGE_SIZE);
+  return all.slice(0, limit);
+}
+
+function groupTorrentTotal(group: GroupItem): number {
+  return flattenGroupTorrents(group).length;
+}
+
+function remainingGroupTorrents(
+  itemKey: string,
+  seKey: string,
+  gKey: string,
+  group: GroupItem,
+): number {
+  const total = groupTorrentTotal(group);
+  const shown = visibleGroupTorrents(itemKey, seKey, gKey, group).length;
+  return Math.max(total - shown, 0);
+}
+
+function showMoreTorrents(itemKey: string, seKey: string, gKey: string): void {
+  const key = groupKey(itemKey, seKey, gKey);
+  const current = torrentLimits.value[key] ?? TORRENT_PAGE_SIZE;
+  torrentLimits.value[key] = current + TORRENT_PAGE_SIZE;
+}
+
 // 下载模态框
 async function openDownloadModal(torrentId: string) {
   downloadTorrentId.value = torrentId;
@@ -894,7 +1036,7 @@ async function confirmDownload() {
             v-for="media in mediaResults"
             :key="media.id"
             class="cursor-pointer relative rounded-lg overflow-hidden shadow-sm hover:shadow-md transition"
-            @click="handleMediaSearch(media)"
+            @click="handleMediaCardClick(media)"
           >
             <div style="aspect-ratio: 2/3; background: hsl(var(--muted))">
               <img
@@ -973,7 +1115,7 @@ async function confirmDownload() {
                 type="error"
                 ghost
                 round
-                @click.stop="handleMediaUnsubscribe(media)"
+                @click.stop="handleMediaSubscribedClick(media)"
               >
                 <template #icon>
                   <IconifyIcon icon="lucide:heart" style="fill: currentcolor" />
@@ -1260,7 +1402,10 @@ async function confirmDownload() {
                   {{ seTuple[0] }}
                 </div>
 
-                <NCollapse :default-expanded-names="['0']">
+                <NCollapse
+                  :default-expanded-names="['0']"
+                  display-directive="if"
+                >
                   <NCollapseItem
                     v-for="(group, gKey, gIdx) in seTuple[1]"
                     :key="gKey"
@@ -1284,116 +1429,142 @@ async function confirmDownload() {
 
                     <div class="torrent-items">
                       <div
-                        v-for="(unique, uKey) in group.group_torrents"
-                        :key="uKey"
+                        v-for="torrent in visibleGroupTorrents(
+                          item.key,
+                          seTuple[0],
+                          String(gKey),
+                          group,
+                        )"
+                        :key="torrent.id"
+                        class="torrent-row"
                       >
-                        <div
-                          v-for="torrent in unique.torrent_list"
-                          :key="torrent.id"
-                          class="torrent-row"
-                        >
-                          <div class="torrent-main">
-                            <div class="torrent-header">
-                              <span
-                                v-if="
-                                  getFreeBadgeText(
-                                    torrent.uploadvalue,
-                                    torrent.downloadvalue,
-                                  )
-                                "
-                                class="free-badge-inline"
-                                :style="
-                                  getFreeBadgeStyle(
-                                    torrent.uploadvalue,
-                                    torrent.downloadvalue,
-                                  )
-                                "
-                                >{{
-                                  getFreeBadgeText(
-                                    torrent.uploadvalue,
-                                    torrent.downloadvalue,
-                                  )
-                                }}</span
-                              >
-                              <span
-                                class="torrent-name"
-                                @click="openDownloadModal(torrent.id)"
-                                >{{ torrent.torrent_name }}</span
-                              >
-                            </div>
-                            <div
-                              v-if="torrent.description"
-                              class="torrent-desc"
+                        <div class="torrent-main">
+                          <div class="torrent-header">
+                            <span
+                              v-if="
+                                getFreeBadgeText(
+                                  torrent.uploadvalue,
+                                  torrent.downloadvalue,
+                                )
+                              "
+                              class="free-badge-inline"
+                              :style="
+                                getFreeBadgeStyle(
+                                  torrent.uploadvalue,
+                                  torrent.downloadvalue,
+                                )
+                              "
+                              >{{
+                                getFreeBadgeText(
+                                  torrent.uploadvalue,
+                                  torrent.downloadvalue,
+                                )
+                              }}</span
                             >
-                              <IconifyIcon
-                                icon="lucide:quote"
-                                class="size-3 shrink-0"
-                              />
-                              <span>{{ torrent.description }}</span>
-                            </div>
-                            <div class="torrent-tags">
-                              <span class="tag tag-site">{{
-                                torrent.site
-                              }}</span>
-                              <span
-                                v-if="torrent.video_encode"
-                                class="tag tag-video"
-                                >{{ torrent.video_encode }}</span
-                              >
-                              <span
-                                v-if="torrent.reseffect"
-                                class="tag tag-effect"
-                                >{{ torrent.reseffect }}</span
-                              >
-                              <span
-                                v-if="Number(torrent.size) > 0"
-                                class="tag tag-size"
-                                >{{ torrent.size }}</span
-                              >
-                              <span
-                                v-if="torrent.releasegroup"
-                                class="tag tag-group"
-                                >{{ torrent.releasegroup }}</span
-                              >
-                              <span
-                                v-if="torrent.seeders"
-                                class="tag tag-seeders"
-                              >
-                                <IconifyIcon
-                                  icon="lucide:arrow-up"
-                                  class="size-3"
-                                />{{ torrent.seeders }}
-                              </span>
-                            </div>
-                          </div>
-                          <div class="torrent-actions">
-                            <NButton
-                              size="tiny"
-                              type="primary"
+                            <span
+                              class="torrent-name"
                               @click="openDownloadModal(torrent.id)"
+                              >{{ torrent.torrent_name }}</span
+                            >
+                          </div>
+                          <div v-if="torrent.description" class="torrent-desc">
+                            <IconifyIcon
+                              icon="lucide:quote"
+                              class="size-3 shrink-0"
+                            />
+                            <span>{{ torrent.description }}</span>
+                          </div>
+                          <div class="torrent-tags">
+                            <span class="tag tag-site">{{ torrent.site }}</span>
+                            <span
+                              v-if="torrent.video_encode"
+                              class="tag tag-video"
+                              >{{ torrent.video_encode }}</span
+                            >
+                            <span
+                              v-if="torrent.reseffect"
+                              class="tag tag-effect"
+                              >{{ torrent.reseffect }}</span
+                            >
+                            <span
+                              v-if="Number(torrent.size) > 0"
+                              class="tag tag-size"
+                              >{{ torrent.size }}</span
+                            >
+                            <span
+                              v-if="torrent.releasegroup"
+                              class="tag tag-group"
+                              >{{ torrent.releasegroup }}</span
+                            >
+                            <span
+                              v-if="torrent.seeders"
+                              class="tag tag-seeders"
                             >
                               <IconifyIcon
-                                icon="lucide:download"
+                                icon="lucide:arrow-up"
+                                class="size-3"
+                              />{{ torrent.seeders }}
+                            </span>
+                          </div>
+                        </div>
+                        <div class="torrent-actions">
+                          <NButton
+                            size="tiny"
+                            type="primary"
+                            @click="openDownloadModal(torrent.id)"
+                          >
+                            <IconifyIcon
+                              icon="lucide:download"
+                              class="size-4"
+                            />
+                          </NButton>
+                          <NDropdown
+                            :options="getTorrentDropdownOptions(torrent)"
+                            trigger="click"
+                            @select="
+                              (key: string) =>
+                                handleTorrentDropdown(torrent, key)
+                            "
+                          >
+                            <NButton size="tiny" quaternary circle>
+                              <IconifyIcon
+                                icon="lucide:more-vertical"
                                 class="size-4"
                               />
                             </NButton>
-                            <NDropdown
-                              :options="getTorrentDropdownOptions(torrent)"
-                              trigger="click"
-                              @select="
-                                (key: string) =>
-                                  handleTorrentDropdown(torrent, key)
-                              "
-                            >
-                              <NButton size="tiny" quaternary circle>
-                                <IconifyIcon
-                                  icon="lucide:more-vertical"
-                                  class="size-4"
-                                />
-                              </NButton>
-                            </NDropdown>
-                          </div>
+                          </NDropdown>
                         </div>
+                      </div>
+                      <div
+                        v-if="
+                          remainingGroupTorrents(
+                            item.key,
+                            seTuple[0],
+                            String(gKey),
+                            group,
+                          ) > 0
+                        "
+                        class="torrent-show-more"
+                      >
+                        <NButton
+                          size="small"
+                          quaternary
+                          block
+                          @click="
+                            showMoreTorrents(item.key, seTuple[0], String(gKey))
+                          "
+                        >
+                          显示更多（剩余
+                          {{
+                            remainingGroupTorrents(
+                              item.key,
+                              seTuple[0],
+                              String(gKey),
+                              group,
+                            )
+                          }}
+                          条）
+                        </NButton>
                       </div>
                     </div>
                   </NCollapseItem>
@@ -1847,6 +2018,10 @@ async function confirmDownload() {
   flex-direction: column;
   gap: 0.5rem;
   padding: 0.5rem 0;
+}
+
+.torrent-show-more {
+  padding-top: 0.25rem;
 }
 
 .torrent-row {

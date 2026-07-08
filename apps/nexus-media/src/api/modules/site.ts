@@ -130,6 +130,23 @@ export async function testSiteApi(id: number) {
   return requestClient.post('/site/sites/test', { id: String(id) });
 }
 
+export interface SiteBatchTestResult {
+  flag: boolean;
+  id: string;
+  msg: string;
+  times: number;
+}
+
+/** 批量测试站点连接（不抛异常，返回每个站点结果） */
+export async function testSiteBatchApi(ids: Array<number | string>) {
+  return requestClient.post<SiteBatchTestResult[]>(
+    '/site/sites/test_batch',
+    { ids: ids.map(String) },
+    // 后端并发测试多个站点，单站最长 ~15s，放宽超时避免整体请求超时
+    { timeout: 300_000 },
+  );
+}
+
 /** 执行签到 */
 export async function signinSiteApi(id?: number) {
   return requestClient.post('/site/sites/signin', {

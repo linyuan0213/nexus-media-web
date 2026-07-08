@@ -14,6 +14,7 @@ import {
   addSubscriptionMediaApi,
   deleteSubscriptionApi,
   getDefaultSubscriptionSettingApi,
+  removeSubscriptionApi,
 } from '#/api/modules/subscription';
 import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.vue';
 import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
@@ -59,6 +60,10 @@ const typeLabel = computed(() => {
 
 const subscribed = computed(() => _fav.value === '1');
 const inLibrary = computed(() => _fav.value === '2');
+const isTvType = computed(() => {
+  const t = (props.mediaType || props.type || '').toLowerCase();
+  return t !== 'movie';
+});
 
 const mediaId = computed(() => String(props.tmdbId || props.id));
 
@@ -79,7 +84,8 @@ function handleSearch(e: Event) {
 
 function handleSubscribe(e: Event) {
   e.stopPropagation();
-  if (subscribed.value && _rssid.value) {
+  // 电影已订阅 → 取消订阅；电视剧已订阅 → 仍打开季选择框以追加其他季
+  if (subscribed.value && !isTvType.value && _rssid.value) {
     unsubscribing.value = true;
     return;
   }
@@ -88,7 +94,7 @@ function handleSubscribe(e: Event) {
     tmdbid: mediaId.value,
     title: props.title,
     year: props.year || '',
-    type: (props.mediaType || props.type || 'movie').toLowerCase(),
+    type: isTvType.value ? 'tv' : 'movie',
     image: props.poster,
     overview: props.overview,
   };
@@ -109,13 +115,19 @@ async function confirmUnsubscribe() {
   }
 }
 
-async function handleConfirmSubscribe(seasons: number[]) {
+async function handleConfirmSubscribe(payload: {
+  add: number[];
+  autoMode: boolean;
+  remove: number[];
+  selected: number[];
+}) {
   const it = subscribeItem.value;
   if (!it) return;
+  const { add, remove, selected } = payload;
   try {
     const typeParam = it.type === 'movie' ? 'movie' : 'tv';
-    if (typeParam === 'tv' && seasons.length > 0) {
-      for (const season of seasons) {
+    if (typeParam === 'tv') {
+      for (const season of add) {
         await addSubscriptionMediaApi({
           name: it.title,
           year: it.year || '',
@@ -124,9 +136,22 @@ async function handleConfirmSubscribe(seasons: number[]) {
           season: String(season),
         });
       }
-      _fav.value = '1';
-      notification.success('订阅成功', {
-        description: `${it.title} 已订阅 ${seasons.length} 季`,
+      for (const season of remove) {
+        await removeSubscriptionApi({
+          name: it.title,
+          year: it.year || '',
+          type: 'tv',
+          tmdbid: String(it.tmdbid || it.id),
+          season: String(season),
+        });
+      }
+      _fav.value = selected.length > 0 ? '1' : '0';
+      if (selected.length === 0) _rssid.value = '';
+      const parts: string[] = [];
+      if (add.length > 0) parts.push(`订阅 ${add.length} 季`);
+      if (remove.length > 0) parts.push(`退订 ${remove.length} 季`);
+      notification.success('操作成功', {
+        description: `${it.title} 已${parts.join('、')}`,
       });
     } else {
       const res: any = await addSubscriptionMediaApi({
@@ -142,7 +167,7 @@ async function handleConfirmSubscribe(seasons: number[]) {
       });
     }
   } catch (error: any) {
-    notification.error('订阅失败', { description: error?.message || '' });
+    notification.error('操作失败', { description: error?.message || '' });
   } finally {
     subscribeShow.value = false;
   }

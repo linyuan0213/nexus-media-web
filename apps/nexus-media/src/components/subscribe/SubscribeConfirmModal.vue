@@ -1,9 +1,18 @@
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue';
 
-import { NButton, NCard, NCheckbox, NModal, NSpace, NSpin } from 'naive-ui';
+import {
+  NButton,
+  NCard,
+  NCheckbox,
+  NModal,
+  NSpace,
+  NSpin,
+  NTag,
+} from 'naive-ui';
 
 import { getTvSeasonListApi } from '#/api/modules/media';
+import { getSubscribedSeasonsApi } from '#/api/modules/subscription';
 import { getImgUrl } from '#/utils/image';
 
 export interface SubscribeConfirmItem {
@@ -23,7 +32,15 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:show', v: boolean): void;
-  (e: 'confirm', seasons: number[], autoMode: boolean): void;
+  (
+    e: 'confirm',
+    payload: {
+      add: number[];
+      autoMode: boolean;
+      remove: number[];
+      selected: number[];
+    },
+  ): void;
   (e: 'edit'): void;
 }>();
 
@@ -37,6 +54,7 @@ const seasons = ref<
   }>
 >([]);
 const selectedSeasons = ref<number[]>([]);
+const subscribedSeasons = ref<number[]>([]);
 const isTv = computed(() => props.item?.type === 'tv');
 
 watch(
@@ -45,12 +63,22 @@ watch(
     if (visible && props.item) {
       selectedSeasons.value = [];
       seasons.value = [];
+      subscribedSeasons.value = [];
       const tmdbId = props.item.tmdbid || props.item.id;
       if (isTv.value && tmdbId) {
         loading.value = true;
         try {
-          const res: any = await getTvSeasonListApi(tmdbId, props.item.title);
-          const list = Array.isArray(res) ? res : res?.data || [];
+          const [seasonRes, subRes] = await Promise.all([
+            getTvSeasonListApi(tmdbId, props.item.title),
+            getSubscribedSeasonsApi({
+              tmdbid: tmdbId,
+              name: props.item.title,
+              year: props.item.year,
+            }).catch(() => ({ seasons: [] })),
+          ]);
+          const list = Array.isArray(seasonRes)
+            ? seasonRes
+            : (seasonRes as any)?.data || [];
           // 兼容后端两种字段格式：{num,text} 和 {season_number,name,episode_count}
           seasons.value = list
             .map((s: any) => ({
@@ -60,6 +88,10 @@ watch(
             }))
             .filter((s: any) => s.season_number > 0)
             .toSorted((a: any, b: any) => a.season_number - b.season_number);
+          const subList = Array.isArray((subRes as any)?.seasons)
+            ? (subRes as any).seasons
+            : [];
+          subscribedSeasons.value = subList.map(Number);
         } catch {
           /* ignore */
         }
@@ -69,18 +101,41 @@ watch(
         seasons.value = [{ season_number: 1, name: '第一季' }];
       }
       if (isTv.value && seasons.value.length > 0) {
-        selectedSeasons.value = [seasons.value[0]!.season_number];
+        // 已有订阅：预选中已订阅季（可取消或追加）；无订阅：默认选中第一季
+        selectedSeasons.value =
+          subscribedSeasons.value.length > 0
+            ? [...subscribedSeasons.value]
+            : [seasons.value[0]!.season_number];
       }
       loading.value = false;
     }
   },
 );
 
+function isSubscribed(num: number): boolean {
+  return subscribedSeasons.value.includes(num);
+}
+
+const addSeasons = computed(() =>
+  selectedSeasons.value.filter((s) => !subscribedSeasons.value.includes(s)),
+);
+const removeSeasons = computed(() =>
+  subscribedSeasons.value.filter((s) => !selectedSeasons.value.includes(s)),
+);
+const hasChanges = computed(
+  () => addSeasons.value.length > 0 || removeSeasons.value.length > 0,
+);
+
 function handleConfirm(autoMode: boolean) {
-  if (isTv.value && selectedSeasons.value.length === 0) {
+  if (isTv.value && !hasChanges.value) {
     return;
   }
-  emit('confirm', selectedSeasons.value, autoMode);
+  emit('confirm', {
+    add: addSeasons.value,
+    remove: removeSeasons.value,
+    selected: [...selectedSeasons.value],
+    autoMode,
+  });
   emit('update:show', false);
 }
 
@@ -145,14 +200,23 @@ function toggleSeason(num: number) {
 
       <!-- TV 多季选择 -->
       <div v-if="isTv" class="border-t pt-3">
-        <div class="text-sm font-medium mb-2">选择订阅季</div>
+        <div class="text-sm font-medium mb-2">
+          选择订阅季
+          <span class="text-xs text-gray-400 font-normal">
+            （勾选=订阅，取消勾选已订阅季=退订）
+          </span>
+        </div>
         <NSpin :show="loading">
-          <div v-if="seasons.length > 0" class="flex flex-wrap gap-2">
+          <div
+            v-if="seasons.length > 0"
+            class="grid gap-2"
+            style="grid-template-columns: repeat(auto-fill, minmax(130px, 1fr))"
+          >
             <NCard
               v-for="s in seasons"
               :key="s.season_number"
               size="small"
-              class="cursor-pointer transition w-[calc(50%-4px)]"
+              class="cursor-pointer transition"
               :class="[
                 selectedSeasons.includes(s.season_number)
                   ? 'ring-2 ring-blue-500'
@@ -168,8 +232,18 @@ function toggleSeason(num: number) {
                   />
                 </div>
                 <div class="min-w-0 flex-1">
-                  <div class="text-sm font-medium truncate">
-                    第{{ s.season_number }}季
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-sm font-medium truncate">
+                      第{{ s.season_number }}季
+                    </span>
+                    <NTag
+                      v-if="isSubscribed(s.season_number)"
+                      type="warning"
+                      size="tiny"
+                      :bordered="false"
+                    >
+                      已订阅
+                    </NTag>
                   </div>
                   <div v-if="s.episode_count" class="text-xs text-gray-500">
                     {{ s.episode_count }}集
@@ -209,10 +283,10 @@ function toggleSeason(num: number) {
           <NButton
             type="primary"
             size="small"
-            :disabled="isTv && selectedSeasons.length === 0"
+            :disabled="isTv && !hasChanges"
             @click="handleConfirm(true)"
           >
-            确定订阅
+            {{ isTv && removeSeasons.length > 0 ? '保存更改' : '确定订阅' }}
           </NButton>
         </NSpace>
       </div>
