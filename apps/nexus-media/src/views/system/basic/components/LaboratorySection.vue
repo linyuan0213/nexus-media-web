@@ -121,6 +121,16 @@ const emit = defineEmits<{
           </NFormItem>
         </NGridItem>
         <NGridItem span="1">
+          <NFormItem label="启用网页自动化">
+            <NSwitch
+              :value="config['laboratory.chrome_enabled']"
+              @update:value="
+                (v) => emit('updateConfig', 'laboratory.chrome_enabled', v)
+              "
+            />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="1">
           <NFormItem label="网页自动化服务器">
             <NInput
               :value="config['laboratory.chrome_server_host']"

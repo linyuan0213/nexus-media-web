@@ -122,8 +122,7 @@ const summary = computed(() => {
     (sum, i) => sum + (i.message_count || 0),
     0,
   );
-  const avgRatio =
-    items.reduce((sum, i) => sum + parseNumber(i.ratio), 0) / items.length;
+  const avgRatio = totalDownload > 0 ? totalUpload / totalDownload : 0;
   const activeSites = items.filter(
     (i) => parseSize(i.upload) > 0 || parseSize(i.download) > 0,
   ).length;
