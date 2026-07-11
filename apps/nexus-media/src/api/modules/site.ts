@@ -127,7 +127,11 @@ export async function deleteSiteApi(id: number) {
 
 /** 测试站点连通性 */
 export async function testSiteApi(id: number) {
-  return requestClient.post('/site/sites/test', { id: String(id) });
+  return requestClient.post(
+    '/site/sites/test',
+    { id: String(id) },
+    { timeout: 120_000 },
+  );
 }
 
 export interface SiteBatchTestResult {
@@ -149,9 +153,13 @@ export async function testSiteBatchApi(ids: Array<number | string>) {
 
 /** 执行签到 */
 export async function signinSiteApi(id?: number) {
-  return requestClient.post('/site/sites/signin', {
-    id: id == null ? undefined : String(id),
-  });
+  return requestClient.post(
+    '/site/sites/signin',
+    {
+      id: id == null ? undefined : String(id),
+    },
+    { timeout: 120_000 },
+  );
 }
 
 /** 获取站点统计 */
@@ -167,6 +175,7 @@ export async function getSiteStatisticsApi(params?: {
       sort_by: params?.sort_by,
       sort_on: params?.sort_on,
     },
+    { timeout: 120_000 },
   );
 }
 
@@ -216,14 +225,19 @@ export async function refreshSiteStatisticsApi(sites?: string[]) {
   return requestClient.post<{ message: string }>(
     '/site/sites/statistics/refresh',
     { sites },
+    { timeout: 120_000 },
   );
 }
 
 /** 获取站点做种信息 */
 export async function getSiteSeedingApi(name: string) {
-  return requestClient.post<{ dataset: any[] }>('/site/sites/seeding', {
-    name,
-  });
+  return requestClient.post<{ dataset: any[] }>(
+    '/site/sites/seeding',
+    {
+      name,
+    },
+    { timeout: 120_000 },
+  );
 }
 
 /** 获取所有站点图标 */
