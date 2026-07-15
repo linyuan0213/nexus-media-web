@@ -1,5 +1,10 @@
 <script lang="ts" setup>
-import type { SiteForm, SiteItem, SiteSelectOption } from './types';
+import type {
+  SiteDefinition,
+  SiteForm,
+  SiteItem,
+  SiteSelectOption,
+} from './types';
 
 import { computed, onMounted, ref } from 'vue';
 
@@ -11,6 +16,7 @@ import { getDownloadSettingsApi } from '#/api/modules/download';
 import { getFilterGroupsApi } from '#/api/modules/filter';
 import {
   deleteSiteApi,
+  getSiteDefinitionsApi,
   getSiteFaviconsApi,
   getSitesApi,
   saveSiteApi,
@@ -43,6 +49,7 @@ const editingSite = ref<null | SiteForm>(null);
 
 const favicons = ref<Record<string, string>>({});
 const faviconLoadFailed = ref<Record<string, boolean>>({});
+const definitions = ref<SiteDefinition[]>([]);
 const filterGroups = ref<SiteSelectOption[]>([{ label: '默认', value: '' }]);
 const downloadSettings = ref<SiteSelectOption[]>([
   { label: '默认', value: '' },
@@ -325,7 +332,22 @@ async function handleSiteConfigUpdate(site: SiteItem, data: Partial<SiteItem>) {
   }
 }
 
-onMounted(fetchSites);
+async function fetchSiteDefinitions() {
+  try {
+    const res: any = await getSiteDefinitionsApi();
+    const list = Array.isArray(res) ? res : res?.data || [];
+    definitions.value = list;
+  } catch (error: any) {
+    notification.error('获取站点定义失败', {
+      description: error?.message || '',
+    });
+  }
+}
+
+onMounted(() => {
+  fetchSites();
+  fetchSiteDefinitions();
+});
 </script>
 
 <template>
@@ -443,6 +465,7 @@ onMounted(fetchSites);
       ref="editModalRef"
       v-model:show="editModalShow"
       :site="editingSite"
+      :definitions="definitions"
       :filter-groups="filterGroups"
       :download-settings="downloadSettings"
       @update:site="editingSite = $event"
