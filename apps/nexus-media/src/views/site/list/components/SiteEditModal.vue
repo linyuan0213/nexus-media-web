@@ -1,11 +1,12 @@
 <script lang="ts" setup>
-import type { SiteForm, SiteItem } from '../types';
+import type { SiteDefinition, SiteForm, SiteItem } from '../types';
 
 import { computed, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
 import {
+  NAutoComplete,
   NButton,
   NCollapse,
   NCollapseItem,
@@ -25,6 +26,7 @@ import {
 interface Props {
   show: boolean;
   site: null | SiteForm;
+  definitions: SiteDefinition[];
   filterGroups: any[];
   downloadSettings: any[];
 }
@@ -126,6 +128,63 @@ const featureSwitches = computed(() => {
     (s) => !['brush_enable', 'parse', 'statistic_enable'].includes(s.key),
   );
 });
+
+const isNewSite = computed(() => !props.site?.id);
+
+const definitionOptions = computed(() => {
+  return props.definitions.map((d) => ({
+    label: `${d.name} · ${d.domain.replace(/^https?:\/\//, '')}`,
+    value: d.name,
+    domain: d.domain,
+    type: d.type,
+    public: d.public,
+    domain_aliases: d.domain_aliases,
+  }));
+});
+
+const matchedDefinition = computed(() => {
+  if (!props.site?.name) return null;
+  const name = props.site.name.toLowerCase();
+  return (
+    props.definitions.find(
+      (d) => d.name.toLowerCase() === name || d.id.toLowerCase() === name,
+    ) || null
+  );
+});
+
+const domainOptions = computed(() => {
+  if (!matchedDefinition.value) return [];
+  const def = matchedDefinition.value;
+  const urls = [def.domain, ...(def.domain_aliases || [])].map((url) =>
+    /^https?:\/\//.test(url) ? url : `https://${url}`,
+  );
+  const uniqueUrls = [...new Set(urls)];
+  return uniqueUrls.map((url) => ({
+    label: url,
+    value: url,
+  }));
+});
+
+function handleDefinitionChange(name: string) {
+  const def = props.definitions.find((d) => d.name === name || d.id === name);
+  if (!def || !props.site) return;
+  emit('update:site', {
+    ...props.site,
+    name: def.name,
+    signurl: def.domain,
+    public: def.public,
+    site_public: def.public,
+  });
+}
+
+function definitionFilter(pattern: string, option: any) {
+  const p = pattern.toLowerCase();
+  return (
+    option.label.toLowerCase().includes(p) ||
+    option.domain?.toLowerCase().includes(p) ||
+    option.domain_aliases?.some((a: string) => a.toLowerCase().includes(p))
+  );
+}
 
 function updateField<K extends keyof SiteForm>(key: K, value: SiteForm[K]) {
   if (!props.site) return;
@@ -254,6 +313,28 @@ defineExpose({
       <NTabs v-model:value="activeTab" type="line" class="edit-tabs">
         <NTabPane name="basic" tab="基础信息">
           <div class="tab-panel">
+            <NFormItem v-if="isNewSite" label="选择站点">
+              <NSelect
+                :value="site.name"
+                :options="definitionOptions"
+                :filter="definitionFilter"
+                placeholder="请选择站点定义"
+                clearable
+                filterable
+                @update:value="handleDefinitionChange"
+              />
+            </NFormItem>
+            <NFormItem v-else-if="matchedDefinition" label="站点定义">
+              <div class="definition-text">
+                <span class="definition-text-name">{{
+                  matchedDefinition.name
+                }}</span>
+                <span class="definition-text-separator">·</span>
+                <span class="definition-text-domain">{{
+                  matchedDefinition.domain.replace(/^https?:\/\//, '')
+                }}</span>
+              </div>
+            </NFormItem>
             <div class="form-grid-2">
               <NFormItem label="名称" required>
                 <NInput
@@ -271,8 +352,9 @@ defineExpose({
               </NFormItem>
             </div>
             <NFormItem label="站点地址" required>
-              <NInput
+              <NAutoComplete
                 :value="site.signurl"
+                :options="domainOptions"
                 placeholder="https://example.com"
                 @update:value="(v) => updateField('signurl', v)"
               />
@@ -573,6 +655,33 @@ defineExpose({
   font-size: 0.6875rem;
   color: hsl(var(--muted-foreground));
   white-space: nowrap;
+}
+
+.definition-text {
+  display: inline-flex;
+  gap: 0.375rem;
+  align-items: baseline;
+  padding: 0.25rem 0;
+  font-size: 0.875rem;
+}
+
+.definition-text-name {
+  font-weight: 600;
+  color: hsl(var(--card-foreground));
+}
+
+.definition-text-separator {
+  color: hsl(var(--muted-foreground));
+}
+
+.definition-text-domain {
+  color: hsl(var(--muted-foreground));
+}
+
+.aliases-label {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
 }
 
 @media (max-width: 640px) {

@@ -79,6 +79,23 @@ export namespace SiteApi {
   }
 }
 
+/** 站点定义 */
+export interface SiteDefinition {
+  id: string;
+  name: string;
+  domain: string;
+  type: string;
+  public: boolean;
+  domain_aliases: string[];
+  encoding: string;
+  detail_page_url: string;
+}
+
+/** 获取站点定义列表 */
+export async function getSiteDefinitionsApi() {
+  return requestClient.post<SiteDefinition[]>('/site/sites/definitions', {});
+}
+
 /** 获取站点列表 */
 export async function getSitesApi(filter?: {
   basic?: boolean;

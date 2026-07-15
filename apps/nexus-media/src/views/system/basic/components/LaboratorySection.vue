@@ -57,7 +57,7 @@ const emit = defineEmits<{
       </div>
     </template>
     <NForm label-placement="top">
-      <NGrid cols="1 s:1 m:2 l:4" :x-gap="12" :y-gap="8" responsive="screen">
+      <NGrid cols="1 s:1 m:2 l:4" :x-gap="16" :y-gap="16" responsive="screen">
         <NGridItem span="1">
           <NFormItem label="辅助识别">
             <NSwitch
@@ -109,37 +109,59 @@ const emit = defineEmits<{
             />
           </NFormItem>
         </NGridItem>
+      </NGrid>
+
+      <div
+        class="mt-4 mb-2 text-sm font-semibold"
+        style="color: hsl(var(--card-foreground))"
+      >
+        外部服务
+      </div>
+      <NGrid cols="1 s:1 m:2 l:2" :x-gap="16" :y-gap="16" responsive="screen">
         <NGridItem span="1">
-          <NFormItem label="验证码识别服务器">
-            <NInput
-              :value="config['laboratory.ocr_server_host']"
-              placeholder="http://127.0.0.1:9300"
-              @update:value="
-                (v) => emit('updateConfig', 'laboratory.ocr_server_host', v)
-              "
-            />
-          </NFormItem>
+          <div class="flex flex-col gap-4">
+            <NFormItem label="启用验证码识别服务器" class="mb-0">
+              <NSwitch
+                :value="config['laboratory.ocr_enabled']"
+                @update:value="
+                  (v) => emit('updateConfig', 'laboratory.ocr_enabled', v)
+                "
+              />
+            </NFormItem>
+            <NFormItem label="验证码识别服务器" class="mb-0">
+              <NInput
+                :value="config['laboratory.ocr_server_host']"
+                placeholder="http://127.0.0.1:9300"
+                :disabled="!config['laboratory.ocr_enabled']"
+                @update:value="
+                  (v) => emit('updateConfig', 'laboratory.ocr_server_host', v)
+                "
+              />
+            </NFormItem>
+          </div>
         </NGridItem>
         <NGridItem span="1">
-          <NFormItem label="启用网页自动化">
-            <NSwitch
-              :value="config['laboratory.chrome_enabled']"
-              @update:value="
-                (v) => emit('updateConfig', 'laboratory.chrome_enabled', v)
-              "
-            />
-          </NFormItem>
-        </NGridItem>
-        <NGridItem span="1">
-          <NFormItem label="网页自动化服务器">
-            <NInput
-              :value="config['laboratory.chrome_server_host']"
-              placeholder="http://127.0.0.1:9850"
-              @update:value="
-                (v) => emit('updateConfig', 'laboratory.chrome_server_host', v)
-              "
-            />
-          </NFormItem>
+          <div class="flex flex-col gap-4">
+            <NFormItem label="启用网页自动化" class="mb-0">
+              <NSwitch
+                :value="config['laboratory.chrome_enabled']"
+                @update:value="
+                  (v) => emit('updateConfig', 'laboratory.chrome_enabled', v)
+                "
+              />
+            </NFormItem>
+            <NFormItem label="网页自动化服务器" class="mb-0">
+              <NInput
+                :value="config['laboratory.chrome_server_host']"
+                placeholder="http://127.0.0.1:9850"
+                :disabled="!config['laboratory.chrome_enabled']"
+                @update:value="
+                  (v) =>
+                    emit('updateConfig', 'laboratory.chrome_server_host', v)
+                "
+              />
+            </NFormItem>
+          </div>
         </NGridItem>
       </NGrid>
     </NForm>
