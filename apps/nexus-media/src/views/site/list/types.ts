@@ -68,3 +68,14 @@ export interface SiteSelectOption {
   label: string;
   value: string;
 }
+
+export interface SiteDefinition {
+  id: string;
+  name: string;
+  domain: string;
+  type: string;
+  public: boolean;
+  domain_aliases: string[];
+  encoding: string;
+  detail_page_url: string;
+}

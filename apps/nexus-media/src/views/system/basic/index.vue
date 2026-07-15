@@ -179,7 +179,9 @@ function saveLaboratory() {
       'laboratory.tmdb_cache_expire',
       'laboratory.use_douban_titles',
       'laboratory.search_multi_language',
+      'laboratory.ocr_enabled',
       'laboratory.ocr_server_host',
+      'laboratory.chrome_enabled',
       'laboratory.chrome_server_host',
     ]),
   );
