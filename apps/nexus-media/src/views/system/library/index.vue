@@ -22,7 +22,7 @@ import {
   useMessage,
 } from 'naive-ui';
 
-import { setSystemConfigApi } from '#/api';
+import { getScraperConfigApi, setScraperConfigApi } from '#/api';
 import {
   addMediaLibraryPathApi,
   getMediaLibraryConfigApi,
@@ -143,12 +143,109 @@ const scraperConfig = ref({
 });
 
 async function saveScraper() {
-  await setSystemConfigApi(
-    'UserScraperConf',
-    JSON.stringify(scraperConfig.value),
-  );
+  await setScraperConfigApi(scraperConfig.value);
   scraperModal.value = false;
   message.success('刮削设置已保存');
+}
+
+function setScraperKeys(
+  obj: Record<string, boolean>,
+  keys: string[],
+  value: boolean,
+) {
+  keys.forEach((key) => {
+    obj[key] = value;
+  });
+}
+
+function setAllMovieNfo(value: boolean) {
+  setScraperKeys(
+    scraperConfig.value.scraper_nfo.movie,
+    ['basic', 'credits', 'credits_chinese'],
+    value,
+  );
+}
+
+function setAllTvNfo(value: boolean) {
+  setScraperKeys(
+    scraperConfig.value.scraper_nfo.tv,
+    [
+      'basic',
+      'credits',
+      'credits_chinese',
+      'season_basic',
+      'episode_basic',
+      'episode_credits',
+    ],
+    value,
+  );
+}
+
+function setAllMoviePic(value: boolean) {
+  setScraperKeys(
+    scraperConfig.value.scraper_pic.movie,
+    ['poster', 'backdrop', 'background', 'logo', 'disc', 'banner', 'thumb'],
+    value,
+  );
+}
+
+function setAllTvPicMain(value: boolean) {
+  setScraperKeys(
+    scraperConfig.value.scraper_pic.tv,
+    ['poster', 'backdrop', 'background', 'logo', 'clearart', 'banner', 'thumb'],
+    value,
+  );
+}
+
+function setAllTvPicSeason(value: boolean) {
+  setScraperKeys(
+    scraperConfig.value.scraper_pic.tv,
+    ['season_poster', 'season_banner', 'season_thumb'],
+    value,
+  );
+}
+
+function setAllTvPicEpisode(value: boolean) {
+  setScraperKeys(scraperConfig.value.scraper_pic.tv, ['episode_thumb'], value);
+}
+
+async function loadScraperConfig() {
+  try {
+    const raw = await getScraperConfigApi();
+    if (!raw) return;
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!parsed || typeof parsed !== 'object') return;
+    const defaults = scraperConfig.value;
+    scraperConfig.value = {
+      scraper_nfo: {
+        movie: {
+          ...defaults.scraper_nfo.movie,
+          ...parsed?.scraper_nfo?.movie,
+        },
+        tv: {
+          ...defaults.scraper_nfo.tv,
+          ...parsed?.scraper_nfo?.tv,
+        },
+      },
+      scraper_pic: {
+        movie: {
+          ...defaults.scraper_pic.movie,
+          ...parsed?.scraper_pic?.movie,
+        },
+        tv: {
+          ...defaults.scraper_pic.tv,
+          ...parsed?.scraper_pic?.tv,
+        },
+      },
+    };
+  } catch {
+    // 使用默认配置
+  }
+}
+
+async function openScraperModal() {
+  await loadScraperConfig();
+  scraperModal.value = true;
 }
 
 // 路径选择器
@@ -275,7 +372,10 @@ async function confirmDelete() {
   message.success('删除成功');
 }
 
-onMounted(fetch);
+onMounted(() => {
+  fetch();
+  loadScraperConfig();
+});
 </script>
 
 <template>
@@ -291,7 +391,7 @@ onMounted(fetch);
           </template>
           刷新
         </NButton>
-        <NButton size="small" @click="scraperModal = true">
+        <NButton size="small" @click="openScraperModal">
           <template #icon>
             <IconifyIcon icon="lucide:image" class="h-4 w-4" />
           </template>
@@ -489,9 +589,29 @@ onMounted(fetch);
       <NTabs type="line">
         <NTabPane name="nfo" tab="元数据">
           <div class="space-y-4">
-            <div>
-              <div class="font-medium mb-2">电影</div>
-              <NSpace>
+            <div class="scraper-section">
+              <div class="scraper-section-header">
+                <div class="scraper-section-title">电影</div>
+                <div class="flex gap-2">
+                  <NButton
+                    text
+                    size="tiny"
+                    type="primary"
+                    @click="setAllMovieNfo(true)"
+                  >
+                    全选
+                  </NButton>
+                  <NButton
+                    text
+                    size="tiny"
+                    type="primary"
+                    @click="setAllMovieNfo(false)"
+                  >
+                    清空
+                  </NButton>
+                </div>
+              </div>
+              <div class="scraper-grid">
                 <NCheckbox
                   v-model:checked="scraperConfig.scraper_nfo.movie.basic"
                 >
@@ -509,11 +629,31 @@ onMounted(fetch);
                 >
                   演职人员中文
                 </NCheckbox>
-              </NSpace>
+              </div>
             </div>
-            <div>
-              <div class="font-medium mb-2">电视剧</div>
-              <NSpace>
+            <div class="scraper-section">
+              <div class="scraper-section-header">
+                <div class="scraper-section-title">电视剧</div>
+                <div class="flex gap-2">
+                  <NButton
+                    text
+                    size="tiny"
+                    type="primary"
+                    @click="setAllTvNfo(true)"
+                  >
+                    全选
+                  </NButton>
+                  <NButton
+                    text
+                    size="tiny"
+                    type="primary"
+                    @click="setAllTvNfo(false)"
+                  >
+                    清空
+                  </NButton>
+                </div>
+              </div>
+              <div class="scraper-grid">
                 <NCheckbox v-model:checked="scraperConfig.scraper_nfo.tv.basic">
                   基础信息
                 </NCheckbox>
@@ -542,117 +682,197 @@ onMounted(fetch);
                 >
                   集-演职人员
                 </NCheckbox>
-              </NSpace>
+              </div>
             </div>
           </div>
         </NTabPane>
         <NTabPane name="pic" tab="图片">
           <div class="space-y-4">
-            <div>
-              <div class="font-medium mb-2">电影图片</div>
-              <NSpace>
+            <div class="scraper-section">
+              <div class="scraper-section-header">
+                <div class="scraper-section-title">电影图片</div>
+                <div class="flex gap-2">
+                  <NButton
+                    text
+                    size="tiny"
+                    type="primary"
+                    @click="setAllMoviePic(true)"
+                  >
+                    全选
+                  </NButton>
+                  <NButton
+                    text
+                    size="tiny"
+                    type="primary"
+                    @click="setAllMoviePic(false)"
+                  >
+                    清空
+                  </NButton>
+                </div>
+              </div>
+              <div class="scraper-grid">
                 <NCheckbox
                   v-model:checked="scraperConfig.scraper_pic.movie.poster"
                 >
-                  poster
+                  海报
                 </NCheckbox>
                 <NCheckbox
                   v-model:checked="scraperConfig.scraper_pic.movie.backdrop"
                 >
-                  fanart
+                  背景图
                 </NCheckbox>
                 <NCheckbox
                   v-model:checked="scraperConfig.scraper_pic.movie.background"
                 >
-                  background
+                  背景
                 </NCheckbox>
                 <NCheckbox
                   v-model:checked="scraperConfig.scraper_pic.movie.logo"
                 >
-                  logo
+                  Logo
                 </NCheckbox>
                 <NCheckbox
                   v-model:checked="scraperConfig.scraper_pic.movie.disc"
                 >
-                  disc
+                  光盘
                 </NCheckbox>
                 <NCheckbox
                   v-model:checked="scraperConfig.scraper_pic.movie.banner"
                 >
-                  banner
+                  横幅
                 </NCheckbox>
                 <NCheckbox
                   v-model:checked="scraperConfig.scraper_pic.movie.thumb"
                 >
-                  thumb
+                  缩略图
                 </NCheckbox>
-              </NSpace>
+              </div>
             </div>
-            <div>
-              <div class="font-medium mb-2">电视剧图片</div>
-              <NSpace>
+            <div class="scraper-section">
+              <div class="scraper-section-header">
+                <div class="scraper-section-title">电视剧图片</div>
+                <div class="flex gap-2">
+                  <NButton
+                    text
+                    size="tiny"
+                    type="primary"
+                    @click="setAllTvPicMain(true)"
+                  >
+                    全选
+                  </NButton>
+                  <NButton
+                    text
+                    size="tiny"
+                    type="primary"
+                    @click="setAllTvPicMain(false)"
+                  >
+                    清空
+                  </NButton>
+                </div>
+              </div>
+              <div class="scraper-grid">
                 <NCheckbox
                   v-model:checked="scraperConfig.scraper_pic.tv.poster"
                 >
-                  poster
+                  海报
                 </NCheckbox>
                 <NCheckbox
                   v-model:checked="scraperConfig.scraper_pic.tv.backdrop"
                 >
-                  fanart
+                  背景图
                 </NCheckbox>
                 <NCheckbox
                   v-model:checked="scraperConfig.scraper_pic.tv.background"
                 >
-                  background
+                  背景
                 </NCheckbox>
                 <NCheckbox v-model:checked="scraperConfig.scraper_pic.tv.logo">
-                  logo
+                  Logo
                 </NCheckbox>
                 <NCheckbox
                   v-model:checked="scraperConfig.scraper_pic.tv.clearart"
                 >
-                  clearart
+                  透明图
                 </NCheckbox>
                 <NCheckbox
                   v-model:checked="scraperConfig.scraper_pic.tv.banner"
                 >
-                  banner
+                  横幅
                 </NCheckbox>
                 <NCheckbox v-model:checked="scraperConfig.scraper_pic.tv.thumb">
-                  thumb
+                  缩略图
                 </NCheckbox>
-              </NSpace>
+              </div>
             </div>
-            <div>
-              <div class="font-medium mb-2">电视剧-季图片</div>
-              <NSpace>
+            <div class="scraper-section">
+              <div class="scraper-section-header">
+                <div class="scraper-section-title">电视剧-季图片</div>
+                <div class="flex gap-2">
+                  <NButton
+                    text
+                    size="tiny"
+                    type="primary"
+                    @click="setAllTvPicSeason(true)"
+                  >
+                    全选
+                  </NButton>
+                  <NButton
+                    text
+                    size="tiny"
+                    type="primary"
+                    @click="setAllTvPicSeason(false)"
+                  >
+                    清空
+                  </NButton>
+                </div>
+              </div>
+              <div class="scraper-grid">
                 <NCheckbox
                   v-model:checked="scraperConfig.scraper_pic.tv.season_poster"
                 >
-                  poster
+                  海报
                 </NCheckbox>
                 <NCheckbox
                   v-model:checked="scraperConfig.scraper_pic.tv.season_banner"
                 >
-                  banner
+                  横幅
                 </NCheckbox>
                 <NCheckbox
                   v-model:checked="scraperConfig.scraper_pic.tv.season_thumb"
                 >
-                  thumb
+                  缩略图
                 </NCheckbox>
-              </NSpace>
+              </div>
             </div>
-            <div>
-              <div class="font-medium mb-2">电视剧-集图片</div>
-              <NSpace>
+            <div class="scraper-section">
+              <div class="scraper-section-header">
+                <div class="scraper-section-title">电视剧-集图片</div>
+                <div class="flex gap-2">
+                  <NButton
+                    text
+                    size="tiny"
+                    type="primary"
+                    @click="setAllTvPicEpisode(true)"
+                  >
+                    全选
+                  </NButton>
+                  <NButton
+                    text
+                    size="tiny"
+                    type="primary"
+                    @click="setAllTvPicEpisode(false)"
+                  >
+                    清空
+                  </NButton>
+                </div>
+              </div>
+              <div class="scraper-grid">
                 <NCheckbox
                   v-model:checked="scraperConfig.scraper_pic.tv.episode_thumb"
                 >
-                  thumb
+                  缩略图
                 </NCheckbox>
-              </NSpace>
+              </div>
             </div>
           </div>
         </NTabPane>
@@ -718,5 +938,43 @@ onMounted(fetch);
 
 .hint-text {
   color: hsl(var(--muted-foreground));
+}
+
+.scraper-section {
+  padding: 1rem;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+}
+
+.scraper-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.scraper-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: hsl(var(--card-foreground));
+}
+
+.scraper-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .scraper-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 768px) {
+  .scraper-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 </style>

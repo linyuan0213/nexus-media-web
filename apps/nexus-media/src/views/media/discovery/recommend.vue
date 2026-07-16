@@ -22,6 +22,9 @@ interface RecommendItem {
   media_type?: string;
   tmdbid?: string;
   rssid?: string;
+  genres?: string[];
+  countries?: string[];
+  languages?: string[];
 }
 
 const route = useRoute();
@@ -215,6 +218,9 @@ watch(
           :overview="item.overview"
           :fav="item.fav"
           :rssid="item.rssid"
+          :genres="item.genres"
+          :countries="item.countries"
+          :languages="item.languages"
           @search="handleSearchFromCard"
         />
       </div>

@@ -99,6 +99,16 @@ export async function getAllSystemConfigApi() {
   return requestClient.post<Record<string, any>>('/system/config/all', {});
 }
 
+/** 获取刮削配置 */
+export async function getScraperConfigApi() {
+  return requestClient.post<Record<string, any>>('/system/config/scraper', {});
+}
+
+/** 设置刮削配置 */
+export async function setScraperConfigApi(data: Record<string, any>) {
+  return requestClient.post('/system/config/scraper/save', data);
+}
+
 /** 获取系统日志 */
 export async function getSystemLogsApi(
   level?: string,

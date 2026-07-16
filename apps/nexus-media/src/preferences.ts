@@ -12,6 +12,7 @@ export const overridesPreferences = defineOverridesPreferences({
     accessMode: 'mixed',
     defaultHomePath: '/dashboard/home',
     enableRefreshToken: true,
+    preferencesButtonPosition: 'header',
   },
   logo: {
     enable: true,

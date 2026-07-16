@@ -32,6 +32,9 @@ interface Props {
   overview?: string;
   fav?: string;
   rssid?: string;
+  genres?: string[];
+  countries?: string[];
+  languages?: string[];
 }
 
 const props = defineProps<Props>();
@@ -66,6 +69,15 @@ const isTvType = computed(() => {
 });
 
 const mediaId = computed(() => String(props.tmdbId || props.id));
+
+const metaTags = computed(() => {
+  const tags = [
+    ...(props.genres || []),
+    ...(props.countries || []),
+    ...(props.languages || []),
+  ];
+  return tags.filter(Boolean).slice(0, 4);
+});
 
 function goDetail() {
   const t = props.mediaType || props.type || 'movie';
@@ -290,10 +302,33 @@ function onImgError(e: Event) {
 
     <div
       class="absolute bottom-0 left-0 right-0 p-2 text-white"
-      style="background: linear-gradient(transparent, rgb(0 0 0 / 75%))"
+      style="
+        text-shadow: 0 1px 3px rgb(0 0 0 / 80%);
+        background: linear-gradient(
+          transparent 0%,
+          rgb(0 0 0 / 35%) 40%,
+          rgb(0 0 0 / 75%) 100%
+        );
+      "
     >
-      <div class="text-sm font-bold truncate">{{ title }}</div>
-      <div v-if="year" class="text-xs mt-0.5">{{ year }}</div>
+      <div
+        class="text-sm font-bold line-clamp-2 text-center"
+        style="min-height: 2.5em"
+      >
+        {{ title }}{{ year ? `（${year}）` : '' }}
+      </div>
+      <div
+        v-if="metaTags.length > 0"
+        class="mt-1 text-center"
+        style="min-height: 2em"
+      >
+        <span
+          class="text-[10px] leading-tight line-clamp-2"
+          style="color: rgb(255 255 255 / 80%)"
+        >
+          {{ metaTags.join(' · ') }}
+        </span>
+      </div>
     </div>
 
     <div
