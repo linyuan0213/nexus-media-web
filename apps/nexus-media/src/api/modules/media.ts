@@ -38,6 +38,7 @@ export namespace MediaApi {
     page?: number;
     source?: string;
     tmdbid?: number;
+    params?: Record<string, any>;
   }
 }
 

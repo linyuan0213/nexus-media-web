@@ -96,12 +96,11 @@ const filteredLogs = computed(() => {
 });
 
 function scrollToBottom() {
-  if (!autoScroll.value || !listRef.value) return;
+  if (!listRef.value) return;
   nextTick(() => {
+    if (!autoScroll.value || !listRef.value) return;
     const el = listRef.value;
-    if (el) {
-      el.scrollTop = el.scrollHeight;
-    }
+    el.scrollTop = el.scrollHeight;
   });
 }
 

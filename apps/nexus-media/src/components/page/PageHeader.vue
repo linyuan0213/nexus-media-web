@@ -55,16 +55,17 @@ const hasSubtitle = computed(() => !!props.subtitle);
 
 @media (max-width: 640px) {
   .page-header {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .page-header-actions {
-    width: 100%;
+    width: auto;
   }
 
   .page-header-actions > * {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
   }
 }
 </style>

@@ -1487,7 +1487,9 @@ async function confirmDownload() {
                               >{{ torrent.reseffect }}</span
                             >
                             <span
-                              v-if="Number(torrent.size) > 0"
+                              v-if="
+                                torrent.size !== '' && torrent.size !== '0B'
+                              "
                               class="tag tag-size"
                               >{{ torrent.size }}</span
                             >
@@ -2126,8 +2128,8 @@ async function confirmDownload() {
 }
 
 .tag-size {
-  color: hsl(var(--muted-foreground));
-  background: hsl(var(--muted) / 30%);
+  color: hsl(var(--tag-dolby));
+  background: hsl(var(--tag-dolby) / 12%);
 }
 
 .tag-group {

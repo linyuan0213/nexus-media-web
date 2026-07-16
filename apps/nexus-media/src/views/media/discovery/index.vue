@@ -2,7 +2,9 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import { NButton, NModal, NProgress, NSpin } from 'naive-ui';
+import { IconifyIcon } from '@vben/icons';
+
+import { NButton, NModal, NPopover, NProgress, NSpin } from 'naive-ui';
 
 import { getRecommendApi, webSearchApi } from '#/api';
 import { getProgressApi } from '#/api/modules/system';
@@ -26,6 +28,9 @@ interface RecommendItem {
   tmdbid?: string;
   doubanid?: string;
   rssid?: string;
+  genres?: string[];
+  countries?: string[];
+  languages?: string[];
 }
 
 interface CategoryConfig {
@@ -33,6 +38,7 @@ interface CategoryConfig {
   subtype: string;
   title: string;
   week?: string;
+  params?: Record<string, any>;
 }
 
 const route = useRoute();
@@ -46,6 +52,133 @@ const singleHasMore = ref(true);
 const singleLoadingMore = ref(false);
 const sentinelRef = ref<HTMLDivElement | null>(null);
 let observer: IntersectionObserver | null = null;
+const selectedGenre = ref('');
+const selectedCountry = ref('');
+const selectedLanguage = ref('');
+const selectedYear = ref('');
+
+const priorityCountries = [
+  '中国大陆',
+  '中国香港',
+  '中国台湾',
+  '中国澳门',
+  '美国',
+  '日本',
+  '韩国',
+  '英国',
+  '法国',
+  '德国',
+  '加拿大',
+  '澳大利亚',
+  '印度',
+  '泰国',
+  '俄罗斯',
+];
+
+const priorityLanguages = [
+  '中文',
+  '英语',
+  '日语',
+  '韩语',
+  '法语',
+  '德语',
+  '西班牙语',
+  '意大利语',
+  '俄语',
+  '葡萄牙语',
+  '阿拉伯语',
+  '泰语',
+  '印地语',
+];
+
+function sortByPriority(items: string[], priority: string[]) {
+  const order = new Map(priority.map((v, i) => [v, i]));
+  return items.toSorted((a, b) => {
+    if (a === '其他') return 1;
+    if (b === '其他') return -1;
+    const pa = order.get(a);
+    const pb = order.get(b);
+    if (pa !== undefined && pb !== undefined) return pa - pb;
+    if (pa !== undefined) return -1;
+    if (pb !== undefined) return 1;
+    return a.localeCompare(b, 'zh-CN');
+  });
+}
+
+const allGenres = computed(() => {
+  const genres = new Set<string>();
+  Object.values(categoryItems.value).forEach((items) => {
+    items.forEach((item: any) => {
+      (item.genres || []).forEach((g: string) => genres.add(g));
+    });
+  });
+  return [...genres].toSorted((a, b) => {
+    if (a === '其他') return 1;
+    if (b === '其他') return -1;
+    return a.localeCompare(b, 'zh-CN');
+  });
+});
+
+const allCountries = computed(() => {
+  const countries = new Set<string>();
+  Object.values(categoryItems.value).forEach((items) => {
+    items.forEach((item: any) => {
+      (item.countries || []).forEach((c: string) => countries.add(c));
+    });
+  });
+  return sortByPriority([...countries], priorityCountries);
+});
+
+const allLanguages = computed(() => {
+  const languages = new Set<string>();
+  Object.values(categoryItems.value).forEach((items) => {
+    items.forEach((item: any) => {
+      (item.languages || []).forEach((l: string) => languages.add(l));
+    });
+  });
+  return sortByPriority([...languages], priorityLanguages);
+});
+
+const allYears = computed(() => {
+  const years = new Set<string>();
+  Object.values(categoryItems.value).forEach((items) => {
+    items.forEach((item: any) => {
+      if (item.year) years.add(String(item.year));
+    });
+  });
+  return [...years].toSorted((a, b) => Number(b) - Number(a));
+});
+
+function filterItems(items: RecommendItem[]) {
+  if (
+    !selectedGenre.value &&
+    !selectedCountry.value &&
+    !selectedLanguage.value &&
+    !selectedYear.value
+  )
+    return items;
+  return items.filter((item: any) => {
+    const genres = item.genres || [];
+    const countries = item.countries || [];
+    const languages = item.languages || [];
+    const year = item.year ? String(item.year) : '';
+    if (selectedGenre.value && !genres.includes(selectedGenre.value))
+      return false;
+    if (selectedCountry.value && !countries.includes(selectedCountry.value))
+      return false;
+    if (selectedLanguage.value && !languages.includes(selectedLanguage.value))
+      return false;
+    if (selectedYear.value && year !== selectedYear.value) return false;
+    return true;
+  });
+}
+
+const activeFilterCount = computed(
+  () =>
+    Number(!!selectedCountry.value) +
+    Number(!!selectedLanguage.value) +
+    Number(!!selectedYear.value),
+);
 
 // 搜索进度模态框状态
 const searchModalVisible = ref(false);
@@ -302,6 +435,172 @@ onMounted(() => {
       </template>
     </PageHeader>
 
+    <div class="flex items-start gap-2 mb-4 genre-tabs-wrapper">
+      <div
+        class="flex items-center gap-6 overflow-x-auto pb-2 genre-tabs"
+        style="scroll-snap-type: x mandatory"
+      >
+        <button
+          v-for="g in ['', ...allGenres]"
+          :key="g || 'all'"
+          class="genre-tab relative whitespace-nowrap text-sm transition-colors"
+          :class="{ active: selectedGenre === g }"
+          style="flex-shrink: 0; padding: 6px 0; scroll-snap-align: start"
+          @click="selectedGenre = g"
+        >
+          {{ g || '全部' }}
+        </button>
+      </div>
+      <NPopover
+        placement="bottom-start"
+        trigger="click"
+        :show-arrow="false"
+        style="padding: 0"
+      >
+        <template #trigger>
+          <button
+            class="genre-tab relative whitespace-nowrap text-sm transition-colors flex items-center gap-1"
+            style="padding: 6px 0"
+          >
+            <IconifyIcon
+              icon="lucide:filter"
+              style="width: 14px; height: 14px"
+            />
+            筛选
+            <span
+              v-if="activeFilterCount > 0"
+              class="text-xs px-1.5 py-0 rounded-full"
+              :style="{
+                backgroundColor: 'hsl(var(--primary))',
+                color: 'hsl(var(--primary-foreground))',
+              }"
+            >
+              {{ activeFilterCount }}
+            </span>
+          </button>
+        </template>
+        <div
+          class="p-3"
+          style="width: 300px; max-height: 50vh; overflow-y: auto"
+        >
+          <div class="mb-4">
+            <div class="text-sm font-medium mb-2">地区</div>
+            <div
+              class="grid gap-2"
+              style="grid-template-columns: repeat(2, 1fr)"
+            >
+              <div
+                class="flex items-center justify-center px-2 py-2 rounded-lg cursor-pointer transition-colors text-sm text-center"
+                :style="
+                  selectedCountry === ''
+                    ? {
+                        backgroundColor: 'hsl(var(--accent))',
+                        color: 'hsl(var(--accent-foreground))',
+                      }
+                    : {}
+                "
+                @click="selectedCountry = ''"
+              >
+                <span>全部</span>
+              </div>
+              <div
+                v-for="c in allCountries"
+                :key="c"
+                class="flex items-center justify-center px-2 py-2 rounded-lg cursor-pointer transition-colors text-sm text-center"
+                :style="
+                  selectedCountry === c
+                    ? {
+                        backgroundColor: 'hsl(var(--accent))',
+                        color: 'hsl(var(--accent-foreground))',
+                      }
+                    : {}
+                "
+                @click="selectedCountry = c"
+              >
+                <span>{{ c }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="mb-4">
+            <div class="text-sm font-medium mb-2">年份</div>
+            <div
+              class="grid gap-2"
+              style="grid-template-columns: repeat(3, 1fr)"
+            >
+              <div
+                class="flex items-center justify-center px-2 py-2 rounded-lg cursor-pointer transition-colors text-sm text-center"
+                :style="
+                  selectedYear === ''
+                    ? {
+                        backgroundColor: 'hsl(var(--accent))',
+                        color: 'hsl(var(--accent-foreground))',
+                      }
+                    : {}
+                "
+                @click="selectedYear = ''"
+              >
+                <span>全部</span>
+              </div>
+              <div
+                v-for="y in allYears"
+                :key="y"
+                class="flex items-center justify-center px-2 py-2 rounded-lg cursor-pointer transition-colors text-sm text-center"
+                :style="
+                  selectedYear === y
+                    ? {
+                        backgroundColor: 'hsl(var(--accent))',
+                        color: 'hsl(var(--accent-foreground))',
+                      }
+                    : {}
+                "
+                @click="selectedYear = y"
+              >
+                <span>{{ y }}</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="text-sm font-medium mb-2">语言</div>
+            <div
+              class="grid gap-2"
+              style="grid-template-columns: repeat(2, 1fr)"
+            >
+              <div
+                class="flex items-center justify-center px-2 py-2 rounded-lg cursor-pointer transition-colors text-sm text-center"
+                :style="
+                  selectedLanguage === ''
+                    ? {
+                        backgroundColor: 'hsl(var(--accent))',
+                        color: 'hsl(var(--accent-foreground))',
+                      }
+                    : {}
+                "
+                @click="selectedLanguage = ''"
+              >
+                <span>全部</span>
+              </div>
+              <div
+                v-for="l in allLanguages"
+                :key="l"
+                class="flex items-center justify-center px-2 py-2 rounded-lg cursor-pointer transition-colors text-sm text-center"
+                :style="
+                  selectedLanguage === l
+                    ? {
+                        backgroundColor: 'hsl(var(--accent))',
+                        color: 'hsl(var(--accent-foreground))',
+                      }
+                    : {}
+                "
+                @click="selectedLanguage = l"
+              >
+                <span>{{ l }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </NPopover>
+    </div>
+
     <!-- 排行榜 / Bangumi：按分类横向滚动 -->
     <template v-if="isRankOrBangumi">
       <div
@@ -333,14 +632,17 @@ onMounted(() => {
         <NSpin :show="loadingMap[`${cfg.subtype}_${cfg.week || ''}`]">
           <div
             v-if="
-              (categoryItems[`${cfg.subtype}_${cfg.week || ''}`] || []).length >
-              0
+              filterItems(
+                categoryItems[`${cfg.subtype}_${cfg.week || ''}`] || [],
+              ).length > 0
             "
             class="flex gap-4 overflow-x-auto pb-2 px-1"
             style="scroll-snap-type: x mandatory"
           >
             <MediaCard
-              v-for="item in categoryItems[`${cfg.subtype}_${cfg.week || ''}`]"
+              v-for="item in filterItems(
+                categoryItems[`${cfg.subtype}_${cfg.week || ''}`] || [],
+              )"
               :key="item.id"
               :id="item.id"
               :tmdb-id="item.tmdbid"
@@ -353,6 +655,9 @@ onMounted(() => {
               :overview="item.overview"
               :fav="item.fav"
               :rssid="item.rssid"
+              :genres="item.genres"
+              :countries="item.countries"
+              :languages="item.languages"
               class="flex-shrink-0"
               style="width: 160px; scroll-snap-align: start"
               @search="handleSearchFromCard"
@@ -367,12 +672,12 @@ onMounted(() => {
     <template v-else>
       <NSpin :show="loadingMap.single">
         <div
-          v-if="(categoryItems.single || []).length > 0"
+          v-if="filterItems(categoryItems.single || []).length > 0"
           class="grid gap-4"
           style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr))"
         >
           <MediaCard
-            v-for="item in categoryItems.single"
+            v-for="item in filterItems(categoryItems.single || [])"
             :key="item.id"
             :id="item.id"
             :tmdb-id="item.tmdbid"
@@ -385,6 +690,9 @@ onMounted(() => {
             :overview="item.overview"
             :fav="item.fav"
             :rssid="item.rssid"
+            :genres="item.genres"
+            :countries="item.countries"
+            :languages="item.languages"
             @search="handleSearchFromCard"
           />
         </div>
@@ -432,6 +740,37 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.genre-tab {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.genre-tab.active {
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.genre-tab.active::after {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 20px;
+  height: 3px;
+  content: '';
+  background-color: hsl(var(--primary));
+  border-radius: 2px;
+  transform: translateX(-50%);
+}
+
+.genre-tabs::-webkit-scrollbar {
+  display: none;
+}
+
 .line-clamp-2 {
   display: -webkit-box;
   overflow: hidden;

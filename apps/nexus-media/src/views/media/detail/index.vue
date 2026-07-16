@@ -298,7 +298,7 @@ watch([() => route.query.id, () => route.query.type], () => {
         style="color: hsl(var(--muted-foreground))"
       >
         <span>未找到媒体信息</span>
-        <NButton size="small" @click="router.push({ name: 'Dashboard' })">
+        <NButton size="small" @click="router.push({ name: 'Home' })">
           返回首页
         </NButton>
       </div>
