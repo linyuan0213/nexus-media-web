@@ -452,6 +452,21 @@ async function doDelete(rule: BrushApi.BrushRule) {
   }
 }
 
+const OP_DISPLAY: Record<string, string> = { bw: '', gt: '>', lt: '<' };
+
+function formatRange(raw: any, unit = ''): string {
+  if (raw === null || raw === undefined || raw === '') return '';
+  const str = String(raw);
+  const idx = str.indexOf('#');
+  if (idx === -1) return `${str}${unit}`;
+  const op = OP_DISPLAY[str.slice(0, idx)] ?? str.slice(0, idx);
+  const val = str
+    .slice(idx + 1)
+    .replace(/^[<>]/, '')
+    .replace(',', '-');
+  return `${op}${val}${unit}`;
+}
+
 function buildRuleSummary(rule: BrushApi.BrushRule) {
   const ruleType = ruleActualType(rule);
   const rss = parseObj(rule.rss_rule);
@@ -474,6 +489,8 @@ function buildRuleSummary(rule: BrushApi.BrushRule) {
   const rssItems: Array<{ icon: string; text: string }> = [];
   if (rss.free) rssItems.push({ icon: 'lucide:tag', text: rss.free });
   if (rss.hr) rssItems.push({ icon: 'lucide:shield-alert', text: '排除HR' });
+  if (rss.exclude_subscribe)
+    rssItems.push({ icon: 'lucide:bell-off', text: '排除订阅' });
   if (rss.include)
     rssItems.push({ icon: 'lucide:search', text: `包含: ${rss.include}` });
   if (rss.exclude)
@@ -488,67 +505,110 @@ function buildRuleSummary(rule: BrushApi.BrushRule) {
       icon: 'lucide:folder-x',
       text: `排除分类: ${rss.category_exclude}`,
     });
-  if (rss.size > 0)
-    rssItems.push({ icon: 'lucide:hard-drive', text: `大小 ${rss.size}GB` });
+  if (rss.label_include)
+    rssItems.push({
+      icon: 'lucide:tags',
+      text: `包含标签: ${rss.label_include}`,
+    });
+  if (rss.label_exclude)
+    rssItems.push({
+      icon: 'lucide:bookmark-x',
+      text: `排除标签: ${rss.label_exclude}`,
+    });
+  const rssSize = rss.size;
+  if (rssSize)
+    rssItems.push({
+      icon: 'lucide:hard-drive',
+      text: `大小${formatRange(rssSize, 'GB')}`,
+    });
   if (rss.peercount)
-    rssItems.push({ icon: 'lucide:users', text: `做种${rss.peercount}` });
+    rssItems.push({
+      icon: 'lucide:users',
+      text: `做种${formatRange(rss.peercount)}`,
+    });
   if (rss.pubdate)
-    rssItems.push({ icon: 'lucide:clock', text: `发布${rss.pubdate}h` });
+    rssItems.push({
+      icon: 'lucide:clock',
+      text: `发布${formatRange(rss.pubdate, 'h')}`,
+    });
+  if (rss.dlcount)
+    rssItems.push({
+      icon: 'lucide:layers',
+      text: `同时下载${rss.dlcount}`,
+    });
+  if (rss.upspeed)
+    rssItems.push({
+      icon: 'lucide:arrow-up',
+      text: `上传限速${rss.upspeed}KB/s`,
+    });
+  if (rss.downspeed)
+    rssItems.push({
+      icon: 'lucide:arrow-down',
+      text: `下载限速${rss.downspeed}KB/s`,
+    });
 
   const removeItems: Array<{ icon: string; text: string }> = [];
+  if (remove.mode)
+    removeItems.push({
+      icon: 'lucide:git-merge',
+      text: `模式: ${remove.mode === 'and' ? '与' : '或'}`,
+    });
   if (remove.time)
-    removeItems.push({ icon: 'lucide:timer', text: `做种${remove.time}h` });
+    removeItems.push({
+      icon: 'lucide:timer',
+      text: `做种${formatRange(remove.time, 'h')}`,
+    });
   if (remove.hr_seedtime)
     removeItems.push({
       icon: 'lucide:shield-alert',
-      text: `HR做种${remove.hr_seedtime}h`,
+      text: `HR做种${formatRange(remove.hr_seedtime, 'h')}`,
     });
   if (remove.seedratio)
     removeItems.push({
       icon: 'lucide:trending-up',
-      text: `分享率${remove.seedratio}`,
+      text: `分享率${formatRange(remove.seedratio)}`,
     });
   if (remove.seedsize)
     removeItems.push({
       icon: 'lucide:upload',
-      text: `上传${remove.seedsize}GB`,
+      text: `上传${formatRange(remove.seedsize, 'GB')}`,
     });
   if (remove.dltime)
     removeItems.push({
       icon: 'lucide:download',
-      text: `下载耗时${remove.dltime}h`,
+      text: `下载耗时${formatRange(remove.dltime, 'h')}`,
     });
   if (remove.avg_upspeed)
     removeItems.push({
       icon: 'lucide:gauge',
-      text: `均速<${remove.avg_upspeed}KB/s`,
+      text: `均速${formatRange(remove.avg_upspeed, 'KB/s')}`,
     });
   if (remove.iatime)
     removeItems.push({
       icon: 'lucide:clock-off',
-      text: `未活动${remove.iatime}h`,
+      text: `未活动${formatRange(remove.iatime, 'h')}`,
     });
   if (remove.pending_time)
     removeItems.push({
       icon: 'lucide:clock',
-      text: `等待${remove.pending_time}h`,
+      text: `等待${formatRange(remove.pending_time, 'h')}`,
     });
   if (remove.freespace)
     removeItems.push({
       icon: 'lucide:hard-drive',
-      text: `磁盘<${remove.freespace}GB`,
+      text: `磁盘${formatRange(remove.freespace, 'GB')}`,
     });
   if (remove.freestatus)
     removeItems.push({ icon: 'lucide:zap', text: 'Free到期删' });
   if (remove.alive_time)
     removeItems.push({
       icon: 'lucide:calendar-clock',
-      text: `存活>${remove.alive_time}h`,
+      text: `存活${formatRange(remove.alive_time, 'h')}`,
     });
   if (remove.upspeed)
     removeItems.push({
       icon: 'lucide:arrow-up',
-      text: `当前上传${remove.upspeed}KB/s`,
+      text: `当前上传${formatRange(remove.upspeed, 'KB/s')}`,
     });
   if (remove.tracker_error)
     removeItems.push({ icon: 'lucide:alert-triangle', text: 'Tracker错误删' });
@@ -557,18 +617,24 @@ function buildRuleSummary(rule: BrushApi.BrushRule) {
   if (stop.stopfree)
     stopItems.push({ icon: 'lucide:pause-circle', text: 'Free到期停' });
   if (stop.ratio)
-    stopItems.push({ icon: 'lucide:divide', text: `分享率>${stop.ratio}` });
+    stopItems.push({
+      icon: 'lucide:divide',
+      text: `分享率${formatRange(stop.ratio)}`,
+    });
   if (stop.uploadsize)
     stopItems.push({
       icon: 'lucide:upload',
-      text: `上传>${stop.uploadsize}GB`,
+      text: `上传${formatRange(stop.uploadsize, 'GB')}`,
     });
   if (stop.seedtime)
-    stopItems.push({ icon: 'lucide:timer', text: `做种>${stop.seedtime}h` });
+    stopItems.push({
+      icon: 'lucide:timer',
+      text: `做种${formatRange(stop.seedtime, 'h')}`,
+    });
   if (stop.avg_upspeed)
     stopItems.push({
       icon: 'lucide:arrow-up',
-      text: `平均上传${stop.avg_upspeed}KB/s`,
+      text: `平均上传${formatRange(stop.avg_upspeed, 'KB/s')}`,
     });
 
   return {
