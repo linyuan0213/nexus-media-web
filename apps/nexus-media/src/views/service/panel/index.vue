@@ -402,8 +402,8 @@ async function fetchSyncPaths() {
     syncPaths.value = Object.entries(data)
       .map(([id, item]: [string, any]) => ({
         id,
-        from: item.from || '',
-        to: item.to || '',
+        from: item.source || '',
+        to: item.dest || '',
         enabled: !!item.enabled,
       }))
       .filter((p) => p.from);

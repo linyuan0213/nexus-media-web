@@ -207,6 +207,15 @@ export async function testDownloaderApi(type: string, config: string) {
   return requestClient.post('/download/downloaders/test', { type, config });
 }
 
+/** 浏览下载器目录（通过下载器 API 读取默认保存路径、分类路径、已有种子路径） */
+export async function browseDownloaderDirsApi(type: string, config: string) {
+  return requestClient.post<{ count: number; items: string[] }>(
+    '/download/downloaders/browse_dirs',
+    { type, config },
+    { timeout: 60_000 },
+  );
+}
+
 /** 检查下载器 */
 export async function checkDownloaderApi(
   did: string,

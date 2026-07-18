@@ -5,27 +5,33 @@
 import { requestClient } from '#/api/request';
 
 export namespace SyncApi {
+  /** 后端 /sync/paths 返回的同步路径配置（见 SyncPathConfig.to_dict） */
   export interface SyncTask {
-    id: number;
-    name: string;
+    id: string;
     source: string;
-    target: string;
+    dest: string;
+    unknown: string;
+    operation: string;
+    src_backend_id: string;
+    dst_backend_id: string;
+    rename: boolean;
+    compatibility: boolean;
+    enabled: boolean;
+  }
+
+  /** /sync/paths/save 请求体（对应后端 AddOrEditSyncPathRequest） */
+  export interface SaveSyncTaskPayload {
+    sid?: number;
+    source: string;
+    dest: string;
+    unknown: string;
     mode: string;
-    status: number;
-    interval: number;
-    // 模板字段（与原始模板兼容）
-    from?: string;
-    to?: string;
-    unknown?: string;
-    enabled?: boolean | number;
-    syncmod_name?: string;
-    syncmod?: string;
-    compatibility?: boolean | number;
-    renamer?: boolean | number;
-    rename?: boolean | number;
-    operation?: string;
-    src_backend?: string;
-    dst_backend?: string;
+    operation: string;
+    src_backend: string;
+    dst_backend: string;
+    compatibility: number;
+    rename: number;
+    enabled: number;
   }
 }
 
@@ -46,7 +52,7 @@ export async function getSyncTasksApi() {
 }
 
 /** 保存同步任务 */
-export async function saveSyncTaskApi(data: Partial<SyncApi.SyncTask>) {
+export async function saveSyncTaskApi(data: SyncApi.SaveSyncTaskPayload) {
   return requestClient.post('/sync/paths/save', data);
 }
 
