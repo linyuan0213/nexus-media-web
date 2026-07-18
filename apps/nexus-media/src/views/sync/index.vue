@@ -63,7 +63,7 @@ const loading = ref(false);
 const syncGroups = computed<SyncGroup[]>(() => {
   const map = new Map<string, SyncTask[]>();
   for (const t of tasks.value) {
-    const key = t.source || t.from || '';
+    const key = t.source || '';
     if (!map.has(key)) map.set(key, []);
     const list = map.get(key);
     if (list) {
@@ -72,7 +72,7 @@ const syncGroups = computed<SyncGroup[]>(() => {
   }
   return [...map.entries()].map(([source, items]) => ({
     source,
-    src_backend: items[0]?.src_backend || 'local',
+    src_backend: items[0]?.src_backend_id || 'local',
     items,
   }));
 });
@@ -171,16 +171,16 @@ function openEdit(item: SyncTask) {
     show: true,
     isEdit: true,
     form: {
-      sid: item.id,
-      source: item.from || item.source || '',
-      dest: item.to || item.target || '',
+      sid: Number(item.id),
+      source: item.source || '',
+      dest: item.dest || '',
       unknown: item.unknown || '',
-      mode: item.syncmod || item.mode || 'copy',
-      operation: item.operation || item.syncmod || item.mode || 'copy',
-      src_backend: item.src_backend || 'local',
-      dst_backend: item.dst_backend || 'local',
+      mode: item.operation || 'copy',
+      operation: item.operation || 'copy',
+      src_backend: item.src_backend_id || 'local',
+      dst_backend: item.dst_backend_id || 'local',
       compatibility: item.compatibility ? 1 : 0,
-      rename: item.rename || item.renamer ? 1 : 0,
+      rename: item.rename ? 1 : 0,
       enabled: item.enabled ? 1 : 0,
     },
   };
@@ -189,11 +189,11 @@ function openEdit(item: SyncTask) {
 async function save() {
   const f = drawer.value.form;
   await saveSyncTaskApi({
-    id: f.sid,
+    sid: f.sid,
     source: f.source,
-    target: f.dest,
+    dest: f.dest,
     unknown: f.unknown,
-    mode: f.mode,
+    mode: f.operation,
     operation: f.operation,
     src_backend: f.src_backend,
     dst_backend: f.dst_backend,
@@ -389,11 +389,12 @@ onMounted(fetch);
                   <span
                     class="inline-flex items-center justify-center px-2 py-0.5 rounded-md text-xs font-semibold text-center"
                     style="width: 80px"
-                    :style="backendTagStyle(item.dst_backend || 'local')"
+                    :style="backendTagStyle(item.dst_backend_id || 'local')"
                   >
                     {{
                       backendOptions.find(
-                        (b: any) => b.value === (item.dst_backend || 'local'),
+                        (b: any) =>
+                          b.value === (item.dst_backend_id || 'local'),
                       )?.label || '本地'
                     }}
                   </span>
@@ -407,7 +408,7 @@ onMounted(fetch);
                       background: hsl(var(--accent));
                     "
                   >
-                    {{ modeLabel(item.operation || item.syncmod || item.mode) }}
+                    {{ modeLabel(item.operation) }}
                   </span>
                 </div>
                 <!-- 状态圆点 -->
@@ -424,9 +425,9 @@ onMounted(fetch);
                 <span
                   class="text-sm truncate font-mono flex-1"
                   style="color: hsl(var(--foreground))"
-                  :title="item.to || item.target"
+                  :title="item.dest"
                 >
-                  {{ item.to || item.target || '自动' }}
+                  {{ item.dest || '自动' }}
                 </span>
               </div>
               <div

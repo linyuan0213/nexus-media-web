@@ -28,6 +28,8 @@ import {
   setDefaultDownloaderApi,
   testDownloaderApi,
 } from '#/api';
+import DownloaderPathPickerModal from '#/components/media/DownloaderPathPickerModal.vue';
+import PathPickerModal from '#/components/media/PathPickerModal.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 
 interface DownloaderItem {
@@ -259,6 +261,40 @@ function addDir() {
 
 function removeDir(index: number) {
   editingDirs.value.splice(index, 1);
+}
+
+// 下载器目录选择器（save_path，来自下载器 API）
+const dlPathPicker = ref({
+  show: false,
+  index: -1,
+});
+
+function openDlPathPicker(index: number) {
+  dlPathPicker.value = { show: true, index };
+}
+
+function handleDlPathConfirm(path: string) {
+  const idx = dlPathPicker.value.index;
+  if (idx >= 0 && editingDirs.value[idx]) {
+    editingDirs.value[idx].save_path = path;
+  }
+}
+
+// 本地目录选择器（container_path，Nexus Media 访问目录）
+const localPathPicker = ref({
+  show: false,
+  index: -1,
+});
+
+function openLocalPathPicker(index: number) {
+  localPathPicker.value = { show: true, index };
+}
+
+function handleLocalPathConfirm(path: string) {
+  const idx = localPathPicker.value.index;
+  if (idx >= 0 && editingDirs.value[idx]) {
+    editingDirs.value[idx].container_path = path;
+  }
 }
 
 function gotoDownloadSetting() {
@@ -806,14 +842,40 @@ onMounted(fetchData);
                   v-model:value="dir.save_path"
                   class="flex-1"
                   size="small"
-                  placeholder="下载保存目录"
-                />
+                  placeholder="下载保存目录（可手动输入或浏览选择）"
+                >
+                  <template #suffix>
+                    <NButton
+                      size="tiny"
+                      text
+                      title="从下载器浏览选择目录"
+                      @click="openDlPathPicker(idx)"
+                    >
+                      <template #icon>
+                        <IconifyIcon icon="lucide:folder-open" class="size-4" />
+                      </template>
+                    </NButton>
+                  </template>
+                </NInput>
                 <NInput
                   v-model:value="dir.container_path"
                   class="flex-1"
                   size="small"
-                  placeholder="Nexus Media访问目录"
-                />
+                  placeholder="Nexus Media访问目录（可手动输入或浏览选择）"
+                >
+                  <template #suffix>
+                    <NButton
+                      size="tiny"
+                      text
+                      title="浏览选择目录"
+                      @click="openLocalPathPicker(idx)"
+                    >
+                      <template #icon>
+                        <IconifyIcon icon="lucide:folder-open" class="size-4" />
+                      </template>
+                    </NButton>
+                  </template>
+                </NInput>
               </div>
             </div>
             <NButton size="small" text @click="addDir">
@@ -854,5 +916,31 @@ onMounted(fetchData);
     >
       确定要删除下载器 <strong>{{ deleteTarget?.name }}</strong> 吗？
     </NModal>
+
+    <!-- 下载器目录选择器 -->
+    <DownloaderPathPickerModal
+      v-model:show="dlPathPicker.show"
+      title="选择下载保存目录"
+      :downloader-type="editingType"
+      :downloader-config="editingConfig"
+      :initial-path="
+        dlPathPicker.index >= 0
+          ? editingDirs[dlPathPicker.index]?.save_path
+          : ''
+      "
+      @confirm="handleDlPathConfirm"
+    />
+
+    <!-- 本地目录选择器（Nexus Media 访问目录） -->
+    <PathPickerModal
+      v-model:show="localPathPicker.show"
+      title="选择访问目录"
+      :initial-path="
+        localPathPicker.index >= 0
+          ? editingDirs[localPathPicker.index]?.container_path
+          : ''
+      "
+      @confirm="handleLocalPathConfirm"
+    />
   </div>
 </template>
