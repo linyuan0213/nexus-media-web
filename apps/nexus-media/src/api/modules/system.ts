@@ -113,7 +113,7 @@ export async function setScraperConfigApi(data: Record<string, any>) {
 export async function getSystemLogsApi(
   level?: string,
   source?: string,
-  limit: number = 200,
+  limit: number = 1000,
 ) {
   return requestClient.post<SystemApi.LogItem[]>('/system/logs', {
     level,

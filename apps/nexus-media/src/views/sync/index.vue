@@ -2,7 +2,7 @@
 import type { StorageApi } from '#/api/modules/storage';
 import type { SyncApi } from '#/api/modules/sync';
 
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
@@ -39,6 +39,9 @@ function onResize() {
 }
 onMounted(() => {
   window.addEventListener('resize', onResize);
+});
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', onResize);
 });
 
 interface SyncTask extends SyncApi.SyncTask {}
@@ -77,8 +80,12 @@ const syncGroups = computed<SyncGroup[]>(() => {
   }));
 });
 
-const enabledCount = computed(
-  () => tasks.value.filter((t) => t.enabled).length,
+function isGroupEnabled(group: SyncGroup) {
+  return group.items.some((i) => i.enabled);
+}
+
+const monitoredCount = computed(
+  () => syncGroups.value.filter((g) => isGroupEnabled(g)).length,
 );
 
 // 抽屉
@@ -218,17 +225,11 @@ function modeLabel(mode?: string) {
   return SYNC_MODES.find((m) => m.value === mode)?.label || mode || '-';
 }
 
-function backendTagStyle(backendId: string) {
-  if (backendId === 'local') {
-    return {
-      background: 'hsl(var(--success) / 0.1)',
-      color: 'hsl(var(--success))',
-    };
-  }
-  return {
-    background: 'hsl(var(--primary) / 0.1)',
-    color: 'hsl(var(--primary))',
-  };
+function backendLabel(backendId: string) {
+  return (
+    backendOptions.value.find((b) => b.value === (backendId || 'local'))
+      ?.label || '本地'
+  );
 }
 
 function openAddDest(group: SyncGroup) {
@@ -267,93 +268,84 @@ onMounted(fetch);
       </template>
     </PageHeader>
 
-    <!-- 统计栏 -->
+    <!-- 概览 -->
     <div
-      class="mt-5 flex items-center gap-6 rounded-xl border px-5 py-3 text-sm"
-      style="background: hsl(var(--card)); border-color: hsl(var(--border))"
+      class="mt-1 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm"
+      style="color: hsl(var(--muted-foreground))"
     >
-      <div class="flex items-center gap-2">
+      <span class="inline-flex items-center gap-1.5">
         <IconifyIcon
           icon="lucide:folder-sync"
           class="size-4"
           style="color: hsl(var(--primary))"
         />
-        <span style="color: hsl(var(--muted-foreground))">
-          共
-          <strong style="color: hsl(var(--foreground))">{{
-            tasks.length
-          }}</strong>
-          个同步目录
-        </span>
-      </div>
-      <div class="flex items-center gap-2">
+        <strong class="font-semibold" style="color: hsl(var(--foreground))">{{
+          syncGroups.length
+        }}</strong>
+        个源目录
+      </span>
+      <span
+        class="hidden sm:inline size-1 rounded-full"
+        style="background: hsl(var(--border))"
+      ></span>
+      <span>{{ tasks.length }} 个目的目录</span>
+      <span
+        class="hidden sm:inline size-1 rounded-full"
+        style="background: hsl(var(--border))"
+      ></span>
+      <span class="inline-flex items-center gap-1.5">
         <span class="size-1.5 rounded-full bg-success"></span>
-        <span style="color: hsl(var(--muted-foreground))">
-          <strong style="color: hsl(var(--success))">{{ enabledCount }}</strong>
-          个正在监控
-        </span>
-      </div>
+        <strong class="font-semibold" style="color: hsl(var(--success))">{{
+          monitoredCount
+        }}</strong>
+        个监控中
+      </span>
     </div>
 
-    <NSpin :show="loading" class="mt-5">
-      <div
-        v-if="syncGroups.length > 0"
-        class="grid grid-cols-1 gap-4 lg:grid-cols-2"
-      >
-        <div
+    <NSpin :show="loading" class="mt-4">
+      <div v-if="syncGroups.length > 0" class="flex flex-col gap-4">
+        <section
           v-for="group in syncGroups"
           :key="group.source"
-          class="rounded-xl border overflow-hidden"
+          class="rounded-lg border overflow-hidden"
           style="background: hsl(var(--card)); border-color: hsl(var(--border))"
         >
-          <!-- 头部 -->
-          <div
-            class="flex items-center justify-between px-5 py-4 border-b"
-            style="border-color: hsl(var(--border))"
+          <!-- 源目录头部 -->
+          <header
+            class="flex items-center gap-3 px-4 sm:px-5 py-3 border-b"
+            style="
+              background: hsl(var(--muted) / 25%);
+              border-color: hsl(var(--border));
+            "
           >
-            <div class="flex items-center gap-3 min-w-0">
-              <div
-                class="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0"
-                :style="{
-                  background: group.items.some((i: any) => i.enabled)
-                    ? 'hsl(var(--success) / 0.1)'
-                    : 'hsl(var(--muted))',
-                }"
-              >
-                <IconifyIcon
-                  icon="lucide:folder-sync"
-                  class="size-4"
-                  :style="{
-                    color: group.items.some((i: any) => i.enabled)
-                      ? 'hsl(var(--success))'
-                      : 'hsl(var(--muted-foreground))',
-                  }"
-                />
-              </div>
-              <div class="min-w-0">
-                <h3
-                  class="text-sm font-semibold truncate"
-                  style="color: hsl(var(--foreground))"
-                >
-                  {{ group.source || '未命名' }}
-                </h3>
-                <p
-                  class="text-xs mt-0.5"
-                  style="color: hsl(var(--muted-foreground))"
-                >
-                  {{ group.items.length }} 个同步配置
-                </p>
-              </div>
-            </div>
-
-            <!-- 状态胶囊 -->
-            <div
-              class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium flex-shrink-0"
+            <IconifyIcon
+              icon="lucide:folder-sync"
+              class="size-4 flex-shrink-0"
               :style="{
-                background: group.items.some((i: any) => i.enabled)
-                  ? 'hsl(var(--success) / 0.1)'
-                  : 'hsl(var(--muted))',
-                color: group.items.some((i: any) => i.enabled)
+                color: isGroupEnabled(group)
+                  ? 'hsl(var(--success))'
+                  : 'hsl(var(--muted-foreground))',
+              }"
+            />
+            <div class="min-w-0 flex-1 flex items-baseline gap-2.5 flex-wrap">
+              <h3
+                class="text-sm font-semibold font-mono truncate"
+                style="color: hsl(var(--foreground))"
+                :title="group.source"
+              >
+                {{ group.source || '未命名' }}
+              </h3>
+              <span
+                class="text-xs flex-shrink-0"
+                style="color: hsl(var(--muted-foreground))"
+              >
+                {{ group.items.length }} 个目的目录
+              </span>
+            </div>
+            <span
+              class="inline-flex items-center gap-1.5 text-xs flex-shrink-0"
+              :style="{
+                color: isGroupEnabled(group)
                   ? 'hsl(var(--success))'
                   : 'hsl(var(--muted-foreground))',
               }"
@@ -361,90 +353,102 @@ onMounted(fetch);
               <span
                 class="size-1.5 rounded-full"
                 :class="
-                  group.items.some((i: any) => i.enabled)
-                    ? 'bg-success'
-                    : 'bg-muted-foreground'
+                  isGroupEnabled(group) ? 'bg-success' : 'bg-muted-foreground'
                 "
               ></span>
-              {{
-                group.items.some((i: any) => i.enabled) ? '监控中' : '已停用'
-              }}
-            </div>
-          </div>
+              {{ isGroupEnabled(group) ? '监控中' : '已停用' }}
+            </span>
+          </header>
 
-          <!-- 配置列表 -->
-          <div>
-            <div
-              v-for="(item, idx) in group.items"
+          <!-- 目的目录列表 -->
+          <ul>
+            <li
+              v-for="item in group.items"
               :key="item.id"
-              class="px-5 py-2.5 flex items-center justify-between gap-3 group hover:bg-accent/30"
-              :style="
-                idx % 2 === 0 ? '' : 'background: hsl(var(--muted) / 0.15)'
-              "
+              class="group flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 sm:px-5 py-2.5 border-b transition-colors hover:bg-accent/40 focus-within:bg-accent/40"
+              style="border-color: hsl(var(--border) / 50%)"
             >
-              <div class="flex items-center gap-3 flex-1 min-w-0">
-                <!-- 固定宽度的标签区域，保证目的目录对齐 -->
-                <div class="flex items-center gap-2 flex-shrink-0">
-                  <!-- 后端标签 -->
-                  <span
-                    class="inline-flex items-center justify-center px-2 py-0.5 rounded-md text-xs font-semibold text-center"
-                    style="width: 80px"
-                    :style="backendTagStyle(item.dst_backend_id || 'local')"
-                  >
-                    {{
-                      backendOptions.find(
-                        (b: any) =>
-                          b.value === (item.dst_backend_id || 'local'),
-                      )?.label || '本地'
-                    }}
-                  </span>
-                  <!-- 同步方式 -->
-                  <span
-                    class="text-xs px-1.5 py-0.5 rounded font-medium text-center"
-                    style="
-                      display: inline-block;
-                      width: 56px;
-                      color: hsl(var(--muted-foreground));
-                      background: hsl(var(--accent));
-                    "
-                  >
-                    {{ modeLabel(item.operation) }}
-                  </span>
-                </div>
-                <!-- 状态圆点 -->
+              <IconifyIcon
+                icon="lucide:corner-down-right"
+                class="size-3.5 flex-shrink-0 hidden sm:block"
+                style="color: hsl(var(--muted-foreground))"
+              />
+              <span
+                class="text-sm font-mono truncate basis-full sm:basis-auto sm:flex-1 min-w-0"
+                :style="{
+                  color: item.enabled
+                    ? 'hsl(var(--foreground))'
+                    : 'hsl(var(--muted-foreground))',
+                }"
+                :title="item.dest"
+              >
+                {{ item.dest || '自动（媒体库目录）' }}
+              </span>
+              <span
+                v-if="!item.enabled"
+                class="text-xs px-1.5 py-0.5 rounded flex-shrink-0"
+                style="
+                  color: hsl(var(--muted-foreground));
+                  background: hsl(var(--muted));
+                "
+              >
+                已停用
+              </span>
+              <span
+                class="inline-flex items-center gap-1.5 text-xs flex-shrink-0"
+                style="color: hsl(var(--muted-foreground))"
+              >
                 <span
-                  v-if="item.enabled"
-                  class="size-1.5 rounded-full bg-success flex-shrink-0"
+                  class="size-1.5 rounded-full"
+                  :style="{
+                    background:
+                      (item.dst_backend_id || 'local') === 'local'
+                        ? 'hsl(var(--success))'
+                        : 'hsl(var(--primary))',
+                  }"
                 ></span>
-                <span
-                  v-else
-                  class="size-1.5 rounded-full flex-shrink-0"
-                  style="visibility: hidden"
-                ></span>
-                <!-- 目的目录 -->
-                <span
-                  class="text-sm truncate font-mono flex-1"
-                  style="color: hsl(var(--foreground))"
-                  :title="item.dest"
-                >
-                  {{ item.dest || '自动' }}
-                </span>
-              </div>
+                {{ backendLabel(item.dst_backend_id || 'local') }}
+              </span>
+              <span
+                class="text-xs px-1.5 py-0.5 rounded flex-shrink-0"
+                style="
+                  color: hsl(var(--muted-foreground));
+                  background: hsl(var(--accent));
+                "
+              >
+                {{ modeLabel(item.operation) }}
+              </span>
               <div
-                class="flex items-center gap-1 flex-shrink-0 opacity-60 group-hover:opacity-100 transition-opacity"
+                class="flex items-center gap-1 flex-shrink-0 ml-auto opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity"
               >
                 <NTooltip>
                   <template #trigger>
-                    <NButton size="tiny" text @click="handleRun(item)">
-                      <IconifyIcon icon="lucide:play" class="size-4" />
+                    <NButton
+                      size="small"
+                      quaternary
+                      circle
+                      aria-label="立即同步"
+                      @click="handleRun(item)"
+                    >
+                      <template #icon>
+                        <IconifyIcon icon="lucide:play" class="size-3.5" />
+                      </template>
                     </NButton>
                   </template>
                   立即同步
                 </NTooltip>
                 <NTooltip>
                   <template #trigger>
-                    <NButton size="tiny" text @click="openEdit(item)">
-                      <IconifyIcon icon="lucide:pencil" class="size-4" />
+                    <NButton
+                      size="small"
+                      quaternary
+                      circle
+                      aria-label="编辑"
+                      @click="openEdit(item)"
+                    >
+                      <template #icon>
+                        <IconifyIcon icon="lucide:pencil" class="size-3.5" />
+                      </template>
                     </NButton>
                   </template>
                   编辑
@@ -452,51 +456,49 @@ onMounted(fetch);
                 <NTooltip>
                   <template #trigger>
                     <NButton
-                      size="tiny"
-                      text
+                      size="small"
+                      quaternary
+                      circle
                       type="error"
+                      aria-label="删除"
                       @click="handleDelete(item)"
                     >
-                      <IconifyIcon icon="lucide:trash-2" class="size-4" />
+                      <template #icon>
+                        <IconifyIcon icon="lucide:trash-2" class="size-3.5" />
+                      </template>
                     </NButton>
                   </template>
                   删除
                 </NTooltip>
               </div>
-            </div>
-          </div>
-
-          <!-- 底部操作 -->
-          <div
-            class="flex items-center justify-end gap-2 px-5 py-3 border-t"
-            style="border-color: hsl(var(--border))"
-          >
-            <NButton size="small" text @click="openAddDest(group)">
-              <template #icon>
-                <IconifyIcon icon="lucide:plus" class="size-4" />
-              </template>
-              添加目的目录
-            </NButton>
-          </div>
-        </div>
+            </li>
+            <!-- 添加目的目录 -->
+            <li>
+              <button
+                type="button"
+                class="w-full flex items-center gap-2 px-4 sm:px-5 py-2.5 text-xs transition-colors hover:bg-accent/40"
+                style="color: hsl(var(--muted-foreground))"
+                @click="openAddDest(group)"
+              >
+                <IconifyIcon icon="lucide:plus" class="size-3.5" />
+                添加目的目录
+              </button>
+            </li>
+          </ul>
+        </section>
       </div>
 
       <!-- 空状态 -->
       <div
         v-else
-        class="rounded-xl border flex flex-col items-center justify-center py-20"
-        style="background: hsl(var(--card)); border-color: hsl(var(--border))"
+        class="rounded-lg border border-dashed flex flex-col items-center justify-center py-20"
+        style="border-color: hsl(var(--border))"
       >
-        <div
-          class="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-          style="background: hsl(var(--muted))"
-        >
-          <IconifyIcon
-            icon="lucide:folder-sync"
-            class="size-8"
-            style="color: hsl(var(--muted-foreground))"
-          />
-        </div>
+        <IconifyIcon
+          icon="lucide:folder-sync"
+          class="size-8 mb-3"
+          style="color: hsl(var(--muted-foreground))"
+        />
         <p class="text-sm mb-4" style="color: hsl(var(--muted-foreground))">
           暂无同步目录
         </p>
