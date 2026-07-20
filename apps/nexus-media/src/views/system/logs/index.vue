@@ -113,7 +113,7 @@ async function fetchLogs() {
     const res = await getSystemLogsApi(
       level.value || undefined,
       source.value || undefined,
-      200,
+      1000,
     );
     const list = Array.isArray(res) ? res : [];
     logs.value = list;
@@ -174,8 +174,8 @@ function startSSE() {
                 logs.value.push(data);
               }
             }
-            if (logs.value.length > 200) {
-              logs.value = logs.value.slice(-200);
+            if (logs.value.length > 1000) {
+              logs.value = logs.value.slice(-1000);
             }
           } catch {
             // ignore invalid sse data
