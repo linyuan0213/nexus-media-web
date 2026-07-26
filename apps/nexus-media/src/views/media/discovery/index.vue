@@ -349,17 +349,21 @@ async function handleSearch(item: RecommendItem, e: Event) {
   searchModalVisible.value = true;
   startSearchProgressPoll();
   try {
-    await webSearchApi({
+    const resp: any = await webSearchApi({
       search_word: item.title,
       tmdbid: item.id,
       media_type: item.media_type || item.type,
     });
+    const sessionId = resp?.session_id || '';
     // 搜索触发成功，持续轮询进度，进度条满后自动关闭并跳转
     const checkAndNavigate = setInterval(() => {
       if (!searchModalVisible.value) {
         clearInterval(checkAndNavigate);
+        const sidParam = sessionId
+          ? `&session_id=${encodeURIComponent(sessionId)}`
+          : '';
         router.push(
-          `/media/search?s=${encodeURIComponent(item.title)}&from=discovery`,
+          `/media/search?s=${encodeURIComponent(item.title)}&from=discovery${sidParam}`,
         );
       }
     }, 500);

@@ -144,7 +144,7 @@ function handleCardClick(item: any) {
   router.push({ name: 'MediaDetail', query: { type: 'tv', id } });
 }
 
-function handleCardSearch(item: any) {
+async function handleCardSearch(item: any) {
   if (!item?.name) {
     notification.warning('缺少名称，无法搜索');
     return;
@@ -152,28 +152,31 @@ function handleCardSearch(item: any) {
   searchModalTitle.value = `正在搜索 ${item.name} ...`;
   searchModalVisible.value = true;
   startSearchProgressPoll();
-  webSearchApi({
-    search_word: item.name,
-    tmdbid: item.tmdbid ? String(item.tmdbid) : undefined,
-    media_type: 'tv',
-  })
-    .then(() => {
-      const checkAndNavigate = setInterval(() => {
-        if (!searchModalVisible.value) {
-          clearInterval(checkAndNavigate);
-          router.push(
-            `/media/search?s=${encodeURIComponent(item.name)}&from=subscription`,
-          );
-        }
-      }, 500);
-    })
-    .catch((error: any) => {
-      stopSearchProgressPoll();
-      searchModalVisible.value = false;
-      notification.error('搜索失败', {
-        description: error?.message || '未知错误',
-      });
+  try {
+    const resp: any = await webSearchApi({
+      search_word: item.name,
+      tmdbid: item.tmdbid ? String(item.tmdbid) : undefined,
+      media_type: 'tv',
     });
+    const sessionId = resp?.session_id || '';
+    const checkAndNavigate = setInterval(() => {
+      if (!searchModalVisible.value) {
+        clearInterval(checkAndNavigate);
+        const sidParam = sessionId
+          ? `&session_id=${encodeURIComponent(sessionId)}`
+          : '';
+        router.push(
+          `/media/search?s=${encodeURIComponent(item.name)}&from=subscription${sidParam}`,
+        );
+      }
+    }, 500);
+  } catch (error: any) {
+    stopSearchProgressPoll();
+    searchModalVisible.value = false;
+    notification.error('搜索失败', {
+      description: error?.message || '未知错误',
+    });
+  }
 }
 
 async function handleCardRefresh(item: any) {

@@ -165,11 +165,11 @@ export async function removeFromLibraryApi(id: number) {
 }
 
 /** 获取搜索结果 */
-export async function getSearchResultApi() {
-  return requestClient.post<{ code: number; data?: Record<string, any> }>(
-    '/media/search/results',
-    {},
-  );
+export async function getSearchResultApi(sessionId?: string) {
+  return requestClient.post<{
+    result: Record<string, any>;
+    total: number;
+  }>('/media/search/results', sessionId ? { session_id: sessionId } : {});
 }
 
 /** WEB搜索（从发现页触发） */
@@ -180,7 +180,9 @@ export async function webSearchApi(params: {
   tmdbid?: string;
   unident?: boolean;
 }) {
-  return requestClient.post('/system/search', params, { timeout: 300_000 });
+  return requestClient.post<{ session_id: string }>('/system/search', params, {
+    timeout: 300_000,
+  });
 }
 
 /** 获取电视剧季列表 */

@@ -343,6 +343,7 @@ const results = ref<SearchResultWithFilter[]>([]);
 const resultCount = ref(0);
 const searchProgress = ref(0);
 const searchProgressText = ref('');
+const searchSessionId = ref('');
 let progressTimer: null | ReturnType<typeof setInterval> = null;
 
 const filterExpanded = ref<Record<string, boolean>>({});
@@ -400,6 +401,7 @@ function startProgressPoll() {
   stopProgressPoll();
   searchProgress.value = 0;
   searchProgressText.value = '正在处理...';
+  resultCount.value = 0;
   loading.value = true;
   progressTimer = setInterval(pollSearchProgress, 3000);
 }
@@ -475,16 +477,16 @@ function handleMediaCardClick(media: MediaItem) {
 /** 点击「搜索资源」→ 触发种子搜索 */
 async function handleMediaSearch(media: MediaItem) {
   displayMode.value = 'torrent';
-  results.value = [];
   loading.value = true;
   setSearchKeyword(media.title);
   startProgressPoll();
   try {
-    await webSearchApi({
+    const resp: any = await webSearchApi({
       search_word: media.title,
       tmdbid: String(media.tmdb_id || media.id || ''),
       media_type: media.type || media.media_type || '',
     });
+    searchSessionId.value = resp?.session_id || '';
   } catch (error: any) {
     loading.value = false;
     stopProgressPoll();
@@ -499,15 +501,15 @@ async function handleAdvancedSearch() {
   advancedModalVisible.value = false;
   displayMode.value = 'torrent';
   setSearchKeyword(advancedForm.value.name);
-  results.value = [];
   loading.value = true;
   startProgressPoll();
   try {
-    await webSearchApi({
+    const resp: any = await webSearchApi({
       search_word: advancedForm.value.name,
       tmdbid: '',
       media_type: advancedForm.value.type,
     });
+    searchSessionId.value = resp?.session_id || '';
   } catch (error: any) {
     loading.value = false;
     stopProgressPoll();
@@ -522,7 +524,9 @@ async function loadSearchResults() {
   results.value = [];
   torrentLimits.value = {};
   try {
-    const res: any = await getSearchResultApi();
+    const res: any = await getSearchResultApi(
+      searchSessionId.value || undefined,
+    );
     const searchData = res?.result || {};
     if (typeof searchData === 'object') {
       results.value = Object.entries(searchData).map(
@@ -592,6 +596,9 @@ onMounted(() => {
 
     const s = route.query.s as string;
     const from = route.query.from as string;
+    const sid = route.query.session_id as string;
+    if (sid) searchSessionId.value = sid;
+
     if (s) {
       setSearchKeyword(s);
       if (
@@ -614,13 +621,17 @@ onMounted(() => {
         results.value = [];
         loading.value = true;
         startProgressPoll();
-        webSearchApi({ search_word: s }).catch((error: any) => {
-          loading.value = false;
-          stopProgressPoll();
-          notification.error('搜索失败', {
-            description: error?.message || '未知错误',
+        webSearchApi({ search_word: s })
+          .then((resp: any) => {
+            searchSessionId.value = resp?.session_id || '';
+          })
+          .catch((error: any) => {
+            loading.value = false;
+            stopProgressPoll();
+            notification.error('搜索失败', {
+              description: error?.message || '未知错误',
+            });
           });
-        });
       }
     } else {
       loadSearchResults();
@@ -1142,8 +1153,29 @@ async function confirmDownload() {
 
     <!-- 种子搜索：进度 + 结果 -->
     <template v-else-if="displayMode === 'torrent'">
-      <!-- 搜索进度提示 -->
-      <div v-if="loading && results.length === 0" class="my-8">
+      <!-- 有旧结果时：顶部内联进度条，保留旧结果列表 -->
+      <div v-if="loading && results.length > 0" class="torrent-progress-inline">
+        <IconifyIcon
+          icon="lucide:loader-circle"
+          class="size-4 animate-spin progress-icon"
+        />
+        <span class="progress-text">
+          正在搜索「{{ keyword }}」<template v-if="searchProgressText">
+            · {{ searchProgressText }}</template
+          >
+        </span>
+        <NProgress
+          type="line"
+          :percentage="searchProgress"
+          processing
+          :show-indicator="false"
+          class="progress-bar"
+        />
+        <span class="progress-pct">{{ searchProgress }}%</span>
+      </div>
+
+      <!-- 无结果时：居中进度提示 -->
+      <div v-else-if="loading" class="my-8">
         <NSpin show>
           <div class="text-center">
             <div class="text-lg mb-2">正在搜索「{{ keyword }}」</div>
@@ -1167,7 +1199,7 @@ async function confirmDownload() {
       </div>
 
       <!-- 搜索结果 -->
-      <NSpin :show="loading && results.length > 0">
+      <div>
         <div v-if="results.length > 0" class="result-list">
           <div v-for="item in results" :key="item.key" class="result-card">
             <div class="result-hero">
@@ -1585,7 +1617,7 @@ async function confirmDownload() {
           title="开始搜索"
           subtitle="请输入关键词开始搜索电影或剧集"
         />
-      </NSpin>
+      </div>
     </template>
 
     <!-- 下载模态框 -->
@@ -1706,6 +1738,53 @@ async function confirmDownload() {
 </template>
 
 <style scoped>
+/* 顶部内联搜索进度条 */
+.torrent-progress-inline {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+}
+
+.torrent-progress-inline .progress-icon {
+  flex-shrink: 0;
+  color: var(--tblr-primary);
+}
+
+.torrent-progress-inline .progress-text {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.torrent-progress-inline .progress-bar {
+  flex: 1;
+  min-width: 6rem;
+}
+
+.torrent-progress-inline .progress-pct {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .torrent-progress-inline {
+    flex-wrap: wrap;
+  }
+
+  .torrent-progress-inline .progress-text {
+    flex-basis: calc(100% - 1.75rem);
+  }
+}
+
 /* Result Card */
 .result-list {
   display: flex;
