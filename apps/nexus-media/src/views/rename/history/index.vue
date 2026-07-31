@@ -620,6 +620,19 @@ onMounted(() => {
                   <span v-if="item.SEASON_EPISODE" class="history-tag">
                     {{ item.SEASON_EPISODE }}
                   </span>
+                  <span
+                    v-if="
+                      item.SEEDS_SEASON &&
+                      item.SEEDS_EPISODE &&
+                      !item.SEASON_EPISODE.includes(
+                        `S${String(item.SEEDS_SEASON)}`,
+                      )
+                    "
+                    class="history-tag history-tag-seeds"
+                    :title="`种子原始: S${item.SEEDS_SEASON}E${item.SEEDS_EPISODE}${item.SEEDS_END_EPISODE ? `-E${item.SEEDS_END_EPISODE}` : ''}`"
+                  >
+                    原始S{{ item.SEEDS_SEASON }}E{{ item.SEEDS_EPISODE }}
+                  </span>
                   <span class="history-mode">{{ getModeLabel(item) }}</span>
                 </div>
                 <div v-if="item.SOURCE_FILENAME" class="history-path truncate">
@@ -1014,6 +1027,13 @@ onMounted(() => {
   color: hsl(var(--primary));
   background-color: hsl(var(--primary) / 10%);
   border-radius: 0.25rem;
+}
+
+.history-tag-seeds {
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
+  cursor: help;
+  background-color: hsl(var(--muted));
 }
 
 .history-mode {

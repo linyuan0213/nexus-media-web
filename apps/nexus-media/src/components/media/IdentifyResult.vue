@@ -13,6 +13,9 @@ interface IdentifyResultData {
   year?: string;
   season?: string;
   episode?: string;
+  seeds_season?: null | number;
+  seeds_episode?: null | number;
+  seeds_end_episode?: null | number;
   tmdbid?: number;
   overview?: string;
   vote_average?: number;
@@ -135,6 +138,26 @@ function handleClose() {
             class="identify-tag identify-tag-season"
           >
             {{ props.result.season }} {{ props.result.episode }}
+          </span>
+          <span
+            v-if="
+              props.result.seeds_season &&
+              props.result.seeds_episode &&
+              (props.result.seeds_season !==
+                (props.result.season
+                  ? Number(props.result.season.replace('S', ''))
+                  : null) ||
+                props.result.seeds_episode !==
+                  (props.result.episode
+                    ? Number(props.result.episode.replace('E', ''))
+                    : null))
+            "
+            class="identify-tag identify-tag-seeds"
+          >
+            S{{ props.result.seeds_season }}E{{ props.result.seeds_episode
+            }}<template v-if="props.result.seeds_end_episode">
+              -E{{ props.result.seeds_end_episode }}</template
+            >
           </span>
           <span
             v-if="props.result.resource_pix"
@@ -337,6 +360,13 @@ function handleClose() {
 .identify-tag-season {
   color: hsl(var(--success));
   background-color: hsl(var(--success) / 10%);
+}
+
+.identify-tag-seeds {
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
+  cursor: help;
+  background-color: hsl(var(--muted));
 }
 
 .identify-tag-pix {

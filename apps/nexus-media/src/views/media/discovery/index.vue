@@ -4,13 +4,11 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { NButton, NModal, NPopover, NProgress, NSpin } from 'naive-ui';
+import { NButton, NPopover, NSpin } from 'naive-ui';
 
-import { getRecommendApi, webSearchApi } from '#/api';
-import { getProgressApi } from '#/api/modules/system';
+import { getRecommendApi } from '#/api';
 import MediaCard from '#/components/media/MediaCard.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
-import { useAppNotification } from '#/utils/notify';
 
 interface RecommendItem {
   id: string;
@@ -43,7 +41,7 @@ interface CategoryConfig {
 
 const route = useRoute();
 const router = useRouter();
-const notification = useAppNotification();
+// notification unused now, removed
 
 const loadingMap = ref<Record<string, boolean>>({});
 const categoryItems = ref<Record<string, RecommendItem[]>>({});
@@ -181,39 +179,6 @@ const activeFilterCount = computed(
 );
 
 // 搜索进度模态框状态
-const searchModalVisible = ref(false);
-const searchModalTitle = ref('');
-const searchModalProgress = ref(0);
-const searchModalText = ref('请稍候...');
-let searchProgressTimer: null | ReturnType<typeof setInterval> = null;
-
-function startSearchProgressPoll() {
-  stopSearchProgressPoll();
-  searchModalProgress.value = 0;
-  searchModalText.value = '正在检索资源...';
-  searchProgressTimer = setInterval(async () => {
-    try {
-      const res: any = await getProgressApi('search');
-      // requestClient 拦截器已自动解包 data，res 直接是 { value, text }
-      if (res) {
-        searchModalProgress.value = Math.min(res.value || 0, 100);
-        searchModalText.value = res.text || '请稍候...';
-        if (searchModalProgress.value >= 100) {
-          stopSearchProgressPoll();
-          searchModalVisible.value = false;
-        }
-      }
-    } catch {}
-  }, 3000);
-}
-
-function stopSearchProgressPoll() {
-  if (searchProgressTimer) {
-    clearInterval(searchProgressTimer);
-    searchProgressTimer = null;
-  }
-}
-
 // 各页面分类配置（key 用 route.name，不受父菜单 path 变化影响）
 const pageCategories: Record<string, CategoryConfig[]> = {
   Ranking: [
@@ -345,31 +310,9 @@ function handleSearchFromCard(item: Record<string, any>) {
 
 async function handleSearch(item: RecommendItem, e: Event) {
   e.stopPropagation();
-  searchModalTitle.value = `正在搜索 ${item.title} ...`;
-  searchModalVisible.value = true;
-  startSearchProgressPoll();
-  try {
-    await webSearchApi({
-      search_word: item.title,
-      tmdbid: item.id,
-      media_type: item.media_type || item.type,
-    });
-    // 搜索触发成功，持续轮询进度，进度条满后自动关闭并跳转
-    const checkAndNavigate = setInterval(() => {
-      if (!searchModalVisible.value) {
-        clearInterval(checkAndNavigate);
-        router.push(
-          `/media/search?s=${encodeURIComponent(item.title)}&from=discovery`,
-        );
-      }
-    }, 500);
-  } catch (error: any) {
-    stopSearchProgressPoll();
-    searchModalVisible.value = false;
-    notification.error('搜索失败', {
-      description: error?.message || '未知错误',
-    });
-  }
+  router.push(
+    `/media/search?s=${encodeURIComponent(item.title)}&from=discovery&tmdbid=${encodeURIComponent(item.id || '')}`,
+  );
 }
 
 watch(
@@ -714,28 +657,6 @@ onMounted(() => {
         >
       </div>
     </template>
-
-    <!-- 搜索进度模态框 -->
-    <NModal
-      v-model:show="searchModalVisible"
-      preset="card"
-      :title="searchModalTitle"
-      style="width: 420px"
-      :mask-closable="false"
-      :closable="false"
-    >
-      <div class="text-center py-2">
-        <NProgress
-          type="line"
-          :percentage="searchModalProgress"
-          processing
-          class="mb-2"
-        />
-        <div class="text-sm text-gray-500">
-          {{ searchModalText }}
-        </div>
-      </div>
-    </NModal>
   </div>
 </template>
 

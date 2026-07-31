@@ -112,17 +112,22 @@ async function handleSearch() {
   if (searching.value) return;
   searching.value = true;
 
-  webSearchApi({
-    search_word: detail.value.title,
-    tmdbid: mediaId.value,
-    media_type: mediaType.value,
-  }).catch(() => {});
+  let sessionId = '';
+  try {
+    const resp: any = await webSearchApi({
+      search_word: detail.value.title,
+      tmdbid: mediaId.value,
+      media_type: mediaType.value,
+    });
+    sessionId = resp?.session_id || '';
+  } catch {}
 
   router.push({
     name: 'MediaSearch',
     query: {
       s: detail.value.title || '',
       from: 'detail',
+      ...(sessionId ? { session_id: sessionId } : {}),
     },
   });
 

@@ -19,12 +19,12 @@ import {
   saveDefaultSubscriptionSettingApi,
   updateSubscriptionApi,
 } from '#/api/modules/subscription';
-import { getProgressApi } from '#/api/modules/system';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 import SubscribeDefaultSettingModal from '#/components/subscribe/SubscribeDefaultSettingModal.vue';
 import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
 import SubscriptionHoverCard from '#/components/subscribe/SubscriptionHoverCard.vue';
+import { useSearchProgress } from '#/composables/useSearchProgress';
 import { useSubscriptionStore } from '#/store';
 import { getImgUrl } from '#/utils/image';
 import { useAppNotification } from '#/utils/notify';
@@ -37,38 +37,15 @@ const loading = ref(false);
 const deleteModalShow = ref(false);
 const deleteTarget = ref<any>(null);
 
-// 资源搜索进度弹窗（与探索页一致）
+// 资源搜索进度弹窗
 const searchModalVisible = ref(false);
 const searchModalTitle = ref('');
-const searchModalProgress = ref(0);
-const searchModalText = ref('请稍候...');
-let searchProgressTimer: null | ReturnType<typeof setInterval> = null;
-
-function startSearchProgressPoll() {
-  stopSearchProgressPoll();
-  searchModalProgress.value = 0;
-  searchModalText.value = '正在检索资源...';
-  searchProgressTimer = setInterval(async () => {
-    try {
-      const res: any = await getProgressApi('search');
-      if (res) {
-        searchModalProgress.value = Math.min(res.value || 0, 100);
-        searchModalText.value = res.text || '请稍候...';
-        if (searchModalProgress.value >= 100) {
-          stopSearchProgressPoll();
-          searchModalVisible.value = false;
-        }
-      }
-    } catch {}
-  }, 3000);
-}
-
-function stopSearchProgressPoll() {
-  if (searchProgressTimer) {
-    clearInterval(searchProgressTimer);
-    searchProgressTimer = null;
-  }
-}
+const {
+  pct: searchModalProgress,
+  text: searchModalText,
+  start: startSearchSSE,
+  stop: stopSearchSSE,
+} = useSearchProgress();
 
 // 站点/规则/下载设置缓存
 const downloadSettings = ref<{ label: string; value: string }[]>([]);
@@ -143,36 +120,41 @@ function handleCardClick(item: any) {
   router.push({ name: 'MediaDetail', query: { type: 'movie', id } });
 }
 
-function handleCardSearch(item: any) {
+async function handleCardSearch(item: any) {
   if (!item?.name) {
     notification.warning('缺少名称，无法搜索');
     return;
   }
   searchModalTitle.value = `正在搜索 ${item.name} ...`;
   searchModalVisible.value = true;
-  startSearchProgressPoll();
-  webSearchApi({
-    search_word: item.name,
-    tmdbid: item.tmdbid ? String(item.tmdbid) : undefined,
-    media_type: 'movie',
-  })
-    .then(() => {
-      const checkAndNavigate = setInterval(() => {
-        if (!searchModalVisible.value) {
-          clearInterval(checkAndNavigate);
-          router.push(
-            `/media/search?s=${encodeURIComponent(item.name)}&from=subscription`,
-          );
-        }
-      }, 500);
-    })
-    .catch((error: any) => {
-      stopSearchProgressPoll();
-      searchModalVisible.value = false;
-      notification.error('搜索失败', {
-        description: error?.message || '未知错误',
-      });
+  try {
+    const resp: any = await webSearchApi({
+      search_word: item.name,
+      tmdbid: item.tmdbid ? String(item.tmdbid) : undefined,
+      media_type: 'movie',
     });
+    const sessionId = resp?.session_id || '';
+    searchModalText.value = '正在检索资源...';
+    startSearchSSE(sessionId, () => {
+      searchModalVisible.value = false;
+    });
+    const checkAndNavigate = setInterval(() => {
+      if (!searchModalVisible.value) {
+        clearInterval(checkAndNavigate);
+        const sidParam = sessionId
+          ? `&session_id=${encodeURIComponent(sessionId)}`
+          : '';
+        router.push(
+          `/media/search?s=${encodeURIComponent(item.name)}&from=subscription${sidParam}`,
+        );
+      }
+    }, 500);
+  } catch (error: any) {
+    searchModalVisible.value = false;
+    notification.error('搜索失败', {
+      description: error?.message || '未知错误',
+    });
+  }
 }
 
 async function handleCardRefresh(item: any) {
@@ -360,7 +342,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  stopSearchProgressPoll();
+  stopSearchSSE();
 });
 </script>
 
