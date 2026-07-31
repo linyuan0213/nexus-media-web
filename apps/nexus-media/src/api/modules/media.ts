@@ -172,6 +172,45 @@ export async function getSearchResultApi(sessionId?: string) {
   }>('/media/search/results', sessionId ? { session_id: sessionId } : {});
 }
 
+/** 订阅搜索进度 SSE */
+export async function subscribeSearchProgressApi(
+  sessionId: string,
+  callbacks: {
+    onEnd?: () => void;
+    onProgress?: (pct: number, text: string) => void;
+  },
+  signal?: AbortSignal,
+) {
+  return requestClient.requestSSE(
+    `/system/search/progress/${sessionId}`,
+    undefined,
+    {
+      method: 'GET',
+      signal,
+      onMessage: (content: string) => {
+        const blocks = content.split('\n\n');
+        for (const block of blocks) {
+          const trimmed = block.trim();
+          if (!trimmed) continue;
+          const lines = trimmed.split('\n');
+          for (const line of lines) {
+            if (!line.startsWith('data:')) continue;
+            const raw = line.slice(5).trim();
+            if (!raw) continue;
+            try {
+              const parsed = JSON.parse(raw);
+              callbacks.onProgress?.(parsed.value ?? 0, parsed.text ?? '');
+            } catch {
+              // ignore parse errors
+            }
+          }
+        }
+      },
+      onEnd: callbacks.onEnd,
+    },
+  );
+}
+
 /** WEB搜索（从发现页触发） */
 export async function webSearchApi(params: {
   filters?: string;
@@ -222,6 +261,9 @@ export interface TransferHistoryItem {
   DATE: string;
   SYNC_MODE?: string;
   RMT_MODE?: string;
+  SEEDS_SEASON?: number;
+  SEEDS_EPISODE?: number;
+  SEEDS_END_EPISODE?: number;
 }
 
 export interface TransferHistoryPageResult {

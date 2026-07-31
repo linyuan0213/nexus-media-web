@@ -2,13 +2,11 @@
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import { NModal, NProgress, NSpin } from 'naive-ui';
+import { NSpin } from 'naive-ui';
 
-import { getRecommendApi, webSearchApi } from '#/api';
-import { getProgressApi } from '#/api/modules/system';
+import { getRecommendApi } from '#/api';
 import MediaCard from '#/components/media/MediaCard.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
-import { useAppNotification } from '#/utils/notify';
 
 interface RecommendItem {
   id: string;
@@ -29,7 +27,6 @@ interface RecommendItem {
 
 const route = useRoute();
 const router = useRouter();
-const notification = useAppNotification();
 
 const items = ref<RecommendItem[]>([]);
 const loading = ref(false);
@@ -41,39 +38,6 @@ const pageTitle = ref(String(route.query.title || '更多推荐'));
 const queryType = ref(String(route.query.type || ''));
 const querySubtype = ref(String(route.query.subtype || ''));
 const queryWeek = ref(String(route.query.week || ''));
-
-// 搜索进度模态框状态
-const searchModalVisible = ref(false);
-const searchModalTitle = ref('');
-const searchModalProgress = ref(0);
-const searchModalText = ref('请稍候...');
-let searchProgressTimer: null | ReturnType<typeof setInterval> = null;
-
-function startSearchProgressPoll() {
-  stopSearchProgressPoll();
-  searchModalProgress.value = 0;
-  searchModalText.value = '正在检索资源...';
-  searchProgressTimer = setInterval(async () => {
-    try {
-      const res: any = await getProgressApi('search');
-      if (res) {
-        searchModalProgress.value = Math.min(res.value || 0, 100);
-        searchModalText.value = res.text || '请稍候...';
-        if (searchModalProgress.value >= 100) {
-          stopSearchProgressPoll();
-          searchModalVisible.value = false;
-        }
-      }
-    } catch {}
-  }, 3000);
-}
-
-function stopSearchProgressPoll() {
-  if (searchProgressTimer) {
-    clearInterval(searchProgressTimer);
-    searchProgressTimer = null;
-  }
-}
 
 async function loadItems(page: number, append = false) {
   if (page === 1) loading.value = true;
@@ -109,34 +73,9 @@ function handleSearchFromCard(item: Record<string, any>) {
 }
 
 async function handleSearch(item: RecommendItem) {
-  searchModalTitle.value = `正在搜索 ${item.title} ...`;
-  searchModalVisible.value = true;
-  startSearchProgressPoll();
-  try {
-    const resp: any = await webSearchApi({
-      search_word: item.title,
-      tmdbid: item.id,
-      media_type: item.media_type || item.type,
-    });
-    const sessionId = resp?.session_id || '';
-    const checkAndNavigate = setInterval(() => {
-      if (!searchModalVisible.value) {
-        clearInterval(checkAndNavigate);
-        const sidParam = sessionId
-          ? `&session_id=${encodeURIComponent(sessionId)}`
-          : '';
-        router.push(
-          `/media/search?s=${encodeURIComponent(item.title)}&from=discovery${sidParam}`,
-        );
-      }
-    }, 500);
-  } catch (error: any) {
-    stopSearchProgressPoll();
-    searchModalVisible.value = false;
-    notification.error('搜索失败', {
-      description: error?.message || '未知错误',
-    });
-  }
+  router.push(
+    `/media/search?s=${encodeURIComponent(item.title)}&from=discovery&tmdbid=${encodeURIComponent(item.id || '')}`,
+  );
 }
 
 // Intersection Observer for infinite scroll
@@ -176,7 +115,6 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  stopSearchProgressPoll();
   if (observer) {
     observer.disconnect();
     observer = null;
@@ -243,27 +181,5 @@ watch(
         >已加载全部</span
       >
     </div>
-
-    <!-- 搜索进度模态框 -->
-    <NModal
-      v-model:show="searchModalVisible"
-      preset="card"
-      :title="searchModalTitle"
-      style="width: 420px"
-      :mask-closable="false"
-      :closable="false"
-    >
-      <div class="text-center py-2">
-        <NProgress
-          type="line"
-          :percentage="searchModalProgress"
-          processing
-          class="mb-2"
-        />
-        <div class="text-sm text-muted-foreground">
-          {{ searchModalText }}
-        </div>
-      </div>
-    </NModal>
   </div>
 </template>
