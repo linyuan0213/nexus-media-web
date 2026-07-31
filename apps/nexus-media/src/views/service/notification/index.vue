@@ -197,9 +197,8 @@ function handleEdit(row: MessageClient) {
 }
 
 function handleReset() {
-  editingConfig.value = {};
-  editingSwitches.value = [];
-  editingTemplateMap.value = {};
+  // 仅恢复默认消息模板，保留用户已填写的渠道配置和推送开关
+  initTemplateMap();
   message.success('已重置');
 }
 
