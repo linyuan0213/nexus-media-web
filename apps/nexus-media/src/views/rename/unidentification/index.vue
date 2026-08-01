@@ -158,12 +158,14 @@ async function handleIdentify(item: any) {
     return;
   }
   identifyLoading.value = true;
+  identifyShow.value = true;
+  identifyResult.value = {};
   try {
     const { nameTestApi } = await import('#/api/modules/media');
     const res = await nameTestApi(filename);
     identifyResult.value = res || {};
-    identifyShow.value = true;
   } catch (error: any) {
+    identifyShow.value = false;
     notification.error('识别失败', { description: error?.message || '' });
   } finally {
     identifyLoading.value = false;

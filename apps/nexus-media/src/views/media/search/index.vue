@@ -617,9 +617,10 @@ onMounted(() => {
       from === 'subscription'
     ) {
       const tmdbId = (route.query.tmdbid as string) || '';
+      const mediaType = (route.query.media_type as string) || '';
       displayMode.value = 'torrent';
       loading.value = true;
-      webSearchApi({ search_word: s, tmdbid: tmdbId })
+      webSearchApi({ search_word: s, tmdbid: tmdbId, media_type: mediaType })
         .then((resp: any) => {
           searchSessionId.value = resp?.session_id || '';
           if (searchSessionId.value)
@@ -671,12 +672,13 @@ watch(
     const s = q.s as string;
     const from = q.from as string;
     const tmdbId = (q.tmdbid as string) || '';
+    const mediaType = (q.media_type as string) || '';
     if (!s) return;
     setSearchKeyword(s);
     if (from === 'discovery' || from === 'detail' || from === 'subscription') {
       displayMode.value = 'torrent';
       loading.value = true;
-      webSearchApi({ search_word: s, tmdbid: tmdbId })
+      webSearchApi({ search_word: s, tmdbid: tmdbId, media_type: mediaType })
         .then((resp: any) => {
           searchSessionId.value = resp?.session_id || '';
           if (searchSessionId.value)

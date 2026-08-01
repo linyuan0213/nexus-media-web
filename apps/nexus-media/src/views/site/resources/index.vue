@@ -14,8 +14,10 @@ import {
   getIndexersApi,
   resolveDownloadUrlApi,
 } from '#/api/modules/download';
+import { nameTestApi } from '#/api/modules/media';
 import { getSiteFaviconsApi, getSiteResourcesApi } from '#/api/modules/site';
 import EmptyState from '#/components/empty/EmptyState.vue';
+import IdentifyResult from '#/components/media/IdentifyResult.vue';
 import { useDownloadEventStream } from '#/composables/useDownloadEventStream';
 import { useAppNotification } from '#/utils/notify';
 
@@ -47,6 +49,28 @@ const downloadDirs = ref<Array<{ label: string; value: string }>>([
 ]);
 const selectedDownloadSetting = ref('');
 const selectedDownloadDir = ref('');
+
+const identifyResult = ref<Record<string, any>>({});
+const identifyLoading = ref(false);
+const showIdentify = ref(false);
+
+async function handleIdentify(item: ResourceItem) {
+  if (!item.title) return;
+  identifyLoading.value = true;
+  showIdentify.value = true;
+  identifyResult.value = {};
+  try {
+    const res: any = await nameTestApi(
+      item.title,
+      item.description || undefined,
+    );
+    identifyResult.value = res?.data ?? res ?? {};
+  } catch {
+    showIdentify.value = false;
+  } finally {
+    identifyLoading.value = false;
+  }
+}
 
 async function fetchSites() {
   loading.value = true;
@@ -395,6 +419,7 @@ onUnmounted(() => {
               :item="item"
               :favicons="favicons"
               @download="openDownloadModal"
+              @identify="handleIdentify"
               @open-url="handleOpenUrl"
             />
           </div>
@@ -406,6 +431,7 @@ onUnmounted(() => {
               :item="item"
               :favicons="favicons"
               @download="openDownloadModal"
+              @identify="handleIdentify"
               @open-url="handleOpenUrl"
             />
           </div>
@@ -452,6 +478,12 @@ onUnmounted(() => {
       :dirs="downloadDirs"
       @setting-change="onDownloadSettingChange"
       @confirm="confirmDownload"
+    />
+
+    <IdentifyResult
+      v-model:show="showIdentify"
+      :loading="identifyLoading"
+      :result="identifyResult"
     />
   </div>
 </template>

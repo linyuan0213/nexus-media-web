@@ -43,7 +43,6 @@ const searchModalTitle = ref('');
 const {
   pct: searchModalProgress,
   text: searchModalText,
-  start: startSearchSSE,
   stop: stopSearchSSE,
 } = useSearchProgress();
 
@@ -125,8 +124,6 @@ async function handleCardSearch(item: any) {
     notification.warning('缺少名称，无法搜索');
     return;
   }
-  searchModalTitle.value = `正在搜索 ${item.name} ...`;
-  searchModalVisible.value = true;
   try {
     const resp: any = await webSearchApi({
       search_word: item.name,
@@ -134,23 +131,13 @@ async function handleCardSearch(item: any) {
       media_type: 'movie',
     });
     const sessionId = resp?.session_id || '';
-    searchModalText.value = '正在检索资源...';
-    startSearchSSE(sessionId, () => {
-      searchModalVisible.value = false;
-    });
-    const checkAndNavigate = setInterval(() => {
-      if (!searchModalVisible.value) {
-        clearInterval(checkAndNavigate);
-        const sidParam = sessionId
-          ? `&session_id=${encodeURIComponent(sessionId)}`
-          : '';
-        router.push(
-          `/media/search?s=${encodeURIComponent(item.name)}&from=subscription${sidParam}`,
-        );
-      }
-    }, 500);
+    const sidParam = sessionId
+      ? `&session_id=${encodeURIComponent(sessionId)}`
+      : '';
+    router.push(
+      `/media/search?s=${encodeURIComponent(item.name)}&from=subscription${sidParam}&media_type=movie`,
+    );
   } catch (error: any) {
-    searchModalVisible.value = false;
     notification.error('搜索失败', {
       description: error?.message || '未知错误',
     });
