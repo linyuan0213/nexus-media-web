@@ -311,7 +311,7 @@ function handleSearchFromCard(item: Record<string, any>) {
 async function handleSearch(item: RecommendItem, e: Event) {
   e.stopPropagation();
   router.push(
-    `/media/search?s=${encodeURIComponent(item.title)}&from=discovery&tmdbid=${encodeURIComponent(item.id || '')}`,
+    `/media/search?s=${encodeURIComponent(item.title)}&from=discovery&tmdbid=${encodeURIComponent(item.id || '')}&media_type=${encodeURIComponent(item.type || item.media_type || '')}`,
   );
 }
 

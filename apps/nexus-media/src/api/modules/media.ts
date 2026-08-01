@@ -379,10 +379,10 @@ export async function downloadSubtitleApi(path: string, name: string) {
 }
 
 /** 名称识别测试 */
-export async function nameTestApi(name: string) {
+export async function nameTestApi(name: string, subtitle?: string) {
   return requestClient.post<Record<string, any>>(
     '/media/name_test',
-    { name },
+    { name, subtitle },
     { timeout: 60_000 },
   );
 }

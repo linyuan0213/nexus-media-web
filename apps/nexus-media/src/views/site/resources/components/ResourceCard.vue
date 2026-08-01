@@ -16,6 +16,7 @@ defineProps<Props>();
 
 const emit = defineEmits<{
   download: [item: ResourceItem];
+  identify: [item: ResourceItem];
   openUrl: [url: string];
 }>();
 
@@ -126,6 +127,12 @@ const { formatDate, formatSize, getFreeTag, getLabelClass, parseLabels } =
             <IconifyIcon icon="lucide:external-link" class="h-3.5 w-3.5" />
           </template>
           详情
+        </NButton>
+        <NButton size="tiny" @click="emit('identify', item)">
+          <template #icon>
+            <IconifyIcon icon="lucide:scan-search" class="h-3.5 w-3.5" />
+          </template>
+          识别
         </NButton>
       </div>
     </div>
