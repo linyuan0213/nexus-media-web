@@ -10,8 +10,10 @@ import {
   NCheckboxGroup,
   NInput,
   NModal,
+  NPopconfirm,
   NSelect,
   NSpace,
+  NSpin,
   useMessage,
 } from 'naive-ui';
 
@@ -25,6 +27,7 @@ import {
   runSyncTaskApi,
   truncateSubscriptionHistoryApi,
 } from '#/api';
+import { clearCacheApi, getCachesApi } from '#/api/modules/system';
 import { requestClient } from '#/api/request';
 import IdentifyResult from '#/components/media/IdentifyResult.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
@@ -35,9 +38,57 @@ const systemInfo = ref<any>(null);
 const runningIds = ref<Set<string>>(new Set());
 
 const showNameTest = ref(false);
+const showCacheManage = ref(false);
 const nameTestInput = ref('');
 const nameTestResult = ref<any>(null);
 const nameTestLoading = ref(false);
+
+interface CacheItem {
+  name: string;
+  type?: string;
+  size?: number;
+  maxsize?: number;
+  hit_rate?: string;
+  hits?: number;
+  misses?: number;
+  error?: string;
+}
+const caches = ref<CacheItem[]>([]);
+const cacheLoading = ref(false);
+const cacheClearing = ref<null | string>(null);
+
+function cacheUsagePct(item: CacheItem): number {
+  if (!item.maxsize || (item.size ?? 0) === 0) return 0;
+  return Math.min(100, Math.round(((item.size ?? 0) / item.maxsize) * 100));
+}
+
+async function fetchCaches() {
+  cacheLoading.value = true;
+  try {
+    const res: any = await getCachesApi();
+    caches.value = (
+      Array.isArray(res) ? res : (res?.data ?? [])
+    ) as CacheItem[];
+  } catch (error: any) {
+    message.error(error?.message || '获取缓存列表失败');
+  } finally {
+    cacheLoading.value = false;
+  }
+}
+
+async function handleClearCache(name?: string) {
+  const label = name || '全部缓存';
+  cacheClearing.value = name ?? 'all';
+  try {
+    await clearCacheApi(name);
+    message.success(`已清理${label}`);
+    await fetchCaches();
+  } catch (error: any) {
+    message.error(error?.message || `清理${label}失败`);
+  } finally {
+    cacheClearing.value = null;
+  }
+}
 
 const showRuleTest = ref(false);
 const ruleTestInput = ref('');
@@ -168,6 +219,15 @@ const services = ref<ServiceItem[]>([
     modal: 'nametest',
   },
   {
+    id: 'cachemanage',
+    name: '缓存管理',
+    icon: 'lucide:database-zap',
+    time: '手动',
+    color: 'orange',
+    action: 'modal',
+    modal: 'cachemanage',
+  },
+  {
     id: 'ruletest',
     name: '过滤规则测试',
     icon: 'lucide:sliders-horizontal',
@@ -206,16 +266,51 @@ const services = ref<ServiceItem[]>([
 ]);
 
 const stats = computed(() => [
-  { label: '系统版本', value: systemInfo.value?.version || '-' },
-  { label: '运行时长', value: systemInfo.value?.uptime || '-' },
-  { label: 'Python', value: systemInfo.value?.python_version || '-' },
+  {
+    label: '系统版本',
+    value: systemInfo.value?.version || '-',
+    icon: 'lucide:tag',
+    color: 'var(--tblr-primary)',
+  },
+  {
+    label: '运行时长',
+    value: systemInfo.value?.uptime || '-',
+    icon: 'lucide:clock',
+    color: 'var(--tblr-teal)',
+  },
+  {
+    label: 'Python',
+    value: systemInfo.value?.python_version || '-',
+    icon: 'lucide:code-2',
+    color: 'var(--tblr-purple)',
+  },
   {
     label: '内存占用',
     value: systemInfo.value?.memory_mb
       ? `${systemInfo.value.memory_mb} MB`
       : '-',
+    icon: 'lucide:cpu',
+    color: 'var(--tblr-orange)',
   },
 ]);
+
+// 服务卡片 tabler 配色（低透明度底色 + 实色图标）
+const SERVICE_COLOR_MAP: Record<string, { bg: string; fg: string }> = {
+  blue: { bg: 'rgb(32 107 196 / 12%)', fg: 'var(--tblr-primary)' },
+  green: { bg: 'rgb(47 179 68 / 12%)', fg: 'var(--tblr-success)' },
+  red: { bg: 'rgb(214 57 57 / 12%)', fg: 'var(--tblr-danger)' },
+  purple: { bg: 'rgb(174 62 201 / 12%)', fg: 'var(--tblr-purple)' },
+  lime: { bg: 'rgb(116 184 22 / 14%)', fg: 'var(--tblr-lime)' },
+  orange: { bg: 'rgb(247 103 7 / 12%)', fg: 'var(--tblr-orange)' },
+  yellow: { bg: 'rgb(247 103 7 / 12%)', fg: 'var(--tblr-warning)' },
+  cyan: { bg: 'rgb(23 162 184 / 12%)', fg: 'var(--tblr-cyan)' },
+  indigo: { bg: 'rgb(66 153 225 / 12%)', fg: 'var(--tblr-info)' },
+  gray: { bg: 'hsl(var(--accent))', fg: 'hsl(var(--muted-foreground))' },
+};
+
+function serviceColor(svc: ServiceItem) {
+  return SERVICE_COLOR_MAP[svc.color] ?? SERVICE_COLOR_MAP.blue!;
+}
 
 async function fetchSystemInfo() {
   try {
@@ -310,6 +405,11 @@ function openModal(modal?: string) {
       showBackup.value = true;
       backupFile.value = null;
       backupFilePath.value = '';
+      break;
+    }
+    case 'cachemanage': {
+      showCacheManage.value = true;
+      fetchCaches();
       break;
     }
     case 'command': {
@@ -653,8 +753,13 @@ onMounted(() => {
     <!-- 系统状态概览 -->
     <div class="stats-overview">
       <div v-for="(stat, idx) in stats" :key="idx" class="stat-box">
-        <div class="stat-box-value">{{ stat.value }}</div>
-        <div class="stat-box-label">{{ stat.label }}</div>
+        <div class="stat-box-icon" :style="{ color: stat.color }">
+          <IconifyIcon :icon="stat.icon" />
+        </div>
+        <div class="stat-box-content">
+          <div class="stat-box-value">{{ stat.value }}</div>
+          <div class="stat-box-label">{{ stat.label }}</div>
+        </div>
       </div>
     </div>
 
@@ -668,7 +773,13 @@ onMounted(() => {
         @click="handleServiceClick(svc)"
       >
         <div class="service-card-content">
-          <div class="service-icon-wrap">
+          <div
+            class="service-icon-wrap"
+            :style="{
+              backgroundColor: serviceColor(svc).bg,
+              color: serviceColor(svc).fg,
+            }"
+          >
             <IconifyIcon :icon="svc.icon" class="service-icon" />
           </div>
           <div class="service-info">
@@ -715,6 +826,84 @@ onMounted(() => {
             识别
           </NButton>
         </div>
+      </NSpace>
+    </NModal>
+
+    <!-- 缓存管理弹窗 -->
+    <NModal
+      v-model:show="showCacheManage"
+      title="缓存管理"
+      preset="card"
+      style="width: 720px; max-width: 95vw"
+    >
+      <NSpace vertical size="large">
+        <div class="cache-header">
+          <div class="cache-header-info">
+            <div class="cache-header-title">识别 / TMDB 等缓存</div>
+            <div class="cache-header-text">清理后将在下次访问时自动重建</div>
+          </div>
+          <NPopconfirm @positive-click="handleClearCache()">
+            <template #trigger>
+              <NButton
+                size="small"
+                type="error"
+                :loading="cacheClearing === 'all'"
+              >
+                <template #icon>
+                  <IconifyIcon icon="lucide:trash-2" class="h-4 w-4" />
+                </template>
+                清理全部
+              </NButton>
+            </template>
+            确定清理全部缓存吗？
+          </NPopconfirm>
+        </div>
+
+        <NSpin :show="cacheLoading">
+          <div class="cache-list">
+            <div v-for="item in caches" :key="item.name" class="cache-item">
+              <div class="cache-item-main">
+                <div class="cache-item-top">
+                  <span class="cache-item-name">{{ item.name }}</span>
+                  <span v-if="item.type" class="cache-item-type">{{
+                    item.type
+                  }}</span>
+                </div>
+                <div v-if="item.error" class="cache-item-error">
+                  {{ item.error }}
+                </div>
+                <template v-else>
+                  <div class="cache-item-stats">
+                    <span>{{ item.size ?? 0 }} / {{ item.maxsize ?? 0 }}</span>
+                    <span class="cache-item-sep">·</span>
+                    <span>命中率 {{ item.hit_rate ?? '0.00%' }}</span>
+                  </div>
+                  <div class="cache-item-bar">
+                    <div
+                      class="cache-item-bar-fill"
+                      :class="cacheUsagePct(item) >= 80 ? 'is-warn' : ''"
+                      :style="{ width: `${cacheUsagePct(item)}%` }"
+                    ></div>
+                  </div>
+                </template>
+              </div>
+              <NPopconfirm @positive-click="handleClearCache(item.name)">
+                <template #trigger>
+                  <NButton size="tiny" :loading="cacheClearing === item.name">
+                    清理
+                  </NButton>
+                </template>
+                确定清理「{{ item.name }}」缓存吗？
+              </NPopconfirm>
+            </div>
+            <div
+              v-if="!cacheLoading && caches.length === 0"
+              class="cache-empty"
+            >
+              暂无缓存
+            </div>
+          </div>
+        </NSpin>
       </NSpace>
     </NModal>
 
@@ -1064,57 +1253,78 @@ onMounted(() => {
 .stats-overview {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
+  gap: 0.875rem;
   margin-bottom: 1.5rem;
 }
 
 .stat-box {
-  padding: 1rem;
-  text-align: center;
+  display: flex;
+  gap: 0.875rem;
+  align-items: center;
+  padding: 1rem 1.125rem;
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: 0.625rem;
+  box-shadow: var(--tblr-box-shadow-card);
   transition: all 0.2s ease;
 }
 
 .stat-box:hover {
-  border-color: hsl(var(--primary) / 20%);
+  border-color: hsl(var(--primary) / 25%);
+  box-shadow: var(--tblr-box-shadow);
+  transform: translateY(-1px);
+}
+
+.stat-box-icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  font-size: 1.125rem;
+}
+
+.stat-box-content {
+  min-width: 0;
 }
 
 .stat-box-value {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.25;
   color: hsl(var(--card-foreground));
 }
 
 .stat-box-label {
-  margin-top: 0.25rem;
-  font-size: 0.8125rem;
+  margin-top: 0.125rem;
+  font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
 }
 
 .service-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 0.875rem;
 }
 
 .service-card {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.25rem;
+  padding: 1.125rem;
   cursor: pointer;
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
-  border-radius: 0.75rem;
+  border-radius: 0.625rem;
+  box-shadow: var(--tblr-box-shadow-card);
   transition: all 0.2s ease;
 }
 
 .service-card:hover {
   border-color: hsl(var(--primary) / 30%);
-  box-shadow: 0 4px 12px rgb(0 0 0 / 5%);
+  box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 10%);
   transform: translateY(-1px);
 }
 
@@ -1138,14 +1348,12 @@ onMounted(() => {
   justify-content: center;
   width: 2.5rem;
   height: 2.5rem;
-  background-color: hsl(var(--accent));
   border-radius: 0.5rem;
 }
 
 .service-icon {
   width: 1.25rem;
   height: 1.25rem;
-  color: hsl(var(--primary));
 }
 
 .service-info {
@@ -1241,6 +1449,132 @@ onMounted(() => {
   font-size: 0.875rem;
   font-weight: 500;
   color: hsl(var(--card-foreground));
+}
+
+.cache-header {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cache-header-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: hsl(var(--card-foreground));
+}
+
+.cache-header-text {
+  margin-top: 0.125rem;
+  font-size: 0.8125rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.cache-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  max-height: 62vh;
+  overflow-y: auto;
+}
+
+.cache-item {
+  display: flex;
+  gap: 0.875rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0.875rem;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.625rem;
+  transition: border-color 0.2s ease;
+}
+
+.cache-item:hover {
+  border-color: hsl(var(--primary) / 40%);
+}
+
+.cache-item-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.cache-item-top {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.cache-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--card-foreground));
+  white-space: nowrap;
+}
+
+.cache-item-type {
+  flex-shrink: 0;
+  padding: 0.0625rem 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  background-color: hsl(var(--accent));
+  border-radius: 0.25rem;
+}
+
+.cache-item-stats {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.cache-item-sep {
+  color: hsl(var(--border));
+}
+
+.cache-item-bar {
+  height: 0.25rem;
+  overflow: hidden;
+  background-color: hsl(var(--accent));
+  border-radius: 999px;
+}
+
+.cache-item-bar-fill {
+  height: 100%;
+  background-color: hsl(var(--primary));
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.cache-item-bar-fill.is-warn {
+  background-color: hsl(var(--destructive));
+}
+
+.cache-item-error {
+  font-size: 0.75rem;
+  color: hsl(var(--destructive));
+}
+
+.cache-empty {
+  padding: 2.5rem 0;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .cache-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 .required {

@@ -68,6 +68,18 @@ export async function getSystemStatusApi() {
   return requestClient.post<SystemApi.SystemStatus>('/system/status', {});
 }
 
+/** 获取缓存列表与统计 */
+export async function getCachesApi() {
+  return requestClient.get<
+    Array<{ error?: string; keys?: number; name: string }>
+  >('/system/caches');
+}
+
+/** 清理缓存（name 为空则全部清理） */
+export async function clearCacheApi(name?: string) {
+  return requestClient.post('/system/caches/clear', { name: name || null });
+}
+
 /** 执行调度任务 */
 export async function runSchedulerItemApi(item: string) {
   return requestClient.post('/system/scheduler/run', { item });
