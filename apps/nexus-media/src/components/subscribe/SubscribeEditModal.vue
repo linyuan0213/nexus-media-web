@@ -109,6 +109,11 @@ const isTv = computed(() => form.value.type === 'tv');
 
 watch([() => props.show, () => props.item], async ([visible, item]) => {
   if (visible && item) {
+    // 先加载站点选项，再用其校验默认站点，避免默认 rss_sites/search_sites 被空选项过滤掉
+    if (!optionsLoaded.value) {
+      await loadOptions();
+      optionsLoaded.value = true;
+    }
     form.value = {
       name: item.name,
       year: item.year || '',
@@ -145,10 +150,6 @@ watch([() => props.show, () => props.item], async ([visible, item]) => {
           )
         : [],
     };
-    if (!optionsLoaded.value) {
-      await loadOptions();
-      optionsLoaded.value = true;
-    }
     if (item.download_setting != null) {
       await fetchDownloadDirs();
     }
