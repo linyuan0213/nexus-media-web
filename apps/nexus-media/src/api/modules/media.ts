@@ -303,6 +303,57 @@ export interface DirListItem {
   path: string;
   is_dir: boolean;
   ext?: string;
+  size?: number;
+  mtime?: number;
+  ctime?: number;
+}
+
+/** 创建目录 */
+export async function mkdirApi(data: {
+  backend_id?: string;
+  name: string;
+  path: string;
+}) {
+  return requestClient.post<{ path: string }>('/media/dir/mkdir', data);
+}
+
+/** 批量移动文件 */
+export async function moveFilesApi(data: {
+  backend_id?: string;
+  dest_dir: string;
+  files: string[];
+}) {
+  return requestClient.post('/media/files/move', data);
+}
+
+/** 批量复制文件 */
+export async function copyFilesApi(data: {
+  backend_id?: string;
+  dest_dir: string;
+  files: string[];
+}) {
+  return requestClient.post('/media/files/copy', data);
+}
+
+/** 下载文件（返回 Blob） */
+export async function downloadFileApi(path: string, backendId?: string) {
+  const query = new URLSearchParams();
+  query.set('path', path);
+  query.set('backend_id', backendId || 'local');
+  return requestClient.download(`/media/file/download?${query.toString()}`);
+}
+
+/** 上传文件到指定目录 */
+export async function uploadFileApi(
+  path: string,
+  backendId: string,
+  file: File,
+) {
+  return requestClient.upload('/media/file/upload', {
+    file,
+    path,
+    backend_id: backendId,
+  });
 }
 
 /** 获取转移历史（分页） */
