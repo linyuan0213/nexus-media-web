@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { SubscribeConfirmItem } from '#/components/subscribe/SubscribeConfirmModal.vue';
+import type { SubscribeEditItem } from '#/components/subscribe/SubscribeEditModal.vue';
 
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -13,11 +14,14 @@ import {
   webSearchApi,
 } from '#/api/modules/media';
 import {
+  addSubscriptionApi,
   addSubscriptionMediaApi,
+  getDefaultSubscriptionSettingApi,
   removeSubscriptionApi,
 } from '#/api/modules/subscription';
 import PageHeader from '#/components/page/PageHeader.vue';
 import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.vue';
+import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
 
 import CastList from './components/CastList.vue';
 import FactPanel from './components/FactPanel.vue';
@@ -136,6 +140,8 @@ async function handleSearch() {
 
 const subscribeConfirmShow = ref(false);
 const subscribeConfirmItem = ref<null | SubscribeConfirmItem>(null);
+const subscribeEditShow = ref(false);
+const subscribeEditItem = ref<null | SubscribeEditItem>(null);
 
 async function handleSubscribe() {
   // 电视剧：始终打开季选择框（未订阅=订阅，已订阅=追加其他季）
@@ -215,6 +221,69 @@ async function handleConfirmSubscribe(payload: {
     message.error('操作失败');
   } finally {
     subscribeConfirmShow.value = false;
+  }
+}
+
+async function handleEditSubscribe() {
+  const it = subscribeConfirmItem.value;
+  if (!it) return;
+  const mtype = it.type === 'movie' ? 'movie' : 'tv';
+  let defaults: any = {};
+  try {
+    const res: any = await getDefaultSubscriptionSettingApi(mtype);
+    defaults = res?.data || res || {};
+  } catch {
+    // ignore
+  }
+  subscribeEditItem.value = {
+    name: it.title,
+    year: it.year || '',
+    type: mtype,
+    tmdbid: String(it.tmdbid || it.id || ''),
+    image: it.image,
+    season: '',
+    fuzzy_match: false,
+    over_edition: !!(
+      defaults.over_edition && String(defaults.over_edition) === '1'
+    ),
+    filter_restype: defaults.restype || defaults.filter_restype || '',
+    filter_pix: defaults.pix || defaults.filter_pix || '',
+    filter_team: defaults.team || defaults.filter_team || '',
+    filter_rule: defaults.rule == null ? '' : String(defaults.rule),
+    filter_include: defaults.include || defaults.filter_include || '',
+    filter_exclude: defaults.exclude || defaults.filter_exclude || '',
+    filter_free:
+      defaults.free != null && String(defaults.free) === '1'
+        ? true
+        : (defaults.filter_free ?? false),
+    download_setting:
+      defaults.download_setting == null
+        ? ''
+        : String(defaults.download_setting),
+    rss_sites: Array.isArray(defaults.rss_sites) ? defaults.rss_sites : [],
+    search_sites: Array.isArray(defaults.search_sites)
+      ? defaults.search_sites
+      : [],
+  } as SubscribeEditItem;
+  subscribeConfirmShow.value = false;
+  subscribeEditShow.value = true;
+}
+
+async function handleConfirmEdit(data: Record<string, any>) {
+  try {
+    await addSubscriptionApi(data);
+    fav.value = '1';
+    if (data.season) {
+      const s = Number(data.season);
+      if (!subSeasons.value.includes(s)) {
+        subSeasons.value = [...subSeasons.value, s].toSorted((a, b) => a - b);
+      }
+    }
+    message.success('已添加订阅');
+  } catch {
+    message.error('订阅失败');
+  } finally {
+    subscribeEditShow.value = false;
   }
 }
 
@@ -313,6 +382,12 @@ watch([() => route.query.id, () => route.query.type], () => {
       v-model:show="subscribeConfirmShow"
       :item="subscribeConfirmItem"
       @confirm="handleConfirmSubscribe"
+      @edit="handleEditSubscribe"
+    />
+    <SubscribeEditModal
+      v-model:show="subscribeEditShow"
+      :item="subscribeEditItem"
+      @confirm="handleConfirmEdit"
     />
   </div>
 </template>
