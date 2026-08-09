@@ -615,3 +615,51 @@ export async function updateMediaLibraryPathApi(
     backend,
   });
 }
+
+// ---------- 重命名格式：字段目录 / 校验 / 预览 ----------
+
+export interface NameFormatField {
+  key: string;
+  label: string;
+  desc: string;
+  applies: 'both' | 'movie' | 'tv';
+  requires_ms: boolean;
+}
+
+export interface NameFormatGroup {
+  group: string;
+  fields: NameFormatField[];
+}
+
+export interface NameFormatValidateResult {
+  ok: boolean;
+  problems: string[];
+}
+
+/** 获取重命名格式字段目录（供构建器插入按钮使用） */
+export async function getNameFormatFieldsApi() {
+  return requestClient.get<{
+    fields: NameFormatField[];
+    groups: NameFormatGroup[];
+  }>('/media/name_format/fields');
+}
+
+/** 校验重命名格式串 */
+export async function validateNameFormatApi(format: string) {
+  return requestClient.post<NameFormatValidateResult>(
+    '/media/name_format/validate',
+    { format },
+  );
+}
+
+/** 实时预览重命名格式渲染结果 */
+export async function previewNameFormatApi(data: {
+  format: string;
+  media_type: string;
+  values: Record<string, string>;
+}) {
+  return requestClient.post<{
+    segments: Record<string, string>;
+    validate: NameFormatValidateResult;
+  }>('/media/name_format/preview', data);
+}
