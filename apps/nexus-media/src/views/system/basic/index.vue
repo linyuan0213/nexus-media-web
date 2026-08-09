@@ -17,6 +17,7 @@ import AgentSection from './components/AgentSection.vue';
 import LaboratorySection from './components/LaboratorySection.vue';
 import LogSection from './components/LogSection.vue';
 import MediaSection from './components/MediaSection.vue';
+import RenameSection from './components/RenameSection.vue';
 import ServiceSection from './components/ServiceSection.vue';
 import SiteConfigCard from './components/SiteConfigCard.vue';
 import SystemSection from './components/SystemSection.vue';
@@ -126,13 +127,18 @@ function saveMedia() {
       'media.media_default_path',
       'media.ignored_paths',
       'media.ignored_files',
-      'media.movie_name_format',
-      'media.tv_name_format',
       'media.filesize_cover',
       'media.nfo_poster',
       'media.sync_transfer_interval',
       'media.episode_mapping_enabled',
     ]),
+  );
+}
+
+function saveRename() {
+  saveSection(
+    'rename',
+    buildPayload(['media.movie_name_format', 'media.tv_name_format']),
   );
 }
 
@@ -316,6 +322,15 @@ onMounted(() => {
             :config="config"
             :saving="saving === 'media'"
             @save="saveMedia"
+            @update-config="updateConfig"
+          />
+        </NTabPane>
+
+        <NTabPane name="rename" tab="重命名">
+          <RenameSection
+            :config="config"
+            :saving="saving === 'rename'"
+            @save="saveRename"
             @update-config="updateConfig"
           />
         </NTabPane>

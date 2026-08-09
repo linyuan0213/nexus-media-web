@@ -200,28 +200,6 @@ const rmtModes = [
             />
           </NFormItem>
         </NGridItem>
-        <NGridItem span="1 s:1 m:2 l:2">
-          <NFormItem label="电影重命名格式">
-            <NInput
-              :value="config['media.movie_name_format']"
-              placeholder="{title} ({year})/{title}-{part} ({year}) - {videoFormat}"
-              @update:value="
-                (v) => emit('updateConfig', 'media.movie_name_format', v)
-              "
-            />
-          </NFormItem>
-        </NGridItem>
-        <NGridItem span="1 s:1 m:2 l:2">
-          <NFormItem label="电视剧重命名格式">
-            <NInput
-              :value="config['media.tv_name_format']"
-              placeholder="{title} ({year})/Season {season}/{title}-{part} - {season_episode} - 第 {episode} 集"
-              @update:value="
-                (v) => emit('updateConfig', 'media.tv_name_format', v)
-              "
-            />
-          </NFormItem>
-        </NGridItem>
         <NGridItem span="1">
           <NFormItem label="高质量文件覆盖">
             <NSwitch

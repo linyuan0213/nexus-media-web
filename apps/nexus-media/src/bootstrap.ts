@@ -52,6 +52,13 @@ async function bootstrap(namespace: string) {
   // 配置 pinia-tore
   await initStores(app, { namespace });
 
+  // 应用加载后（含刷新页面）非阻塞同步浏览器指纹（节流：指纹未变则跳过）
+  import('#/api/modules/browser_fingerprint')
+    .then(({ BrowserFingerprintApi }) =>
+      BrowserFingerprintApi.submitIfChanged(),
+    )
+    .catch(() => {});
+
   // 安装权限指令
   registerAccessDirective(app);
 
