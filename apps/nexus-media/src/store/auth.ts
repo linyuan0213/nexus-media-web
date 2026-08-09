@@ -48,6 +48,13 @@ export const useAuthStore = defineStore('auth', () => {
         userStore.setUserInfo(userInfo);
         accessStore.setAccessCodes(accessCodes);
 
+        // 登录后采集真实浏览器指纹，注入 nexus-chrome（非阻塞，节流）
+        import('#/api/modules/browser_fingerprint')
+          .then(({ BrowserFingerprintApi }) =>
+            BrowserFingerprintApi.submitIfChanged(),
+          )
+          .catch(() => {});
+
         if (accessStore.loginExpired) {
           accessStore.setLoginExpired(false);
         } else {
