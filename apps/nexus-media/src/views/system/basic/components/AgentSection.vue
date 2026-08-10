@@ -93,6 +93,30 @@ function placeholder(field: string) {
   }
   return '';
 }
+
+// ---------------------------------------------------------------------------
+// Embedding（知识库向量化）配置
+// ---------------------------------------------------------------------------
+
+const embeddingProviderOptions = [
+  { value: '', label: '跟随对话 Provider' },
+  { value: 'ollama', label: 'Ollama（本地，免费）' },
+  { value: 'openai', label: 'OpenAI 兼容' },
+  { value: 'gemini', label: 'Gemini' },
+];
+
+const embeddingProvider = computed({
+  get: () => props.config['agent.embedding.provider'] || '',
+  set: (v: string) => emit('updateConfig', 'agent.embedding.provider', v || ''),
+});
+
+function getEmbeddingConfig(field: string): string {
+  return props.config[`agent.embedding.${field}`] || '';
+}
+
+function setEmbeddingConfig(field: string, value: string) {
+  emit('updateConfig', `agent.embedding.${field}`, value);
+}
 </script>
 
 <template>
@@ -245,6 +269,55 @@ function placeholder(field: string) {
                 </template>
               </NButton>
             </div>
+          </NFormItem>
+        </NGridItem>
+      </NGrid>
+
+      <!-- Embedding（知识库向量化）配置 -->
+      <div
+        class="mb-3 mt-2 flex items-center gap-2 text-xs font-medium"
+        style="color: hsl(var(--muted-foreground))"
+      >
+        <IconifyIcon icon="lucide:database" class="size-3.5" />
+        <span>Embedding（知识库向量化，不配则知识库仅用关键词检索）</span>
+      </div>
+      <NGrid cols="1 s:1 m:2 l:3" :x-gap="16" responsive="screen">
+        <NGridItem span="1">
+          <NFormItem label="Embedding Provider">
+            <NSelect
+              :value="embeddingProvider"
+              :options="embeddingProviderOptions"
+              @update:value="(v) => (embeddingProvider = v || '')"
+            />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="1">
+          <NFormItem label="Embedding Model">
+            <NInput
+              :value="getEmbeddingConfig('model')"
+              placeholder="bge-m3 / nomic-embed-text / text-embedding-3-small"
+              @update:value="(v) => setEmbeddingConfig('model', v)"
+            />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem v-if="embeddingProvider" span="1">
+          <NFormItem label="Embedding API URL（可选，留空继承 Provider 配置）">
+            <NInput
+              :value="getEmbeddingConfig('api_url')"
+              placeholder="http://localhost:11434"
+              @update:value="(v) => setEmbeddingConfig('api_url', v)"
+            />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem v-if="embeddingProvider" span="1">
+          <NFormItem label="Embedding API Key（可选）">
+            <NInput
+              :value="getEmbeddingConfig('api_key')"
+              placeholder="留空继承 Provider 配置"
+              type="password"
+              show-password-on="click"
+              @update:value="(v) => setEmbeddingConfig('api_key', v)"
+            />
           </NFormItem>
         </NGridItem>
       </NGrid>

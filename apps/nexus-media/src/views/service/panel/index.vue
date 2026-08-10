@@ -107,12 +107,15 @@ interface NetTestTarget {
 }
 
 const NETTEST_TARGETS = [
+  { target: 'api.themoviedb.org', label: 'api.themoviedb.org' },
   { target: 'www.themoviedb.org', label: 'www.themoviedb.org' },
   { target: 'image.tmdb.org', label: 'image.tmdb.org' },
   { target: 'webservice.fanart.tv', label: 'webservice.fanart.tv' },
   { target: 'api.telegram.org', label: 'api.telegram.org' },
   { target: 'qyapi.weixin.qq.com', label: 'qyapi.weixin.qq.com' },
   { target: 'frodo.douban.com', label: 'frodo.douban.com' },
+  { target: 'api.github.com', label: 'api.github.com' },
+  { target: 'api.openai.com', label: 'api.openai.com' },
 ];
 
 const showNetTest = ref(false);

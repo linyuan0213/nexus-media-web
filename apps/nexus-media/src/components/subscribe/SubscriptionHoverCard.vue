@@ -247,6 +247,17 @@ function onPosterClick() {
   activeItem.value = isPopup.value ? null : props.item;
 }
 
+function openTmdb() {
+  const tid = props.item.tmdbid;
+  if (!tid) return;
+  const base = props.type === 'movie' ? 'movie' : 'tv';
+  window.open(
+    `https://www.themoviedb.org/${base}/${tid}`,
+    '_blank',
+    'noopener',
+  );
+}
+
 function closePopover() {
   activeItem.value = null;
 }
@@ -309,7 +320,7 @@ onMounted(ensureOutsideListener);
     <div class="shc-info" :class="{ 'shc-info--popup': isPopup }">
       <div class="shc-info-body">
         <!-- 标题 + 基础信息 -->
-        <h3 class="shc-title" :title="item.name" @click="emit('click', item)">
+        <h3 class="shc-title" :title="item.name" @click="openTmdb">
           {{ item.name }}
         </h3>
         <div class="shc-meta">

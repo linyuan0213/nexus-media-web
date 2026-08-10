@@ -93,6 +93,7 @@ export namespace DownloadApi {
     image: string;
     overview: string;
     enclosure?: string;
+    season_episode?: string;
     date: string;
     site: string;
   }

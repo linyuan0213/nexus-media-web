@@ -27,6 +27,7 @@ export interface DownloadHistoryItem {
   image: string;
   overview: string;
   enclosure?: string;
+  season_episode?: string;
   date: string;
   site: string;
 }

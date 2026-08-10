@@ -26,6 +26,13 @@ const emit = defineEmits<{
 
 const isTv = computed(() => props.detail.type === 'tv');
 
+const tmdbUrl = computed(() => {
+  const tid = props.detail.tmdbid;
+  if (!tid) return '';
+  const base = isTv.value ? 'tv' : 'movie';
+  return `https://www.themoviedb.org/${base}/${tid}`;
+});
+
 const subscribedLabel = computed(() => {
   if (props.fav !== '1') return '';
   if (props.subSeasons.length > 0) {
@@ -115,7 +122,16 @@ function replaceLocalhost(url?: any) {
           class="mb-2 text-2xl font-bold sm:text-3xl md:text-4xl"
           style="color: hsl(var(--card-foreground))"
         >
-          {{ detail.title }}
+          <a
+            v-if="tmdbUrl"
+            :href="tmdbUrl"
+            target="_blank"
+            rel="noopener"
+            class="hover:underline"
+          >
+            {{ detail.title }}
+          </a>
+          <template v-else>{{ detail.title }}</template>
           <span
             v-if="detail.year"
             class="text-lg font-normal opacity-70 sm:text-xl md:text-2xl"
