@@ -11,6 +11,7 @@ import {
   NGrid,
   NGridItem,
   NInput,
+  NInputNumber,
   NSelect,
   NSwitch,
 } from 'naive-ui';
@@ -116,6 +117,35 @@ function getEmbeddingConfig(field: string): string {
 
 function setEmbeddingConfig(field: string, value: string) {
   emit('updateConfig', `agent.embedding.${field}`, value);
+}
+
+// ---------------------------------------------------------------------------
+// 通知增强（Agent 重写模板通知，单流替换）
+// ---------------------------------------------------------------------------
+
+const notifyMsgTypeOptions = [
+  { value: 'download_start', label: '下载开始' },
+  { value: 'download_fail', label: '下载失败' },
+  { value: 'rss_added', label: '订阅新增' },
+  { value: 'rss_finished', label: '订阅完成' },
+  { value: 'transfer_finished', label: '转移完成' },
+  { value: 'transfer_fail', label: '转移失败' },
+  { value: 'site_signin', label: '站点签到' },
+  { value: 'site_message', label: '站点通知' },
+  { value: 'auto_remove_torrents', label: '自动删种' },
+  { value: 'brushtask_added', label: '刷流任务新增' },
+  { value: 'brushtask_remove', label: '刷流任务删除' },
+  { value: 'brushtask_pause', label: '刷流任务暂停' },
+  { value: 'mediaserver_message', label: '媒体服务器' },
+  { value: 'ptrefresh_date_message', label: '站点数据刷新' },
+];
+
+function getNotifyConfig(field: string): string {
+  return props.config[`agent.notify.${field}`] || '';
+}
+
+function setNotifyConfig(field: string, value: string) {
+  emit('updateConfig', `agent.notify.${field}`, value);
 }
 </script>
 
@@ -317,6 +347,53 @@ function setEmbeddingConfig(field: string, value: string) {
               type="password"
               show-password-on="click"
               @update:value="(v) => setEmbeddingConfig('api_key', v)"
+            />
+          </NFormItem>
+        </NGridItem>
+      </NGrid>
+
+      <!-- 通知增强（Agent 重写模板通知） -->
+      <div
+        class="mb-3 mt-2 flex items-center gap-2 text-xs font-medium"
+        style="color: hsl(var(--muted-foreground))"
+      >
+        <IconifyIcon icon="lucide:bell-ring" class="size-3.5" />
+        <span>通知增强（Agent 用 LLM 重写模板通知，单流替换不重复）</span>
+      </div>
+      <NGrid cols="1 s:1 m:2 l:3" :x-gap="16" responsive="screen">
+        <NGridItem span="1">
+          <NFormItem label="启用通知增强">
+            <NSwitch
+              :value="config['agent.notify.enabled']"
+              @update:value="
+                (v) => emit('updateConfig', 'agent.notify.enabled', v)
+              "
+            />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="2">
+          <NFormItem label="增强的通知类型（其余保持模板）">
+            <NSelect
+              :value="getNotifyConfig('msg_types')"
+              :options="notifyMsgTypeOptions"
+              multiple
+              filterable
+              clearable
+              @update:value="(v) => setNotifyConfig('msg_types', v ?? '')"
+            />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="1">
+          <NFormItem label="生成温度">
+            <NInputNumber
+              :value="Number(getNotifyConfig('temperature') || 0.3)"
+              :min="0"
+              :max="1"
+              :step="0.1"
+              @update:value="
+                (v) =>
+                  setNotifyConfig('temperature', v == null ? '' : String(v))
+              "
             />
           </NFormItem>
         </NGridItem>
