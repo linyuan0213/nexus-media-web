@@ -433,7 +433,7 @@ async function restoreTimeline() {
   for (const m of merged) {
     const c = (m.content || '').trim();
     if (m.role === 'system' && c && convContents.has(c)) continue;
-    const { ts: _ts, _sort: _sort, ...rest } = m;
+    const { ts: _ts, _sort, ...rest } = m;
     pushMessage(rest);
   }
 }
