@@ -88,7 +88,10 @@ async function doSearch() {
   if (!searchQuery.value.trim()) return;
   searching.value = true;
   try {
-    const res = await searchAgentKb(searchQuery.value.trim(), searchNs.value || undefined);
+    const res = await searchAgentKb(
+      searchQuery.value.trim(),
+      searchNs.value || undefined,
+    );
     citations.value = res?.citations ?? [];
     searched.value = true;
   } catch (e: any) {
@@ -117,13 +120,21 @@ onMounted(loadStatus);
           class="size-5"
           :style="{ color: 'hsl(var(--primary))' }"
         />
-        <span class="text-sm font-semibold" :style="{ color: 'hsl(var(--foreground))' }">
+        <span
+          class="text-sm font-semibold"
+          :style="{ color: 'hsl(var(--foreground))' }"
+        >
           知识库管理
         </span>
         <NTag size="small" round>RAG</NTag>
       </div>
       <div class="flex shrink-0 items-center gap-1.5">
-        <NButton size="small" secondary :loading="rebuilding" @click="rebuildAll">
+        <NButton
+          size="small"
+          secondary
+          :loading="rebuilding"
+          @click="rebuildAll"
+        >
           <template #icon>
             <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
           </template>
@@ -136,7 +147,9 @@ onMounted(loadStatus);
     <NCard :bordered="true" size="small" title="命名空间索引">
       <template #header-extra>
         <NTag size="small" round :type="loading ? 'warning' : 'success'">
-          {{ loading ? '加载中' : `${Object.keys(namespaces).length} 个命名空间` }}
+          {{
+            loading ? '加载中' : `${Object.keys(namespaces).length} 个命名空间`
+          }}
         </NTag>
       </template>
       <NSpin :show="loading">
@@ -151,10 +164,16 @@ onMounted(loadStatus);
             :style="{ borderColor: 'hsl(var(--border))' }"
           >
             <div class="min-w-0">
-              <div class="truncate text-sm font-medium" :style="{ color: 'hsl(var(--foreground))' }">
+              <div
+                class="truncate text-sm font-medium"
+                :style="{ color: 'hsl(var(--foreground))' }"
+              >
                 {{ NS_LABELS[ns] || ns }}
               </div>
-              <div class="text-xs" :style="{ color: 'hsl(var(--muted-foreground))' }">
+              <div
+                class="text-xs"
+                :style="{ color: 'hsl(var(--muted-foreground))' }"
+              >
                 {{ count }} 个分块
               </div>
             </div>
@@ -168,7 +187,10 @@ onMounted(loadStatus);
             </NButton>
           </div>
         </div>
-        <NEmpty v-else-if="!loading" description="Agent RAG 未启用或知识库为空" />
+        <NEmpty
+          v-else-if="!loading"
+          description="Agent RAG 未启用或知识库为空"
+        />
       </NSpin>
     </NCard>
 
@@ -187,7 +209,12 @@ onMounted(loadStatus);
             v-model:value="searchNs"
             placeholder="全部命名空间"
             clearable
-            :options="Object.keys(NS_LABELS).map((k) => ({ label: NS_LABELS[k], value: k }))"
+            :options="
+              Object.keys(NS_LABELS).map((k) => ({
+                label: NS_LABELS[k],
+                value: k,
+              }))
+            "
           />
         </div>
         <NButton type="primary" :loading="searching" @click="doSearch">
@@ -200,32 +227,52 @@ onMounted(loadStatus);
 
       <div v-if="searched" class="mt-3 flex flex-col gap-2">
         <div class="flex items-center justify-between gap-2">
-          <span class="text-xs font-medium" :style="{ color: 'hsl(var(--muted-foreground))' }">
+          <span
+            class="text-xs font-medium"
+            :style="{ color: 'hsl(var(--muted-foreground))' }"
+          >
             命中 {{ citations.length }} 条引用
           </span>
-          <NTag v-if="citations.length === 0" size="small" type="warning" round>无命中</NTag>
+          <NTag v-if="citations.length === 0" size="small" type="warning" round
+            >无命中</NTag
+          >
         </div>
         <div
           v-for="(c, idx) in citations"
           :key="idx"
           class="flex flex-col gap-1.5 rounded-lg border px-3 py-2.5"
-          :style="{ borderColor: 'hsl(var(--border))', backgroundColor: 'hsl(var(--accent))' }"
+          :style="{
+            borderColor: 'hsl(var(--border))',
+            backgroundColor: 'hsl(var(--accent))',
+          }"
         >
           <div class="flex items-center justify-between gap-2">
             <div class="flex min-w-0 items-center gap-1.5">
               <span
                 class="flex size-5 shrink-0 items-center justify-center rounded text-[11px] font-semibold"
-                :style="{ backgroundColor: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }"
+                :style="{
+                  backgroundColor: 'hsl(var(--primary))',
+                  color: 'hsl(var(--primary-foreground))',
+                }"
               >
                 {{ idx + 1 }}
               </span>
-              <span class="truncate text-xs font-medium" :style="{ color: 'hsl(var(--foreground))' }">
+              <span
+                class="truncate text-xs font-medium"
+                :style="{ color: 'hsl(var(--foreground))' }"
+              >
                 {{ c.source }}
               </span>
             </div>
-            <NTag v-if="c.score !== undefined" size="tiny" round>相关度 {{ Number(c.score).toFixed(3) }}</NTag>
+            <NTag v-if="c.score !== undefined" size="tiny" round
+              >相关度 {{ Number(c.score).toFixed(3) }}</NTag
+            >
           </div>
-          <div v-if="c.heading" class="text-[11px]" :style="{ color: 'hsl(var(--primary))' }">
+          <div
+            v-if="c.heading"
+            class="text-[11px]"
+            :style="{ color: 'hsl(var(--primary))' }"
+          >
             {{ c.heading }}
           </div>
           <div

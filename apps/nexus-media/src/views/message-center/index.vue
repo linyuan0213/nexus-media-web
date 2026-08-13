@@ -243,7 +243,8 @@ async function send(text?: string) {
             break;
           }
           case 'reasoning': {
-            assistant.reasoning = (assistant.reasoning || '') + (ev.content || '');
+            assistant.reasoning =
+              (assistant.reasoning || '') + (ev.content || '');
             scrollToBottom();
 
             break;
@@ -360,7 +361,12 @@ const isCoarsePointer = ref(
 function onKeydown(e: KeyboardEvent) {
   // isComposing / keyCode 229：中文输入法候选词确认回车不触发发送
   const composing = e.isComposing || e.keyCode === 229;
-  if (e.key === 'Enter' && !e.shiftKey && !composing && !isCoarsePointer.value) {
+  if (
+    e.key === 'Enter' &&
+    !e.shiftKey &&
+    !composing &&
+    !isCoarsePointer.value
+  ) {
     e.preventDefault();
     send();
   }
@@ -377,7 +383,12 @@ async function restoreTimeline() {
     let order = 0;
     for (const m of list) {
       if (m.role === 'user' || m.role === 'assistant') {
-        merged.push({ role: m.role, content: m.content || '', ts: Number(m.ts) || 0, _sort: order++ });
+        merged.push({
+          role: m.role,
+          content: m.content || '',
+          ts: Number(m.ts) || 0,
+          _sort: order++,
+        });
       }
     }
   } catch {
@@ -408,7 +419,9 @@ async function restoreTimeline() {
     // 忽略
   }
   // 按时间升序；ts=0（无时间）按来源顺序排在末尾
-  merged.sort((a, b) => (a.ts || b.ts ? a.ts - b.ts || a._sort - b._sort : a._sort - b._sort));
+  merged.sort((a, b) =>
+    a.ts || b.ts ? a.ts - b.ts || a._sort - b._sort : a._sort - b._sort,
+  );
   // 交叉去重：仅当通知（system）内容与 用户/助手（会话）消息相同（同一回答双源持久化）时，
   // 保留会话侧、跳过通知；重复的通知（如相同快照的"站点数据统计"）不去重，避免误删
   const convContents = new Set<string>(

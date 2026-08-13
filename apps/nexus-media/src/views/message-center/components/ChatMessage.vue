@@ -55,7 +55,10 @@ const toolSteps = computed<ToolStep[]>(() => {
       if (match) {
         match.result = ev;
       } else {
-        steps.push({ call: { ...ev, tool: ev.tool || '', type: 'tool_call' }, result: ev });
+        steps.push({
+          call: { ...ev, tool: ev.tool || '', type: 'tool_call' },
+          result: ev,
+        });
       }
     }
   }
@@ -292,7 +295,9 @@ function onContentClick(event: MouseEvent) {
               :style="{ color: 'hsl(var(--primary))' }"
             />
             <span class="shrink-0">思考过程</span>
-            <span v-if="toolSteps.length" class="shrink-0">· {{ toolSteps.length }} 步</span>
+            <span v-if="toolSteps.length" class="shrink-0"
+              >· {{ toolSteps.length }} 步</span
+            >
             <span
               v-else-if="streaming"
               class="flex shrink-0 items-center gap-1"
@@ -312,7 +317,10 @@ function onContentClick(event: MouseEvent) {
             v-if="thinkingOpen"
             id="thinking-panel"
             class="mt-1.5 space-y-1 rounded-md border px-2 py-1.5"
-            :style="{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--muted) / 0.25)' }"
+            :style="{
+              borderColor: 'hsl(var(--border))',
+              background: 'hsl(var(--muted) / 0.25)',
+            }"
           >
             <div
               v-if="reasoning"
