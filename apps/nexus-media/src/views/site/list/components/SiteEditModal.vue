@@ -346,7 +346,7 @@ defineExpose({
               <NFormItem label="优先级" required>
                 <NInput
                   :value="site.pri"
-                  placeholder="1-50，越小优先级越高"
+                  placeholder="1-50，越小优先级越高，主站建议 1"
                   @update:value="(v) => updateField('pri', v)"
                 />
               </NFormItem>
