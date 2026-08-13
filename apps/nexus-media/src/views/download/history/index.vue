@@ -101,7 +101,7 @@ async function copyLink(url: string) {
     textarea.value = url;
     textarea.style.position = 'fixed';
     textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
+    document.body.append(textarea);
     textarea.focus();
     textarea.select();
     textarea.setSelectionRange(0, url.length);
@@ -109,9 +109,9 @@ async function copyLink(url: string) {
     try {
       ok = document.execCommand('copy');
     } catch {
-      ok = false;
+      // execCommand 抛错时保持 false
     }
-    document.body.removeChild(textarea);
+    textarea.remove();
     if (ok) message.success('下载链接已复制');
     else message.error('复制失败，请手动复制');
   }

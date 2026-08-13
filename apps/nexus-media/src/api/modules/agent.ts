@@ -199,19 +199,19 @@ export function reindexAgentKb(namespace?: string) {
 /** 知识库检索（调试） */
 export function searchAgentKb(query: string, namespace?: string) {
   return requestClient.post<{
-    hit: boolean;
     citations: {
-      source: string;
       heading?: string;
-      snippet: string;
       score?: number;
+      snippet: string;
+      source: string;
     }[];
+    hit: boolean;
   }>('/agent/kb/search', { query, namespace: namespace ?? null });
 }
 
 /** 读取内置文档 Markdown（消息中心"相关文档"链接查看） */
 export function readAgentDoc(name: string) {
-  return requestClient.post<{ name: string; content: string }>(
+  return requestClient.post<{ content: string; name: string }>(
     '/system/docs/read',
     { name },
   );

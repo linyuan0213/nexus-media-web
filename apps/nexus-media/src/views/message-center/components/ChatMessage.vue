@@ -5,8 +5,8 @@ import { computed, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { NModal, NSpin, useMessage } from 'naive-ui';
 import MarkdownIt from 'markdown-it';
+import { NModal, NSpin, useMessage } from 'naive-ui';
 
 import { readAgentDoc } from '#/api/modules/agent';
 
@@ -65,7 +65,7 @@ const toolSteps = computed<ToolStep[]>(() => {
   return steps;
 });
 
-function stepStatus(s: ToolStep): 'pending' | 'success' | 'error' | 'confirm' {
+function stepStatus(s: ToolStep): 'confirm' | 'error' | 'pending' | 'success' {
   if (s.result?.need_confirm) return 'confirm';
   if (s.result && !s.result.success) return 'error';
   if (s.result) return 'success';
@@ -74,27 +74,35 @@ function stepStatus(s: ToolStep): 'pending' | 'success' | 'error' | 'confirm' {
 
 function stepIcon(s: ToolStep): string {
   switch (stepStatus(s)) {
-    case 'confirm':
+    case 'confirm': {
       return 'lucide:shield-alert';
-    case 'error':
+    }
+    case 'error': {
       return 'lucide:x';
-    case 'success':
+    }
+    case 'success': {
       return 'lucide:check';
-    default:
+    }
+    default: {
       return 'lucide:loader-2';
+    }
   }
 }
 
 function stepColor(s: ToolStep): string {
   switch (stepStatus(s)) {
-    case 'confirm':
+    case 'confirm': {
       return 'hsl(var(--warning))';
-    case 'error':
+    }
+    case 'error': {
       return 'hsl(var(--destructive))';
-    case 'success':
+    }
+    case 'success': {
       return 'hsl(var(--success))';
-    default:
+    }
+    default: {
       return 'hsl(var(--primary))';
+    }
   }
 }
 
@@ -126,8 +134,8 @@ function openDoc(name: string) {
     .then((res) => {
       docContent.value = res?.content ?? '（文档为空）';
     })
-    .catch((e: any) => {
-      message.error(e?.message || '文档读取失败');
+    .catch((error: any) => {
+      message.error(error?.message || '文档读取失败');
       docOpen.value = false;
     })
     .finally(() => {
@@ -276,7 +284,7 @@ function onContentClick(event: MouseEvent) {
       </div>
       <div class="min-w-0 flex-1">
         <!-- 思考过程（可折叠） -->
-        <div v-if="toolSteps.length || reasoning" class="mb-1.5">
+        <div v-if="toolSteps.length > 0 || reasoning" class="mb-1.5">
           <button
             class="flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition-opacity hover:opacity-80"
             :style="{
@@ -295,7 +303,7 @@ function onContentClick(event: MouseEvent) {
               :style="{ color: 'hsl(var(--primary))' }"
             />
             <span class="shrink-0">思考过程</span>
-            <span v-if="toolSteps.length" class="shrink-0"
+            <span v-if="toolSteps.length > 0" class="shrink-0"
               >· {{ toolSteps.length }} 步</span
             >
             <span
@@ -360,7 +368,7 @@ function onContentClick(event: MouseEvent) {
           </div>
         </div>
         <div
-          v-if="rendered || (streaming && !toolSteps.length)"
+          v-if="rendered || (streaming && toolSteps.length === 0)"
           class="rounded-2xl rounded-tl-sm border px-4 py-2.5 text-sm"
           :style="{
             background: 'hsl(var(--card))',
@@ -368,14 +376,16 @@ function onContentClick(event: MouseEvent) {
             color: 'hsl(var(--card-foreground))',
           }"
         >
+          <!-- eslint-disable vue/no-v-html -- markdown-it 以 html:false 渲染，原始 HTML 已转义，无 XSS 风险 -->
           <div
             v-if="rendered"
             class="agent-md prose-sm max-w-none break-words"
             v-html="rendered"
             @click="onContentClick"
           ></div>
+          <!-- eslint-enable vue/no-v-html -->
           <div
-            v-else-if="streaming && !toolSteps.length"
+            v-else-if="streaming && toolSteps.length === 0"
             class="flex items-center gap-1.5 text-xs"
             :style="{ color: 'hsl(var(--muted-foreground))' }"
           >
@@ -406,12 +416,14 @@ function onContentClick(event: MouseEvent) {
   >
     <div class="max-h-[65vh] overflow-y-auto">
       <NSpin :show="docLoading">
+        <!-- eslint-disable vue/no-v-html -- markdown-it 以 html:false 渲染，原始 HTML 已转义，无 XSS 风险 -->
         <div
           v-if="docContent"
           class="agent-md prose-sm max-w-none break-words"
           v-html="md.render(docContent)"
           @click="onContentClick"
         ></div>
+        <!-- eslint-enable vue/no-v-html -->
       </NSpin>
     </div>
   </NModal>

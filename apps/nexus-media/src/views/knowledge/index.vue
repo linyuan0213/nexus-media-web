@@ -38,10 +38,10 @@ const message = useMessage();
 const loading = ref(true);
 const rebuilding = ref(false);
 const namespaces = ref<Record<string, number>>({});
-const rebuildingNs = ref<string | null>(null);
+const rebuildingNs = ref<null | string>(null);
 
 const searchQuery = ref('');
-const searchNs = ref<string | null>(null);
+const searchNs = ref<null | string>(null);
 const searching = ref(false);
 const citations = ref<Citation[]>([]);
 const searched = ref(false);
@@ -51,8 +51,8 @@ async function loadStatus() {
   try {
     const res = await getAgentKbStatus();
     namespaces.value = res?.namespaces ?? {};
-  } catch (e: any) {
-    message.error(e?.message || '获取知识库状态失败');
+  } catch (error: any) {
+    message.error(error?.message || '获取知识库状态失败');
   } finally {
     loading.value = false;
   }
@@ -64,8 +64,8 @@ async function rebuildAll() {
     const res = await reindexAgentKb();
     namespaces.value = res?.indexed ?? {};
     message.success('知识库重建完成');
-  } catch (e: any) {
-    message.error(e?.message || '重建失败');
+  } catch (error: any) {
+    message.error(error?.message || '重建失败');
   } finally {
     rebuilding.value = false;
   }
@@ -77,8 +77,8 @@ async function rebuildNamespace(ns: string) {
     const res = await reindexAgentKb(ns);
     namespaces.value = res?.indexed ?? {};
     message.success('重建完成');
-  } catch (e: any) {
-    message.error(e?.message || '重建失败');
+  } catch (error: any) {
+    message.error(error?.message || '重建失败');
   } finally {
     rebuildingNs.value = null;
   }
@@ -94,8 +94,8 @@ async function doSearch() {
     );
     citations.value = res?.citations ?? [];
     searched.value = true;
-  } catch (e: any) {
-    message.error(e?.message || '检索失败');
+  } catch (error: any) {
+    message.error(error?.message || '检索失败');
   } finally {
     searching.value = false;
   }
@@ -233,9 +233,9 @@ onMounted(loadStatus);
           >
             命中 {{ citations.length }} 条引用
           </span>
-          <NTag v-if="citations.length === 0" size="small" type="warning" round
-            >无命中</NTag
-          >
+          <NTag v-if="citations.length === 0" size="small" type="warning" round>
+            无命中
+          </NTag>
         </div>
         <div
           v-for="(c, idx) in citations"
@@ -264,9 +264,9 @@ onMounted(loadStatus);
                 {{ c.source }}
               </span>
             </div>
-            <NTag v-if="c.score !== undefined" size="tiny" round
-              >相关度 {{ Number(c.score).toFixed(3) }}</NTag
-            >
+            <NTag v-if="c.score !== undefined" size="tiny" round>
+              相关度 {{ Number(c.score).toFixed(3) }}
+            </NTag>
           </div>
           <div
             v-if="c.heading"

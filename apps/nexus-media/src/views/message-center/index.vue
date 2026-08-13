@@ -259,7 +259,7 @@ async function send(text?: string) {
             const idx = toolEvents.value.findLastIndex(
               (t) =>
                 t.type === 'tool_call' &&
-                (ev.step != null ? t.step === ev.step : t.tool === ev.tool),
+                (ev.step == null ? t.tool === ev.tool : t.step === ev.step),
             );
             if (idx === -1) {
               toolEvents.value.push({ ...ev });
@@ -376,7 +376,7 @@ async function restoreTimeline() {
   // 会话（user/assistant）与通知（system）双源历史按时间合并进同一时间线：
   // - 同一回答可能双源持久化（会话 + 通知），按内容去重只保留一次
   // - 无可靠时间的消息（ts=0）按来源相对顺序排在末尾
-  const merged: (Omit<Message, 'id'> & { ts: number; _sort: number })[] = [];
+  const merged: (Omit<Message, 'id'> & { _sort: number; ts: number })[] = [];
   try {
     const res: any = await getConversation('');
     const list = res?.messages || [];
