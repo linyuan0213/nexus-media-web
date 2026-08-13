@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
@@ -15,6 +15,8 @@ import {
   NSelect,
   NSwitch,
 } from 'naive-ui';
+
+import { listAgentEmbeddingModelsApi } from '#/api/modules/system';
 
 interface Props {
   config: Record<string, any>;
@@ -83,6 +85,17 @@ function setProviderConfig(field: string, value: string) {
   emit('updateConfig', providerConfigKey(field), value);
 }
 
+function getFallbackProviders(): string[] {
+  const raw = props.config['agent.fallback'];
+  if (Array.isArray(raw)) return raw as string[];
+  if (typeof raw === 'string' && raw) return raw.split(',');
+  return [];
+}
+
+function setFallbackProviders(values: null | string[]) {
+  emit('updateConfig', 'agent.fallback', values ?? []);
+}
+
 function placeholder(field: string) {
   if (field === 'api_url') {
     return (
@@ -109,6 +122,35 @@ const embeddingProviderOptions = [
 const embeddingProvider = computed({
   get: () => props.config['agent.embedding.provider'] || '',
   set: (v: string) => emit('updateConfig', 'agent.embedding.provider', v || ''),
+});
+
+const embeddingModelOptions = ref<string[]>([]);
+const loadingEmbeddingModels = ref(false);
+
+async function fetchEmbeddingModels() {
+  const provider =
+    embeddingProvider.value || props.config['agent.default_provider'] || '';
+  if (!provider) return;
+  loadingEmbeddingModels.value = true;
+  try {
+    const res: any = await listAgentEmbeddingModelsApi({
+      provider_name: provider,
+      api_url:
+        getEmbeddingConfig('api_url') || providerUrlPresets[provider] || '',
+      api_key: getEmbeddingConfig('api_key') || '',
+    });
+    // requestClient 已解包：res 可能为数组或 {data}
+    const models = Array.isArray(res) ? res : res?.data || [];
+    embeddingModelOptions.value = models;
+  } catch {
+    embeddingModelOptions.value = [];
+  } finally {
+    loadingEmbeddingModels.value = false;
+  }
+}
+
+watch(embeddingProvider, () => {
+  fetchEmbeddingModels();
 });
 
 function getEmbeddingConfig(field: string): string {
@@ -147,6 +189,21 @@ function getNotifyConfig(field: string): string {
 function setNotifyConfig(field: string, value: string) {
   emit('updateConfig', `agent.notify.${field}`, value);
 }
+
+// ---------------------------------------------------------------------------
+// 长程语义记忆（用户偏好，向量库存储）
+// ---------------------------------------------------------------------------
+
+function getLongTermConfig(field: string): string {
+  return props.config[`agent.memory.long_term.${field}`] ?? '';
+}
+
+function setLongTermConfig(field: string, value: string) {
+  emit('updateConfig', `agent.memory.long_term.${field}`, value);
+}
+onMounted(() => {
+  fetchEmbeddingModels();
+});
 </script>
 
 <template>
@@ -303,6 +360,23 @@ function setNotifyConfig(field: string, value: string) {
         </NGridItem>
       </NGrid>
 
+      <!-- 故障转移链 -->
+      <NFormItem
+        label="故障转移链（主 Provider 失败时依次切换，可多选）"
+        label-placement="top"
+        class="mt-2"
+      >
+        <NSelect
+          :value="getFallbackProviders()"
+          :options="providers"
+          multiple
+          filterable
+          clearable
+          placeholder="选择备用 Provider（留空则不启用故障转移）"
+          @update:value="setFallbackProviders"
+        />
+      </NFormItem>
+
       <!-- Embedding（知识库向量化）配置 -->
       <div
         class="mb-3 mt-2 flex items-center gap-2 text-xs font-medium"
@@ -323,11 +397,30 @@ function setNotifyConfig(field: string, value: string) {
         </NGridItem>
         <NGridItem span="1">
           <NFormItem label="Embedding Model">
-            <NInput
-              :value="getEmbeddingConfig('model')"
-              placeholder="bge-m3 / nomic-embed-text / text-embedding-3-small"
-              @update:value="(v) => setEmbeddingConfig('model', v)"
-            />
+            <div class="flex gap-2">
+              <NSelect
+                :value="getEmbeddingConfig('model')"
+                :options="
+                  embeddingModelOptions.map((m) => ({ label: m, value: m }))
+                "
+                filterable
+                tag
+                clearable
+                placeholder="选择或输入 embedding 模型"
+                class="flex-1"
+                @update:value="(v) => setEmbeddingConfig('model', v)"
+              />
+              <NButton
+                size="small"
+                :loading="loadingEmbeddingModels"
+                title="刷新模型列表"
+                @click="fetchEmbeddingModels"
+              >
+                <template #icon>
+                  <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
+                </template>
+              </NButton>
+            </div>
           </NFormItem>
         </NGridItem>
         <NGridItem v-if="embeddingProvider" span="1">
@@ -347,6 +440,52 @@ function setNotifyConfig(field: string, value: string) {
               type="password"
               show-password-on="click"
               @update:value="(v) => setEmbeddingConfig('api_key', v)"
+            />
+          </NFormItem>
+        </NGridItem>
+      </NGrid>
+
+      <!-- 长程语义记忆 -->
+      <div
+        class="mb-3 mt-2 flex items-center gap-2 text-xs font-medium"
+        style="color: hsl(var(--muted-foreground))"
+      >
+        <IconifyIcon icon="lucide:brain" class="size-3.5" />
+        <span>长程语义记忆（记住用户偏好，对话自动注入）</span>
+      </div>
+      <NGrid cols="1 s:2 l:3" :x-gap="16" responsive="screen">
+        <NGridItem span="1">
+          <NFormItem label="启用长程记忆">
+            <NSwitch
+              :value="config['agent.memory.long_term.enabled']"
+              @update:value="
+                (v) => emit('updateConfig', 'agent.memory.long_term.enabled', v)
+              "
+            />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="1">
+          <NFormItem label="注入条数 top_k">
+            <NInputNumber
+              :value="Number(getLongTermConfig('top_k') || 5)"
+              :min="1"
+              :max="10"
+              @update:value="
+                (v) => setLongTermConfig('top_k', String(v == null ? 5 : v))
+              "
+            />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="1">
+          <NFormItem label="抽取时机">
+            <NSelect
+              :value="getLongTermConfig('extraction') || 'on_session_end'"
+              :options="[
+                { value: 'on_session_end', label: '会话结束' },
+                { value: 'on_turn_end', label: '每轮结束' },
+                { value: 'off', label: '关闭抽取' },
+              ]"
+              @update:value="(v) => setLongTermConfig('extraction', v)"
             />
           </NFormItem>
         </NGridItem>

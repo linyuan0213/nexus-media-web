@@ -180,6 +180,18 @@ export async function listAgentModelsApi(data: {
   );
 }
 
+/** 查询 Agent Embedding 模型列表 */
+export async function listAgentEmbeddingModelsApi(data: {
+  api_key: string;
+  api_url: string;
+  provider_name: string;
+}) {
+  return requestClient.post<{ code: number; data?: string[] }>(
+    '/system/agent/embedding_models',
+    data,
+  );
+}
+
 /** 获取消息客户端列表 */
 export async function getMessageClientApi(cid?: number) {
   return requestClient.post<Record<string, SystemApi.MessageClient>>(
