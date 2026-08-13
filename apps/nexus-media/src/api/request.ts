@@ -19,6 +19,19 @@ import { useAuthStore } from '#/store';
 import { getApiBaseUrl } from '#/utils/backend-url';
 
 import { refreshTokenApi } from './core';
+import { ErrorCode, extractErrorCode } from './error-codes';
+
+/** 统一错误提示：权限类用 warning，其余用 error */
+function showErrorMessage(msg: string, error: any) {
+  const responseData = error?.response?.data ?? {};
+  const errorMessage = responseData?.message ?? responseData?.msg ?? msg;
+  const errcode = extractErrorCode(responseData);
+  if (errcode === ErrorCode.PERMISSION_DENIED) {
+    message.warning(errorMessage || '权限不足');
+  } else {
+    message.error(errorMessage);
+  }
+}
 
 const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
 const runtimeApiURL = getApiBaseUrl() ?? apiURL;
@@ -98,9 +111,7 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   // 通用的错误处理
   client.addResponseInterceptor(
     errorMessageResponseInterceptor((msg: string, error) => {
-      const responseData = error?.response?.data ?? {};
-      const errorMessage = responseData?.message ?? responseData?.msg ?? '';
-      message.error(errorMessage || msg);
+      showErrorMessage(msg, error);
     }),
   );
 
@@ -132,8 +143,6 @@ baseRequestClient.addResponseInterceptor(
 
 baseRequestClient.addResponseInterceptor(
   errorMessageResponseInterceptor((msg: string, error) => {
-    const responseData = error?.response?.data ?? {};
-    const errorMessage = responseData?.message ?? responseData?.msg ?? '';
-    message.error(errorMessage || msg);
+    showErrorMessage(msg, error);
   }),
 );
