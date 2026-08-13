@@ -89,10 +89,31 @@ function handlePageChange(page: number) {
 async function copyLink(url: string) {
   if (!url) return;
   try {
-    await navigator.clipboard.writeText(url);
-    message.success('下载链接已复制');
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url);
+      message.success('下载链接已复制');
+      return;
+    }
+    throw new Error('clipboard unavailable');
   } catch {
-    message.error('复制失败');
+    // 降级：非安全上下文 / 权限被拒时用 execCommand('copy') 兜底
+    const textarea = document.createElement('textarea');
+    textarea.value = url;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, url.length);
+    let ok = false;
+    try {
+      ok = document.execCommand('copy');
+    } catch {
+      ok = false;
+    }
+    document.body.removeChild(textarea);
+    if (ok) message.success('下载链接已复制');
+    else message.error('复制失败，请手动复制');
   }
 }
 
