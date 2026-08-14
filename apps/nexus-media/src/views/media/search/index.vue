@@ -419,7 +419,6 @@ const { getLabelClass } = useResourceHelpers();
 const {
   pct: searchProgressPct,
   text: searchProgressText,
-  sites: searchSiteStatuses,
   start: startSearchProgress,
   stop: stopSearchProgress,
 } = useSearchProgress();
@@ -1314,29 +1313,6 @@ async function confirmDownload() {
         </NSpin>
       </div>
 
-      <!-- 站点搜索状态（含失败原因），搜索中/结束后均展示 -->
-      <div v-if="searchSiteStatuses.length > 0" class="search-site-status">
-        <span
-          v-for="st in searchSiteStatuses"
-          :key="st.name"
-          class="search-site-chip"
-          :class="`search-site-chip--${st.status}`"
-          :title="st.error ? `${st.name}：${st.error}` : st.name"
-        >
-          <span class="search-site-chip-dot"></span>
-          <span class="search-site-chip-name">{{ st.name }}</span>
-          <span v-if="st.status === 'ok'" class="search-site-chip-num">{{
-            st.count
-          }}</span>
-          <span v-else-if="st.status === 'timeout'" class="search-site-chip-msg"
-            >超时</span
-          >
-          <span v-else class="search-site-chip-msg">{{
-            st.error || '失败'
-          }}</span>
-        </span>
-      </div>
-
       <!-- 搜索结果 -->
       <div>
         <div v-if="results.length > 0" class="result-list">
@@ -1893,82 +1869,6 @@ async function confirmDownload() {
 </template>
 
 <style scoped>
-/* 站点搜索状态芯片 */
-.search-site-status {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-  margin-bottom: 0.75rem;
-}
-
-.search-site-chip {
-  display: inline-flex;
-  gap: 0.3125rem;
-  align-items: center;
-  padding: 0.1875rem 0.5rem;
-  font-size: 0.7188rem;
-  line-height: 1.4;
-  color: hsl(var(--muted-foreground));
-  white-space: nowrap;
-  background: hsl(var(--muted));
-  border-radius: 0.375rem;
-}
-
-.search-site-chip-dot {
-  flex-shrink: 0;
-  width: 0.375rem;
-  height: 0.375rem;
-  background: hsl(var(--muted-foreground) / 40%);
-  border-radius: 50%;
-}
-
-.search-site-chip--ok .search-site-chip-dot {
-  background: hsl(var(--success));
-}
-
-.search-site-chip--timeout {
-  color: hsl(var(--warning));
-  background: hsl(var(--warning) / 12%);
-}
-
-.search-site-chip--timeout .search-site-chip-dot {
-  background: hsl(var(--warning));
-}
-
-.search-site-chip--error {
-  color: hsl(var(--destructive));
-  background: hsl(var(--destructive) / 10%);
-}
-
-.search-site-chip--error .search-site-chip-dot {
-  background: hsl(var(--destructive));
-}
-
-.search-site-chip-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.search-site-chip-num {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: hsl(var(--card-foreground));
-}
-
-.search-site-chip-msg {
-  opacity: 0.85;
-}
-
-@media (max-width: 640px) {
-  .search-site-chip {
-    max-width: 10rem;
-  }
-
-  .search-site-chip-name {
-    max-width: 5.5rem;
-  }
-}
-
 /* 顶部内联搜索进度条 */
 .torrent-progress-inline {
   display: flex;
