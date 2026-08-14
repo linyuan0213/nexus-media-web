@@ -419,6 +419,7 @@ const { getLabelClass } = useResourceHelpers();
 const {
   pct: searchProgressPct,
   text: searchProgressText,
+  sites: searchSiteStatuses,
   start: startSearchProgress,
   stop: stopSearchProgress,
 } = useSearchProgress();
@@ -1313,6 +1314,25 @@ async function confirmDownload() {
         </NSpin>
       </div>
 
+      <!-- 站点搜索状态（含失败原因），搜索中/结束后均展示 -->
+      <div
+        v-if="searchSiteStatuses.length > 0"
+        class="mb-2 flex flex-wrap items-center gap-1.5"
+      >
+        <span
+          v-for="st in searchSiteStatuses"
+          :key="st.name"
+          class="search-site-chip"
+          :class="`search-site-chip--${st.status}`"
+          :title="st.error ? `${st.name}：${st.error}` : st.name"
+        >
+          {{ st.name
+          }}<template v-if="st.status === 'ok'">（{{ st.count }} 条）</template
+          ><template v-else-if="st.status === 'timeout'">：超时</template
+          ><template v-else>：{{ st.error || '失败' }}</template>
+        </span>
+      </div>
+
       <!-- 搜索结果 -->
       <div>
         <div v-if="results.length > 0" class="result-list">
@@ -1869,6 +1889,44 @@ async function confirmDownload() {
 </template>
 
 <style scoped>
+/* 站点搜索状态芯片 */
+.search-site-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 220px;
+  padding: 0.1rem 0.6rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+  border: 1px solid hsl(var(--border));
+  border-radius: 9999px;
+}
+
+.search-site-chip--ok {
+  color: hsl(var(--success));
+  border-color: hsl(var(--success) / 40%);
+}
+
+.search-site-chip--timeout {
+  color: hsl(var(--warning));
+  border-color: hsl(var(--warning) / 40%);
+}
+
+.search-site-chip--error {
+  color: hsl(var(--destructive));
+  border-color: hsl(var(--destructive) / 40%);
+}
+
+@media (max-width: 640px) {
+  .search-site-chip {
+    max-width: 160px;
+    font-size: 0.7rem;
+  }
+}
+
 /* 顶部内联搜索进度条 */
 .torrent-progress-inline {
   display: flex;

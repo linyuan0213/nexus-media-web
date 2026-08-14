@@ -177,7 +177,11 @@ export async function subscribeSearchProgressApi(
   sessionId: string,
   callbacks: {
     onEnd?: () => void;
-    onProgress?: (pct: number, text: string) => void;
+    onProgress?: (
+      pct: number,
+      text: string,
+      sites?: SiteSearchStatus[],
+    ) => void;
   },
   signal?: AbortSignal,
 ) {
@@ -199,7 +203,11 @@ export async function subscribeSearchProgressApi(
             if (!raw) continue;
             try {
               const parsed = JSON.parse(raw);
-              callbacks.onProgress?.(parsed.value ?? 0, parsed.text ?? '');
+              callbacks.onProgress?.(
+                parsed.value ?? 0,
+                parsed.text ?? '',
+                parsed.sites ?? undefined,
+              );
             } catch {
               // ignore parse errors
             }
@@ -209,6 +217,13 @@ export async function subscribeSearchProgressApi(
       onEnd: callbacks.onEnd,
     },
   );
+}
+
+export interface SiteSearchStatus {
+  name: string;
+  status: 'error' | 'ok' | 'timeout';
+  count: number;
+  error?: string;
 }
 
 /** WEB搜索（从发现页触发） */

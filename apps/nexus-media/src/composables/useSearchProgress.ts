@@ -1,10 +1,14 @@
 import { ref } from 'vue';
 
-import { subscribeSearchProgressApi } from '#/api/modules/media';
+import {
+  type SiteSearchStatus,
+  subscribeSearchProgressApi,
+} from '#/api/modules/media';
 
 export function useSearchProgress() {
   const pct = ref(0);
   const text = ref('');
+  const sites = ref<SiteSearchStatus[]>([]);
   const aborter = ref<AbortController | null>(null);
 
   function stop() {
@@ -18,6 +22,7 @@ export function useSearchProgress() {
     stop();
     pct.value = 0;
     text.value = '正在处理...';
+    sites.value = [];
     const ctrl = new AbortController();
     aborter.value = ctrl;
     let settled = false;
@@ -31,9 +36,16 @@ export function useSearchProgress() {
     subscribeSearchProgressApi(
       sessionId,
       {
-        onProgress: (newPct: number, newText: string) => {
+        onProgress: (
+          newPct: number,
+          newText: string,
+          newSites?: SiteSearchStatus[],
+        ) => {
           pct.value = Math.min(newPct, 100);
           if (newText) text.value = newText;
+          if (Array.isArray(newSites) && newSites.length > 0) {
+            sites.value = newSites;
+          }
           if (pct.value >= 100) {
             settle();
           }
@@ -49,5 +61,5 @@ export function useSearchProgress() {
     });
   }
 
-  return { pct, text, start, stop };
+  return { pct, text, sites, start, stop };
 }
