@@ -27,6 +27,7 @@ export namespace AgentApi {
 
   /** 消息流条目（命令回复 + 事件通知） */
   export interface MessageStreamItem {
+    id?: number;
     cursor: number;
     kind: 'list' | 'notify' | 'reply';
     title: string;
@@ -34,6 +35,7 @@ export namespace AgentApi {
     image?: string;
     items?: AgentApi.ListItem[];
     url?: string;
+    read?: boolean;
     time: string;
     ts?: number;
   }
@@ -127,6 +129,18 @@ export function getAgentKbStatus() {
 /** 内置命令交互（agent 未启用时：订阅/下载/搜索等命令） */
 export function interactMessage(text: string) {
   return requestClient.post('/agent/message/interact', { text });
+}
+
+/** 未读消息数（通知栏红点徽标） */
+export function getMessageUnreadCount() {
+  return requestClient.get<{ unread: number }>('/agent/message/unread-count');
+}
+
+/** 标记已读（ids 为空则全部已读） */
+export function markMessageRead(ids?: number[]) {
+  return requestClient.post<{ marked: number }>('/agent/message/read', {
+    ids: ids ?? null,
+  });
 }
 
 /** 长程记忆列表 */

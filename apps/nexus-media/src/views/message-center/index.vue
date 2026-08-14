@@ -23,7 +23,9 @@ import {
   getAgentMemories,
   getConversation,
   getMessageHistory,
+  getMessageUnreadCount,
   interactMessage,
+  markMessageRead,
   streamAgentChat,
   streamMessages,
 } from '#/api/modules/agent';
@@ -51,6 +53,7 @@ const sending = ref(false);
 const agentEnabled = ref(false);
 const providerName = ref('');
 const kbTotal = ref(0);
+const unreadCount = ref(0);
 const listRef = ref<HTMLDivElement | null>(null);
 const chatAbort = ref<AbortController | null>(null);
 const streamAbort = ref<AbortController | null>(null);
@@ -67,6 +70,82 @@ let streamReconnectTimer: null | number = null;
 let placeholderId: null | number = null;
 
 const STREAM_CURSOR_KEY = 'nexus-agent-stream-cursor';
+const NOTIFIED_KEY = 'nexus-agent-notified-ids';
+
+/** 已推送过 OS 通知的消息 ID 集合（localStorage 持久化，去重防重放） */
+const notifiedIds = ref<Set<number>>(
+  new Set(JSON.parse(localStorage.getItem(NOTIFIED_KEY) || '[]').map(Number)),
+);
+
+function saveNotifiedIds() {
+  localStorage.setItem(NOTIFIED_KEY, JSON.stringify([...notifiedIds.value]));
+}
+
+/** 请求浏览器通知权限（首次由用户授权） */
+async function requestNotifyPermission() {
+  try {
+    if (
+      typeof Notification !== 'undefined' &&
+      Notification.permission === 'default'
+    ) {
+      await Notification.requestPermission();
+    }
+  } catch {
+    // 忽略权限请求失败（非安全上下文等）
+  }
+}
+
+/** 页面不在前台且该消息未推送过 → 弹 OS 通知栏消息 */
+function notifyOs(title: string, body: string) {
+  try {
+    if (
+      typeof Notification === 'undefined' ||
+      Notification.permission !== 'granted'
+    ) {
+      return;
+    }
+    if (!document.hidden && document.hasFocus()) return;
+    new Notification(title || 'Nexus Media', {
+      body: body || '',
+      icon: '/static/img/logo.png',
+      tag: 'nexus-message',
+    });
+  } catch {
+    // 浏览器通知失败不阻断主流程
+  }
+}
+
+/** 记录已推送消息 ID（去重），并弹 OS 通知 */
+function maybeNotify(item: AgentApi.MessageStreamItem) {
+  if (!item.id) return;
+  const title = item.title?.trim() || '新消息';
+  const body = (item.content || '').trim() || '';
+  if (item.kind === 'list') return;
+  if (!notifiedIds.value.has(item.id)) {
+    notifiedIds.value.add(item.id);
+    saveNotifiedIds();
+    notifyOs(title, body);
+  }
+}
+
+/** 刷新未读数 + 页面可见时全部已读 */
+async function refreshUnread() {
+  try {
+    const res = await getMessageUnreadCount();
+    unreadCount.value = res?.unread || 0;
+  } catch {
+    unreadCount.value = 0;
+  }
+}
+
+async function markAllRead() {
+  try {
+    await markMessageRead();
+    unreadCount.value = 0;
+  } catch {
+    // 标记失败不阻断
+  }
+}
 
 function loadStreamCursor(): number {
   try {
@@ -155,6 +234,7 @@ function startMessageStream() {
           messages.value = messages.value.filter((m) => m.id !== placeholderId);
           placeholderId = null;
         }
+        maybeNotify(item);
         const title = item.title?.trim();
         const content = item.content?.trim();
         pushMessage({
@@ -451,19 +531,31 @@ onMounted(() => {
   streamCursor = loadStreamCursor();
   window.addEventListener('storage', onStorageSync);
   window.addEventListener('resize', measureListHeight);
+  window.addEventListener('focus', onWindowFocus);
   fetchStatus();
   measureListHeight();
   restoreTimeline();
   startMessageStream();
+  // 通知栏 + 已读：页面打开即视为已读，后台新消息由 SSE + Notification 推送
+  requestNotifyPermission();
+  refreshUnread();
+  markAllRead();
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('storage', onStorageSync);
   window.removeEventListener('resize', measureListHeight);
+  window.removeEventListener('focus', onWindowFocus);
   chatAbort.value?.abort();
   streamAbort.value?.abort();
   if (streamReconnectTimer) clearTimeout(streamReconnectTimer);
 });
+
+/** 页面重新聚焦时刷新未读数并全部已读 */
+function onWindowFocus() {
+  refreshUnread();
+  markAllRead();
+}
 </script>
 
 <template>
@@ -497,8 +589,23 @@ onBeforeUnmount(() => {
         <NTag v-if="agentEnabled && kbTotal" size="small" round>
           知识库 {{ kbTotal }}
         </NTag>
+        <NTag v-if="unreadCount" type="warning" size="small" round>
+          未读 {{ unreadCount }}
+        </NTag>
       </div>
       <div class="flex shrink-0 items-center gap-0.5">
+        <NButton
+          v-if="unreadCount"
+          size="small"
+          quaternary
+          aria-label="全部已读"
+          @click="markAllRead"
+        >
+          <template #icon>
+            <IconifyIcon icon="lucide:check-check" class="size-4" />
+          </template>
+          <span class="max-sm:hidden">全部已读</span>
+        </NButton>
         <NButton
           size="small"
           quaternary
