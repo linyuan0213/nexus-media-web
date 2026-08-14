@@ -34,6 +34,7 @@ const router = useRouter();
 const notification = useAppNotification();
 
 const loading = ref(false);
+const refreshing = ref(false);
 const deleteModalShow = ref(false);
 const deleteTarget = ref<any>(null);
 
@@ -146,11 +147,24 @@ async function handleCardSearch(item: any) {
 }
 
 async function handleCardRefresh(item: any) {
+  if (refreshing.value) return;
+  refreshing.value = true;
   try {
     await refreshSubscriptionApi('tv', String(item.id));
     notification.success('已触发刷新');
+    // 后台异步搜索启动后状态才变为"搜索中"，轮询拉取以反映最新状态
+    for (let i = 0; i < 5; i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await fetchData();
+      const cur = subscriptionStore.tvSubscriptions.find(
+        (s: any) => String(s.id) === String(item.id),
+      );
+      if (cur && String(cur.state) !== String(item.state)) break;
+    }
   } catch (error: any) {
     notification.error('刷新失败', { description: error?.message || '' });
+  } finally {
+    refreshing.value = false;
   }
 }
 
