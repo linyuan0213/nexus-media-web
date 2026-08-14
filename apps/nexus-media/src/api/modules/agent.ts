@@ -136,6 +136,14 @@ export function getMessageUnreadCount() {
   return requestClient.get<{ unread: number }>('/agent/message/unread-count');
 }
 
+/** 未读消息列表 + 未读数（通知栏下拉，轻量接口） */
+export function getMessageUnreadList(limit = 100) {
+  return requestClient.get<{
+    messages: AgentApi.MessageStreamItem[];
+    unread: number;
+  }>('/agent/message/unread', { params: { limit } });
+}
+
 /** 标记已读（ids 为空则全部已读） */
 export function markMessageRead(ids?: number[]) {
   return requestClient.post<{ marked: number }>('/agent/message/read', {

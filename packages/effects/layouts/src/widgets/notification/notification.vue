@@ -1,7 +1,13 @@
 <script lang="ts" setup>
 import type { NotificationItem } from './types';
 
-import { Bell, CircleCheckBig, CircleX, MailCheck } from '@vben/icons';
+import {
+  Bell,
+  CircleCheckBig,
+  CircleX,
+  IconifyIcon,
+  MailCheck,
+} from '@vben/icons';
 import { $t } from '@vben/locales';
 
 import {
@@ -19,12 +25,21 @@ withDefaults(
   defineProps<{
     /** 显示圆点 */
     dot?: boolean;
+    /** 未读数量徽标（右上角红色，>0 时显示数字） */
+    badgeCount?: number;
     /** 消息列表 */
     notifications?: NotificationItem[];
+    /** 是否启用 OS 系统通知 */
+    osEnabled?: boolean;
+    /** 新消息提示音 */
+    soundEnabled?: boolean;
   }>(),
   {
     dot: false,
+    badgeCount: 0,
     notifications: () => [],
+    osEnabled: true,
+    soundEnabled: false,
   },
 );
 
@@ -34,6 +49,8 @@ const emit = defineEmits<{
   onClick: [NotificationItem];
   read: [NotificationItem];
   remove: [NotificationItem];
+  updateOsEnabled: [value: boolean];
+  updateSoundEnabled: [value: boolean];
   viewAll: [];
 }>();
 
@@ -62,8 +79,14 @@ const handleClear = () => {
       <div class="mr-2 flex-center h-full" @click.stop="toggle()">
         <VbenIconButton class="bell-button relative text-foreground">
           <span
-            v-if="dot"
-            class="absolute top-0.5 right-0.5 size-2 rounded-sm bg-primary"
+            v-if="badgeCount > 0"
+            class="absolute -top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-white"
+          >
+            {{ badgeCount > 99 ? '99+' : badgeCount }}
+          </span>
+          <span
+            v-else-if="dot"
+            class="absolute top-0.5 right-0.5 size-2 rounded-sm bg-destructive"
           ></span>
           <Bell class="size-4" />
         </VbenIconButton>
@@ -73,13 +96,33 @@ const handleClear = () => {
     <div class="relative">
       <div class="flex items-center justify-between p-4 py-3">
         <div class="text-foreground">{{ $t('ui.widgets.notifications') }}</div>
-        <VbenIconButton
-          :disabled="notifications.length <= 0"
-          :tooltip="$t('ui.widgets.markAllAsRead')"
-          @click="handleMakeAll"
-        >
-          <MailCheck class="size-4" />
-        </VbenIconButton>
+        <div class="flex items-center gap-1">
+          <VbenIconButton
+            :tooltip="osEnabled ? '系统通知已开启' : '系统通知已关闭'"
+            @click="emit('updateOsEnabled', !osEnabled)"
+          >
+            <IconifyIcon
+              :icon="osEnabled ? 'lucide:bell' : 'lucide:bell-off'"
+              class="size-4"
+            />
+          </VbenIconButton>
+          <VbenIconButton
+            :tooltip="soundEnabled ? '提示音已开启' : '提示音已关闭'"
+            @click="emit('updateSoundEnabled', !soundEnabled)"
+          >
+            <IconifyIcon
+              :icon="soundEnabled ? 'lucide:volume-2' : 'lucide:volume-x'"
+              class="size-4"
+            />
+          </VbenIconButton>
+          <VbenIconButton
+            :disabled="notifications.length <= 0"
+            :tooltip="$t('ui.widgets.markAllAsRead')"
+            @click="handleMakeAll"
+          >
+            <MailCheck class="size-4" />
+          </VbenIconButton>
+        </div>
       </div>
       <VbenScrollbar v-if="notifications.length > 0">
         <ul class="flex! max-h-90 w-full flex-col">
@@ -95,6 +138,7 @@ const handleClear = () => {
                 ></span>
 
                 <span
+                  v-if="item.avatar"
                   class="relative flex size-10 shrink-0 overflow-hidden rounded-full"
                 >
                   <img

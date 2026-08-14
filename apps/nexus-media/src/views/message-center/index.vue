@@ -30,6 +30,8 @@ import {
   streamMessages,
 } from '#/api/modules/agent';
 import { getAllSystemConfigApi } from '#/api/modules/system';
+import { queueOsNotify } from '#/utils/os-notify';
+import { dispatchUnreadSync } from '#/utils/unread-sync';
 
 import ChatMessage from './components/ChatMessage.vue';
 import ConfirmCard from './components/ConfirmCard.vue';
@@ -37,6 +39,8 @@ import WelcomePanel from './components/WelcomePanel.vue';
 
 interface Message {
   id: number;
+  /** 后端消息 ID（已读标记用；用户/助手消息无此字段） */
+  backendId?: number;
   role: 'assistant' | 'system' | 'user';
   content: string;
   image?: string;
@@ -45,6 +49,12 @@ interface Message {
   url?: string;
   toolEvents?: AgentApi.ChatEvent[];
   streaming?: boolean;
+  /** 是否已读（来自后端 read 字段） */
+  read?: boolean;
+  /** 新消息标记：本会话新到达的未读消息 */
+  isNew?: boolean;
+  ts?: number;
+  _sort?: number;
 }
 
 const messages = ref<Message[]>([]);
@@ -66,6 +76,10 @@ const confirmBusy = ref(false);
 
 let msgSeq = 0;
 let streamCursor = 0;
+let streamBackoff = 3000;
+let ioObserver: IntersectionObserver | null = null;
+const readTimers = new Map<number, ReturnType<typeof setTimeout>>();
+const msgElements = new Map<number, HTMLElement>();
 let streamReconnectTimer: null | number = null;
 let placeholderId: null | number = null;
 
@@ -81,58 +95,31 @@ function saveNotifiedIds() {
   localStorage.setItem(NOTIFIED_KEY, JSON.stringify([...notifiedIds.value]));
 }
 
-/** 请求浏览器通知权限（首次由用户授权） */
-async function requestNotifyPermission() {
-  try {
-    if (
-      typeof Notification !== 'undefined' &&
-      Notification.permission === 'default'
-    ) {
-      await Notification.requestPermission();
-    }
-  } catch {
-    // 忽略权限请求失败（非安全上下文等）
-  }
-}
-
-/** 页面不在前台且该消息未推送过 → 弹 OS 通知栏消息 */
-function notifyOs(title: string, body: string) {
-  try {
-    if (
-      typeof Notification === 'undefined' ||
-      Notification.permission !== 'granted'
-    ) {
-      return;
-    }
-    if (!document.hidden && document.hasFocus()) return;
-    new Notification(title || 'Nexus Media', {
-      body: body || '',
-      icon: '/static/img/logo.png',
-      tag: 'nexus-message',
-    });
-  } catch {
-    // 浏览器通知失败不阻断主流程
-  }
-}
-
-/** 记录已推送消息 ID（去重），并弹 OS 通知 */
+/** 页面不在前台且该消息未推送过 → 排队弹 OS 通知（聚合 + 提示音由工具处理） */
 function maybeNotify(item: AgentApi.MessageStreamItem) {
   if (!item.id) return;
   const title = item.title?.trim() || '新消息';
   const body = (item.content || '').trim() || '';
   if (item.kind === 'list') return;
-  if (!notifiedIds.value.has(item.id)) {
+  if (
+    (document.hidden || !document.hasFocus()) &&
+    !notifiedIds.value.has(item.id)
+  ) {
     notifiedIds.value.add(item.id);
     saveNotifiedIds();
-    notifyOs(title, body);
+    queueOsNotify(title, body);
   }
 }
 
-/** 刷新未读数 + 页面可见时全部已读 */
+/** 刷新未读数 + 广播跨标签同步 */
 async function refreshUnread() {
   try {
     const res = await getMessageUnreadCount();
-    unreadCount.value = res?.unread || 0;
+    const next = res?.unread || 0;
+    if (next !== unreadCount.value) {
+      unreadCount.value = next;
+      dispatchUnreadSync();
+    }
   } catch {
     unreadCount.value = 0;
   }
@@ -142,9 +129,113 @@ async function markAllRead() {
   try {
     await markMessageRead();
     unreadCount.value = 0;
+    // 已读后清除新消息标记（不再高亮）
+    messages.value.forEach((m) => {
+      m.isNew = false;
+      m.read = true;
+    });
+    // 通知铃铛/布局监听同步未读数
+    dispatchUnreadSync();
   } catch {
     // 标记失败不阻断
   }
+}
+
+/** 滚动到列表底部（看到最新消息）即视为已读；程序性滚动不触发 */
+function onListScroll() {
+  if (autoScrolling || unreadCount.value === 0) return;
+  const el = listRef.value;
+  if (!el) return;
+  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 30) {
+    markAllRead();
+  }
+}
+
+// 视口内已读：消息进入视口并停留片刻后标记该条已读（比定时全量已读更精准）
+const READ_VIEW_DELAY = 900;
+
+/** 消息元素进视口 → 延迟后标记已读 */
+function scheduleRead(msgId: number) {
+  const msg = messages.value.find((m) => m.id === msgId);
+  if (!msg || msg.read !== false || !msg.backendId || readTimers.has(msgId)) {
+    return;
+  }
+  readTimers.set(
+    msgId,
+    setTimeout(async () => {
+      readTimers.delete(msgId);
+      const target = messages.value.find((m) => m.id === msgId);
+      if (!target || target.read || !target.backendId) return;
+      try {
+        await markMessageRead([target.backendId]);
+      } catch {
+        return;
+      }
+      target.read = true;
+      target.isNew = false;
+      if (unreadCount.value > 0) unreadCount.value -= 1;
+      dispatchUnreadSync();
+    }, READ_VIEW_DELAY),
+  );
+}
+
+/** 消息行 ref：进入视口即观察 */
+function setMsgRef(msgId: number, el: unknown) {
+  const node = el as HTMLElement | null;
+  if (!node) {
+    msgElements.delete(msgId);
+    return;
+  }
+  msgElements.set(msgId, node);
+  ioObserver?.observe(node);
+}
+
+function clearReadTimers() {
+  for (const t of readTimers.values()) clearTimeout(t);
+  readTimers.clear();
+}
+
+/** 时间标签（今天 / 昨天 / M月D日） */
+function fmtDate(ts?: number): string {
+  const d = new Date(ts || Date.now());
+  const now = new Date();
+  const startOfDay = (x: Date) =>
+    new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(now) - startOfDay(d)) / 86_400_000);
+  if (diffDays <= 0) return '今天';
+  if (diffDays === 1) return '昨天';
+  return `${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
+/** 时刻标签（HH:MM，用于未读边界） */
+function fmtTime(ts?: number): string {
+  const d = new Date(ts || Date.now());
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** 按时间分组：与上一条日期不同时显示时间分隔（未读边界不重复显示日期） */
+function showTimeDivider(idx: number): boolean {
+  if (showNewMarker(idx)) return false;
+  if (idx <= 0) return true;
+  const prev = messages.value[idx - 1];
+  const cur = messages.value[idx];
+  if (!prev || !cur) return false;
+  return fmtDate(prev.ts) !== fmtDate(cur.ts);
+}
+
+/** 是否未读消息 */
+function isUnread(msg: Message): boolean {
+  return msg.isNew || msg.read === false;
+}
+
+/** 未读边界：本条未读且上一条已读（或为第一条）时显示时间标记 */
+function showNewMarker(idx: number): boolean {
+  const cur = messages.value[idx];
+  if (!cur || !isUnread(cur)) return false;
+  if (idx <= 0) return true;
+  const prev = messages.value[idx - 1];
+  return !prev || !isUnread(prev);
 }
 
 function loadStreamCursor(): number {
@@ -183,16 +274,28 @@ function measureListHeight() {
   listHeight.value = Math.max(320, Math.round(window.innerHeight - top));
 }
 
+/** 程序性滚动标记：自动滚动不触发已读，用户滚动才触发 */
+let autoScrolling = false;
+
 function scrollToBottom() {
+  // 双 rAF 确保列表高度定型后再滚（markdown/图片异步渲染会改变 scrollHeight）
+  autoScrolling = true;
   nextTick(() => {
-    const el = listRef.value;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = listRef.value;
+        if (!el) return;
+        el.scrollTop = el.scrollHeight;
+        setTimeout(() => {
+          autoScrolling = false;
+        }, 400);
+      });
+    });
   });
 }
 
 function pushMessage(msg: Omit<Message, 'id'>): Message {
-  const item = { ...msg, id: ++msgSeq };
+  const item = { ...msg, id: ++msgSeq, ts: msg.ts || Date.now() };
   messages.value.push(item);
   scrollToBottom();
   return item;
@@ -229,6 +332,7 @@ function startMessageStream() {
       onEvent: (item) => {
         streamCursor = Math.max(streamCursor, item.cursor);
         saveStreamCursor(streamCursor);
+        streamBackoff = 3000; // 有数据即重置退避
         // 命令占位替换：收到回复/通知时移除"正在处理…"
         if (placeholderId != null) {
           messages.value = messages.value.filter((m) => m.id !== placeholderId);
@@ -239,16 +343,28 @@ function startMessageStream() {
         const content = item.content?.trim();
         pushMessage({
           role: 'system',
+          backendId: item.id ?? item.cursor,
           content: content ? `${title}\n${content}` : title,
           image: item.image || '',
           items: item.items || [],
           url: item.url || '',
+          read: item.read === false ? false : true,
+          isNew: true,
+          ts: item.ts ? item.ts * 1000 : Date.now(),
         });
+        // 新未读到达：刷新未读数并同步铃铛
+        if (item.read === false || item.kind === 'notify') {
+          refreshUnread();
+        }
       },
       onEnd: () => {
-        // 断线重连（页面销毁时由 signal 终止，不再重连）
+        // 断线重连（指数退避 + 抖动；页面销毁时由 signal 终止，不再重连）
         if (!streamAbort.value?.signal.aborted) {
-          streamReconnectTimer = window.setTimeout(startMessageStream, 3000);
+          streamReconnectTimer = window.setTimeout(
+            startMessageStream,
+            streamBackoff + Math.random() * 1000,
+          );
+          streamBackoff = Math.min(streamBackoff * 2, 30_000);
         }
       },
     },
@@ -487,11 +603,13 @@ async function restoreTimeline() {
       const content = item.content?.trim();
       merged.push({
         role: 'system',
+        backendId: item.id ?? item.cursor,
         content: content ? `${title}\n${content}` : title,
         image: item.image || '',
         items: item.items || [],
         url: item.url || '',
-        ts: Number(item.ts) || 0,
+        read: item.read !== false,
+        ts: (Number(item.ts) || 0) * 1000,
         _sort: order++,
       });
     }
@@ -527,34 +645,58 @@ function onStorageSync(e: StorageEvent) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   streamCursor = loadStreamCursor();
   window.addEventListener('storage', onStorageSync);
   window.addEventListener('resize', measureListHeight);
-  window.addEventListener('focus', onWindowFocus);
+  document.addEventListener('visibilitychange', onVisibilityChange);
   fetchStatus();
   measureListHeight();
-  restoreTimeline();
+  // 视口观察：进视口的未读消息自动已读
+  ioObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const id = Number((entry.target as HTMLElement).dataset.msgId);
+        if (id) scheduleRead(id);
+      }
+    },
+    { root: listRef.value, threshold: 0.3 },
+  );
+  await restoreTimeline();
+  // 历史加载完成后重新测量高度并滚到最新消息（底部）
+  measureListHeight();
+  scrollToBottom();
+  // 内容渲染稳定后再补一次滚动（图片/富文本异步渲染）
+  window.setTimeout(scrollToBottom, 300);
   startMessageStream();
-  // 通知栏 + 已读：页面打开即视为已读，后台新消息由 SSE + Notification 推送
-  requestNotifyPermission();
+  // 未读数；已读由视口观察 + 全部已读按钮 + 切回前台时完成
   refreshUnread();
-  markAllRead();
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('storage', onStorageSync);
   window.removeEventListener('resize', measureListHeight);
-  window.removeEventListener('focus', onWindowFocus);
+  document.removeEventListener('visibilitychange', onVisibilityChange);
   chatAbort.value?.abort();
   streamAbort.value?.abort();
   if (streamReconnectTimer) clearTimeout(streamReconnectTimer);
+  ioObserver?.disconnect();
+  clearReadTimers();
 });
 
-/** 页面重新聚焦时刷新未读数并全部已读 */
-function onWindowFocus() {
-  refreshUnread();
-  markAllRead();
+/** 页面是否曾切到后台（仅真正从后台切回时才全部已读，避免初始加载误清未读） */
+let wasHidden = false;
+
+/** 从后台切回页面时刷新未读数并全部已读 */
+function onVisibilityChange() {
+  if (document.visibilityState === 'hidden') {
+    wasHidden = true;
+  } else if (document.visibilityState === 'visible' && wasHidden) {
+    wasHidden = false;
+    refreshUnread();
+    markAllRead();
+  }
 }
 </script>
 
@@ -589,7 +731,7 @@ function onWindowFocus() {
         <NTag v-if="agentEnabled && kbTotal" size="small" round>
           知识库 {{ kbTotal }}
         </NTag>
-        <NTag v-if="unreadCount" type="warning" size="small" round>
+        <NTag v-if="unreadCount" type="error" size="small" round>
           未读 {{ unreadCount }}
         </NTag>
       </div>
@@ -635,6 +777,7 @@ function onWindowFocus() {
     <div
       ref="listRef"
       class="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-4 sm:py-4"
+      @scroll="onListScroll"
     >
       <div class="mx-auto w-full max-w-3xl">
         <WelcomePanel
@@ -643,17 +786,52 @@ function onWindowFocus() {
           :provider-name="providerName"
           @prompt="send"
         />
-        <template v-for="msg in messages" :key="msg.id">
-          <ChatMessage
-            :role="msg.role"
-            :content="msg.content"
-            :image="msg.image"
-            :items="msg.items"
-            :url="msg.url"
-            :tool-events="msg.toolEvents"
-            :reasoning="msg.reasoning"
-            :streaming="msg.streaming"
-          />
+        <template v-for="(msg, idx) in messages" :key="msg.id">
+          <div
+            v-if="showTimeDivider(idx)"
+            class="my-2 flex items-center justify-center"
+          >
+            <span
+              class="rounded-full px-3 py-0.5 text-xs"
+              :style="{
+                color: 'hsl(var(--muted-foreground))',
+                background: 'hsl(var(--muted) / 50%)',
+              }"
+            >
+              {{ fmtDate(msg.ts) }}
+            </span>
+          </div>
+          <div v-if="showNewMarker(idx)" class="my-2 flex items-center gap-2">
+            <span
+              class="h-px flex-1"
+              :style="{ background: 'hsl(var(--border))' }"
+            ></span>
+            <span
+              class="text-xs"
+              :style="{ color: 'hsl(var(--muted-foreground))' }"
+            >
+              {{ fmtTime(msg.ts) }}
+            </span>
+            <span
+              class="h-px flex-1"
+              :style="{ background: 'hsl(var(--border))' }"
+            ></span>
+          </div>
+          <div
+            :ref="(el: unknown) => setMsgRef(msg.id, el)"
+            :data-msg-id="msg.id"
+          >
+            <ChatMessage
+              :role="msg.role"
+              :content="msg.content"
+              :image="msg.image"
+              :items="msg.items"
+              :url="msg.url"
+              :tool-events="msg.toolEvents"
+              :reasoning="msg.reasoning"
+              :streaming="msg.streaming"
+            />
+          </div>
         </template>
         <ConfirmCard
           v-if="confirmState"
