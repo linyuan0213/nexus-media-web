@@ -236,24 +236,38 @@ function onContentClick(event: MouseEvent) {
             />
           </a>
         </div>
-        <!-- 单图通知消息 -->
-        <a
-          v-else-if="image"
-          :href="url || image"
-          target="_blank"
-          rel="noreferrer"
-          class="mb-2 inline-block overflow-hidden rounded-lg border"
-          :style="{ borderColor: 'hsl(var(--border))' }"
-        >
-          <img
-            :src="image"
-            class="max-h-44 w-auto max-w-full"
-            alt="消息图片"
-            @error="hideBrokenImg"
-          />
-        </a>
+        <!-- 单图通知消息：企业微信图文卡片样式——图片横幅在上，文字区在下 -->
         <div
-          v-if="!items?.length"
+          v-else-if="image"
+          class="mb-2 w-full max-w-[420px] overflow-hidden rounded-xl border"
+          :style="{
+            borderColor: 'hsl(var(--border))',
+            background: 'hsl(var(--card))',
+          }"
+        >
+          <a
+            :href="url || image"
+            target="_blank"
+            rel="noreferrer"
+            class="block"
+          >
+            <img
+              :src="image"
+              class="h-36 w-full object-cover"
+              alt="消息图片"
+              @error="hideBrokenImg"
+            />
+          </a>
+          <div
+            v-if="content"
+            class="agent-sys-firstline whitespace-pre-wrap px-3 py-2 text-xs leading-relaxed"
+            :style="{ color: 'hsl(var(--card-foreground))' }"
+          >
+            {{ content }}
+          </div>
+        </div>
+        <div
+          v-else-if="!items?.length"
           class="agent-sys-firstline whitespace-pre-wrap rounded-xl border px-3 py-2"
           :style="{
             background: 'hsl(var(--card))',
