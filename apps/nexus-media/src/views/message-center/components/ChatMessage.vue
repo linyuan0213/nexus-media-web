@@ -143,6 +143,10 @@ function openDoc(name: string) {
     });
 }
 
+function hideBrokenImg(event: Event) {
+  (event.target as HTMLElement).style.display = 'none';
+}
+
 function onContentClick(event: MouseEvent) {
   const anchor = (event.target as HTMLElement).closest('a');
   if (!anchor) return;
@@ -210,6 +214,7 @@ function onContentClick(event: MouseEvent) {
               alt=""
               loading="lazy"
               class="size-10 shrink-0 rounded object-cover"
+              @error="hideBrokenImg"
             />
             <div class="min-w-0 flex-1">
               <div
@@ -240,7 +245,12 @@ function onContentClick(event: MouseEvent) {
           class="mb-2 inline-block overflow-hidden rounded-lg border"
           :style="{ borderColor: 'hsl(var(--border))' }"
         >
-          <img :src="image" class="max-h-44 w-auto max-w-full" alt="消息图片" />
+          <img
+            :src="image"
+            class="max-h-44 w-auto max-w-full"
+            alt="消息图片"
+            @error="hideBrokenImg"
+          />
         </a>
         <div
           v-if="!items?.length"
