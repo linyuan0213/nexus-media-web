@@ -147,18 +147,14 @@ function currentProviderName(): string {
 }
 
 function saveAi() {
-  const data = buildPayload([
-    'agent.enabled',
-    'agent.default_provider',
-    'agent.media_recognizer_enabled',
-    'agent.batch_size',
-  ]);
-  const provider = currentProviderName();
-  ['api_url', 'api_key', 'model'].forEach((field) => {
-    const v = config.value[`agent.providers.${provider}.${field}`];
-    if (v !== undefined && v !== '')
-      data[`agent.providers.${provider}.${field}`] = v;
-  });
+  const data: Record<string, any> = {};
+  for (const key of Object.keys(config.value)) {
+    // 提交 Agent 全部配置：含 embedding / notify / long_term / fallback / providers
+    if (!key.startsWith('agent.') || key === 'agent.test') continue;
+    const v = config.value[key];
+    if (v === undefined || v === '') continue;
+    data[key] = v;
+  }
   saveSection('ai', data);
 }
 
