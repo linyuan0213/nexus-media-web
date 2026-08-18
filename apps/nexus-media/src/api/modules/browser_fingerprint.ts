@@ -12,6 +12,9 @@ import {
 export namespace BrowserFingerprintApi {
   export interface SubmitResult {
     fp_profile_id: null | string;
+    /** 移动端登录且站点已由桌面端指纹设置时为 true（站点 UA 未被覆盖） */
+    site_skipped?: boolean;
+    site_skip_reason?: string;
   }
 
   // localStorage 节流键：指纹哈希 + 最近同步时间（v2：强制真实浏览器重新同步一次）
