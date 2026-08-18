@@ -22,6 +22,20 @@ export interface BrowserFingerprint {
   touch_points?: number;
 }
 
+/**
+ * 自动化/无头浏览器检测。
+ * 此类浏览器采集的指纹不应写入站点画像（会污染用户真实浏览器指纹），直接跳过提交。
+ */
+export function isAutomatedBrowser(): boolean {
+  try {
+    if (navigator.webdriver) return true;
+  } catch {
+    // 忽略检测异常
+  }
+  const ua = navigator.userAgent || '';
+  return /HeadlessChrome|PhantomJS|Selenium|Puppeteer|Playwright/i.test(ua);
+}
+
 interface UadBrand {
   brand: string;
   version: string;
