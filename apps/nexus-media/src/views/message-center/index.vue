@@ -582,7 +582,8 @@ async function restoreTimeline() {
         merged.push({
           role: m.role,
           content: m.content || '',
-          ts: Number(m.ts) || 0,
+          // 会话 ts 为秒级 epoch，统一转毫秒与通知（*1000）同一单位，否则会话永远排在通知前面
+          ts: (Number(m.ts) || 0) * 1000,
           _sort: order++,
         });
       }
