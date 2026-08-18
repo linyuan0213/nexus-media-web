@@ -14,8 +14,8 @@ import {
 } from '#/api';
 import { PluginSlot } from '#/plugin-framework';
 
+import IndexerStatsChart from './components/IndexerStatsChart.vue';
 import MediaPieChart from './components/MediaPieChart.vue';
-import RankBarChart from './components/RankBarChart.vue';
 import SiteBarChart from './components/SiteBarChart.vue';
 import SiteRoseChart from './components/SiteRoseChart.vue';
 import StatCard from './components/StatCard.vue';
@@ -58,7 +58,7 @@ const siteStats = ref<
   }>
 >([]);
 
-// 索引器统计
+// 索引器统计（次数/成功/失败/平均耗时）
 const indexerStats = ref<{ stats: any[] }>();
 
 // 刷流任务
@@ -95,9 +95,15 @@ const siteRoseData = computed(() => {
     .slice(0, 8);
 });
 
-const downloaderRingData = computed(() => {
+const indexerStatsData = computed(() => {
   const stats = indexerStats.value?.stats || [];
-  return stats.map((s) => ({ name: s.name, value: s.total }));
+  return stats.map((s) => ({
+    name: s.name,
+    total: Number(s.total || 0),
+    success: Number(s.success || 0),
+    fail: Number(s.fail || 0),
+    avg: Number(s.avg || 0),
+  }));
 });
 
 const siteBarData = computed(() => {
@@ -337,10 +343,9 @@ onMounted(fetchData);
           <template #header-extra>
             <NTag size="small" :bordered="false" type="info">24h</NTag>
           </template>
-          <RankBarChart
-            v-if="downloaderRingData.length > 0"
-            :data="downloaderRingData"
-            title="请求数"
+          <IndexerStatsChart
+            v-if="indexerStatsData.length > 0"
+            :data="indexerStatsData"
           />
           <NEmpty v-else description="暂无索引器数据" />
         </NCard>
