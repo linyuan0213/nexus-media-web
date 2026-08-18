@@ -217,7 +217,9 @@ function stringifyHeaders(headers: null | object | string | undefined): string {
   }
 }
 
-function parseHeadersToRows(headers: null | object | string | undefined): HeaderRow[] {
+function parseHeadersToRows(
+  headers: null | object | string | undefined,
+): HeaderRow[] {
   let obj: Record<string, string> = {};
   if (typeof headers === 'string') {
     const trimmed = headers.trim();
@@ -234,7 +236,10 @@ function parseHeadersToRows(headers: null | object | string | undefined): Header
   } else if (headers && typeof headers === 'object') {
     obj = headers as Record<string, string>;
   }
-  return Object.entries(obj).map(([key, value]) => ({ key, value: String(value) }));
+  return Object.entries(obj).map(([key, value]) => ({
+    key,
+    value: String(value),
+  }));
 }
 
 function commitHeaderRows() {
@@ -539,13 +544,17 @@ defineExpose({
                           :value="row.key"
                           size="small"
                           placeholder="请求头名称"
-                          @update:value="(v) => updateHeaderRow(index, 'key', v)"
+                          @update:value="
+                            (v) => updateHeaderRow(index, 'key', v)
+                          "
                         />
                         <NInput
                           :value="row.value"
                           size="small"
                           placeholder="请求头值"
-                          @update:value="(v) => updateHeaderRow(index, 'value', v)"
+                          @update:value="
+                            (v) => updateHeaderRow(index, 'value', v)
+                          "
                         />
                         <NButton
                           quaternary
@@ -562,7 +571,10 @@ defineExpose({
                           </template>
                         </NButton>
                       </div>
-                      <div class="header-kv-empty" v-if="headerRows.length === 0">
+                      <div
+                        class="header-kv-empty"
+                        v-if="headerRows.length === 0"
+                      >
                         暂无自定义请求头，点击下方按钮添加
                       </div>
                       <NButton
@@ -738,8 +750,8 @@ defineExpose({
 .header-editor {
   display: flex;
   flex-direction: column;
-  width: 100%;
   gap: 0.5rem;
+  width: 100%;
 }
 
 .header-editor-mode {

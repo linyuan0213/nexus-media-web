@@ -117,7 +117,9 @@ function buildOption() {
         if (!d) return '';
         const calls = Number(d.success || 0) + Number(d.fail || 0);
         const rate =
-          calls > 0 ? Math.round((Number(d.success || 0) / calls) * 1000) / 10 : 0;
+          calls > 0
+            ? Math.round((Number(d.success || 0) / calls) * 1000) / 10
+            : 0;
         const dot = (color: string, label: string, value: string) =>
           `<div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
              <span style="display:inline-flex;align-items:center;gap:6px">
@@ -177,12 +179,7 @@ onMounted(() => {
 });
 
 watch(
-  () => [
-    props.data,
-    mutedColor.value,
-    borderColor.value,
-    textColor.value,
-  ],
+  () => [props.data, mutedColor.value, borderColor.value, textColor.value],
   () => {
     renderEcharts(buildOption() as any);
   },
