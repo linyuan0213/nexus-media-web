@@ -9,6 +9,8 @@ export interface NotifySettings {
   osEnabled: boolean;
   /** 新消息是否播放提示音 */
   soundEnabled: boolean;
+  /** 铃铛是否显示未读数量红色角标 */
+  badgeEnabled: boolean;
 }
 
 const SETTINGS_KEY = 'nexus-notify-settings';
@@ -19,9 +21,10 @@ function loadSettings(): NotifySettings {
     return {
       osEnabled: raw?.osEnabled !== false,
       soundEnabled: raw?.soundEnabled === true,
+      badgeEnabled: raw?.badgeEnabled !== false,
     };
   } catch {
-    return { osEnabled: true, soundEnabled: false };
+    return { osEnabled: true, soundEnabled: false, badgeEnabled: true };
   }
 }
 

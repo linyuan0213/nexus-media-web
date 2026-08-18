@@ -295,6 +295,7 @@ watch(
       <Notification
         :dot="showDot"
         :badge-count="unreadCount"
+        :badge-enabled="notifySettings.badgeEnabled"
         :notifications="notifications"
         :os-enabled="notifySettings.osEnabled"
         :sound-enabled="notifySettings.soundEnabled"
@@ -304,6 +305,7 @@ watch(
         @remove="(item) => item.id && remove(item.id)"
         @make-all="handleMakeAll"
         @view-all="handleViewAll"
+        @update-badge-enabled="(v) => updateNotifySettings({ badgeEnabled: v })"
         @update-os-enabled="(v) => updateNotifySettings({ osEnabled: v })"
         @update-sound-enabled="(v) => updateNotifySettings({ soundEnabled: v })"
       />

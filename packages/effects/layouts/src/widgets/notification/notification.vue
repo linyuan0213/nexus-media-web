@@ -27,6 +27,8 @@ withDefaults(
     dot?: boolean;
     /** 未读数量徽标（右上角红色，>0 时显示数字） */
     badgeCount?: number;
+    /** 是否显示未读角标（关闭后隐藏红色数字/圆点） */
+    badgeEnabled?: boolean;
     /** 消息列表 */
     notifications?: NotificationItem[];
     /** 是否启用 OS 系统通知 */
@@ -37,6 +39,7 @@ withDefaults(
   {
     dot: false,
     badgeCount: 0,
+    badgeEnabled: true,
     notifications: () => [],
     osEnabled: true,
     soundEnabled: false,
@@ -49,6 +52,7 @@ const emit = defineEmits<{
   onClick: [NotificationItem];
   read: [NotificationItem];
   remove: [NotificationItem];
+  updateBadgeEnabled: [value: boolean];
   updateOsEnabled: [value: boolean];
   updateSoundEnabled: [value: boolean];
   viewAll: [];
@@ -79,13 +83,13 @@ const handleClear = () => {
       <div class="mr-2 flex-center h-full" @click.stop="toggle()">
         <VbenIconButton class="bell-button relative text-foreground">
           <span
-            v-if="badgeCount > 0"
+            v-if="badgeEnabled && badgeCount > 0"
             class="absolute -top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-white"
           >
             {{ badgeCount > 99 ? '99+' : badgeCount }}
           </span>
           <span
-            v-else-if="dot"
+            v-else-if="badgeEnabled && dot"
             class="absolute top-0.5 right-0.5 size-2 rounded-sm bg-destructive"
           ></span>
           <Bell class="size-4" />
@@ -97,6 +101,15 @@ const handleClear = () => {
       <div class="flex items-center justify-between p-4 py-3">
         <div class="text-foreground">{{ $t('ui.widgets.notifications') }}</div>
         <div class="flex items-center gap-1">
+          <VbenIconButton
+            :tooltip="badgeEnabled ? '未读角标已开启' : '未读角标已关闭'"
+            @click="emit('updateBadgeEnabled', !badgeEnabled)"
+          >
+            <IconifyIcon
+              :icon="badgeEnabled ? 'lucide:badge' : 'lucide:badge-x'"
+              class="size-4"
+            />
+          </VbenIconButton>
           <VbenIconButton
             :tooltip="osEnabled ? '系统通知已开启' : '系统通知已关闭'"
             @click="emit('updateOsEnabled', !osEnabled)"
