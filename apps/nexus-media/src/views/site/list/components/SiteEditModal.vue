@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { SiteDefinition, SiteForm, SiteItem } from '../types';
 
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
@@ -195,6 +195,97 @@ function handleSave() {
   emit('save');
 }
 
+// ---------- 高级请求头：KV 编辑 / JSON 批量模式 ----------
+
+type HeaderMode = 'json' | 'kv';
+
+interface HeaderRow {
+  key: string;
+  value: string;
+}
+
+const headerMode = ref<HeaderMode>('kv');
+const headerRows = ref<HeaderRow[]>([]);
+
+function stringifyHeaders(headers: null | object | string | undefined): string {
+  if (!headers) return '';
+  if (typeof headers === 'string') return headers;
+  try {
+    return JSON.stringify(headers);
+  } catch {
+    return '';
+  }
+}
+
+function parseHeadersToRows(headers: null | object | string | undefined): HeaderRow[] {
+  let obj: Record<string, string> = {};
+  if (typeof headers === 'string') {
+    const trimmed = headers.trim();
+    if (trimmed) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          obj = parsed;
+        }
+      } catch {
+        obj = {};
+      }
+    }
+  } else if (headers && typeof headers === 'object') {
+    obj = headers as Record<string, string>;
+  }
+  return Object.entries(obj).map(([key, value]) => ({ key, value: String(value) }));
+}
+
+function commitHeaderRows() {
+  const obj: Record<string, string> = {};
+  for (const row of headerRows.value) {
+    const key = row.key?.trim();
+    if (key) obj[key] = row.value ?? '';
+  }
+  const json = JSON.stringify(obj);
+  const next = json === '{}' ? '' : json;
+  if (next !== (props.site?.headers || '')) updateField('headers', next);
+}
+
+function syncHeaderRows() {
+  headerRows.value = parseHeadersToRows(props.site?.headers || '');
+}
+
+function addHeaderRow() {
+  headerRows.value.push({ key: '', value: '' });
+  commitHeaderRows();
+}
+
+function removeHeaderRow(index: number) {
+  headerRows.value.splice(index, 1);
+  commitHeaderRows();
+}
+
+function updateHeaderRow(index: number, field: keyof HeaderRow, value: string) {
+  const row = headerRows.value[index];
+  if (!row) return;
+  row[field] = value;
+  commitHeaderRows();
+}
+
+function switchHeaderMode(mode: HeaderMode) {
+  if (mode === headerMode.value) return;
+  if (mode === 'kv') {
+    commitHeaderRows();
+    syncHeaderRows();
+  }
+  headerMode.value = mode;
+}
+
+// 弹窗打开时按站点现有 headers 初始化 KV 行
+watch(
+  () => props.show,
+  (value) => {
+    if (value) syncHeaderRows();
+  },
+);
+
 function parseSiteToForm(item: SiteItem): SiteForm {
   const note = item.note || {};
   const isNoteStr = typeof item.note === 'string';
@@ -230,7 +321,7 @@ function parseSiteToForm(item: SiteItem): SiteForm {
     subtitle: !!parsedNote?.subtitle,
     tag: !!parsedNote?.tag,
     ua: parsedNote?.ua || '',
-    headers: item.headers || parsedNote?.headers || '',
+    headers: stringifyHeaders(item.headers || parsedNote?.headers || ''),
     rule: parsedNote?.rule || '',
     download_setting: parsedNote?.download_setting || '',
     rate_limit: parsedNote?.rate_limit || '10/m',
@@ -426,14 +517,76 @@ defineExpose({
             </div>
             <NCollapse class="auth-advanced">
               <NCollapseItem title="高级请求头">
-                <NFormItem label="自定义请求头 (JSON)">
-                  <NInput
-                    :value="site.headers"
-                    type="textarea"
-                    :rows="3"
-                    placeholder='自定义请求头参数，格式 {"xxx": "xxx"}'
-                    @update:value="(v) => updateField('headers', v)"
-                  />
+                <NFormItem label="自定义请求头">
+                  <div class="header-editor">
+                    <NRadioGroup
+                      :value="headerMode"
+                      size="small"
+                      class="header-editor-mode"
+                      @update:value="switchHeaderMode"
+                    >
+                      <NRadioButton value="kv"> 键值编辑 </NRadioButton>
+                      <NRadioButton value="json"> JSON 模式 </NRadioButton>
+                    </NRadioGroup>
+
+                    <div v-if="headerMode === 'kv'" class="header-kv-editor">
+                      <div
+                        v-for="(row, index) in headerRows"
+                        :key="index"
+                        class="header-kv-row"
+                      >
+                        <NInput
+                          :value="row.key"
+                          size="small"
+                          placeholder="请求头名称"
+                          @update:value="(v) => updateHeaderRow(index, 'key', v)"
+                        />
+                        <NInput
+                          :value="row.value"
+                          size="small"
+                          placeholder="请求头值"
+                          @update:value="(v) => updateHeaderRow(index, 'value', v)"
+                        />
+                        <NButton
+                          quaternary
+                          circle
+                          size="small"
+                          :aria-label="`删除请求头 ${row.key || index + 1}`"
+                          @click="removeHeaderRow(index)"
+                        >
+                          <template #icon>
+                            <IconifyIcon
+                              icon="lucide:trash-2"
+                              class="h-4 w-4"
+                            />
+                          </template>
+                        </NButton>
+                      </div>
+                      <div class="header-kv-empty" v-if="headerRows.length === 0">
+                        暂无自定义请求头，点击下方按钮添加
+                      </div>
+                      <NButton
+                        size="small"
+                        secondary
+                        class="header-kv-add"
+                        @click="addHeaderRow"
+                      >
+                        <template #icon>
+                          <IconifyIcon icon="lucide:plus" class="h-4 w-4" />
+                        </template>
+                        添加请求头
+                      </NButton>
+                    </div>
+
+                    <NInput
+                      v-else
+                      :value="site.headers"
+                      type="textarea"
+                      :rows="3"
+                      placeholder='自定义请求头参数，格式 {"xxx": "xxx"}'
+                      @update:value="(v) => updateField('headers', v)"
+                    />
+                  </div>
                 </NFormItem>
               </NCollapseItem>
             </NCollapse>
@@ -582,6 +735,41 @@ defineExpose({
   color: hsl(var(--muted-foreground));
 }
 
+.header-editor {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 0.5rem;
+}
+
+.header-editor-mode {
+  align-self: flex-start;
+}
+
+.header-kv-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.header-kv-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto;
+  gap: 0.375rem;
+  align-items: center;
+}
+
+.header-kv-empty {
+  padding: 0.25rem 0;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.header-kv-add {
+  align-self: flex-start;
+  margin-top: 0.125rem;
+}
+
 .switch-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -692,6 +880,10 @@ defineExpose({
   .form-grid-2,
   .switch-grid {
     grid-template-columns: 1fr;
+  }
+
+  .header-kv-row {
+    grid-template-columns: 1fr 1fr auto;
   }
 
   .switch-card {
