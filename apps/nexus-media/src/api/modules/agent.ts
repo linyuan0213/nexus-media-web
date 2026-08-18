@@ -70,7 +70,13 @@ function parseSseBlock(block: string, onEvent: (data: any) => void) {
 
 /** Agent 对话（POST SSE 流式） */
 export function streamAgentChat(
-  payload: { question: string; session_id?: string },
+  payload: {
+    disable_thinking?: boolean;
+    question: string;
+    /** 推理强度：low | high | max（空 = 使用后端配置默认） */
+    reasoning_effort?: '' | 'high' | 'low' | 'max';
+    session_id?: string;
+  },
   callbacks: {
     onEnd?: () => void;
     onError?: (error: any) => void;

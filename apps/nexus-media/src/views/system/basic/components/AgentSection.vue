@@ -377,6 +377,44 @@ onMounted(() => {
         />
       </NFormItem>
 
+      <!-- 推理与思考（统一作用于所有 Agent LLM 调用） -->
+      <div
+        class="mb-3 mt-2 flex items-center gap-2 text-xs font-medium"
+        style="color: hsl(var(--muted-foreground))"
+      >
+        <IconifyIcon icon="lucide:brain-cog" class="size-3.5" />
+        <span
+          >推理与思考（统一作用于对话、识别、意图、记忆等所有 LLM 调用）</span
+        >
+      </div>
+      <NGrid cols="1 s:2 l:3" :x-gap="16" responsive="screen">
+        <NGridItem span="1">
+          <NFormItem label="推理强度">
+            <NSelect
+              :value="config['agent.reasoning_effort'] || 'high'"
+              :options="[
+                { value: 'low', label: '低' },
+                { value: 'high', label: '高' },
+                { value: 'max', label: '最高' },
+              ]"
+              @update:value="
+                (v) => emit('updateConfig', 'agent.reasoning_effort', v)
+              "
+            />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="1">
+          <NFormItem label="思考模式">
+            <NSwitch
+              :value="!config['agent.disable_thinking']"
+              @update:value="
+                (v) => emit('updateConfig', 'agent.disable_thinking', !v)
+              "
+            />
+          </NFormItem>
+        </NGridItem>
+      </NGrid>
+
       <!-- Embedding（知识库向量化）配置 -->
       <div
         class="mb-3 mt-2 flex items-center gap-2 text-xs font-medium"

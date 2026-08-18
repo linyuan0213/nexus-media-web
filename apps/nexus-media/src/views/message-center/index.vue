@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { AgentApi } from '#/api/modules/agent';
 
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, h, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
@@ -11,8 +11,10 @@ import {
   NInput,
   NModal,
   NPopconfirm,
+  NSelect,
   NSpin,
   NTag,
+  NTooltip,
 } from 'naive-ui';
 
 import {
@@ -64,6 +66,37 @@ const agentEnabled = ref(false);
 const providerName = ref('');
 const kbTotal = ref(0);
 const unreadCount = ref(0);
+
+/** 推理强度与思考模式（按次覆盖，初始值跟随 Agent 全局配置） */
+const MAX_EFFORT_TIP =
+  '最高档仅部分支持推理的模型可用，不支持的模型会自动降级为高';
+const reasoningOptions = [
+  { value: 'low', label: '低', tip: '' },
+  { value: 'high', label: '高', tip: '' },
+  { value: 'max', label: '最高', tip: MAX_EFFORT_TIP },
+];
+const reasoningEffort = ref<'high' | 'low' | 'max'>('high');
+const thinkingEnabled = ref(true);
+
+/** 下拉选项渲染：最高 选项附带信息图标与 tooltip */
+function renderReasoningLabel(option: Record<string, any>) {
+  const tip = option.tip as string;
+  if (!tip) {
+    return h('span', { class: 'text-xs' }, option.label as string);
+  }
+  return h(
+    NTooltip,
+    { placement: 'top' },
+    {
+      trigger: () =>
+        h('span', { class: 'flex items-center gap-1 text-xs' }, [
+          option.label as string,
+          h(IconifyIcon, { icon: 'lucide:info', class: 'size-3' }),
+        ]),
+      default: () => h('span', { class: 'text-xs' }, tip),
+    },
+  );
+}
 const listRef = ref<HTMLDivElement | null>(null);
 const chatAbort = ref<AbortController | null>(null);
 const streamAbort = ref<AbortController | null>(null);
@@ -306,6 +339,11 @@ async function fetchStatus() {
     const cfg = await getAllSystemConfigApi();
     agentEnabled.value = cfg?.['agent.enabled'] === true;
     providerName.value = cfg?.['agent.default_provider'] || '';
+    const effort = String(cfg?.['agent.reasoning_effort'] || 'high');
+    reasoningEffort.value = ['high', 'low', 'max'].includes(effort)
+      ? (effort as 'high' | 'low' | 'max')
+      : 'high';
+    thinkingEnabled.value = !(cfg?.['agent.disable_thinking'] === true);
   } catch {
     agentEnabled.value = false;
   }
@@ -405,7 +443,11 @@ async function send(text?: string) {
   });
   chatAbort.value = new AbortController();
   streamAgentChat(
-    { question },
+    {
+      question,
+      reasoning_effort: reasoningEffort.value,
+      disable_thinking: !thinkingEnabled.value,
+    },
     {
       onEvent: (ev) => {
         switch (ev.type) {
@@ -938,6 +980,71 @@ function onVisibilityChange() {
           </template>
           <span class="max-sm:hidden">停止</span>
         </NButton>
+      </div>
+
+      <!-- 底部工具栏：推理强度 + 深度思考（主流 Agent 风格） -->
+      <div
+        v-if="agentEnabled"
+        class="mx-auto mt-2 flex w-full max-w-3xl flex-wrap items-center justify-between gap-2"
+      >
+        <div
+          class="flex items-center gap-1.5 rounded-full px-2 py-0.5"
+          style="background: hsl(var(--muted) / 40%)"
+        >
+          <span
+            class="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs"
+            style="color: hsl(var(--muted-foreground))"
+          >
+            <IconifyIcon icon="lucide:brain-cog" class="size-3.5" />
+            <span>推理</span>
+          </span>
+          <NTooltip :disabled="reasoningEffort !== 'max'" placement="top">
+            <template #trigger>
+              <NSelect
+                size="tiny"
+                :bordered="false"
+                :value="reasoningEffort"
+                :options="reasoningOptions"
+                :render-label="renderReasoningLabel"
+                :style="{ width: '96px' }"
+                class="shrink-0"
+                @update:value="(v) => (reasoningEffort = v)"
+              />
+            </template>
+            {{ MAX_EFFORT_TIP }}
+          </NTooltip>
+        </div>
+
+        <button
+          type="button"
+          class="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all"
+          :aria-pressed="thinkingEnabled"
+          :style="
+            thinkingEnabled
+              ? {
+                  background: 'hsl(var(--primary) / 12%)',
+                  color: 'hsl(var(--primary))',
+                  borderColor: 'hsl(var(--primary) / 40%)',
+                }
+              : {
+                  background: 'hsl(var(--muted) / 40%)',
+                  color: 'hsl(var(--muted-foreground))',
+                  borderColor: 'hsl(var(--border))',
+                }
+          "
+          @click="thinkingEnabled = !thinkingEnabled"
+        >
+          <IconifyIcon icon="lucide:sparkles" class="size-3.5" />
+          <span>深度思考</span>
+          <span
+            class="size-1.5 rounded-full"
+            :style="{
+              background: thinkingEnabled
+                ? 'hsl(var(--primary))'
+                : 'hsl(var(--muted-foreground) / 60%)',
+            }"
+          ></span>
+        </button>
       </div>
     </div>
   </div>
