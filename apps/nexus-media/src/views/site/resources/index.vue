@@ -116,6 +116,7 @@ async function fetchData(page = 1) {
     const res: any = await getSiteResourcesApi({
       id: selectedSite.value.id,
       page: page - 1,
+      pageSize: pageSize.value,
       keyword: keyword.value || undefined,
     });
     let data: any[] = [];
@@ -150,6 +151,13 @@ function handleSearch() {
 function handlePageChange(page: number) {
   currentPage.value = page;
   fetchData(page);
+}
+
+function handlePageSizeChange(size: number) {
+  pageSize.value = size;
+  currentPage.value = 1;
+  total.value = 0;
+  fetchData(1);
 }
 
 function handleOpenUrl(url?: string) {
@@ -463,6 +471,7 @@ onUnmounted(() => {
             :page-sizes="[20, 50, 100]"
             show-size-picker
             @update:page="handlePageChange"
+            @update:page-size="handlePageSizeChange"
           />
         </div>
       </NSpin>

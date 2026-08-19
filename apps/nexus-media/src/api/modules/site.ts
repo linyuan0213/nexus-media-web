@@ -201,6 +201,7 @@ export async function getSiteResourcesApi(params: {
   id?: string;
   keyword?: string;
   page?: number;
+  pageSize?: number;
 }) {
   return requestClient.post<{
     list: SiteApi.SiteResourceItem[];
