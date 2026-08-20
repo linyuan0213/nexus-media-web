@@ -122,20 +122,14 @@ async function fetchData(page = 1) {
       pageSize: pageSize.value,
       keyword: keyword.value || undefined,
     });
+    // requestClient 已解包 {code,data,message} → res 即后端 data（{list, has_more}）
     let data: any[] = [];
     let hasMore = false;
-    if (Array.isArray(res)) {
-      data = res;
-    } else if (Array.isArray(res?.data)) {
-      data = res.data;
-    } else if (Array.isArray(res?.data?.list)) {
-      data = res.data.list;
-      hasMore = !!res?.data?.hasMore;
-    } else if (Array.isArray(res?.list)) {
+    if (Array.isArray(res?.list)) {
       data = res.list;
       hasMore = !!res?.hasMore;
-    } else if (res?.data) {
-      data = [res.data];
+    } else {
+      data = Array.isArray(res) ? res : [];
     }
     resources.value = data;
     currentPage.value = page;
