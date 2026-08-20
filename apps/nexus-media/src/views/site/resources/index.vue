@@ -128,7 +128,7 @@ async function fetchData(page = 1) {
     const res: any = await getSiteResourcesApi({
       id: selectedSite.value.id,
       page: page - 1,
-      pageSize: pageSize.value,
+      page_size: pageSize.value,
       keyword: keyword.value || undefined,
     });
     // requestClient 已解包 {code,data,message} → res 即后端 data（{list, has_more}）
