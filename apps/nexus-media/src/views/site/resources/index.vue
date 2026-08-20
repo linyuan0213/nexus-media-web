@@ -35,6 +35,7 @@ const keyword = ref('');
 const currentPage = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
+const loadedCount = ref(0);
 const favicons = ref<Record<string, string>>({});
 const faviconLoadFailed = ref<Record<string, boolean>>({});
 const viewMode = ref<'grid' | 'list'>('grid');
@@ -100,6 +101,7 @@ function selectSite(site: SiteItem) {
   keyword.value = '';
   currentPage.value = 1;
   total.value = 0;
+  loadedCount.value = 0;
   fetchData();
 }
 
@@ -107,6 +109,7 @@ function backToSites() {
   selectedSite.value = null;
   resources.value = [];
   total.value = 0;
+  loadedCount.value = 0;
 }
 
 async function fetchData(page = 1) {
@@ -120,21 +123,23 @@ async function fetchData(page = 1) {
       keyword: keyword.value || undefined,
     });
     let data: any[] = [];
+    let hasMore = false;
     if (Array.isArray(res)) {
       data = res;
     } else if (Array.isArray(res?.data)) {
       data = res.data;
     } else if (Array.isArray(res?.data?.list)) {
       data = res.data.list;
+      hasMore = !!res?.data?.hasMore;
     } else if (res?.data) {
       data = [res.data];
     }
     resources.value = data;
     currentPage.value = page;
-    total.value =
-      data.length > 0
-        ? Math.max(total.value, page * pageSize.value + 1)
-        : (page - 1) * pageSize.value;
+    // 分页导航用的 total：已加载条数 + 有下一页时补 1 个占位（不展示给用户）
+    const loaded = (page - 1) * pageSize.value + data.length;
+    total.value = hasMore ? loaded + 1 : loaded;
+    loadedCount.value = loaded;
   } catch {
     // 全局请求拦截器已展示错误提示
   } finally {
@@ -145,6 +150,7 @@ async function fetchData(page = 1) {
 function handleSearch() {
   currentPage.value = 1;
   total.value = 0;
+  loadedCount.value = 0;
   fetchData(1);
 }
 
@@ -157,6 +163,7 @@ function handlePageSizeChange(size: number) {
   pageSize.value = size;
   currentPage.value = 1;
   total.value = 0;
+  loadedCount.value = 0;
   fetchData(1);
 }
 
@@ -412,7 +419,7 @@ onUnmounted(() => {
         >
           共
           <strong :style="{ color: 'hsl(var(--card-foreground))' }">{{
-            total
+            loadedCount
           }}</strong>
           条资源
         </span>
