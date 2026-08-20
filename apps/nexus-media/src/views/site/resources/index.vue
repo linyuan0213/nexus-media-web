@@ -36,6 +36,7 @@ const currentPage = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
 const loadedCount = ref(0);
+const effectivePageSize = ref(0);
 const favicons = ref<Record<string, string>>({});
 const faviconLoadFailed = ref<Record<string, boolean>>({});
 const viewMode = ref<'grid' | 'list'>('grid');
@@ -102,6 +103,7 @@ function selectSite(site: SiteItem) {
   currentPage.value = 1;
   total.value = 0;
   loadedCount.value = 0;
+  effectivePageSize.value = 0;
   fetchData();
 }
 
@@ -110,6 +112,7 @@ function backToSites() {
   resources.value = [];
   total.value = 0;
   loadedCount.value = 0;
+  effectivePageSize.value = 0;
 }
 
 async function fetchData(page = 1) {
@@ -133,8 +136,13 @@ async function fetchData(page = 1) {
     }
     resources.value = data;
     currentPage.value = page;
-    // 分页导航用的 total：已加载条数 + 有下一页时补 1 个占位（不展示给用户）
-    const loaded = (page - 1) * pageSize.value + data.length;
+    // 站点实际每页数量：HTML 站可能不支持每页数量参数（固定返回站点默认值），
+    // 以第一页实际返回数为准做计数/分页数学，避免"选20/页却返回100条"显示错乱
+    if (page === 1 && data.length > 0) {
+      effectivePageSize.value = data.length;
+    }
+    const perPage = effectivePageSize.value || pageSize.value;
+    const loaded = (page - 1) * perPage + data.length;
     total.value = hasMore ? loaded + 1 : loaded;
     loadedCount.value = loaded;
   } catch {
@@ -148,6 +156,7 @@ function handleSearch() {
   currentPage.value = 1;
   total.value = 0;
   loadedCount.value = 0;
+  effectivePageSize.value = 0;
   fetchData(1);
 }
 
@@ -161,6 +170,7 @@ function handlePageSizeChange(size: number) {
   currentPage.value = 1;
   total.value = 0;
   loadedCount.value = 0;
+  effectivePageSize.value = 0;
   fetchData(1);
 }
 
