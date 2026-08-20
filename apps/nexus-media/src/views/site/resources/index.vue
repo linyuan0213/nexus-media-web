@@ -139,7 +139,7 @@ async function fetchData(page = 1) {
     let hasMore = false;
     if (Array.isArray(res?.list)) {
       data = res.list;
-      hasMore = !!res?.hasMore;
+      hasMore = !!res?.has_more;
     } else {
       data = Array.isArray(res) ? res : [];
     }
