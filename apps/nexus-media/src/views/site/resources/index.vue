@@ -36,6 +36,7 @@ const currentPage = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
 const loadedCount = ref(0);
+const hasMorePage = ref(false);
 const effectivePageSize = ref(0);
 
 /** 站点不支持每页数量时锁定底部选择器（实际返回数 ≠ 选择值时） */
@@ -110,6 +111,7 @@ function selectSite(site: SiteItem) {
   total.value = 0;
   loadedCount.value = 0;
   effectivePageSize.value = 0;
+  hasMorePage.value = false;
   fetchData();
 }
 
@@ -119,6 +121,7 @@ function backToSites() {
   total.value = 0;
   loadedCount.value = 0;
   effectivePageSize.value = 0;
+  hasMorePage.value = false;
 }
 
 async function fetchData(page = 1) {
@@ -142,6 +145,7 @@ async function fetchData(page = 1) {
     }
     resources.value = data;
     currentPage.value = page;
+    hasMorePage.value = hasMore;
     // 站点实际每页数量：HTML 站可能不支持每页数量参数（固定返回站点默认值），
     // 以第一页实际返回数为准做计数/分页数学，避免"选20/页却返回100条"显示错乱
     if (page === 1 && data.length > 0) {
@@ -149,7 +153,10 @@ async function fetchData(page = 1) {
     }
     const perPage = effectivePageSize.value || pageSize.value;
     const loaded = (page - 1) * perPage + data.length;
-    total.value = hasMore ? loaded + 1 : loaded;
+    // total 仅用于分页导航（展示用 loadedCount）：有下一页时保证下一页可点
+    total.value = hasMore
+      ? Math.max(loaded + 1, page * pageSize.value + 1)
+      : loaded;
     loadedCount.value = loaded;
   } catch {
     // 全局请求拦截器已展示错误提示
@@ -163,6 +170,7 @@ function handleSearch() {
   total.value = 0;
   loadedCount.value = 0;
   effectivePageSize.value = 0;
+  hasMorePage.value = false;
   fetchData(1);
 }
 
@@ -177,6 +185,7 @@ function handlePageSizeChange(size: number) {
   total.value = 0;
   loadedCount.value = 0;
   effectivePageSize.value = 0;
+  hasMorePage.value = false;
   fetchData(1);
 }
 
@@ -480,7 +489,7 @@ onUnmounted(() => {
         </EmptyState>
 
         <div
-          v-if="total > pageSize"
+          v-if="hasMorePage || total > pageSize"
           class="pagination-bar"
           :style="{ borderColor: 'hsl(var(--border))' }"
         >
