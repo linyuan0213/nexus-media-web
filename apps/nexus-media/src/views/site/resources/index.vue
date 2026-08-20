@@ -131,6 +131,9 @@ async function fetchData(page = 1) {
     } else if (Array.isArray(res?.data?.list)) {
       data = res.data.list;
       hasMore = !!res?.data?.hasMore;
+    } else if (Array.isArray(res?.list)) {
+      data = res.list;
+      hasMore = !!res?.hasMore;
     } else if (res?.data) {
       data = [res.data];
     }
