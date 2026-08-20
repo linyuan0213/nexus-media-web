@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { ResourceItem, SiteItem } from './types';
 
-import { onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
@@ -37,6 +37,12 @@ const pageSize = ref(20);
 const total = ref(0);
 const loadedCount = ref(0);
 const effectivePageSize = ref(0);
+
+/** 站点不支持每页数量时锁定底部选择器（实际返回数 ≠ 选择值时） */
+const sizePickerDisabled = computed(
+  () =>
+    effectivePageSize.value > 0 && effectivePageSize.value !== pageSize.value,
+);
 const favicons = ref<Record<string, string>>({});
 const faviconLoadFailed = ref<Record<string, boolean>>({});
 const viewMode = ref<'grid' | 'list'>('grid');
@@ -483,7 +489,7 @@ onUnmounted(() => {
             :page-size="pageSize"
             :item-count="total"
             :page-sizes="[20, 50, 100]"
-            show-size-picker
+            :show-size-picker="!sizePickerDisabled"
             @update:page="handlePageChange"
             @update:page-size="handlePageSizeChange"
           />
