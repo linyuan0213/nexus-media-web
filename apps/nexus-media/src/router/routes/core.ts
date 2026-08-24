@@ -105,6 +105,17 @@ const coreRoutes: RouteRecordRaw[] = [
     name: 'BackendConfig',
     path: '/setup/backend-url',
   },
+  {
+    component: () => import('#/views/_core/fallback/offline.vue'),
+    meta: {
+      hideInBreadcrumb: true,
+      hideInMenu: true,
+      hideInTab: true,
+      title: '服务不可用',
+    },
+    name: 'Offline',
+    path: '/offline',
+  },
 ];
 
 export { coreRoutes, fallbackNotFoundRoute };

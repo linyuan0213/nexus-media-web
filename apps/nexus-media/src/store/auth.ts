@@ -39,7 +39,7 @@ export const useAuthStore = defineStore('auth', () => {
         accessStore.setAccessToken(accessToken);
 
         const [fetchUserInfoResult, accessCodes] = await Promise.all([
-          fetchUserInfo(),
+          fetchUserInfo().catch(() => null),
           getAccessCodesApi().catch(() => []),
         ]);
 
@@ -102,15 +102,19 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function fetchUserInfo() {
-    let userInfo: null | UserInfo = null;
     try {
-      userInfo = await getUserInfoApi();
+      const userInfo = await getUserInfoApi();
       // 后端返回格式兼容：{ username, user_id, level, permissions, is_superadmin }
       userStore.setUserInfo(userInfo);
-    } catch {
-      // 获取用户信息失败，静默处理
+      return userInfo;
+    } catch (error: any) {
+      // 401 视为会话失效（返回 null 由守卫跳转登录）；
+      // 网络/5xx 等瞬时错误抛出，避免误判未登录而清除有效会话
+      if (error?.response?.status === 401) {
+        return null;
+      }
+      throw error;
     }
-    return userInfo;
   }
 
   function $reset() {

@@ -304,7 +304,16 @@ export async function loadPluginFrontend(
 
     if (hasComponents) {
       const mjsUrl = `${PLUGIN_ASSET_BASE}/plugins/${plugin.id}/assets/frontend/index.mjs`;
-      const module = await import(/* @vite-ignore */ mjsUrl);
+      // 原生 import() 无超时，后端挂起时 Promise 永不 resolve，需手动兜底
+      const module = await Promise.race([
+        import(/* @vite-ignore */ mjsUrl),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`插件 ${plugin.id} 前端资源加载超时`)),
+            PLUGIN_IMPORT_TIMEOUT,
+          ),
+        ),
+      ]);
       const components =
         typeof module.default === 'function'
           ? module.default(host)
@@ -336,9 +345,15 @@ export async function loadPluginFrontend(
 }
 
 let _pluginsLoaded = false;
+let _lastLoadAttempt = 0;
+
+const PLUGIN_IMPORT_TIMEOUT = 15_000;
+/** 加载失败后的退避窗口，避免每次导航都同步重试 */
+const LOAD_RETRY_BACKOFF = 30_000;
 
 export function resetPluginLoadedFlag(): void {
   _pluginsLoaded = false;
+  _lastLoadAttempt = 0;
 }
 
 /**
@@ -346,6 +361,8 @@ export function resetPluginLoadedFlag(): void {
  */
 export async function loadAllPluginFrontends(): Promise<void> {
   if (_pluginsLoaded) return;
+  if (Date.now() - _lastLoadAttempt < LOAD_RETRY_BACKOFF) return;
+  _lastLoadAttempt = Date.now();
   try {
     const plugins: PluginManifestFrontend[] = await requestClient.get(
       `${PLUGIN_API_BASE}/plugins`,

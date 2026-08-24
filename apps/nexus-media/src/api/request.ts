@@ -24,13 +24,43 @@ import { ErrorCode, extractErrorCode } from './error-codes';
 /** 统一错误提示：权限类用 warning，其余用 error */
 function showErrorMessage(msg: string, error: any) {
   const responseData = error?.response?.data ?? {};
-  const errorMessage = responseData?.message ?? responseData?.msg ?? msg;
+  const errorMessage =
+    responseData?.message ?? responseData?.msg ?? responseData?.detail ?? msg;
   const errcode = extractErrorCode(responseData);
   if (errcode === ErrorCode.PERMISSION_DENIED) {
     message.warning(errorMessage || '权限不足');
   } else {
     message.error(errorMessage);
   }
+}
+
+/** 后端启动中响应（startup_guard 返回 503 + code=-1） */
+function isServerStartingError(error: any): boolean {
+  return error?.response?.status === 503 && error?.response?.data?.code === -1;
+}
+
+/** 启动中重试：最多 30 次，间隔 2s（覆盖后端后台初始化窗口） */
+const STARTUP_RETRY_MAX = 30;
+const STARTUP_RETRY_INTERVAL = 2000;
+
+function startupRetryInterceptor(client: RequestClient) {
+  return {
+    rejected: async (error: any) => {
+      const config = error?.config;
+      if (
+        !isServerStartingError(error) ||
+        !config ||
+        (config.__startupRetryCount ?? 0) >= STARTUP_RETRY_MAX
+      ) {
+        throw error;
+      }
+      config.__startupRetryCount = (config.__startupRetryCount ?? 0) + 1;
+      await new Promise((resolve) =>
+        setTimeout(resolve, STARTUP_RETRY_INTERVAL),
+      );
+      return client.request(config.url, { ...config });
+    },
+  };
 }
 
 const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
@@ -108,6 +138,9 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
     }),
   );
 
+  // 服务启动中（503 + code=-1）自动退避重试，须在错误提示拦截器之前
+  client.addResponseInterceptor(startupRetryInterceptor(client));
+
   // 通用的错误处理
   client.addResponseInterceptor(
     errorMessageResponseInterceptor((msg: string, error) => {
@@ -139,6 +172,10 @@ baseRequestClient.addResponseInterceptor(
     dataField: 'data',
     successCode: 0,
   }),
+);
+
+baseRequestClient.addResponseInterceptor(
+  startupRetryInterceptor(baseRequestClient),
 );
 
 baseRequestClient.addResponseInterceptor(

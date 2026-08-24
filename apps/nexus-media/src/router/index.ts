@@ -4,7 +4,7 @@ import {
   createWebHistory,
 } from 'vue-router';
 
-import { resetStaticRoutes } from '@vben/utils';
+import { resetStaticRoutes, stopProgress } from '@vben/utils';
 
 import { createRouterGuard } from './guard';
 import { routes } from './routes';
@@ -30,6 +30,12 @@ const router = createRouter({
 });
 
 const resetRoutes = () => resetStaticRoutes(router, routes);
+
+// 导航失败兜底：关闭进度条，避免加载动画卡住
+router.onError((error) => {
+  console.error('[Router] 导航失败:', error);
+  stopProgress();
+});
 
 // 创建路由守卫
 createRouterGuard(router);
