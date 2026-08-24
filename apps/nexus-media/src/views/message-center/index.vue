@@ -158,6 +158,17 @@ async function refreshUnread() {
   }
 }
 
+// 未读刷新防抖：SSE 消息流/广播同步高频触发时合并请求，避免打爆后端限流（429）
+let refreshUnreadTimer: null | number = null;
+
+function scheduleRefreshUnread() {
+  if (refreshUnreadTimer) return;
+  refreshUnreadTimer = window.setTimeout(() => {
+    refreshUnreadTimer = null;
+    refreshUnread();
+  }, 2000);
+}
+
 async function markAllRead() {
   try {
     await markMessageRead();
@@ -390,9 +401,9 @@ function startMessageStream() {
           isNew: true,
           ts: item.ts ? item.ts * 1000 : Date.now(),
         });
-        // 新未读到达：刷新未读数并同步铃铛
+        // 新未读到达：刷新未读数并同步铃铛（防抖合并，避免突发消息打爆限流）
         if (item.read === false || item.kind === 'notify') {
-          refreshUnread();
+          scheduleRefreshUnread();
         }
       },
       onEnd: () => {

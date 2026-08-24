@@ -108,6 +108,26 @@ async function refreshUnread() {
   }
 }
 
+// 未读刷新防抖：SSE 事件/广播同步可能高频触发，合并为低频请求，避免打爆后端限流（429）
+let refreshUnreadTimer: null | number = null;
+let loadNotificationsTimer: null | number = null;
+
+function scheduleRefreshUnread() {
+  if (refreshUnreadTimer) return;
+  refreshUnreadTimer = window.setTimeout(() => {
+    refreshUnreadTimer = null;
+    refreshUnread();
+  }, 2000);
+}
+
+function scheduleLoadNotifications() {
+  if (loadNotificationsTimer) return;
+  loadNotificationsTimer = window.setTimeout(() => {
+    loadNotificationsTimer = null;
+    loadNotifications();
+  }, 3000);
+}
+
 // 布局 SSE 消息流：新消息实时刷新铃铛/下拉 + 提示音（消息中心页暂停，由其自身流接管）
 const LAYOUT_CURSOR_KEY = 'nexus-layout-stream-cursor';
 let layoutStreamAbort: AbortController | null = null;
@@ -142,7 +162,7 @@ function startLayoutStream() {
         localStorage.setItem(LAYOUT_CURSOR_KEY, String(layoutStreamCursor));
         if (item.read === true || item.kind === 'list') return;
         playNotifySound();
-        loadNotifications();
+        scheduleLoadNotifications();
       },
       onEnd: () => {
         layoutStreamAbort = null;
@@ -236,7 +256,7 @@ onMounted(() => {
   layoutStreamCursor = loadLayoutCursor();
   loadNotifications();
   notifyTimer = setInterval(loadNotifications, 15_000);
-  unlistenUnread = listenUnreadSync(refreshUnread);
+  unlistenUnread = listenUnreadSync(scheduleRefreshUnread);
 });
 
 onBeforeUnmount(() => {
