@@ -120,6 +120,14 @@ function setupAccessGuard(router: Router) {
           replace: true,
         };
       }
+      // 仍为初始默认密码：强制先去修改密码
+      if (userInfo.is_default_password && to.name !== 'Profile') {
+        return {
+          path: '/profile',
+          query: { tab: 'password', force: '1' },
+          replace: true,
+        };
+      }
       const userRoles = userInfo.roles ?? [];
 
       // 生成菜单和路由

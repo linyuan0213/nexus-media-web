@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
+import { useRoute } from 'vue-router';
 
 import { Profile } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/icons';
@@ -13,6 +14,7 @@ import ProfilePasswordSetting from './password-setting.vue';
 import ProfileSecuritySetting from './security-setting.vue';
 
 const userStore = useUserStore();
+const route = useRoute();
 
 const tabsValue = ref<string>('basic');
 
@@ -30,6 +32,16 @@ const tabs = ref([
     value: 'password',
   },
 ]);
+
+onMounted(() => {
+  // 守卫检测到仍为初始默认密码时跳转至此，强制切到改密页
+  if (route.query.force === '1') {
+    tabsValue.value = 'password';
+    message.warning('当前仍在使用初始默认密码，请立即修改');
+  } else if (route.query.tab === 'password') {
+    tabsValue.value = 'password';
+  }
+});
 
 async function handleAvatarUpload(event: Event) {
   const target = event.target as HTMLInputElement;

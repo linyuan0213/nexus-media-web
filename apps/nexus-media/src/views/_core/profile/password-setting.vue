@@ -6,7 +6,7 @@ import { useUserStore } from '@vben/stores';
 
 import { NButton, NForm, NFormItem, NInput, useMessage } from 'naive-ui';
 
-import { resetPasswordApi } from '#/api';
+import { getUserInfoApi, resetPasswordApi } from '#/api';
 
 const message = useMessage();
 const userStore = useUserStore();
@@ -49,6 +49,9 @@ async function handleSubmit() {
     );
     message.success('密码修改成功');
     form.value = { oldPassword: '', newPassword: '', confirmPassword: '' };
+    // 刷新用户信息，清除 is_default_password 标记，避免守卫再次强制跳转
+    const res: any = await getUserInfoApi();
+    userStore.setUserInfo(res?.data ?? res ?? null);
   } catch (error: any) {
     message.error(error?.message || '密码修改失败');
   } finally {
