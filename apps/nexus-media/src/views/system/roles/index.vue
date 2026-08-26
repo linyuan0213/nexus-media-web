@@ -129,6 +129,11 @@ const sortedRoles = computed(() => {
   );
 });
 
+/** 编辑对象是否为内置超级管理员角色（不可删、不可禁用、权限菜单不可改） */
+const isSuperadminEditing = computed(
+  () => editingRole.value.role_code === 'superadmin',
+);
+
 function handleAdd() {
   editingRole.value = {
     id: 0,
@@ -369,6 +374,7 @@ onMounted(() => {
                   text
                   size="small"
                   type="error"
+                  :disabled="item.role_code === 'superadmin'"
                   @click="confirmDelete(item)"
                 >
                   <template #icon>
@@ -376,7 +382,9 @@ onMounted(() => {
                   </template>
                 </NButton>
               </template>
-              删除
+              {{
+                item.role_code === 'superadmin' ? '内置角色不可删除' : '删除'
+              }}
             </NTooltip>
           </div>
         </div>
@@ -431,6 +439,7 @@ onMounted(() => {
                 <NInput
                   v-model:value="editingRole.role_code"
                   placeholder="如: admin, user"
+                  :disabled="!!editingRole.id"
                 />
               </NFormItem>
             </div>
@@ -455,6 +464,7 @@ onMounted(() => {
                   v-model:value="editingRole.status"
                   :checked-value="1"
                   :unchecked-value="0"
+                  :disabled="isSuperadminEditing"
                 >
                   <template #checked>启用</template>
                   <template #unchecked>禁用</template>
@@ -466,7 +476,14 @@ onMounted(() => {
 
         <NTabPane tab="权限配置" name="permissions">
           <div
-            v-if="permissionGroups.length > 0"
+            v-if="isSuperadminEditing"
+            class="text-center py-8 text-sm"
+            style="color: hsl(var(--muted-foreground))"
+          >
+            内置超级管理员角色始终拥有全部权限，不可修改
+          </div>
+          <div
+            v-else-if="permissionGroups.length > 0"
             class="space-y-4 max-h-[50vh] overflow-y-auto pr-2"
           >
             <div
@@ -508,7 +525,14 @@ onMounted(() => {
 
         <NTabPane tab="菜单配置" name="menus">
           <div
-            v-if="menuTree.length > 0"
+            v-if="isSuperadminEditing"
+            class="text-center py-8 text-sm"
+            style="color: hsl(var(--muted-foreground))"
+          >
+            内置超级管理员角色始终拥有全部菜单，不可修改
+          </div>
+          <div
+            v-else-if="menuTree.length > 0"
             class="rounded-lg border p-3 max-h-[50vh] overflow-y-auto"
             style="
               background: hsl(var(--card));

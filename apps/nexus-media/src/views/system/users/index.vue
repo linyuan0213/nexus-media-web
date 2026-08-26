@@ -37,6 +37,7 @@ interface RoleOption {
 interface RoleItem {
   id: number;
   role_name: string;
+  role_code?: string;
 }
 
 interface UserItem {
@@ -94,6 +95,30 @@ async function fetchRoles() {
 const sortedUsers = computed(() => {
   return [...users.value].toSorted((a, b) => (a.id ?? 0) - (b.id ?? 0));
 });
+
+/** 启用状态的超级管理员用户数（含 superadmin 角色且账号启用） */
+const superadminCount = computed(
+  () =>
+    users.value.filter(
+      (u) =>
+        u.status === 1 && u.roles?.some((r) => r.role_code === 'superadmin'),
+    ).length,
+);
+
+function isSuperadminUser(u: UserItem): boolean {
+  return !!u.roles?.some((r) => r.role_code === 'superadmin');
+}
+
+/** 删除禁用原因：返回空字符串表示可删除 */
+function deleteDisabledReason(row: UserItem): string {
+  if (row.id === userStore.userInfo?.user_id) {
+    return '不能删除当前登录用户';
+  }
+  if (isSuperadminUser(row) && superadminCount.value <= 1) {
+    return '不能删除最后一个超级管理员';
+  }
+  return '';
+}
 
 function handleAdd() {
   editingUser.value = {
@@ -231,7 +256,8 @@ onMounted(() => {
   fetchRoles();
 });
 
-function getUserActions(_row: UserItem) {
+function getUserActions(row: UserItem) {
+  const deleteReason = deleteDisabledReason(row);
   return [
     {
       label: '编辑',
@@ -249,10 +275,13 @@ function getUserActions(_row: UserItem) {
       key: 'd1',
     },
     {
-      label: '删除',
+      label: deleteReason || '删除',
       key: 'delete',
+      disabled: !!deleteReason,
       icon: () => h(IconifyIcon, { icon: 'lucide:trash-2', class: 'size-3.5' }),
-      props: { style: { color: 'hsl(var(--destructive))' } },
+      props: deleteReason
+        ? {}
+        : { style: { color: 'hsl(var(--destructive))' } },
     },
   ] as any;
 }
@@ -260,6 +289,7 @@ function getUserActions(_row: UserItem) {
 function handleActionSelect(key: string, row: UserItem) {
   switch (key) {
     case 'delete': {
+      if (deleteDisabledReason(row)) return;
       confirmDelete(row);
       break;
     }
