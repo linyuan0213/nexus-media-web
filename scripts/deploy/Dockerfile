@@ -1,9 +1,11 @@
 FROM node:24-slim AS builder
 
-# --max-old-space-size
+# --max-old-space-size（QEMU 模拟的 arm64 构建内存受限，堆调低避免 swap 抖动）
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-ENV NODE_OPTIONS=--max-old-space-size=4096
+ENV NODE_OPTIONS=--max-old-space-size=3072
+# 限制 turbo 并行构建数：并发多个 tsdown/vite 会超过 GitHub 7GB runner 内存，QEMU 下表现为假死
+ENV TURBO_CONCURRENCY=2
 ENV TZ=Asia/Shanghai
 ENV CI=true
 
