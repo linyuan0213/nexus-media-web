@@ -83,6 +83,7 @@ interface FilterState {
   releasegroup: string[];
   free: string[];
   video: string[];
+  resolution: string[];
 }
 
 interface SearchResult {
@@ -104,6 +105,7 @@ interface SearchResult {
     episode?: string[];
     free: Array<{ name: string; value: string }>;
     releasegroup: string[];
+    resolution?: string[];
     season?: string[];
     site: string[];
     video?: string[];
@@ -639,6 +641,7 @@ async function loadSearchResults() {
               releasegroup: [],
               free: [],
               video: [],
+              resolution: [],
             },
           };
         },
@@ -855,6 +858,7 @@ function resetFilters(item: SearchResultWithFilter) {
       releasegroup: [],
       free: [],
       video: [],
+      resolution: [],
     },
   };
 }
@@ -898,7 +902,8 @@ function filteredTorrentDict(
     af.site.length ||
     af.releasegroup.length ||
     af.free.length ||
-    af.video.length;
+    af.video.length ||
+    af.resolution.length;
   if (!hasActive) return item.torrent_dict;
 
   return item.torrent_dict
@@ -931,6 +936,11 @@ function filteredTorrentDict(
             )
               return false;
             if (af.video.length > 0 && !af.video.includes(t.video_encode || ''))
+              return false;
+            if (
+              af.resolution.length > 0 &&
+              !af.resolution.includes(t.respix || '')
+            )
               return false;
             return true;
           });
@@ -1557,6 +1567,37 @@ async function confirmDownload() {
                         @click="toggleFilter(item, 'video', v)"
                       >
                         {{ v }}
+                      </button>
+                    </div>
+                  </button>
+                </div>
+                <div
+                  v-if="
+                    item.filter.resolution && item.filter.resolution.length > 0
+                  "
+                  class="filter-fd"
+                  :class="{ open: filterDropOpen[`${item.key}-resolution`] }"
+                >
+                  <button
+                    class="filter-fd-btn"
+                    :class="{ has: item.activeFilters.resolution.length > 0 }"
+                    @click.stop="toggleFilterDrop(`${item.key}-resolution`)"
+                  >
+                    <span class="ffd-label">分辨率</span>
+                    <span class="ffd-val">{{
+                      item.activeFilters.resolution.length > 0
+                        ? item.activeFilters.resolution.join(', ')
+                        : '全部'
+                    }}</span>
+                    <span class="ffd-arr">▼</span>
+                    <div class="ffd-drop">
+                      <button
+                        v-for="r in item.filter.resolution"
+                        :key="r"
+                        :class="{ sel: isFilterActive(item, 'resolution', r) }"
+                        @click="toggleFilter(item, 'resolution', r)"
+                      >
+                        {{ r }}
                       </button>
                     </div>
                   </button>
