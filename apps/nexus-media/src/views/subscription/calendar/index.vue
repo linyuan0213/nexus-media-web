@@ -453,6 +453,16 @@ onUnmounted(() => {
   border-radius: var(--n-border-radius);
 }
 
+/* naive NCalendar 默认固定 720px 高，事件卡片会溢出格子被裁掉：
+   改为高度自适应，行高最小 120px、按内容伸展，页面随窗口滚动 */
+.calendar-wrapper :deep(.n-calendar) {
+  height: auto;
+}
+
+.calendar-wrapper :deep(.n-calendar-dates) {
+  grid-auto-rows: minmax(120px, auto);
+}
+
 .calendar-events {
   display: flex;
   flex: 1;
