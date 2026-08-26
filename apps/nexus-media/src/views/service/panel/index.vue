@@ -2,7 +2,6 @@
 import { computed, onMounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
-import { useAccessStore } from '@vben/stores';
 
 import {
   NButton,
@@ -611,27 +610,15 @@ async function handleNetTest() {
 async function handleBackupDownload() {
   backupLoading.value = true;
   try {
-    const accessStore = useAccessStore();
-    const token = accessStore.accessToken;
-    const headers: Record<string, string> = {
-      'Accept-Language': 'zh-CN',
-    };
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-    const response = await fetch('/system/backup', {
+    const blob = await requestClient.download('/system/backup', {
       method: 'POST',
-      headers,
-      credentials: 'include',
+      timeout: 300_000, // 全库导出 + 打包可能耗时较长，覆盖默认 10s 超时
     });
-    if (response.status === 401) {
-      message.error('登录已过期，请重新登录');
-      return;
+    // 失败时后端返回 JSON 错误体（responseType 强制为 blob），需识别后抛错
+    if (blob.type.includes('application/json')) {
+      const err = JSON.parse(await blob.text());
+      throw new Error(err?.message || err?.msg || '备份失败');
     }
-    if (!response.ok) {
-      throw new Error('备份失败');
-    }
-    const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -669,6 +656,7 @@ async function uploadBackupFile(file: File) {
   try {
     const res = await requestClient.upload('/system/backup/upload', {
       file,
+      timeout: 300_000, // 备份 zip 可能较大
     });
     if (res?.filepath) {
       backupFilePath.value = res.filepath;
@@ -688,27 +676,13 @@ async function handleRestore() {
   }
   restoreLoading.value = true;
   try {
-    const accessStore = useAccessStore();
-    const token = accessStore.accessToken;
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-    const response = await fetch('/system/backup/restore', {
-      method: 'POST',
-      headers,
-      credentials: 'include',
-      body: JSON.stringify({ file_name: backupFilePath.value }),
-    });
-    const res = await response.json();
-    if (res?.code === 0) {
-      message.success(res?.msg || '配置恢复成功');
-      showBackup.value = false;
-    } else {
-      message.error(res?.msg || '恢复失败');
-    }
+    await requestClient.post(
+      '/system/backup/restore',
+      { file_name: backupFilePath.value },
+      { timeout: 300_000 }, // 恢复为全库导入，耗时较长
+    );
+    message.success('配置恢复成功');
+    showBackup.value = false;
   } catch (error: any) {
     message.error(error?.message || '恢复失败');
   } finally {
@@ -1107,7 +1081,7 @@ onMounted(() => {
     <!-- 备份恢复弹窗 -->
     <NModal
       v-model:show="showBackup"
-      title="备份\u0026恢复"
+      title="备份&恢复"
       preset="card"
       style="width: 500px; max-width: 95vw"
     >
