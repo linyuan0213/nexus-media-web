@@ -4,7 +4,7 @@ import type { GlobalThemeOverrides } from 'naive-ui';
 import { computed } from 'vue';
 
 import { useNaiveDesignTokens } from '@vben/hooks';
-import { preferences } from '@vben/preferences';
+import { preferences, usePreferences } from '@vben/preferences';
 
 import {
   darkTheme,
@@ -22,15 +22,16 @@ defineOptions({ name: 'App' });
 
 const { commonTokens } = useNaiveDesignTokens();
 
+// 解析实际生效的暗色模式：dark 或 auto（跟随系统深色），与 CSS 变量切换保持一致
+const { isDark } = usePreferences();
+
 const tokenLocale = computed(() =>
   preferences.app.locale === 'zh-CN' ? zhCN : enUS,
 );
 const tokenDateLocale = computed(() =>
   preferences.app.locale === 'zh-CN' ? dateZhCN : dateEnUS,
 );
-const tokenTheme = computed(() =>
-  preferences.theme.mode === 'dark' ? darkTheme : lightTheme,
-);
+const tokenTheme = computed(() => (isDark.value ? darkTheme : lightTheme));
 
 const themeOverrides = computed((): GlobalThemeOverrides => {
   return {
