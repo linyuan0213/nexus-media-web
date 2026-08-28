@@ -96,7 +96,6 @@ const filteredLogs = computed(() => {
 });
 
 function scrollToBottom() {
-  if (!listRef.value) return;
   nextTick(() => {
     if (!autoScroll.value || !listRef.value) return;
     const el = listRef.value;
