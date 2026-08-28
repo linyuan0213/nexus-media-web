@@ -146,7 +146,48 @@ function bindChartClick() {
   inst.off('click');
   inst.on('click', (params: any) => {
     if (params?.componentType === 'legend') return;
-    const site = String(params?.seriesName ?? '');
+    let site = String(params?.seriesName ?? '');
+    // 未点中曲线时，按点击位置解析最近的系列（曲线细不易点中）
+    if (!site && params?.offsetX != null && params?.offsetY != null) {
+      try {
+        const coord = inst.convertFromPixel({ gridIndex: 0 }, [
+          params.offsetX,
+          params.offsetY,
+        ]);
+        if (
+          coord &&
+          Array.isArray(coord) &&
+          coord.length >= 2 &&
+          coord[0] != null &&
+          coord[1] != null
+        ) {
+          const xIndex = Math.round(coord[0]);
+          const clickedValue = coord[1];
+          let bestSite = '';
+          let bestDist = Number.POSITIVE_INFINITY;
+          let span = 0;
+          for (const s of props.series) {
+            const vals = props.mode === 'upload' ? s.upload : s.download;
+            const v = vals[xIndex];
+            if (v == null) continue;
+            const dist = Math.abs(clickedValue - v);
+            if (dist < bestDist) {
+              bestDist = dist;
+              bestSite = s.name;
+            }
+            const max = Math.max(...vals);
+            const min = Math.min(...vals);
+            span = Math.max(span, max - min);
+          }
+          // 容差：数据跨度的 12% 以内才视为命中，避免远处空白误触
+          if (bestSite && bestDist <= span * 0.12) {
+            site = bestSite;
+          }
+        }
+      } catch {
+        // 忽略坐标转换异常
+      }
+    }
     if (!site) return;
     emit('selectSite', site === props.selectedSite ? '' : site);
   });
