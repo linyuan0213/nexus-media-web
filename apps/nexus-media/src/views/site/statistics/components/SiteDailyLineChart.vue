@@ -5,6 +5,8 @@ import { computed, onMounted, ref, watch } from 'vue';
 
 import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 
+import { NSelect } from 'naive-ui';
+
 import { useSiteStats } from '#/composables/useSiteStats';
 import { CHART_PALETTE } from '#/constants/chartColors';
 
@@ -31,6 +33,14 @@ const { renderEcharts, updateData } = useEcharts(chartRef);
 
 const TEXT_COLOR = 'hsl(var(--card-foreground))';
 
+/** 聚焦站点，空串表示全部显示 */
+const focusSite = ref('');
+
+const focusOptions = computed(() => [
+  { label: '全部站点', value: '' },
+  ...props.series.map((s) => ({ label: s.name, value: s.name })),
+]);
+
 function getColor(index: number): string {
   return CHART_PALETTE[index % CHART_PALETTE.length] || CHART_PALETTE[0]!;
 }
@@ -49,6 +59,10 @@ const activeSeries = computed(() => {
 });
 
 function buildOption() {
+  const selected: Record<string, boolean> = {};
+  for (const s of props.series) {
+    selected[s.name] = focusSite.value === '' || focusSite.value === s.name;
+  }
   return {
     animationDurationUpdate: 0,
     grid: {
@@ -62,6 +76,7 @@ function buildOption() {
       bottom: 0,
       itemGap: 12,
       left: 'center',
+      selected,
       textStyle: { fontSize: 11 },
       type: 'scroll' as const,
     },
@@ -108,6 +123,10 @@ function buildOption() {
   };
 }
 
+function refresh() {
+  updateData(buildOption() as any);
+}
+
 onMounted(() => {
   renderEcharts(buildOption() as any);
 });
@@ -120,12 +139,41 @@ watch(
     const key = getChartDataKey(newVal);
     if (key === dataCacheKey) return;
     dataCacheKey = key;
-    updateData(buildOption() as any);
+    refresh();
   },
   { deep: true },
 );
+
+watch(focusSite, () => refresh());
 </script>
 
 <template>
-  <EchartsUI ref="chartRef" class="h-64 w-full" />
+  <div class="chart-wrap">
+    <div class="chart-toolbar">
+      <NSelect
+        v-model:value="focusSite"
+        :options="focusOptions"
+        class="focus-select"
+        size="small"
+      />
+    </div>
+    <EchartsUI ref="chartRef" class="h-56 w-full" />
+  </div>
 </template>
+
+<style scoped>
+.chart-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.chart-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.focus-select {
+  width: 10rem;
+}
+</style>
