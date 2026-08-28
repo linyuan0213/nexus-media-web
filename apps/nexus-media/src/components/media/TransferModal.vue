@@ -20,8 +20,11 @@ import {
 } from 'naive-ui';
 
 import { searchMediaApi } from '#/api/modules/media';
+import { getStorageBackendsApi } from '#/api/modules/storage';
 import { SYNC_MODES } from '#/api/modules/sync';
 import { getImgUrl } from '#/utils/image';
+
+import PathPickerModal from './PathPickerModal.vue';
 
 export interface TransferFormData {
   path: string;
@@ -32,6 +35,7 @@ export interface TransferFormData {
   season?: number;
   min_filesize?: number;
   src_backend_id?: string;
+  dst_backend_id?: string;
 }
 
 const props = defineProps<{
@@ -69,6 +73,7 @@ watch(
         season: undefined,
         min_filesize: undefined,
         src_backend_id: props.srcBackendId || 'local',
+        dst_backend_id: 'local',
       };
     }
   },
@@ -82,11 +87,53 @@ function handleSubmit() {
   emit('submit', { ...form.value });
 }
 
+// 路径选择（复用 PathPickerModal）
+const pickerShow = ref(false);
+const pickerTarget = ref<'dst' | 'src'>('src');
+
+function openPathPicker(target: 'dst' | 'src') {
+  pickerTarget.value = target;
+  pickerShow.value = true;
+}
+
+function handlePathConfirm(path: string, backendId: string) {
+  if (pickerTarget.value === 'src') {
+    form.value.path = path;
+    form.value.src_backend_id = backendId;
+  } else {
+    form.value.outpath = path;
+    form.value.dst_backend_id = backendId;
+  }
+}
+
 // TMDB search
 const tmdbSearchShow = ref(false);
 const tmdbSearchKeyword = ref('');
 const tmdbSearchLoading = ref(false);
 const tmdbSearchResults = ref<any[]>([]);
+
+// 存储后端选项（用于源/目标后端选择）
+const backendOptions = ref<Array<{ label: string; value: string }>>([
+  { label: '本地', value: 'local' },
+]);
+
+async function loadBackends() {
+  try {
+    const res: any = await getStorageBackendsApi();
+    const items: Array<{ enabled: boolean; id: number; name: string }> =
+      res?.items || [];
+    backendOptions.value = [
+      { label: '本地', value: 'local' },
+      ...items
+        .filter((b) => b.enabled)
+        .map((b) => ({ label: b.name, value: String(b.id) })),
+    ];
+  } catch {
+    // 加载失败时保持仅本地选项
+  }
+}
+
+loadBackends();
 
 function openTmdbSearch() {
   tmdbSearchShow.value = true;
@@ -133,20 +180,62 @@ function selectTmdbMedia(media: any) {
       @update:show="handleClose"
     >
       <NForm label-placement="left" label-width="80">
+        <div class="grid grid-cols-2 gap-3">
+          <NFormItem label="源后端">
+            <NSelect
+              v-model:value="form.src_backend_id"
+              :options="backendOptions"
+              size="small"
+            />
+          </NFormItem>
+          <NFormItem label="目标后端">
+            <NSelect
+              v-model:value="form.dst_backend_id"
+              :options="backendOptions"
+              size="small"
+            />
+          </NFormItem>
+        </div>
         <NFormItem label="输入路径">
           <NInput
             v-model:value="form.path"
             readonly
             size="small"
             :title="form.path"
-          />
+          >
+            <template #suffix>
+              <NButton
+                size="tiny"
+                text
+                @click="openPathPicker('src')"
+                title="浏览选择目录"
+              >
+                <template #icon>
+                  <IconifyIcon icon="lucide:folder-open" class="size-4" />
+                </template>
+              </NButton>
+            </template>
+          </NInput>
         </NFormItem>
         <NFormItem label="输出路径">
           <NInput
             v-model:value="form.outpath"
             placeholder="留空则转移至媒体库"
             size="small"
-          />
+          >
+            <template #suffix>
+              <NButton
+                size="tiny"
+                text
+                @click="openPathPicker('dst')"
+                title="浏览选择目录"
+              >
+                <template #icon>
+                  <IconifyIcon icon="lucide:folder-open" class="size-4" />
+                </template>
+              </NButton>
+            </template>
+          </NInput>
         </NFormItem>
         <div class="grid grid-cols-2 gap-3">
           <NFormItem label="转移方式">
@@ -292,6 +381,19 @@ function selectTmdbMedia(media: any) {
         </NSpin>
       </NSpace>
     </NModal>
+
+    <!-- 路径选择器（输入/输出） -->
+    <PathPickerModal
+      v-model:show="pickerShow"
+      :initial-backend-id="
+        pickerTarget === 'src'
+          ? form.src_backend_id || 'local'
+          : form.dst_backend_id || 'local'
+      "
+      :initial-path="pickerTarget === 'src' ? form.path : form.outpath"
+      :title="pickerTarget === 'src' ? '选择输入路径' : '选择输出路径'"
+      @confirm="handlePathConfirm"
+    />
   </div>
 </template>
 

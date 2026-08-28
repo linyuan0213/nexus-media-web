@@ -111,6 +111,7 @@ export async function manualTransferApi(data: {
 
 /** 自定义识别/转移（指定输入路径） */
 export async function manualTransferUdfApi(data: {
+  dst_backend_id?: string;
   episode_details?: string;
   episode_format?: string;
   episode_offset?: string;

@@ -252,6 +252,7 @@ export function useFileActions(deps: ActionsDeps) {
         season: data.season,
         min_filesize: data.min_filesize,
         src_backend_id: data.src_backend_id || deps.getBackendId(),
+        dst_backend_id: data.dst_backend_id || undefined,
       });
       notification.success('转移任务已提交');
       transferModalShow.value = false;
