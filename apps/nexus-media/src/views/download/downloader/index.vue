@@ -59,6 +59,16 @@ const router = useRouter();
 const message = useMessage();
 const { smaller } = useBreakpoints(breakpointsTailwind);
 const isMobile = smaller('md');
+/** 类型选择：新增态全量展示，编辑态仅展示当前类型 */
+const visibleDownloaderTypes = computed<Record<string, DownloaderTypeConf>>(
+  () => {
+    if (!editingDownloader.value.id) return downloaderTypes.value;
+    const current = editingType.value
+      ? downloaderTypes.value[editingType.value]
+      : undefined;
+    return current ? { [editingType.value]: current } : {};
+  },
+);
 const downloaders = ref<Record<string, any>>({});
 const defaultDownloader = ref('');
 const downloaderTypes = ref<Record<string, DownloaderTypeConf>>({});
@@ -570,16 +580,20 @@ onMounted(fetchData);
         <NFormItem label="类型" required>
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             <div
-              v-for="(conf, key) in downloaderTypes"
+              v-for="(conf, key) in visibleDownloaderTypes"
               :key="key"
-              class="flex flex-col items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all"
+              class="flex flex-col items-center gap-2 p-3 rounded-lg border transition-all"
               :style="
                 editingType === key
                   ? 'border-color: hsl(var(--primary)); background: hsl(var(--primary) / 0.08); box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2)'
                   : 'border-color: hsl(var(--border)); background: hsl(var(--card))'
               "
-              :class="editingType === key ? '' : 'hover:border-primary/50'"
-              @click="editingType = key"
+              :class="
+                editingType === key
+                  ? ''
+                  : 'hover:border-primary/50 cursor-pointer'
+              "
+              @click="!editingDownloader.id && (editingType = key)"
             >
               <img
                 v-if="downloaderIcon(key)"

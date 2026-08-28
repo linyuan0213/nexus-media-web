@@ -57,6 +57,14 @@ const message = useMessage();
 const { smaller } = useBreakpoints(breakpointsTailwind);
 const isMobile = smaller('md');
 const clients = ref<Record<string, MessageClient>>({});
+/** 类型选择：新增态全量展示，编辑态仅展示当前类型 */
+const visibleChannels = computed<Record<string, ChannelConf>>(() => {
+  if (!editingClient.value.id) return channels.value;
+  const current = editingType.value
+    ? channels.value[editingType.value]
+    : undefined;
+  return current ? { [editingType.value]: current } : {};
+});
 const channels = ref<Record<string, ChannelConf>>({});
 const switches = ref<Record<string, { name: string }>>({});
 const loading = ref(false);
@@ -485,28 +493,29 @@ onMounted(fetchData);
           </NGridItem>
         </NGrid>
 
-        <!-- 类型选择卡片 -->
+        <!-- 类型选择卡片（编辑态仅展示当前类型，不可切换） -->
         <NFormItem label="类型" required>
           <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div
-              v-for="(conf, key) in channels"
+              v-for="(conf, key) in visibleChannels"
               :key="key"
-              class="flex flex-col items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md"
+              class="flex flex-col items-center gap-2 rounded-lg border p-3 transition-all"
               :class="
                 editingType === key
-                  ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                  : 'border-gray-200 hover:border-blue-300'
+                  ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                  : 'border-border hover:border-primary/50'
               "
-              @click="editingType = key"
+              :style="editingClient.id ? 'cursor: default' : 'cursor: pointer'"
+              @click="!editingClient.id && (editingType = key)"
             >
-              <div class="relative w-10 h-10 rounded-lg border overflow-hidden">
+              <div class="relative h-10 w-10 overflow-hidden rounded-lg border">
                 <img
                   :src="conf.icon_url || channelIcon(key)"
-                  class="absolute inset-0 z-10 w-full h-full object-contain"
+                  class="absolute inset-0 z-10 h-full w-full object-contain"
                   @error="($event.target as HTMLElement).style.display = 'none'"
                 />
                 <div
-                  class="w-full h-full flex items-center justify-center bg-muted"
+                  class="flex h-full w-full items-center justify-center bg-muted"
                 >
                   <IconifyIcon
                     icon="lucide:message-square"
