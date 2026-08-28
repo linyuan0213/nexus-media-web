@@ -28,7 +28,15 @@ const activityData = ref<[number, number, number, number, number, number][]>(
   [],
 );
 const chartDetailRef = ref<any>(null);
-const { renderEcharts: renderDetail } = useEcharts(chartDetailRef);
+const { getChartInstance, renderEcharts: renderDetail } =
+  useEcharts(chartDetailRef);
+
+/** 选中的单条曲线名，空串表示全部显示 */
+const selectedSeries = ref('');
+
+function isDimmed(name: string): boolean {
+  return selectedSeries.value !== '' && selectedSeries.value !== name;
+}
 
 const visible = computed({
   get: () => props.show,
@@ -70,9 +78,14 @@ function renderDetailChart() {
     tooltip: {
       trigger: 'axis',
       formatter: (params: any) => {
+        const list = Array.isArray(params) ? params : [params];
+        const items = selectedSeries.value
+          ? list.filter((p: any) => p.seriesName === selectedSeries.value)
+          : list;
+        if (items.length === 0) return '';
         const textColor = colors.cardForeground;
-        let result = `<div style="font-weight:600;margin-bottom:4px;color:${textColor}">${params[0].name}</div>`;
-        params.forEach((p: any) => {
+        let result = `<div style="font-weight:600;margin-bottom:4px;color:${textColor}">${items[0].name}</div>`;
+        items.forEach((p: any) => {
           let val: number | string = p.value;
           if (p.seriesName === '做种体积') val = formatSize(val as number);
           else if (p.seriesName !== '做种数' && p.seriesName !== '积分')
@@ -147,8 +160,14 @@ function renderDetailChart() {
         smooth: true,
         showSymbol: false,
         emphasis: { disabled: true },
-        itemStyle: { color: colors.success },
-        areaStyle: { color: colors.success, opacity: 0.1 },
+        itemStyle: {
+          color: colors.success,
+          opacity: isDimmed('上传') ? 0.15 : 1,
+        },
+        areaStyle: {
+          color: colors.success,
+          opacity: isDimmed('上传') ? 0.02 : 0.1,
+        },
         yAxisIndex: 0,
       },
       {
@@ -158,8 +177,14 @@ function renderDetailChart() {
         smooth: true,
         showSymbol: false,
         emphasis: { disabled: true },
-        itemStyle: { color: colors.destructive },
-        areaStyle: { color: colors.destructive, opacity: 0.1 },
+        itemStyle: {
+          color: colors.destructive,
+          opacity: isDimmed('下载') ? 0.15 : 1,
+        },
+        areaStyle: {
+          color: colors.destructive,
+          opacity: isDimmed('下载') ? 0.02 : 0.1,
+        },
         yAxisIndex: 0,
       },
       {
@@ -169,7 +194,10 @@ function renderDetailChart() {
         smooth: true,
         showSymbol: false,
         emphasis: { disabled: true },
-        itemStyle: { color: colors.primary },
+        itemStyle: {
+          color: colors.primary,
+          opacity: isDimmed('做种数') ? 0.15 : 1,
+        },
         yAxisIndex: 1,
       },
       {
@@ -179,7 +207,10 @@ function renderDetailChart() {
         smooth: true,
         showSymbol: false,
         emphasis: { disabled: true },
-        itemStyle: { color: colors.warning },
+        itemStyle: {
+          color: colors.warning,
+          opacity: isDimmed('做种体积') ? 0.15 : 1,
+        },
         yAxisIndex: 0,
       },
       {
@@ -189,17 +220,98 @@ function renderDetailChart() {
         smooth: true,
         showSymbol: false,
         emphasis: { disabled: true },
-        itemStyle: { color: colors.primary },
+        itemStyle: {
+          color: colors.primary,
+          opacity: isDimmed('积分') ? 0.15 : 1,
+        },
         yAxisIndex: 2,
       },
     ],
+  });
+
+  // 点击单条曲线选中，其余置灰；再次点击同一条恢复
+  nextTick(() => {
+    const inst = getChartInstance();
+    if (!inst) return;
+    inst.off('click');
+    inst.on('click', (params: any) => {
+      if (params?.componentType === 'legend') return;
+      let name = String(params?.seriesName ?? '');
+      if (!name && params?.offsetX != null && params?.offsetY != null) {
+        try {
+          const coord = inst.convertFromPixel({ gridIndex: 0 }, [
+            params.offsetX,
+            params.offsetY,
+          ]);
+          if (
+            coord &&
+            Array.isArray(coord) &&
+            coord.length >= 2 &&
+            coord[0] != null &&
+            coord[1] != null
+          ) {
+            const xIndex = Math.round(coord[0]);
+            const clickedValue = coord[1];
+            const names = ['上传', '下载', '做种数', '做种体积', '积分'];
+            const allVals = [
+              uploads,
+              downloads,
+              seedings,
+              seedingSizes,
+              bonuses,
+            ];
+            let best = '';
+            let bestDist = Number.POSITIVE_INFINITY;
+            let span = 0;
+            names.forEach((n, idx) => {
+              const vals = allVals[idx];
+              if (!vals) return;
+              const v = vals[xIndex];
+              if (v == null) return;
+              const dist = Math.abs(clickedValue - v);
+              if (dist < bestDist) {
+                bestDist = dist;
+                best = n;
+              }
+              const max = Math.max(...vals);
+              const min = Math.min(...vals);
+              span = Math.max(span, max - min);
+            });
+            if (best && bestDist <= span * 0.12) {
+              name = best;
+            }
+          }
+        } catch {
+          // 忽略坐标转换异常
+        }
+      }
+      if (!name) return;
+      selectedSeries.value = selectedSeries.value === name ? '' : name;
+      renderDetailChart();
+    });
+
+    // 图例隐藏某条曲线时，同步隐藏对应右侧坐标轴名称，避免残留
+    inst.off('legendselectchanged');
+    inst.on('legendselectchanged', (params: any) => {
+      const sel: Record<string, boolean> = params?.selected || {};
+      inst.setOption({
+        yAxis: [
+          {},
+          { name: sel['做种数'] === false ? '' : '做种数' },
+          { name: sel['积分'] === false ? '' : '积分' },
+        ],
+      });
+    });
   });
 }
 
 watch(
   () => [props.show, props.siteName],
   ([show]) => {
-    if (show) fetchActivity();
+    if (show) {
+      selectedSeries.value = '';
+      fetchActivity();
+    }
   },
 );
 </script>
