@@ -58,7 +58,7 @@ const todayInfo = computed(() => {
       siteItems.push({
         download: downVal,
         name: s.name,
-        ratio: downVal > 0 ? upVal / downVal : upVal > 0 ? 99 : 0,
+        ratio: downVal > 0 ? upVal / downVal : upVal > 0 ? Infinity : 0,
         upload: upVal,
       });
     }
@@ -70,13 +70,16 @@ const todayInfo = computed(() => {
     date: dates[lastIdx],
     download: down,
     downloadDelta: prevDown > 0 ? (down - prevDown) / prevDown : 0,
+    downloadNew: prevDown === 0 && down > 0,
     prevTotal: totalPrev,
     ratio,
     sites: siteItems,
     totalDelta: totalPrev > 0 ? (totalToday - totalPrev) / totalPrev : 0,
+    totalNew: totalPrev === 0 && totalToday > 0,
     totalToday,
     upload: up,
     uploadDelta: prevUp > 0 ? (up - prevUp) / prevUp : 0,
+    uploadNew: prevUp === 0 && up > 0,
   };
 });
 
@@ -129,7 +132,7 @@ function buildDonutOption() {
         itemStyle: {
           borderRadius: 6,
           borderColor: 'hsl(var(--card))',
-          borderWidth: 3,
+          borderWidth: 1.5,
         },
         label: { show: false },
         labelLine: { show: false },
@@ -166,6 +169,12 @@ watch(
 function formatDelta(delta: number): string {
   const pct = Math.abs(delta * 100).toFixed(1);
   return `${pct}%`;
+}
+
+function formatDeltaLabel(delta: number, isNew: boolean): string {
+  if (isNew) return '新增';
+  const sign = delta >= 0 ? '+' : '-';
+  return `${sign}${formatDelta(delta)}`;
 }
 
 function getLegendEntries(): Array<{
@@ -208,7 +217,7 @@ function getLegendEntries(): Array<{
             "
             class="size-3.5"
           />
-          {{ formatDelta(todayInfo.totalDelta) }}
+          {{ formatDeltaLabel(todayInfo.totalDelta, todayInfo.totalNew) }}
         </span>
       </div>
     </div>
@@ -298,7 +307,7 @@ function getLegendEntries(): Array<{
                 class="site-ratio"
                 :class="site.ratio >= 1 ? 'ratio-ok' : 'ratio-low'"
               >
-                {{ site.ratio.toFixed(2) }}
+                {{ Number.isFinite(site.ratio) ? site.ratio.toFixed(2) : '∞' }}
               </span>
             </div>
           </div>
@@ -329,8 +338,7 @@ function getLegendEntries(): Array<{
           class="mini-delta"
           :class="todayInfo.uploadDelta >= 0 ? 'delta-up' : 'delta-down'"
         >
-          {{ todayInfo.uploadDelta >= 0 ? '+' : '-'
-          }}{{ formatDelta(todayInfo.uploadDelta) }}
+          {{ formatDeltaLabel(todayInfo.uploadDelta, todayInfo.uploadNew) }}
         </span>
       </div>
       <div class="summary-divider"></div>
@@ -343,8 +351,7 @@ function getLegendEntries(): Array<{
           class="mini-delta"
           :class="todayInfo.downloadDelta >= 0 ? 'delta-up' : 'delta-down'"
         >
-          {{ todayInfo.downloadDelta >= 0 ? '+' : '-'
-          }}{{ formatDelta(todayInfo.downloadDelta) }}
+          {{ formatDeltaLabel(todayInfo.downloadDelta, todayInfo.downloadNew) }}
         </span>
       </div>
       <div class="summary-divider"></div>
