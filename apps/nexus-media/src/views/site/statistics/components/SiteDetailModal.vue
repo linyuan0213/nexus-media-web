@@ -104,8 +104,6 @@ function renderDetailChart() {
     legend: {
       data: ['上传', '下载', '做种数', '做种体积', '积分'],
       bottom: 0,
-      // 禁用默认点击隐藏，改为点击图例选中单条曲线
-      selectedMode: false,
       textStyle: { color: colors.cardForeground },
     },
     grid: {
@@ -274,6 +272,19 @@ function bindDetailChart(
       bonuses,
     );
   });
+
+  // 图例隐藏某条曲线时，同步隐藏对应右侧坐标轴名称，避免残留
+  inst.off('legendselectchanged');
+  inst.on('legendselectchanged', (params: any) => {
+    const sel: Record<string, boolean> = params?.selected || {};
+    inst.setOption({
+      yAxis: [
+        {},
+        { name: sel['做种数'] === false ? '' : '做种数' },
+        { name: sel['积分'] === false ? '' : '积分' },
+      ],
+    });
+  });
 }
 
 function handleSelectClick(
@@ -286,10 +297,7 @@ function handleSelectClick(
   bonuses: number[],
 ) {
   if (params?.componentType === 'legend') {
-    const clicked = String(params?.name ?? '');
-    if (!clicked) return;
-    selectedSeries.value = selectedSeries.value === clicked ? '' : clicked;
-    renderDetailChart();
+    // 图例点击保持默认隐藏/显示行为，不参与曲线选中
     return;
   }
   let name = String(params?.seriesName ?? '');
