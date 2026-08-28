@@ -37,9 +37,17 @@ const dailyMode = ref<'download' | 'upload'>('upload');
 const favicons = ref<Record<string, string>>({});
 const sortBy = ref('');
 const refreshing = ref(false);
+const siteFilter = ref('');
 
 const siteDetailModalShow = ref(false);
 const siteDetailName = ref('');
+
+const siteFilterOptions = computed(() => [
+  { label: '全部站点', value: '' },
+  ...statistics.value
+    .map((i) => ({ label: i.site_name, value: i.site_name }))
+    .toSorted((a, b) => a.label.localeCompare(b.label, 'zh')),
+]);
 
 const sortOptions = [
   { label: '默认排序', value: '' },
@@ -140,7 +148,10 @@ const summary = computed(() => {
 });
 
 const sortedStatistics = computed(() => {
-  const items = [...statistics.value];
+  let items = [...statistics.value];
+  if (siteFilter.value) {
+    items = items.filter((i) => i.site_name === siteFilter.value);
+  }
   if (!sortBy.value) return items;
   return items.toSorted((a, b) => {
     const field = sortBy.value;
@@ -303,6 +314,17 @@ onBeforeUnmount(() => {
             <span>站点详细数据</span>
           </div>
         </template>
+        <template #header-extra>
+          <NSelect
+            v-model:value="siteFilter"
+            :options="siteFilterOptions"
+            class="site-filter-select"
+            clearable
+            filterable
+            placeholder="筛选站点"
+            size="small"
+          />
+        </template>
         <StatTable
           :data="sortedStatistics"
           :favicons="favicons"
@@ -460,6 +482,10 @@ onBeforeUnmount(() => {
   font-size: 0.875rem;
   font-weight: 600;
   color: hsl(var(--card-foreground));
+}
+
+.site-filter-select {
+  width: 10rem;
 }
 
 @media (max-width: 1024px) {
