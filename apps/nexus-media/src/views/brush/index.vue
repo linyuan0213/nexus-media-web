@@ -40,7 +40,9 @@ const notification = useAppNotification();
 const loading = ref(false);
 const tasks = ref<BrushApi.BrushTask[]>([]);
 const sites = ref<Array<{ label: string; value: string }>>([]);
-const downloaders = ref<Array<{ label: string; value: string }>>([]);
+const downloaders = ref<
+  Array<{ dirs: string[]; label: string; value: string }>
+>([]);
 const brushRules = ref<BrushApi.BrushRule[]>([]);
 
 const ruleNameMap = computed(() => {
@@ -200,6 +202,9 @@ async function fetchDownloaders() {
     downloaders.value = Object.values(data).map((d: any) => ({
       label: d.name || d.id,
       value: String(d.id),
+      dirs: (d.download_dir || [])
+        .map((dir: any) => dir?.save_path)
+        .filter(Boolean),
     }));
   } catch {
     /* ignore */

@@ -49,7 +49,7 @@ interface BrushTaskFormData {
 }
 
 const props = defineProps<{
-  downloaders: Array<{ label: string; value: string }>;
+  downloaders: Array<{ dirs: string[]; label: string; value: string }>;
   sites: Array<{ label: string; value: string }>;
   task?: BrushApi.BrushTask | null;
 }>();
@@ -104,6 +104,14 @@ function defaultForm(): BrushTaskFormData {
 const form = ref<BrushTaskFormData>(defaultForm());
 
 const isEdit = computed(() => !!props.task?.id);
+
+// 所选下载器的已配置保存目录
+const savePathOptions = computed(() => {
+  const selected = props.downloaders.find(
+    (d) => d.value === String(form.value.brushtask_downloader),
+  );
+  return (selected?.dirs || []).map((p) => ({ label: p, value: p }));
+});
 
 const activeWeekdaysArray = computed({
   get: () => {
@@ -502,9 +510,13 @@ function labelWithHelp(label: string, helpText: string) {
               "
             />
           </template>
-          <NInput
+          <NSelect
             v-model:value="form.brushtask_savepath"
-            placeholder="留空使用下载器设置"
+            :options="savePathOptions"
+            placeholder="留空使用下载器设置，可选择或输入目录"
+            clearable
+            filterable
+            tag
           />
         </NFormItem>
       </div>

@@ -29,7 +29,13 @@ export namespace DownloadApi {
     match_path?: number;
     rmt_mode?: string;
     config?: string;
-    download_dir?: string;
+    download_dir?: Array<{
+      category?: string;
+      container_path?: string;
+      label?: string;
+      save_path?: string;
+      type?: string;
+    }>;
   }
 
   export interface DownloadSetting {
