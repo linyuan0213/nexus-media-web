@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
 
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import {
   NButton,
   NForm,
@@ -56,6 +57,8 @@ interface DownloaderTypeConf {
 
 const router = useRouter();
 const message = useMessage();
+const { smaller } = useBreakpoints(breakpointsTailwind);
+const isMobile = smaller('md');
 const downloaders = ref<Record<string, any>>({});
 const defaultDownloader = ref('');
 const downloaderTypes = ref<Record<string, DownloaderTypeConf>>({});
@@ -541,8 +544,8 @@ onMounted(fetchData);
       preset="card"
       :style="{ width: '640px', maxWidth: '92vw' }"
     >
-      <NForm label-placement="left" :label-width="100">
-        <NGrid :cols="2" :x-gap="16">
+      <NForm :label-placement="isMobile ? 'top' : 'left'" :label-width="100">
+        <NGrid :cols="isMobile ? 1 : 2" :x-gap="16">
           <NGridItem span="1">
             <NFormItem label="名称" required>
               <NInput
@@ -688,7 +691,7 @@ onMounted(fetchData);
               </div>
             </NTooltip>
           </div>
-          <NGrid :cols="2" :x-gap="16">
+          <NGrid :cols="isMobile ? 1 : 2" :x-gap="16">
             <NGridItem span="1">
               <NFormItem>
                 <template #label>
