@@ -421,10 +421,26 @@ onMounted(fetch);
       placement="right"
       :trap-focus="false"
     >
-      <NDrawerContent
-        :title="drawer.isEdit ? '编辑存储后端' : '新增存储后端'"
-        :native-scrollbar="false"
-      >
+      <NDrawerContent :native-scrollbar="false">
+        <template #header>
+          <div
+            class="flex w-full items-center justify-between pr-2"
+            style="color: hsl(var(--card-foreground))"
+          >
+            <span class="font-medium">{{
+              drawer.isEdit ? '编辑存储后端' : '新增存储后端'
+            }}</span>
+            <div class="flex items-center gap-2">
+              <NSwitch
+                v-model:value="drawer.form.enabled"
+                :checked-value="1"
+                :unchecked-value="0"
+                size="small"
+              />
+              <span class="text-sm">启用</span>
+            </div>
+          </div>
+        </template>
         <NForm label-placement="top" size="medium">
           <NFormItem label="名称" required>
             <NInput
@@ -446,6 +462,7 @@ onMounted(fetch);
             <NSelectWithPrefix
               v-model:value="drawer.form.type"
               :options="types"
+              :disabled="drawer.isEdit"
               placeholder="选择存储类型"
               @update:value="
                 drawer.form.config = defaultConfig($event);
@@ -534,17 +551,6 @@ onMounted(fetch);
             >
               {{ testResult.msg }}
             </span>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <NSwitch
-              v-model:value="drawer.form.enabled"
-              :checked-value="1"
-              :unchecked-value="0"
-            />
-            <span class="text-sm" style="color: hsl(var(--foreground))"
-              >启用</span
-            >
           </div>
         </NForm>
 
