@@ -10,6 +10,7 @@ import SiteHistoryTrendChart from './SiteHistoryTrendChart.vue';
 import SiteSeedingRoseChart from './SiteSeedingRoseChart.vue';
 import SiteTrafficBarChart from './SiteTrafficBarChart.vue';
 import SiteUploadPieChart from './SiteUploadPieChart.vue';
+import TodayTrafficCard from './TodayTrafficCard.vue';
 
 interface DailySeries {
   download: number[];
@@ -60,6 +61,12 @@ const seedingRoseData = computed(() =>
 
 <template>
   <div class="charts-layout">
+    <TodayTrafficCard
+      v-if="dailyData.series.length > 0"
+      :daily-data="dailyData"
+      class="chart-card-full"
+    />
+
     <NCard
       :bordered="false"
       :segmented="{ content: true }"
