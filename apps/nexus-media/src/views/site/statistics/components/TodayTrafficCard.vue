@@ -26,8 +26,11 @@ const { formatCompactSize, formatSize, getChartDataKey } = useSiteStats();
 const chartRef = ref<EchartsUIType>();
 const { renderEcharts, updateData } = useEcharts(chartRef);
 
-const UPLOAD_COLOR = CHART_PALETTE[2]!;
-const DOWNLOAD_COLOR = CHART_PALETTE[3]!;
+const TEXT_COLOR = 'hsl(var(--card-foreground))';
+
+const sortMode = ref<'download' | 'upload'>('upload');
+const showAll = ref(false);
+const TOP_COUNT = 10;
 
 const todayInfo = computed(() => {
   const { dates, series } = props.dailyData;
@@ -60,7 +63,6 @@ const todayInfo = computed(() => {
       });
     }
   }
-  siteItems.sort((a, b) => b.upload - a.upload);
   const ratio = down > 0 ? up / down : 0;
   const totalToday = up + down;
   const totalPrev = prevUp + prevDown;
@@ -78,56 +80,75 @@ const todayInfo = computed(() => {
   };
 });
 
-const maxSiteUpload = computed(() => {
-  const sites = todayInfo.value?.sites || [];
-  return sites.length > 0 ? Math.max(sites[0]!.upload, 1) : 1;
+/** 排序后展示的站点 */
+const sortedSites = computed(() => {
+  const sites = [...(todayInfo.value?.sites || [])];
+  return sites.toSorted((a, b) =>
+    sortMode.value === 'upload' ? b.upload - a.upload : b.download - a.download,
+  );
 });
 
-function buildOption() {
-  const info = todayInfo.value;
-  if (!info) return {};
+const visibleSites = computed(() => {
+  const sites = sortedSites.value;
+  return showAll.value ? sites : sites.slice(0, TOP_COUNT);
+});
+
+const collapsedCount = computed(() => {
+  const total = sortedSites.value.length;
+  return total > TOP_COUNT ? total - TOP_COUNT : 0;
+});
+
+const maxBarValue = computed(() => {
+  const sites = visibleSites.value;
+  if (sites.length === 0) return 1;
+  return Math.max(...sites.map((s) => Math.max(s.upload, s.download)), 1);
+});
+
+/** 环形图：各站点占今日总流量（上传+下载）比例 */
+const donutData = computed(() => {
+  const sites = todayInfo.value?.sites || [];
+  return sites.map((s, i) => ({
+    itemStyle: { color: CHART_PALETTE[i % CHART_PALETTE.length] },
+    name: s.name,
+    value: s.upload + s.download,
+  }));
+});
+
+const donutTotal = computed(() => todayInfo.value?.totalToday || 0);
+
+function buildDonutOption() {
   return {
     animation: true,
     animationDuration: 800,
+    color: CHART_PALETTE,
     series: [
       {
         center: ['50%', '50%'],
-        data: [
-          {
-            itemStyle: { color: UPLOAD_COLOR },
-            name: '上传',
-            value: info.upload,
-          },
-          {
-            itemStyle: { color: DOWNLOAD_COLOR },
-            name: '下载',
-            value: info.download,
-          },
-        ],
+        data: donutData.value,
         emphasis: { scale: true, scaleSize: 6 },
         itemStyle: {
-          borderRadius: 8,
+          borderRadius: 6,
           borderColor: 'hsl(var(--card))',
           borderWidth: 3,
         },
         label: { show: false },
         labelLine: { show: false },
-        radius: ['72%', '92%'],
+        radius: ['60%', '84%'],
         type: 'pie' as const,
       },
     ],
     tooltip: {
       formatter: (params: any) =>
-        `<div style="font-weight:600;color:hsl(var(--card-foreground))">${params.name}</div>
-         <div style="color:hsl(var(--card-foreground))">${formatSize(params.value)}</div>
-         <div style="color:hsl(var(--muted-foreground))">占比 ${params.percent}%</div>`,
+        `<div style="font-weight:600;color:${TEXT_COLOR}">${params.name}</div>
+         <div style="color:${TEXT_COLOR}">流量：${formatSize(params.value)}</div>
+         <div style="color:hsl(var(--muted-foreground))">占比：${params.percent}%</div>`,
       trigger: 'item' as const,
     },
   };
 }
 
 onMounted(() => {
-  renderEcharts(buildOption() as any);
+  renderEcharts(buildDonutOption() as any);
 });
 
 let dataCacheKey = '';
@@ -137,7 +158,7 @@ watch(
     const key = getChartDataKey(newVal);
     if (key === dataCacheKey) return;
     dataCacheKey = key;
-    updateData(buildOption() as any, true);
+    updateData(buildDonutOption() as any, true);
   },
   { deep: true },
 );
@@ -146,13 +167,28 @@ function formatDelta(delta: number): string {
   const pct = Math.abs(delta * 100).toFixed(1);
   return `${pct}%`;
 }
+
+function getLegendEntries(): Array<{
+  color: string;
+  name: string;
+  pct: string;
+}> {
+  const total = donutTotal.value;
+  if (!total || donutData.value.length === 0) return [];
+  const entries = donutData.value.map((d) => ({
+    color: d.itemStyle.color || CHART_PALETTE[0]!,
+    name: d.name,
+    pct: `${((d.value / total) * 100).toFixed(1)}%`,
+  }));
+  return entries.slice(0, 5);
+}
 </script>
 
 <template>
   <div v-if="todayInfo" class="today-card">
     <div class="today-header">
       <div class="today-title-wrap">
-        <span class="today-title">今日流量</span>
+        <span class="today-title">今日流量 · 各站点排行</span>
         <span class="today-date">{{ todayInfo.date }}</span>
       </div>
       <div class="today-total-wrap">
@@ -178,103 +214,143 @@ function formatDelta(delta: number): string {
     </div>
 
     <div class="today-body">
-      <!-- 环形图 + 中心分享率 -->
-      <div class="donut-wrap">
-        <EchartsUI
-          ref="chartRef"
-          height="100%"
-          width="100%"
-          class="donut-chart"
-        />
-        <div class="donut-center">
-          <div class="donut-ratio">{{ todayInfo.ratio.toFixed(2) }}</div>
-          <div class="donut-ratio-label">分享率</div>
+      <!-- 左侧：流量占比环形图 -->
+      <div class="donut-column">
+        <div class="donut-wrap">
+          <EchartsUI
+            ref="chartRef"
+            height="100%"
+            width="100%"
+            class="donut-chart"
+          />
+          <div class="donut-center">
+            <div class="donut-total">
+              {{ formatCompactSize(donutTotal) }}
+            </div>
+            <div class="donut-total-label">今日流量</div>
+          </div>
+        </div>
+        <div class="donut-legend">
+          <div
+            v-for="entry in getLegendEntries()"
+            :key="entry.name"
+            class="legend-item"
+          >
+            <span
+              class="legend-swatch"
+              :style="{ background: entry.color }"
+            ></span>
+            <span class="legend-name">{{ entry.name }}</span>
+            <span class="legend-pct">{{ entry.pct }}</span>
+          </div>
+          <div v-if="todayInfo.sites.length === 0" class="donut-empty">
+            今日暂无新增流量
+          </div>
         </div>
       </div>
 
-      <!-- 上/下载统计 -->
-      <div class="flow-stats">
-        <div class="flow-stat flow-up">
-          <div class="flow-icon">
-            <IconifyIcon icon="lucide:arrow-up-right" class="size-4" />
+      <!-- 右侧：各站点上传/下载排行 -->
+      <div class="bars-column">
+        <div class="bars-toolbar">
+          <span class="bars-title">各站点流量</span>
+          <div class="sort-toggle">
+            <button
+              :class="{ active: sortMode === 'upload' }"
+              @click="sortMode = 'upload'"
+            >
+              按上传
+            </button>
+            <button
+              :class="{ active: sortMode === 'download' }"
+              @click="sortMode = 'download'"
+            >
+              按下载
+            </button>
           </div>
-          <div class="flow-info">
-            <div class="flow-label">今日上传</div>
-            <div class="flow-value">
-              {{ formatCompactSize(todayInfo.upload) }}
-            </div>
-          </div>
-          <span
-            class="delta-badge"
-            :class="todayInfo.uploadDelta >= 0 ? 'delta-up' : 'delta-down'"
-          >
-            {{ todayInfo.uploadDelta >= 0 ? '+' : '-' }}
-            {{ formatDelta(todayInfo.uploadDelta) }}
-          </span>
         </div>
-        <div class="flow-stat flow-down">
-          <div class="flow-icon">
-            <IconifyIcon icon="lucide:arrow-down-right" class="size-4" />
-          </div>
-          <div class="flow-info">
-            <div class="flow-label">今日下载</div>
-            <div class="flow-value">
-              {{ formatCompactSize(todayInfo.download) }}
+
+        <div v-if="visibleSites.length > 0" class="bars-scroll">
+          <div class="site-bar" v-for="site in visibleSites" :key="site.name">
+            <span class="site-name" :title="site.name">{{ site.name }}</span>
+            <div class="site-track">
+              <div
+                class="site-fill site-fill-up"
+                :style="{
+                  width: `${(site.upload / maxBarValue) * 100}%`,
+                }"
+                :title="`上传 ${formatSize(site.upload)}`"
+              ></div>
+              <div
+                class="site-fill site-fill-down"
+                :style="{
+                  width: `${(site.download / maxBarValue) * 100}%`,
+                }"
+                :title="`下载 ${formatSize(site.download)}`"
+              ></div>
+            </div>
+            <div class="site-nums">
+              <span class="site-up">{{ formatCompactSize(site.upload) }}</span>
+              <span class="site-sep">/</span>
+              <span class="site-down">{{
+                formatCompactSize(site.download)
+              }}</span>
+              <span
+                class="site-ratio"
+                :class="site.ratio >= 1 ? 'ratio-ok' : 'ratio-low'"
+              >
+                {{ site.ratio.toFixed(2) }}
+              </span>
             </div>
           </div>
-          <span
-            class="delta-badge"
-            :class="todayInfo.downloadDelta >= 0 ? 'delta-up' : 'delta-down'"
+          <button
+            v-if="collapsedCount > 0"
+            class="expand-btn"
+            @click="showAll = true"
           >
-            {{ todayInfo.downloadDelta >= 0 ? '+' : '-' }}
-            {{ formatDelta(todayInfo.downloadDelta) }}
-          </span>
+            <IconifyIcon icon="lucide:chevron-down" class="size-3.5" />
+            展开其余 {{ collapsedCount }} 个站点
+          </button>
+        </div>
+        <div v-else class="bars-empty">
+          <IconifyIcon icon="lucide:inbox" class="size-4" />
+          <span>今日暂无新增流量，站点数据每日 22:36 自动刷新</span>
         </div>
       </div>
     </div>
 
-    <!-- 各站点今日流量（按上传排序，可滚动） -->
-    <div class="site-bars">
-      <div class="site-bars-header">
-        <span class="site-bars-title">各站点今日流量</span>
-        <span v-if="todayInfo.sites.length > 0" class="site-bars-legend">
-          <span class="legend-dot legend-up"></span>上传
-          <span class="legend-dot legend-down"></span>下载
+    <!-- 底部汇总条 -->
+    <div class="summary-strip">
+      <div class="summary-item">
+        <span class="summary-label">今日上传</span>
+        <span class="summary-value summary-up">
+          {{ formatCompactSize(todayInfo.upload) }}
+        </span>
+        <span
+          class="mini-delta"
+          :class="todayInfo.uploadDelta >= 0 ? 'delta-up' : 'delta-down'"
+        >
+          {{ todayInfo.uploadDelta >= 0 ? '+' : '-'
+          }}{{ formatDelta(todayInfo.uploadDelta) }}
         </span>
       </div>
-      <div v-if="todayInfo.sites.length > 0" class="site-bars-scroll">
-        <div class="site-bar" v-for="site in todayInfo.sites" :key="site.name">
-          <span class="site-name" :title="site.name">{{ site.name }}</span>
-          <div class="site-track">
-            <div
-              class="site-fill site-fill-up"
-              :style="{ width: `${(site.upload / maxSiteUpload) * 100}%` }"
-              :title="`上传 ${formatSize(site.upload)}`"
-            ></div>
-            <div
-              class="site-fill site-fill-down"
-              :style="{ width: `${(site.download / maxSiteUpload) * 100}%` }"
-              :title="`下载 ${formatSize(site.download)}`"
-            ></div>
-          </div>
-          <div class="site-nums">
-            <span class="site-up">{{ formatCompactSize(site.upload) }}</span>
-            <span class="site-sep">/</span>
-            <span class="site-down">{{
-              formatCompactSize(site.download)
-            }}</span>
-            <span
-              class="site-ratio"
-              :class="site.ratio >= 1 ? 'ratio-ok' : 'ratio-low'"
-            >
-              {{ site.ratio.toFixed(2) }}
-            </span>
-          </div>
-        </div>
+      <div class="summary-divider"></div>
+      <div class="summary-item">
+        <span class="summary-label">今日下载</span>
+        <span class="summary-value summary-down">
+          {{ formatCompactSize(todayInfo.download) }}
+        </span>
+        <span
+          class="mini-delta"
+          :class="todayInfo.downloadDelta >= 0 ? 'delta-up' : 'delta-down'"
+        >
+          {{ todayInfo.downloadDelta >= 0 ? '+' : '-'
+          }}{{ formatDelta(todayInfo.downloadDelta) }}
+        </span>
       </div>
-      <div v-else class="site-empty">
-        <IconifyIcon icon="lucide:info" class="size-4" />
-        <span>今日暂无新增流量，站点数据每日 22:36 自动刷新</span>
+      <div class="summary-divider"></div>
+      <div class="summary-item">
+        <span class="summary-label">分享率</span>
+        <span class="summary-value">{{ todayInfo.ratio.toFixed(2) }}</span>
       </div>
     </div>
   </div>
@@ -343,105 +419,6 @@ function formatDelta(delta: number): string {
 .today-total-value {
   font-size: 1.25rem;
   font-weight: 700;
-  color: hsl(var(--card-foreground));
-}
-
-.today-body {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 1.5rem;
-  align-items: center;
-}
-
-.donut-wrap {
-  position: relative;
-  width: 11rem;
-  height: 11rem;
-}
-
-.donut-chart {
-  width: 100%;
-  height: 100%;
-}
-
-.donut-center {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.donut-ratio {
-  font-size: 1.75rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  color: hsl(var(--card-foreground));
-}
-
-.donut-ratio-label {
-  font-size: 0.6875rem;
-  color: hsl(var(--muted-foreground));
-  letter-spacing: 0.05em;
-}
-
-.flow-stats {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  min-width: 0;
-}
-
-.flow-stat {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  padding: 0.875rem 1rem;
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--border) / 60%);
-  border-radius: 0.75rem;
-}
-
-.flow-icon {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 0.625rem;
-}
-
-.flow-up .flow-icon {
-  color: hsl(160deg 75% 42%);
-  background: hsl(160deg 75% 45% / 12%);
-}
-
-.flow-down .flow-icon {
-  color: hsl(35deg 90% 48%);
-  background: hsl(35deg 95% 55% / 12%);
-}
-
-.flow-info {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.flow-label {
-  font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
-}
-
-.flow-value {
-  margin-top: 0.125rem;
-  font-size: 1.25rem;
-  font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: hsl(var(--card-foreground));
 }
@@ -467,73 +444,151 @@ function formatDelta(delta: number): string {
   background: hsl(0deg 75% 55% / 12%);
 }
 
-.site-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid hsl(var(--border) / 60%);
+.today-body {
+  display: grid;
+  grid-template-columns: 15rem 1fr;
+  gap: 1.5rem;
 }
 
-.site-bars-header {
+.donut-column {
   display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.donut-wrap {
+  position: relative;
+  width: 12rem;
+  height: 12rem;
+}
+
+.donut-chart {
+  width: 100%;
+  height: 100%;
+}
+
+.donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.donut-total {
+  font-size: 1.125rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: hsl(var(--card-foreground));
+}
+
+.donut-total-label {
+  font-size: 0.6875rem;
+  color: hsl(var(--muted-foreground));
+  letter-spacing: 0.05em;
+}
+
+.donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  width: 100%;
+}
+
+.legend-item {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.75rem;
+}
+
+.legend-swatch {
+  flex-shrink: 0;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 2px;
+}
+
+.legend-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: hsl(var(--card-foreground));
+  white-space: nowrap;
+}
+
+.legend-pct {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: hsl(var(--muted-foreground));
+}
+
+.donut-empty {
+  padding: 0.5rem 0;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.bars-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.bars-toolbar {
+  display: flex;
+  gap: 0.75rem;
   align-items: center;
   justify-content: space-between;
 }
 
-.site-bars-title {
-  font-size: 0.75rem;
+.bars-title {
+  font-size: 0.8125rem;
   font-weight: 600;
-  color: hsl(var(--muted-foreground));
+  color: hsl(var(--card-foreground));
 }
 
-.site-empty {
+.sort-toggle {
   display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  padding: 0.75rem;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.375rem;
+}
+
+.sort-toggle button {
+  padding: 0.1875rem 0.625rem;
   font-size: 0.75rem;
+  font-weight: 500;
   color: hsl(var(--muted-foreground));
-  background: hsl(var(--muted) / 30%);
-  border: 1px dashed hsl(var(--border));
-  border-radius: 0.625rem;
+  cursor: pointer;
+  background: hsl(var(--card));
+  border: none;
+  transition: all 0.2s;
 }
 
-.site-bars-legend {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  font-size: 0.6875rem;
-  color: hsl(var(--muted-foreground));
+.sort-toggle button.active {
+  color: hsl(var(--primary-foreground));
+  background: hsl(var(--primary));
 }
 
-.legend-dot {
-  display: inline-block;
-  width: 0.5rem;
-  height: 0.5rem;
-  margin-right: 0.25rem;
-  border-radius: 2px;
-}
-
-.legend-up {
-  background: hsl(160deg 75% 45%);
-}
-
-.legend-down {
-  background: hsl(35deg 95% 55%);
-}
-
-.site-bars-scroll {
+.bars-scroll {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  max-height: 16rem;
+  gap: 0.625rem;
+  max-height: 20rem;
   overflow-y: auto;
 }
 
 .site-bar {
   display: grid;
-  grid-template-columns: 5.5rem 1fr 9.5rem;
+  grid-template-columns: 5.5rem 1fr 10rem;
   gap: 0.75rem;
   align-items: center;
 }
@@ -613,11 +668,81 @@ function formatDelta(delta: number): string {
   background: hsl(35deg 95% 55% / 12%);
 }
 
-@media (max-width: 640px) {
-  .today-card {
-    padding: 1rem;
-  }
+.expand-btn {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem;
+  font-size: 0.75rem;
+  color: hsl(var(--primary));
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
 
+.expand-btn:hover {
+  color: hsl(var(--primary) / 80%);
+}
+
+.bars-empty {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.75rem;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted) / 30%);
+  border: 1px dashed hsl(var(--border));
+  border-radius: 0.625rem;
+}
+
+.summary-strip {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid hsl(var(--border) / 60%);
+}
+
+.summary-item {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.summary-label {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.summary-value {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: hsl(var(--card-foreground));
+}
+
+.summary-up {
+  color: hsl(160deg 75% 40%);
+}
+
+.summary-down {
+  color: hsl(35deg 90% 45%);
+}
+
+.mini-delta {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.summary-divider {
+  width: 1px;
+  height: 1.25rem;
+  background: hsl(var(--border));
+}
+
+@media (max-width: 768px) {
   .today-body {
     grid-template-columns: 1fr;
     gap: 1rem;
@@ -626,11 +751,52 @@ function formatDelta(delta: number): string {
   .donut-wrap {
     width: 10rem;
     height: 10rem;
-    margin: 0 auto;
+  }
+
+  .donut-legend {
+    flex-flow: row wrap;
+    justify-content: center;
+  }
+
+  .legend-item {
+    min-width: 6.5rem;
   }
 
   .site-bar {
-    grid-template-columns: 4.5rem 1fr 4rem;
+    grid-template-columns: 4.5rem 1fr 8.5rem;
+  }
+
+  .summary-strip {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: space-between;
+  }
+
+  .summary-divider {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .today-card {
+    padding: 1rem;
+  }
+
+  .today-total-value {
+    font-size: 1.0625rem;
+  }
+
+  .site-bar {
+    grid-template-columns: 3.5rem 1fr 7rem;
+    gap: 0.5rem;
+  }
+
+  .site-nums {
+    gap: 0.125rem;
+  }
+
+  .site-ratio {
+    display: none;
   }
 }
 </style>
