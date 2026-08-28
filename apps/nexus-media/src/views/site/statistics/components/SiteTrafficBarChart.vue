@@ -50,13 +50,9 @@ function tooltipHtml(title: string, items: any[]): string {
 }
 
 function buildOption() {
-  const buildData = (values: number[]) =>
-    values.map((value, i) => ({
-      itemStyle: isDimmed(props.labels[i] ?? '')
-        ? { borderRadius: [4, 4, 0, 0], color: COLORS.muted }
-        : undefined,
-      value,
-    }));
+  // 颜色函数：每次渲染/状态恢复都重新求值，置灰状态不会被 hover 恢复丢失
+  const barColor = (seriesColor: string) => (params: any) =>
+    isDimmed(props.labels[params.dataIndex] ?? '') ? COLORS.muted : seriesColor;
   return {
     animationDurationUpdate: 0,
     grid: {
@@ -67,23 +63,32 @@ function buildOption() {
       top: 32,
     },
     legend: {
-      data: ['上传量', '下载量'],
+      data: [
+        { itemStyle: { color: COLORS.upload }, name: '上传量' },
+        { itemStyle: { color: COLORS.download }, name: '下载量' },
+      ],
       top: 0,
     },
     series: [
       {
         barMaxWidth: 24,
-        data: buildData(props.uploadData),
+        data: props.uploadData,
         emphasis: { disabled: true },
-        itemStyle: { borderRadius: [4, 4, 0, 0], color: COLORS.upload },
+        itemStyle: {
+          borderRadius: [4, 4, 0, 0],
+          color: barColor(COLORS.upload),
+        },
         name: '上传量',
         type: 'bar' as const,
       },
       {
         barMaxWidth: 24,
-        data: buildData(props.downloadData),
+        data: props.downloadData,
         emphasis: { disabled: true },
-        itemStyle: { borderRadius: [4, 4, 0, 0], color: COLORS.download },
+        itemStyle: {
+          borderRadius: [4, 4, 0, 0],
+          color: barColor(COLORS.download),
+        },
         name: '下载量',
         type: 'bar' as const,
       },
