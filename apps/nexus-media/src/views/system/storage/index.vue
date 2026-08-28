@@ -421,42 +421,48 @@ onMounted(fetch);
       placement="right"
       :trap-focus="false"
     >
-      <NDrawerContent :native-scrollbar="false">
-        <template #header>
-          <div
-            class="flex w-full items-center justify-between pr-2"
-            style="color: hsl(var(--card-foreground))"
-          >
-            <span class="font-medium">{{
-              drawer.isEdit ? '编辑存储后端' : '新增存储后端'
-            }}</span>
-            <div class="flex items-center gap-2">
-              <NSwitch
-                v-model:value="drawer.form.enabled"
-                :checked-value="1"
-                :unchecked-value="0"
-                size="small"
-              />
-              <span class="text-sm">启用</span>
+      <NDrawerContent
+        :title="drawer.isEdit ? '编辑存储后端' : '新增存储后端'"
+        :native-scrollbar="false"
+      >
+        <NForm label-placement="top" size="medium">
+          <!-- 名称与启用开关同一行 -->
+          <div class="mb-5">
+            <label
+              class="mb-1.5 block text-sm font-medium"
+              style="color: hsl(var(--foreground))"
+            >
+              名称
+              <span class="ml-0.5 text-destructive">*</span>
+            </label>
+            <div class="flex items-center gap-3">
+              <NInput
+                v-model:value="drawer.form.name"
+                placeholder="例如：冷存储 S3"
+                clearable
+                class="flex-1"
+              >
+                <template #prefix>
+                  <IconifyIcon
+                    icon="lucide:tag"
+                    class="size-4"
+                    style="color: hsl(var(--muted-foreground))"
+                  />
+                </template>
+              </NInput>
+              <div class="flex shrink-0 items-center gap-2">
+                <NSwitch
+                  v-model:value="drawer.form.enabled"
+                  :checked-value="1"
+                  :unchecked-value="0"
+                  size="small"
+                />
+                <span class="text-sm" style="color: hsl(var(--foreground))"
+                  >启用</span
+                >
+              </div>
             </div>
           </div>
-        </template>
-        <NForm label-placement="top" size="medium">
-          <NFormItem label="名称" required>
-            <NInput
-              v-model:value="drawer.form.name"
-              placeholder="例如：冷存储 S3"
-              clearable
-            >
-              <template #prefix>
-                <IconifyIcon
-                  icon="lucide:tag"
-                  class="size-4"
-                  style="color: hsl(var(--muted-foreground))"
-                />
-              </template>
-            </NInput>
-          </NFormItem>
 
           <NFormItem label="类型" required>
             <NSelectWithPrefix
