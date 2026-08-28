@@ -251,6 +251,7 @@ export function useFileActions(deps: ActionsDeps) {
         tmdb: data.tmdb,
         season: data.season,
         min_filesize: data.min_filesize,
+        src_backend_id: data.src_backend_id || deps.getBackendId(),
       });
       notification.success('转移任务已提交');
       transferModalShow.value = false;

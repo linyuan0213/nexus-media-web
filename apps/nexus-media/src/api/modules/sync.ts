@@ -119,6 +119,7 @@ export async function manualTransferUdfApi(data: {
   min_filesize?: number;
   outpath?: string;
   season?: number;
+  src_backend_id?: string;
   syncmod?: string;
   tmdb?: number;
   type?: string;

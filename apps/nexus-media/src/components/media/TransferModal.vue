@@ -31,6 +31,7 @@ export interface TransferFormData {
   tmdb?: number;
   season?: number;
   min_filesize?: number;
+  src_backend_id?: string;
 }
 
 const props = defineProps<{
@@ -38,6 +39,7 @@ const props = defineProps<{
   outpath?: string;
   path: string;
   show: boolean;
+  srcBackendId?: string;
   syncmod?: string;
   type?: string;
 }>();
@@ -66,6 +68,7 @@ watch(
         tmdb: undefined,
         season: undefined,
         min_filesize: undefined,
+        src_backend_id: props.srcBackendId || 'local',
       };
     }
   },

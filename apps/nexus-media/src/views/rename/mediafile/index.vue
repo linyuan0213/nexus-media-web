@@ -437,6 +437,7 @@ onMounted(() => nav.init());
     <TransferModal
       v-model:show="actions.transferModalShow.value"
       :path="actions.transferPath.value"
+      :src-backend-id="nav.currentBackendId.value"
       :loading="actions.transferLoading.value"
       @submit="actions.submitTransfer"
     />
