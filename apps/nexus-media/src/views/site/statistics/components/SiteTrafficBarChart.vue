@@ -50,9 +50,15 @@ function tooltipHtml(title: string, items: any[]): string {
 }
 
 function buildOption() {
-  // 颜色函数：每次渲染/状态恢复都重新求值，置灰状态不会被 hover 恢复丢失
-  const barColor = (seriesColor: string) => (params: any) =>
-    isDimmed(props.labels[params.dataIndex] ?? '') ? COLORS.muted : seriesColor;
+  // 每个数据项显式给出完整 itemStyle（置灰/原色），notMerge 全量替换后 ECharts 必须应用
+  const mkData = (values: number[], seriesColor: string) =>
+    values.map((value, i) => ({
+      itemStyle: {
+        borderRadius: [4, 4, 0, 0],
+        color: isDimmed(props.labels[i] ?? '') ? COLORS.muted : seriesColor,
+      },
+      value,
+    }));
   return {
     animationDurationUpdate: 0,
     grid: {
@@ -72,23 +78,17 @@ function buildOption() {
     series: [
       {
         barMaxWidth: 24,
-        data: props.uploadData,
+        data: mkData(props.uploadData, COLORS.upload),
         emphasis: { disabled: true },
-        itemStyle: {
-          borderRadius: [4, 4, 0, 0],
-          color: barColor(COLORS.upload),
-        },
+        itemStyle: { borderRadius: [4, 4, 0, 0], color: COLORS.upload },
         name: '上传量',
         type: 'bar' as const,
       },
       {
         barMaxWidth: 24,
-        data: props.downloadData,
+        data: mkData(props.downloadData, COLORS.download),
         emphasis: { disabled: true },
-        itemStyle: {
-          borderRadius: [4, 4, 0, 0],
-          color: barColor(COLORS.download),
-        },
+        itemStyle: { borderRadius: [4, 4, 0, 0], color: COLORS.download },
         name: '下载量',
         type: 'bar' as const,
       },
