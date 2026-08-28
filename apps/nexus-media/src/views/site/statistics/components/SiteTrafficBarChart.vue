@@ -25,11 +25,13 @@ const emit = defineEmits<{
 const { formatSize, getChartDataKey } = useSiteStats();
 
 const chartRef = ref<EchartsUIType>();
-const { getChartInstance, renderEcharts, updateData } = useEcharts(chartRef);
+const { getChartInstance, renderEcharts } = useEcharts(chartRef);
+
+let lastClickId: null | string = null;
 
 const COLORS = {
   download: 'hsl(200, 90%, 55%)',
-  muted: 'hsl(var(--muted-foreground) / 0.3)',
+  muted: 'hsl(210, 12%, 42%)',
   text: 'hsl(var(--card-foreground))',
   upload: 'hsl(24, 95%, 55%)',
 };
@@ -42,7 +44,7 @@ function tooltipHtml(title: string, items: any[]): string {
   let result = `<div style="font-weight:600;margin-bottom:4px;color:${COLORS.text}">${title}</div>`;
   items.forEach((p: any) => {
     result += `<div style="display:flex;align-items:center;gap:6px">
-      <span style="width:8px;height:8px;border-radius:50%;background:${p.color}"></span>
+      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color}"></span>
       <span style="color:${COLORS.text}">${p.seriesName}: ${formatSize(p.value)}</span>
     </div>`;
   });
@@ -50,7 +52,6 @@ function tooltipHtml(title: string, items: any[]): string {
 }
 
 function buildOption() {
-  // 每个数据项显式给出完整 itemStyle（置灰/原色），notMerge 全量替换后 ECharts 必须应用
   const mkData = (values: number[], seriesColor: string) =>
     values.map((value, i) => ({
       itemStyle: {
@@ -125,7 +126,11 @@ function buildOption() {
   };
 }
 
-let lastClickId: null | string = null;
+function refresh() {
+  renderEcharts(buildOption() as any, true).then(() => {
+    bindChartClick();
+  });
+}
 
 function bindChartClick() {
   const inst = getChartInstance();
@@ -137,7 +142,6 @@ function bindChartClick() {
     if (!site) return;
     const id = `${params.seriesIndex}:${params.dataIndex}`;
     if (site === props.selectedSite) {
-      // 已选中站点：同一根柱再点才清除，避免同站点上传/下载双柱误清除
       if (lastClickId === id) {
         emit('selectSite', '');
         lastClickId = null;
@@ -152,7 +156,7 @@ function bindChartClick() {
 }
 
 onMounted(() => {
-  renderEcharts(buildOption() as any).then(() => bindChartClick());
+  refresh();
 });
 
 let dataCacheKey = '';
@@ -168,8 +172,8 @@ watch(
     const key = getChartDataKey(newVal);
     if (key === dataCacheKey) return;
     dataCacheKey = key;
-    updateData(buildOption() as any, true);
-    bindChartClick();
+    // 每次变化都 clear 全量重绘，确保置灰样式完整应用
+    refresh();
   },
   { deep: true },
 );
