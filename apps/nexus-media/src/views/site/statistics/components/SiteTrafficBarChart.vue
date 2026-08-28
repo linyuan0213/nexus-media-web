@@ -127,7 +127,8 @@ function buildOption() {
 }
 
 function refresh() {
-  renderEcharts(buildOption() as any, true).then(() => {
+  // 不 clear 原地更新，避免重绘闪烁；setOption 默认合并模式会更新每项样式
+  renderEcharts(buildOption() as any, false).then(() => {
     bindChartClick();
   });
 }
