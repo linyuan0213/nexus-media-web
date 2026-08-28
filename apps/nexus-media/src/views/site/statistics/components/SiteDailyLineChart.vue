@@ -90,8 +90,14 @@ function buildOption() {
     tooltip: {
       axisPointer: { type: 'line' as const },
       formatter: (params: any) => {
-        let html = `<div style="font-weight:600;margin-bottom:4px;color:${TEXT_COLOR}">${params[0]?.name}</div>`;
-        params.forEach((p: any) => {
+        const list = Array.isArray(params) ? params : [params];
+        // 选中站点时 tooltip 只显示该站点数据
+        const items = props.selectedSite
+          ? list.filter((p: any) => p.seriesName === props.selectedSite)
+          : list;
+        if (items.length === 0) return '';
+        let html = `<div style="font-weight:600;margin-bottom:4px;color:${TEXT_COLOR}">${items[0]?.name}</div>`;
+        items.forEach((p: any) => {
           html += `<div style="display:flex;align-items:center;gap:6px">
             <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color}"></span>
             <span style="color:${TEXT_COLOR}">${p.seriesName}: ${formatSize(p.value)}</span>
