@@ -77,7 +77,7 @@ function renderDetailChart() {
   const seedingSizes = activityData.value.map((i) => i[5]);
   const colors = getThemeColors();
 
-  renderDetail({
+  const option = {
     tooltip: {
       trigger: 'axis',
       formatter: (params: any) => {
@@ -165,10 +165,8 @@ function renderDetailChart() {
         smooth: true,
         showSymbol: false,
         emphasis: { disabled: true },
-        itemStyle: {
-          color: colors.success,
-          opacity: isDimmed('上传') ? 0.15 : 1,
-        },
+        itemStyle: { color: colors.success },
+        lineStyle: { opacity: isDimmed('上传') ? 0.15 : 1 },
         areaStyle: {
           color: colors.success,
           opacity: isDimmed('上传') ? 0.02 : 0.1,
@@ -182,10 +180,8 @@ function renderDetailChart() {
         smooth: true,
         showSymbol: false,
         emphasis: { disabled: true },
-        itemStyle: {
-          color: colors.destructive,
-          opacity: isDimmed('下载') ? 0.15 : 1,
-        },
+        itemStyle: { color: colors.destructive },
+        lineStyle: { opacity: isDimmed('下载') ? 0.15 : 1 },
         areaStyle: {
           color: colors.destructive,
           opacity: isDimmed('下载') ? 0.02 : 0.1,
@@ -199,10 +195,8 @@ function renderDetailChart() {
         smooth: true,
         showSymbol: false,
         emphasis: { disabled: true },
-        itemStyle: {
-          color: colors.primary,
-          opacity: isDimmed('做种数') ? 0.15 : 1,
-        },
+        itemStyle: { color: colors.primary },
+        lineStyle: { opacity: isDimmed('做种数') ? 0.15 : 1 },
         yAxisIndex: 1,
       },
       {
@@ -212,10 +206,8 @@ function renderDetailChart() {
         smooth: true,
         showSymbol: false,
         emphasis: { disabled: true },
-        itemStyle: {
-          color: colors.warning,
-          opacity: isDimmed('做种体积') ? 0.15 : 1,
-        },
+        itemStyle: { color: colors.warning },
+        lineStyle: { opacity: isDimmed('做种体积') ? 0.15 : 1 },
         yAxisIndex: 0,
       },
       {
@@ -225,14 +217,15 @@ function renderDetailChart() {
         smooth: true,
         showSymbol: false,
         emphasis: { disabled: true },
-        itemStyle: {
-          color: BONUS_COLOR,
-          opacity: isDimmed('积分') ? 0.15 : 1,
-        },
+        itemStyle: { color: BONUS_COLOR },
+        lineStyle: { opacity: isDimmed('积分') ? 0.15 : 1 },
         yAxisIndex: 2,
       },
     ],
-  }).then(() => {
+  };
+
+  // 通过 renderEcharts 渲染；lineStyle.opacity 控制折线透明度实现置灰
+  renderDetail(option as any).then(() => {
     bindDetailChart(uploads, downloads, seedings, seedingSizes, bonuses);
   });
 }
