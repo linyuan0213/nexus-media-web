@@ -37,15 +37,14 @@ const { parseSize } = useSiteStats();
 /** 站点联动选中项，空串表示未筛选 */
 const selectedSite = ref('');
 
-/** 近30天趋势"只看站点"筛选 */
-const focusSite = ref('');
+/** 近30天趋势"只看站点"多选筛选 */
+const focusSites = ref<string[]>([]);
 
-const focusSiteOptions = computed(() => [
-  { label: '全部站点', value: '' },
-  ...props.statistics
+const focusSiteOptions = computed(() =>
+  props.statistics
     .map((i) => ({ label: i.site_name, value: i.site_name }))
     .toSorted((a, b) => a.label.localeCompare(b.label, 'zh')),
-]);
+);
 
 // 图表点击：传 '' 表示清除，传站点名表示选中
 function onSelectSite(site: string) {
@@ -192,13 +191,14 @@ const seedingRoseData = computed(() =>
               </NButton>
             </template>
             <NSelect
-              v-model:value="focusSite"
+              v-model:value="focusSites"
               :options="focusSiteOptions"
+              multiple
               clearable
               filterable
-              placeholder="筛选站点"
+              placeholder="筛选站点（可多选）"
               size="small"
-              style="width: 11rem"
+              style="width: 13rem"
             />
           </NPopover>
         </div>
@@ -208,9 +208,8 @@ const seedingRoseData = computed(() =>
         :series="dailyData.series"
         :mode="dailyMode"
         :selected-site="selectedSite"
-        :focus-site="focusSite"
+        :focus-sites="focusSites"
         @select-site="onSelectSite"
-        @update:focus-site="(v: string) => (focusSite = v)"
       />
     </NCard>
   </div>

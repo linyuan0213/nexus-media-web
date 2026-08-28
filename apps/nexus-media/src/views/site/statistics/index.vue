@@ -37,17 +37,16 @@ const dailyMode = ref<'download' | 'upload'>('upload');
 const favicons = ref<Record<string, string>>({});
 const sortBy = ref('');
 const refreshing = ref(false);
-const siteFilter = ref('');
+const siteFilterList = ref<string[]>([]);
 
 const siteDetailModalShow = ref(false);
 const siteDetailName = ref('');
 
-const siteFilterOptions = computed(() => [
-  { label: '全部站点', value: '' },
-  ...statistics.value
+const siteFilterOptions = computed(() =>
+  statistics.value
     .map((i) => ({ label: i.site_name, value: i.site_name }))
     .toSorted((a, b) => a.label.localeCompare(b.label, 'zh')),
-]);
+);
 
 const sortOptions = [
   { label: '默认排序', value: '' },
@@ -149,8 +148,8 @@ const summary = computed(() => {
 
 const sortedStatistics = computed(() => {
   let items = [...statistics.value];
-  if (siteFilter.value) {
-    items = items.filter((i) => i.site_name === siteFilter.value);
+  if (siteFilterList.value.length > 0) {
+    items = items.filter((i) => siteFilterList.value.includes(i.site_name));
   }
   if (!sortBy.value) return items;
   return items.toSorted((a, b) => {
@@ -324,13 +323,14 @@ onBeforeUnmount(() => {
               </NButton>
             </template>
             <NSelect
-              v-model:value="siteFilter"
+              v-model:value="siteFilterList"
               :options="siteFilterOptions"
+              multiple
               clearable
               filterable
-              placeholder="筛选站点"
+              placeholder="筛选站点（可多选）"
               size="small"
-              style="width: 11rem"
+              style="width: 13rem"
             />
           </NPopover>
         </template>

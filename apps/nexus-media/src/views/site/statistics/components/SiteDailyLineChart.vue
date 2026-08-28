@@ -16,21 +16,20 @@ interface SeriesItem {
 
 interface Props {
   dates: string[];
-  focusSite?: string;
+  focusSites?: string[];
   mode?: 'download' | 'upload';
   selectedSite?: string;
   series: SeriesItem[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  focusSite: '',
+  focusSites: () => [],
   mode: 'upload',
   selectedSite: '',
 });
 
 const emit = defineEmits<{
   selectSite: [site: string];
-  'update:focusSite': [site: string];
 }>();
 
 const { formatSize, getChartDataKey } = useSiteStats();
@@ -67,7 +66,8 @@ const activeSeries = computed(() => {
 function buildOption() {
   const selected: Record<string, boolean> = {};
   for (const s of props.series) {
-    selected[s.name] = props.focusSite === '' || props.focusSite === s.name;
+    selected[s.name] =
+      props.focusSites.length === 0 || props.focusSites.includes(s.name);
   }
   return {
     animationDurationUpdate: 0,
@@ -198,7 +198,7 @@ watch(
     props.series,
     props.mode,
     props.selectedSite,
-    props.focusSite,
+    props.focusSites,
   ],
   (newVal) => {
     const key = getChartDataKey(newVal);
