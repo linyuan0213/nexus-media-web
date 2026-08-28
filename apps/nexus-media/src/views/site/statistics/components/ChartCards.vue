@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
-import { NCard, NEmpty } from 'naive-ui';
+import { NButton, NCard, NEmpty, NTag } from 'naive-ui';
 
 import { type StatisticsItem, useSiteStats } from '#/composables/useSiteStats';
 
@@ -32,6 +32,13 @@ const emit = defineEmits<{
 
 const { parseSize } = useSiteStats();
 
+/** 站点联动选中项，空串表示未筛选 */
+const selectedSite = ref('');
+
+function toggleSite(site: string) {
+  selectedSite.value = selectedSite.value === site ? '' : site;
+}
+
 const barLabels = computed(() => props.statistics.map((i) => i.site_name));
 const barUploads = computed(() =>
   props.statistics.map((i) => parseSize(i.upload)),
@@ -61,6 +68,15 @@ const seedingRoseData = computed(() =>
 
 <template>
   <div class="charts-layout">
+    <div v-if="selectedSite" class="filter-bar">
+      <span class="filter-text">
+        已聚焦：<NTag size="small" :bordered="false">{{ selectedSite }}</NTag>
+      </span>
+      <NButton size="tiny" quaternary type="primary" @click="selectedSite = ''">
+        清除筛选
+      </NButton>
+    </div>
+
     <TodayTrafficCard
       v-if="dailyData.series.length > 0"
       :daily-data="dailyData"
@@ -76,8 +92,10 @@ const seedingRoseData = computed(() =>
       <SiteTrafficBarChart
         v-if="statistics.length > 0"
         :labels="barLabels"
+        :selected-site="selectedSite"
         :upload-data="barUploads"
         :download-data="barDownloads"
+        @select-site="toggleSite"
       />
       <NEmpty v-else description="暂无站点流量数据" />
     </NCard>
@@ -106,6 +124,8 @@ const seedingRoseData = computed(() =>
       <SiteUploadPieChart
         v-if="uploadPieData.length > 0"
         :data="uploadPieData"
+        :selected-site="selectedSite"
+        @select-site="toggleSite"
       />
       <NEmpty v-else description="暂无上传量数据" />
     </NCard>
@@ -119,6 +139,8 @@ const seedingRoseData = computed(() =>
       <SiteSeedingRoseChart
         v-if="seedingRoseData.length > 0"
         :data="seedingRoseData"
+        :selected-site="selectedSite"
+        @select-site="toggleSite"
       />
       <NEmpty v-else description="暂无做种数据" />
     </NCard>
@@ -150,6 +172,8 @@ const seedingRoseData = computed(() =>
         :dates="dailyData.dates"
         :series="dailyData.series"
         :mode="dailyMode"
+        :selected-site="selectedSite"
+        @select-site="toggleSite"
       />
     </NCard>
   </div>
@@ -166,6 +190,26 @@ const seedingRoseData = computed(() =>
 
 .chart-card-full {
   grid-column: 1 / -1;
+}
+
+.filter-bar {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 0.625rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.75rem;
+  background: hsl(var(--primary) / 8%);
+  border: 1px solid hsl(var(--primary) / 25%);
+  border-radius: 0.5rem;
+}
+
+.filter-text {
+  display: inline-flex;
+  gap: 0.375rem;
+  align-items: center;
+  font-size: 0.8125rem;
+  color: hsl(var(--card-foreground));
 }
 
 .mode-toggle {

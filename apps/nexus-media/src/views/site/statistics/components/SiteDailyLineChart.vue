@@ -18,18 +18,24 @@ interface SeriesItem {
 
 interface Props {
   dates: string[];
-  series: SeriesItem[];
   mode?: 'download' | 'upload';
+  selectedSite?: string;
+  series: SeriesItem[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
   mode: 'upload',
+  selectedSite: '',
 });
+
+const emit = defineEmits<{
+  selectSite: [site: string];
+}>();
 
 const { formatSize, getChartDataKey } = useSiteStats();
 
 const chartRef = ref<EchartsUIType>();
-const { renderEcharts, updateData } = useEcharts(chartRef);
+const { getChartInstance, renderEcharts, updateData } = useEcharts(chartRef);
 
 const TEXT_COLOR = 'hsl(var(--card-foreground))';
 
@@ -45,17 +51,24 @@ function getColor(index: number): string {
   return CHART_PALETTE[index % CHART_PALETTE.length] || CHART_PALETTE[0]!;
 }
 
+function isDimmed(name: string): boolean {
+  return props.selectedSite !== '' && name !== props.selectedSite;
+}
+
 const activeSeries = computed(() => {
-  return props.series.map((s, idx) => ({
-    data: props.mode === 'upload' ? s.upload : s.download,
-    itemStyle: { color: getColor(idx) },
-    lineStyle: { width: 2 },
-    name: s.name,
-    showSymbol: true,
-    smooth: true,
-    symbolSize: 4,
-    type: 'line' as const,
-  }));
+  return props.series.map((s, idx) => {
+    const dimmed = isDimmed(s.name);
+    return {
+      data: props.mode === 'upload' ? s.upload : s.download,
+      itemStyle: { color: getColor(idx), opacity: dimmed ? 0.15 : 1 },
+      lineStyle: { opacity: dimmed ? 0.15 : 1, width: 2 },
+      name: s.name,
+      showSymbol: true,
+      smooth: true,
+      symbolSize: 4,
+      type: 'line' as const,
+    };
+  });
 });
 
 function buildOption() {
@@ -127,19 +140,31 @@ function refresh() {
   updateData(buildOption() as any);
 }
 
+function bindChartClick() {
+  const inst = getChartInstance();
+  if (!inst) return;
+  inst.off('click');
+  inst.on('click', (params: any) => {
+    if (params?.componentType === 'legend') return;
+    const site = params?.seriesName;
+    if (site) emit('selectSite', String(site));
+  });
+}
+
 onMounted(() => {
-  renderEcharts(buildOption() as any);
+  renderEcharts(buildOption() as any).then(() => bindChartClick());
 });
 
 let dataCacheKey = '';
 
 watch(
-  () => [props.dates, props.series, props.mode],
+  () => [props.dates, props.series, props.mode, props.selectedSite],
   (newVal) => {
     const key = getChartDataKey(newVal);
     if (key === dataCacheKey) return;
     dataCacheKey = key;
     refresh();
+    bindChartClick();
   },
   { deep: true },
 );

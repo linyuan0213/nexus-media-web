@@ -10,14 +10,21 @@ import { CHART_PALETTE } from '#/constants/chartColors';
 
 interface Props {
   data: Array<{ name: string; value: number }>;
+  selectedSite?: string;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  selectedSite: '',
+});
+
+const emit = defineEmits<{
+  selectSite: [site: string];
+}>();
 
 const { getChartDataKey } = useSiteStats();
 
 const chartRef = ref<EchartsUIType>();
-const { renderEcharts, updateData } = useEcharts(chartRef);
+const { getChartInstance, renderEcharts, updateData } = useEcharts(chartRef);
 
 const TEXT_COLOR = 'hsl(var(--card-foreground))';
 
@@ -60,28 +67,48 @@ const TOOLTIP = {
 };
 
 function buildOption() {
+  const data = props.data.map((d, i) => ({
+    ...d,
+    itemStyle: {
+      color: CHART_PALETTE[i % CHART_PALETTE.length],
+      opacity:
+        props.selectedSite !== '' && d.name !== props.selectedSite ? 0.15 : 1,
+    },
+  }));
   return {
     animation: false,
     color: CHART_PALETTE,
     legend: LEGEND,
-    series: [{ ...SERIES_BASE, data: props.data }],
+    series: [{ ...SERIES_BASE, data }],
     tooltip: TOOLTIP,
   };
 }
 
+function bindChartClick() {
+  const inst = getChartInstance();
+  if (!inst) return;
+  inst.off('click');
+  inst.on('click', (params: any) => {
+    if (params?.componentType === 'legend') return;
+    const site = params?.name;
+    if (site) emit('selectSite', String(site));
+  });
+}
+
 onMounted(() => {
-  renderEcharts(buildOption() as any);
+  renderEcharts(buildOption() as any).then(() => bindChartClick());
 });
 
 let dataCacheKey = '';
 
 watch(
-  () => props.data,
-  (newData) => {
-    const key = getChartDataKey(newData);
+  () => [props.data, props.selectedSite],
+  (newVal) => {
+    const key = getChartDataKey(newVal);
     if (key === dataCacheKey) return;
     dataCacheKey = key;
     updateData(buildOption() as any, true);
+    bindChartClick();
   },
   { deep: true },
 );

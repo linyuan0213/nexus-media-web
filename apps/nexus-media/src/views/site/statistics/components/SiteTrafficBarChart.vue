@@ -10,21 +10,33 @@ import { useSiteStats } from '#/composables/useSiteStats';
 interface Props {
   downloadData: number[];
   labels: string[];
+  selectedSite?: string;
   uploadData: number[];
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  selectedSite: '',
+});
+
+const emit = defineEmits<{
+  selectSite: [site: string];
+}>();
 
 const { formatSize, getChartDataKey } = useSiteStats();
 
 const chartRef = ref<EchartsUIType>();
-const { renderEcharts, updateData } = useEcharts(chartRef);
+const { getChartInstance, renderEcharts, updateData } = useEcharts(chartRef);
 
 const COLORS = {
   download: 'hsl(200, 90%, 55%)',
+  muted: 'hsl(var(--muted-foreground) / 0.3)',
   text: 'hsl(var(--card-foreground))',
   upload: 'hsl(24, 95%, 55%)',
 };
+
+function isDimmed(label: string): boolean {
+  return props.selectedSite !== '' && label !== props.selectedSite;
+}
 
 function tooltipHtml(title: string, items: any[]): string {
   let result = `<div style="font-weight:600;margin-bottom:4px;color:${COLORS.text}">${title}</div>`;
@@ -38,6 +50,13 @@ function tooltipHtml(title: string, items: any[]): string {
 }
 
 function buildOption() {
+  const buildData = (values: number[], color: string) =>
+    values.map((value, i) => ({
+      itemStyle: isDimmed(props.labels[i] ?? '')
+        ? { borderRadius: [4, 4, 0, 0], color: COLORS.muted }
+        : { borderRadius: [4, 4, 0, 0], color },
+      value,
+    }));
   return {
     animationDurationUpdate: 0,
     grid: {
@@ -54,15 +73,13 @@ function buildOption() {
     series: [
       {
         barMaxWidth: 24,
-        data: props.uploadData,
-        itemStyle: { borderRadius: [4, 4, 0, 0], color: COLORS.upload },
+        data: buildData(props.uploadData, COLORS.upload),
         name: '上传量',
         type: 'bar' as const,
       },
       {
         barMaxWidth: 24,
-        data: props.downloadData,
-        itemStyle: { borderRadius: [4, 4, 0, 0], color: COLORS.download },
+        data: buildData(props.downloadData, COLORS.download),
         name: '下载量',
         type: 'bar' as const,
       },
@@ -99,19 +116,36 @@ function buildOption() {
   };
 }
 
+function bindChartClick() {
+  const inst = getChartInstance();
+  if (!inst) return;
+  inst.off('click');
+  inst.on('click', (params: any) => {
+    if (params?.componentType === 'legend') return;
+    const site = params?.name;
+    if (site) emit('selectSite', String(site));
+  });
+}
+
 onMounted(() => {
-  renderEcharts(buildOption() as any);
+  renderEcharts(buildOption() as any).then(() => bindChartClick());
 });
 
 let dataCacheKey = '';
 
 watch(
-  () => [props.labels, props.uploadData, props.downloadData],
+  () => [
+    props.labels,
+    props.uploadData,
+    props.downloadData,
+    props.selectedSite,
+  ],
   (newVal) => {
     const key = getChartDataKey(newVal);
     if (key === dataCacheKey) return;
     dataCacheKey = key;
     updateData(buildOption() as any);
+    bindChartClick();
   },
   { deep: true },
 );
