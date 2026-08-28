@@ -660,8 +660,15 @@ onMounted(fetchPlugins);
 
 .list-row-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   padding-left: 3.25rem;
+}
+
+@media (max-width: 640px) {
+  .list-row-actions {
+    padding-left: 0;
+  }
 }
 
 @media (min-width: 640px) {

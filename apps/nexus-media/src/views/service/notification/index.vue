@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import {
   NBadge,
   NButton,
@@ -53,6 +54,8 @@ interface ChannelConf {
 }
 
 const message = useMessage();
+const { smaller } = useBreakpoints(breakpointsTailwind);
+const isMobile = smaller('md');
 const clients = ref<Record<string, MessageClient>>({});
 const channels = ref<Record<string, ChannelConf>>({});
 const switches = ref<Record<string, { name: string }>>({});
@@ -451,14 +454,14 @@ onMounted(fetchData);
       preset="card"
       :style="{ width: '720px', maxWidth: '92vw' }"
     >
-      <NForm label-placement="left" :label-width="120">
-        <NGrid :cols="3" :x-gap="16">
-          <NGridItem span="2">
+      <NForm :label-placement="isMobile ? 'top' : 'left'" :label-width="120">
+        <NGrid :cols="isMobile ? 1 : 3" :x-gap="16">
+          <NGridItem :span="isMobile ? 1 : 2">
             <NFormItem label="名称" required>
               <NInput v-model:value="editingClient.name" placeholder="别名" />
             </NFormItem>
           </NGridItem>
-          <NGridItem span="1">
+          <NGridItem :span="1">
             <NFormItem label="状态" required>
               <NSelect
                 v-model:value="editingClient.enabled"
@@ -469,7 +472,7 @@ onMounted(fetchData);
               />
             </NFormItem>
           </NGridItem>
-          <NGridItem v-if="channels[editingType]?.search_type" span="1">
+          <NGridItem v-if="channels[editingType]?.search_type" :span="1">
             <NFormItem label="交互" required>
               <NSelect
                 v-model:value="editingClient.interactive"
@@ -484,7 +487,7 @@ onMounted(fetchData);
 
         <!-- 类型选择卡片 -->
         <NFormItem label="类型" required>
-          <div class="grid grid-cols-4 gap-3">
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div
               v-for="(conf, key) in channels"
               :key="key"
@@ -697,7 +700,7 @@ onMounted(fetchData);
       preset="card"
       :style="{ width: '600px', maxWidth: '92vw' }"
     >
-      <NForm label-placement="left" :label-width="100">
+      <NForm :label-placement="isMobile ? 'top' : 'left'" :label-width="100">
         <NFormItem label="标题" required>
           <NInput v-model:value="customTitle" placeholder="消息标题" />
         </NFormItem>

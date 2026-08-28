@@ -25,6 +25,10 @@ const props = defineProps<{
 const message = useMessage();
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true });
 
+// 表格外层套横向滚动容器：移动端宽表格不撑破气泡/视口
+md.renderer.rules.table_open = () => '<div class="agent-md-table-wrap"><table>';
+md.renderer.rules.table_close = () => '</table></div>';
+
 const rendered = computed(() => {
   if (props.role === 'user') return '';
   return md.render(props.content || '');
@@ -456,6 +460,17 @@ function onContentClick(event: MouseEvent) {
 <style>
 .agent-sys-firstline::first-line {
   font-weight: 500;
+}
+
+.agent-md {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.agent-md-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .agent-md table {
