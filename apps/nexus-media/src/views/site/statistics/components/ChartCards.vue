@@ -134,7 +134,7 @@ const seedingRoseData = computed(() =>
       :bordered="false"
       :segmented="{ content: true }"
       class="chart-card"
-      title="做种数分布（玫瑰图）"
+      title="做种数分布"
     >
       <SiteSeedingRoseChart
         v-if="seedingRoseData.length > 0"
