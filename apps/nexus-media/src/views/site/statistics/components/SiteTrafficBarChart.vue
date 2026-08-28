@@ -74,6 +74,7 @@ function buildOption() {
       {
         barMaxWidth: 24,
         data: buildData(props.uploadData),
+        emphasis: { disabled: true },
         itemStyle: { borderRadius: [4, 4, 0, 0], color: COLORS.upload },
         name: '上传量',
         type: 'bar' as const,
@@ -81,6 +82,7 @@ function buildOption() {
       {
         barMaxWidth: 24,
         data: buildData(props.downloadData),
+        emphasis: { disabled: true },
         itemStyle: { borderRadius: [4, 4, 0, 0], color: COLORS.download },
         name: '下载量',
         type: 'bar' as const,
