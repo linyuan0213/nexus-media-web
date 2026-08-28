@@ -92,7 +92,7 @@ function defaultConfig(type: string): Record<string, any> {
   if (!schema) return {};
   const obj: Record<string, any> = {};
   for (const f of schema.fields) {
-    obj[f.key] = '';
+    obj[f.key] = f.type === 'bool' ? false : '';
   }
   return obj;
 }
@@ -148,7 +148,7 @@ async function save() {
     return;
   }
   for (const fd of currentFields.value) {
-    if (fd.required && !f.config[fd.key]?.trim?.()) {
+    if (fd.required && fd.type !== 'bool' && !f.config[fd.key]?.trim?.()) {
       message.error(`${fd.label} 不能为空`);
       return;
     }
@@ -484,7 +484,13 @@ onMounted(fetch);
                 :label="fd.label"
                 :required="fd.required"
               >
+                <NSwitch
+                  v-if="fd.type === 'bool'"
+                  v-model:value="drawer.form.config[fd.key]"
+                  @update:value="testResult = null"
+                />
                 <NInput
+                  v-else
                   v-model:value="drawer.form.config[fd.key]"
                   :placeholder="fd.placeholder"
                   clearable
