@@ -35,8 +35,8 @@ const { parseSize } = useSiteStats();
 /** 站点联动选中项，空串表示未筛选 */
 const selectedSite = ref('');
 
-// 点击图表元素始终选中该站点（不切换），避免柱状图同一站点上传/下载两根柱来回取消
-function selectSite(site: string) {
+// 图表点击：传 '' 表示清除，传站点名表示选中
+function onSelectSite(site: string) {
   selectedSite.value = site;
 }
 
@@ -96,7 +96,7 @@ const seedingRoseData = computed(() =>
         :selected-site="selectedSite"
         :upload-data="barUploads"
         :download-data="barDownloads"
-        @select-site="selectSite"
+        @select-site="onSelectSite"
       />
       <NEmpty v-else description="暂无站点流量数据" />
     </NCard>
@@ -126,7 +126,7 @@ const seedingRoseData = computed(() =>
         v-if="uploadPieData.length > 0"
         :data="uploadPieData"
         :selected-site="selectedSite"
-        @select-site="selectSite"
+        @select-site="onSelectSite"
       />
       <NEmpty v-else description="暂无上传量数据" />
     </NCard>
@@ -141,7 +141,7 @@ const seedingRoseData = computed(() =>
         v-if="seedingRoseData.length > 0"
         :data="seedingRoseData"
         :selected-site="selectedSite"
-        @select-site="selectSite"
+        @select-site="onSelectSite"
       />
       <NEmpty v-else description="暂无做种数据" />
     </NCard>
@@ -174,7 +174,7 @@ const seedingRoseData = computed(() =>
         :series="dailyData.series"
         :mode="dailyMode"
         :selected-site="selectedSite"
-        @select-site="selectSite"
+        @select-site="onSelectSite"
       />
     </NCard>
   </div>

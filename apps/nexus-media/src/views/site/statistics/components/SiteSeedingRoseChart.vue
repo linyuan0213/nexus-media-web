@@ -90,8 +90,9 @@ function bindChartClick() {
   inst.off('click');
   inst.on('click', (params: any) => {
     if (params?.componentType === 'legend') return;
-    const site = params?.name;
-    if (site) emit('selectSite', String(site));
+    const site = String(params?.name ?? '');
+    if (!site) return;
+    emit('selectSite', site === props.selectedSite ? '' : site);
   });
 }
 

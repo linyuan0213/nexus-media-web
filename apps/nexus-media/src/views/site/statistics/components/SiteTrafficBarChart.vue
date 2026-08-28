@@ -50,11 +50,11 @@ function tooltipHtml(title: string, items: any[]): string {
 }
 
 function buildOption() {
-  const buildData = (values: number[], color: string) =>
+  const buildData = (values: number[]) =>
     values.map((value, i) => ({
       itemStyle: isDimmed(props.labels[i] ?? '')
         ? { borderRadius: [4, 4, 0, 0], color: COLORS.muted }
-        : { borderRadius: [4, 4, 0, 0], color },
+        : undefined,
       value,
     }));
   return {
@@ -73,13 +73,15 @@ function buildOption() {
     series: [
       {
         barMaxWidth: 24,
-        data: buildData(props.uploadData, COLORS.upload),
+        data: buildData(props.uploadData),
+        itemStyle: { borderRadius: [4, 4, 0, 0], color: COLORS.upload },
         name: '上传量',
         type: 'bar' as const,
       },
       {
         barMaxWidth: 24,
-        data: buildData(props.downloadData, COLORS.download),
+        data: buildData(props.downloadData),
+        itemStyle: { borderRadius: [4, 4, 0, 0], color: COLORS.download },
         name: '下载量',
         type: 'bar' as const,
       },
@@ -116,14 +118,29 @@ function buildOption() {
   };
 }
 
+let lastClickId: null | string = null;
+
 function bindChartClick() {
   const inst = getChartInstance();
   if (!inst) return;
   inst.off('click');
   inst.on('click', (params: any) => {
     if (params?.componentType === 'legend') return;
-    const site = params?.name;
-    if (site) emit('selectSite', String(site));
+    const site = String(params?.name ?? '');
+    if (!site) return;
+    const id = `${params.seriesIndex}:${params.dataIndex}`;
+    if (site === props.selectedSite) {
+      // 已选中站点：同一根柱再点才清除，避免同站点上传/下载双柱误清除
+      if (lastClickId === id) {
+        emit('selectSite', '');
+        lastClickId = null;
+      } else {
+        lastClickId = id;
+      }
+    } else {
+      emit('selectSite', site);
+      lastClickId = id;
+    }
   });
 }
 
@@ -144,7 +161,7 @@ watch(
     const key = getChartDataKey(newVal);
     if (key === dataCacheKey) return;
     dataCacheKey = key;
-    updateData(buildOption() as any);
+    updateData(buildOption() as any, true);
     bindChartClick();
   },
   { deep: true },
