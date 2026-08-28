@@ -10,21 +10,35 @@ import { useSiteStats } from '#/composables/useSiteStats';
 interface Props {
   downloadData: number[];
   labels: string[];
+  selectedSite?: string;
   uploadData: number[];
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  selectedSite: '',
+});
+
+const emit = defineEmits<{
+  selectSite: [site: string];
+}>();
 
 const { formatSize, getChartDataKey } = useSiteStats();
 
 const chartRef = ref<EchartsUIType>();
-const { renderEcharts, updateData } = useEcharts(chartRef);
+const { getChartInstance, renderEcharts } = useEcharts(chartRef);
+
+let lastClickId: null | string = null;
 
 const COLORS = {
   download: 'hsl(340, 85%, 58%)',
-  primary: 'hsl(217, 90%, 58%)',
+  muted: 'hsl(210, 12%, 42%)',
   text: 'hsl(var(--card-foreground))',
+  upload: 'hsl(217, 90%, 58%)',
 };
+
+function isDimmed(label: string): boolean {
+  return props.selectedSite !== '' && label !== props.selectedSite;
+}
 
 function tooltipHtml(title: string, items: any[]): string {
   let result = `<div style="font-weight:600;margin-bottom:4px;color:${COLORS.text}">${title}</div>`;
@@ -38,6 +52,14 @@ function tooltipHtml(title: string, items: any[]): string {
 }
 
 function buildOption() {
+  const mkData = (values: number[], seriesColor: string) =>
+    values.map((value, i) => ({
+      itemStyle: {
+        borderRadius: [4, 4, 0, 0],
+        color: isDimmed(props.labels[i] ?? '') ? COLORS.muted : seriesColor,
+      },
+      value,
+    }));
   return {
     animationDurationUpdate: 0,
     grid: {
@@ -48,20 +70,25 @@ function buildOption() {
       top: 32,
     },
     legend: {
-      data: ['近7天上传', '近7天下载'],
+      data: [
+        { itemStyle: { color: COLORS.upload }, name: '近7天上传' },
+        { itemStyle: { color: COLORS.download }, name: '近7天下载' },
+      ],
       top: 0,
     },
     series: [
       {
         barMaxWidth: 20,
-        data: props.uploadData,
-        itemStyle: { borderRadius: [4, 4, 0, 0], color: COLORS.primary },
+        data: mkData(props.uploadData, COLORS.upload),
+        emphasis: { disabled: true },
+        itemStyle: { borderRadius: [4, 4, 0, 0], color: COLORS.upload },
         name: '近7天上传',
         type: 'bar' as const,
       },
       {
         barMaxWidth: 20,
-        data: props.downloadData,
+        data: mkData(props.downloadData, COLORS.download),
+        emphasis: { disabled: true },
         itemStyle: { borderRadius: [4, 4, 0, 0], color: COLORS.download },
         name: '近7天下载',
         type: 'bar' as const,
@@ -99,19 +126,48 @@ function buildOption() {
   };
 }
 
+function bindChartClick() {
+  const inst = getChartInstance();
+  if (!inst) return;
+  inst.off('click');
+  inst.on('click', (params: any) => {
+    if (params?.componentType === 'legend') return;
+    const site = String(params?.name ?? '');
+    if (!site) return;
+    const id = `${params.seriesIndex}:${params.dataIndex}`;
+    if (site === props.selectedSite) {
+      // 同站点上传/下载双柱：同一根柱再点才清除
+      if (lastClickId === id) {
+        emit('selectSite', '');
+        lastClickId = null;
+      } else {
+        lastClickId = id;
+      }
+    } else {
+      emit('selectSite', site);
+      lastClickId = id;
+    }
+  });
+}
+
 onMounted(() => {
-  renderEcharts(buildOption() as any);
+  renderEcharts(buildOption() as any).then(() => bindChartClick());
 });
 
 let dataCacheKey = '';
 
 watch(
-  () => [props.labels, props.uploadData, props.downloadData],
+  () => [
+    props.labels,
+    props.uploadData,
+    props.downloadData,
+    props.selectedSite,
+  ],
   (newVal) => {
     const key = getChartDataKey(newVal);
     if (key === dataCacheKey) return;
     dataCacheKey = key;
-    updateData(buildOption() as any);
+    renderEcharts(buildOption() as any, false).then(() => bindChartClick());
   },
   { deep: true },
 );

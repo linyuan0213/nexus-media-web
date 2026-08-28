@@ -124,6 +124,8 @@ const seedingRoseData = computed(() =>
         :labels="trendLabels"
         :upload-data="trendUploads"
         :download-data="trendDownloads"
+        :selected-site="selectedSite"
+        @select-site="onSelectSite"
       />
       <NEmpty v-else description="暂无近7天流量数据" />
     </NCard>
