@@ -227,80 +227,82 @@ function renderDetailChart() {
         yAxisIndex: 2,
       },
     ],
+  }).then(() => {
+    bindDetailChart(uploads, downloads, seedings, seedingSizes, bonuses);
+  });
+}
+
+function bindDetailChart(
+  uploads: number[],
+  downloads: number[],
+  seedings: number[],
+  seedingSizes: number[],
+  bonuses: number[],
+) {
+  const inst = getChartInstance();
+  if (!inst) return;
+  // 点击单条曲线选中，其余置灰；再次点击同一条恢复
+  inst.off('click');
+  inst.on('click', (params: any) => {
+    if (params?.componentType === 'legend') return;
+    let name = String(params?.seriesName ?? '');
+    if (!name && params?.offsetX != null && params?.offsetY != null) {
+      try {
+        const coord = inst.convertFromPixel({ gridIndex: 0 }, [
+          params.offsetX,
+          params.offsetY,
+        ]);
+        if (
+          coord &&
+          Array.isArray(coord) &&
+          coord.length >= 2 &&
+          coord[0] != null &&
+          coord[1] != null
+        ) {
+          const xIndex = Math.round(coord[0]);
+          const clickedValue = coord[1];
+          const names = ['上传', '下载', '做种数', '做种体积', '积分'];
+          const allVals = [uploads, downloads, seedings, seedingSizes, bonuses];
+          let best = '';
+          let bestDist = Number.POSITIVE_INFINITY;
+          let span = 0;
+          names.forEach((n, idx) => {
+            const vals = allVals[idx];
+            if (!vals) return;
+            const v = vals[xIndex];
+            if (v == null) return;
+            const dist = Math.abs(clickedValue - v);
+            if (dist < bestDist) {
+              bestDist = dist;
+              best = n;
+            }
+            const max = Math.max(...vals);
+            const min = Math.min(...vals);
+            span = Math.max(span, max - min);
+          });
+          if (best && bestDist <= span * 0.12) {
+            name = best;
+          }
+        }
+      } catch {
+        // 忽略坐标转换异常
+      }
+    }
+    if (!name) return;
+    selectedSeries.value = selectedSeries.value === name ? '' : name;
+    renderDetailChart();
   });
 
-  // 点击单条曲线选中，其余置灰；再次点击同一条恢复
-  nextTick(() => {
-    const inst = getChartInstance();
-    if (!inst) return;
-    inst.off('click');
-    inst.on('click', (params: any) => {
-      if (params?.componentType === 'legend') return;
-      let name = String(params?.seriesName ?? '');
-      if (!name && params?.offsetX != null && params?.offsetY != null) {
-        try {
-          const coord = inst.convertFromPixel({ gridIndex: 0 }, [
-            params.offsetX,
-            params.offsetY,
-          ]);
-          if (
-            coord &&
-            Array.isArray(coord) &&
-            coord.length >= 2 &&
-            coord[0] != null &&
-            coord[1] != null
-          ) {
-            const xIndex = Math.round(coord[0]);
-            const clickedValue = coord[1];
-            const names = ['上传', '下载', '做种数', '做种体积', '积分'];
-            const allVals = [
-              uploads,
-              downloads,
-              seedings,
-              seedingSizes,
-              bonuses,
-            ];
-            let best = '';
-            let bestDist = Number.POSITIVE_INFINITY;
-            let span = 0;
-            names.forEach((n, idx) => {
-              const vals = allVals[idx];
-              if (!vals) return;
-              const v = vals[xIndex];
-              if (v == null) return;
-              const dist = Math.abs(clickedValue - v);
-              if (dist < bestDist) {
-                bestDist = dist;
-                best = n;
-              }
-              const max = Math.max(...vals);
-              const min = Math.min(...vals);
-              span = Math.max(span, max - min);
-            });
-            if (best && bestDist <= span * 0.12) {
-              name = best;
-            }
-          }
-        } catch {
-          // 忽略坐标转换异常
-        }
-      }
-      if (!name) return;
-      selectedSeries.value = selectedSeries.value === name ? '' : name;
-      renderDetailChart();
-    });
-
-    // 图例隐藏某条曲线时，同步隐藏对应右侧坐标轴名称，避免残留
-    inst.off('legendselectchanged');
-    inst.on('legendselectchanged', (params: any) => {
-      const sel: Record<string, boolean> = params?.selected || {};
-      inst.setOption({
-        yAxis: [
-          {},
-          { name: sel['做种数'] === false ? '' : '做种数' },
-          { name: sel['积分'] === false ? '' : '积分' },
-        ],
-      });
+  // 图例隐藏某条曲线时，同步隐藏对应右侧坐标轴名称，避免残留
+  inst.off('legendselectchanged');
+  inst.on('legendselectchanged', (params: any) => {
+    const sel: Record<string, boolean> = params?.selected || {};
+    inst.setOption({
+      yAxis: [
+        {},
+        { name: sel['做种数'] === false ? '' : '做种数' },
+        { name: sel['积分'] === false ? '' : '积分' },
+      ],
     });
   });
 }
