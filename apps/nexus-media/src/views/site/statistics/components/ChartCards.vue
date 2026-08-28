@@ -1,7 +1,9 @@
 <script lang="ts" setup>
 import { computed, ref } from 'vue';
 
-import { NButton, NCard, NEmpty, NTag } from 'naive-ui';
+import { IconifyIcon } from '@vben/icons';
+
+import { NButton, NCard, NEmpty, NPopover, NSelect, NTag } from 'naive-ui';
 
 import { type StatisticsItem, useSiteStats } from '#/composables/useSiteStats';
 
@@ -34,6 +36,16 @@ const { parseSize } = useSiteStats();
 
 /** 站点联动选中项，空串表示未筛选 */
 const selectedSite = ref('');
+
+/** 近30天趋势"只看站点"筛选 */
+const focusSite = ref('');
+
+const focusSiteOptions = computed(() => [
+  { label: '全部站点', value: '' },
+  ...props.statistics
+    .map((i) => ({ label: i.site_name, value: i.site_name }))
+    .toSorted((a, b) => a.label.localeCompare(b.label, 'zh')),
+]);
 
 // 图表点击：传 '' 表示清除，传站点名表示选中
 function onSelectSite(site: string) {
@@ -154,19 +166,39 @@ const seedingRoseData = computed(() =>
       title="近30天各站点流量趋势"
     >
       <template #header-extra>
-        <div class="mode-toggle">
-          <button
-            :class="{ active: dailyMode === 'upload' }"
-            @click="emit('update:dailyMode', 'upload')"
-          >
-            上传
-          </button>
-          <button
-            :class="{ active: dailyMode === 'download' }"
-            @click="emit('update:dailyMode', 'download')"
-          >
-            下载
-          </button>
+        <div class="chart-actions">
+          <div class="mode-toggle">
+            <button
+              :class="{ active: dailyMode === 'upload' }"
+              @click="emit('update:dailyMode', 'upload')"
+            >
+              上传
+            </button>
+            <button
+              :class="{ active: dailyMode === 'download' }"
+              @click="emit('update:dailyMode', 'download')"
+            >
+              下载
+            </button>
+          </div>
+          <NPopover placement="bottom-end" trigger="click">
+            <template #trigger>
+              <NButton size="tiny" quaternary circle type="primary">
+                <template #icon>
+                  <IconifyIcon icon="lucide:filter" class="h-4 w-4" />
+                </template>
+              </NButton>
+            </template>
+            <NSelect
+              v-model:value="focusSite"
+              :options="focusSiteOptions"
+              clearable
+              filterable
+              placeholder="筛选站点"
+              size="small"
+              style="width: 11rem"
+            />
+          </NPopover>
         </div>
       </template>
       <SiteDailyLineChart
@@ -174,7 +206,9 @@ const seedingRoseData = computed(() =>
         :series="dailyData.series"
         :mode="dailyMode"
         :selected-site="selectedSite"
+        :focus-site="focusSite"
         @select-site="onSelectSite"
+        @update:focus-site="(v: string) => (focusSite = v)"
       />
     </NCard>
   </div>
@@ -219,6 +253,12 @@ const seedingRoseData = computed(() =>
   overflow: hidden;
   border: 1px solid hsl(var(--border));
   border-radius: 0.375rem;
+}
+
+.chart-actions {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
 }
 
 .mode-toggle button {

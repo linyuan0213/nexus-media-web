@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { NButton, NCard, NSelect, NSpace, NSpin } from 'naive-ui';
+import { NButton, NCard, NPopover, NSelect, NSpace, NSpin } from 'naive-ui';
 
 import {
   getSiteDailyHistoryApi,
@@ -315,15 +315,24 @@ onBeforeUnmount(() => {
           </div>
         </template>
         <template #header-extra>
-          <NSelect
-            v-model:value="siteFilter"
-            :options="siteFilterOptions"
-            class="site-filter-select"
-            clearable
-            filterable
-            placeholder="筛选站点"
-            size="small"
-          />
+          <NPopover placement="bottom-end" trigger="click">
+            <template #trigger>
+              <NButton size="tiny" quaternary circle type="primary">
+                <template #icon>
+                  <IconifyIcon icon="lucide:filter" class="h-4 w-4" />
+                </template>
+              </NButton>
+            </template>
+            <NSelect
+              v-model:value="siteFilter"
+              :options="siteFilterOptions"
+              clearable
+              filterable
+              placeholder="筛选站点"
+              size="small"
+              style="width: 11rem"
+            />
+          </NPopover>
         </template>
         <StatTable
           :data="sortedStatistics"
@@ -482,10 +491,6 @@ onBeforeUnmount(() => {
   font-size: 0.875rem;
   font-weight: 600;
   color: hsl(var(--card-foreground));
-}
-
-.site-filter-select {
-  width: 10rem;
 }
 
 @media (max-width: 1024px) {
