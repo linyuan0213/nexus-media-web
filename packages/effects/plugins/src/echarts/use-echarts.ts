@@ -96,33 +96,43 @@ function useEcharts(chartRef: Ref<EchartsUIType>) {
       ...options,
       ...getOptions.value,
     };
+    return renderWhenVisible(currentOptions, clear, 0);
+  };
+
+  // 元素隐藏（未布局完成）时等待可见再渲染；限制重试次数，
+  // 避免元素一直为 0 尺寸时无限递归导致内存暴涨（浏览器 OOM/崩溃）
+  const MAX_RENDER_RETRY = 20;
+  const renderWhenVisible = (
+    options: EChartsOption,
+    clear: boolean,
+    attempt: number,
+  ): Promise<Nullable<echarts.ECharts>> => {
     return new Promise((resolve) => {
-      if (chartRef.value?.offsetHeight === 0) {
-        useTimeoutFn(async () => {
-          resolve(await renderEcharts(currentOptions));
-        }, 30);
-        return;
-      }
-      nextTick(() => {
-        const el = getChartEl();
-        if (isElHidden(el)) {
-          useTimeoutFn(async () => {
-            resolve(await renderEcharts(currentOptions));
-          }, 30);
+      const el = getChartEl();
+      const hidden =
+        !el || isElHidden(el) || chartRef.value?.offsetHeight === 0;
+      if (hidden) {
+        if (attempt >= MAX_RENDER_RETRY) {
+          resolve(null);
           return;
         }
         useTimeoutFn(() => {
-          if (!chartInstance || chartInstance?.getDom() !== el) {
-            chartInstance?.dispose();
-            const instance = initCharts();
-            if (!instance) return;
-            chartInstance = instance;
-          }
-          clear && chartInstance?.clear();
-          chartInstance?.setOption(currentOptions);
-          resolve(chartInstance);
+          resolve(renderWhenVisible(options, clear, attempt + 1));
         }, 30);
-      });
+        return;
+      }
+      if (!chartInstance || chartInstance?.getDom() !== el) {
+        chartInstance?.dispose();
+        const instance = initCharts();
+        if (!instance) {
+          resolve(null);
+          return;
+        }
+        chartInstance = instance;
+      }
+      clear && chartInstance?.clear();
+      chartInstance?.setOption(options);
+      resolve(chartInstance);
     });
   };
 
@@ -159,6 +169,11 @@ function useEcharts(chartRef: Ref<EchartsUIType>) {
   function resize() {
     const el = getChartEl();
     if (isElHidden(el)) {
+      return;
+    }
+    if (!chartInstance && cacheOptions) {
+      // 隐藏期间重试超时未渲染的图表：元素恢复可见时补齐渲染
+      renderEcharts(cacheOptions);
       return;
     }
     chartInstance?.resize({
