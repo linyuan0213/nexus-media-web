@@ -161,6 +161,19 @@ const emit = defineEmits<{
                 "
               />
             </NFormItem>
+            <NFormItem label="访问凭证（API Key）" class="mb-0">
+              <NInput
+                :value="config['laboratory.chrome_admin_token']"
+                type="password"
+                show-password-on="click"
+                placeholder="nexus-chrome 启用 AUTH_PASSWORD 时必填（API Key）"
+                :disabled="!config['laboratory.chrome_enabled']"
+                @update:value="
+                  (v) =>
+                    emit('updateConfig', 'laboratory.chrome_admin_token', v)
+                "
+              />
+            </NFormItem>
           </div>
         </NGridItem>
       </NGrid>
