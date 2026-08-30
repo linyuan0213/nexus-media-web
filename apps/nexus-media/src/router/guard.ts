@@ -120,14 +120,6 @@ function setupAccessGuard(router: Router) {
           replace: true,
         };
       }
-      // 仍为初始默认密码：强制先去修改密码
-      if (userInfo.is_default_password && to.name !== 'Profile') {
-        return {
-          path: '/profile',
-          query: { tab: 'password', force: '1' },
-          replace: true,
-        };
-      }
       const userRoles = userInfo.roles ?? [];
 
       // 生成菜单和路由
@@ -148,6 +140,16 @@ function setupAccessGuard(router: Router) {
         await loadAllPluginFrontends();
       } catch (error) {
         console.error('[RouterGuard] 加载插件前端失败:', error);
+      }
+
+      // 仍为初始默认密码：强制先去修改密码
+      // 必须在动态路由注册之后判断，否则 /profile 未注册会解析到 404，导致无限重定向
+      if (userInfo.is_default_password && to.name !== 'Profile') {
+        return {
+          path: '/profile',
+          query: { tab: 'password', force: '1' },
+          replace: true,
+        };
       }
       const redirectPath = (from.query.redirect ??
         (to.path === preferences.app.defaultHomePath
