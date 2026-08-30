@@ -185,6 +185,7 @@ function saveLaboratory() {
       'laboratory.ocr_server_host',
       'laboratory.chrome_enabled',
       'laboratory.chrome_server_host',
+      'laboratory.chrome_admin_token',
     ]),
   );
 }
