@@ -122,7 +122,7 @@ onMounted(fetchSystemInfo);
                 <NButton
                   size="tiny"
                   tag="a"
-                  href="https://github.com/linyuan0213/nexus-media/blob/main/README.md"
+                  href="https://linyuan0213.github.io/nexus-media/"
                   target="_blank"
                 >
                   <template #icon>
