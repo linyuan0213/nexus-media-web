@@ -66,6 +66,9 @@ function startupRetryInterceptor(client: RequestClient) {
 const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
 const runtimeApiURL = getApiBaseUrl() ?? apiURL;
 
+/** 请求超时：后端部分操作（多站搜索、下载编排、文件同步等）耗时较长，默认 60s */
+const REQUEST_TIMEOUT = 60_000;
+
 function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   const client = new RequestClient({
     ...options,
@@ -153,6 +156,7 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
 
 export const requestClient = createRequestClient(runtimeApiURL, {
   responseReturn: 'data',
+  timeout: REQUEST_TIMEOUT,
 });
 
 // 暴露到全局供插件 UMD 使用
@@ -163,6 +167,7 @@ if (typeof window !== 'undefined') {
 export const baseRequestClient = new RequestClient({
   baseURL: runtimeApiURL,
   withCredentials: true,
+  timeout: REQUEST_TIMEOUT,
 });
 
 // 为 baseRequestClient 也添加统一响应格式拦截器（不附加 token 过期处理）
