@@ -14,6 +14,8 @@ import {
   NSelect,
   NSpace,
   NSwitch,
+  NTabPane,
+  NTabs,
   NTooltip,
 } from 'naive-ui';
 
@@ -61,6 +63,9 @@ const emit = defineEmits<{
 }>();
 
 const formRef = ref<any>(null);
+
+// 基本信息 tab 中「高级选项」折叠
+const showAdvanced = ref(false);
 
 const weekdayOptions = [
   { label: '周一', value: '1' },
@@ -321,363 +326,398 @@ function labelWithHelp(label: string, helpText: string) {
     size="small"
     class="brush-form"
   >
-    <!-- 阶段控制 -->
-    <div class="form-section">
-      <div class="form-section-title">
-        <IconifyIcon icon="lucide:sliders-horizontal" class="h-4 w-4" />
-        阶段控制
-      </div>
-      <ul class="phase-list">
-        <li class="phase-list-item">
-          <IconifyIcon icon="lucide:download" class="phase-list-icon" />
-          <div class="phase-list-body">
-            <span class="phase-list-title">新增下载</span>
-            <span class="phase-list-desc">从站点RSS解析种子并添加到下载器</span>
+    <NTabs type="line" animated>
+      <!-- 基本信息（含阶段控制） -->
+      <NTabPane name="basic" tab="基本信息">
+        <!-- 基本信息 -->
+        <div class="form-section">
+          <div class="form-section-title">
+            <IconifyIcon icon="lucide:settings-2" class="h-4 w-4" />
+            基本信息
           </div>
-          <NSwitch v-model:value="downloadSwitchEnabled" />
-        </li>
-        <li class="phase-list-item">
-          <IconifyIcon icon="lucide:pause-circle" class="phase-list-icon" />
-          <div class="phase-list-body">
-            <span class="phase-list-title">自动停种</span>
-            <span class="phase-list-desc">达到停种条件时自动暂停种子任务</span>
+          <div class="form-grid form-grid--2">
+            <NFormItem label="任务名称" path="brushtask_name" required>
+              <NInput
+                v-model:value="form.brushtask_name"
+                placeholder="请输入任务名称"
+              />
+            </NFormItem>
+            <NFormItem label="站点" path="brushtask_site" required>
+              <NSelect
+                v-model:value="form.brushtask_site"
+                :options="sites"
+                placeholder="请选择站点"
+                clearable
+              />
+            </NFormItem>
+            <NFormItem label="执行周期" path="brushtask_interval" required>
+              <template #label>
+                <component
+                  :is="
+                    () =>
+                      labelWithHelp(
+                        '执行周期',
+                        '检查站点RSS更新的周期，为了减小站点压力，建议不小于5分钟，支持两种配置方式：1、间隔时间（分钟），如 10；2、5位cron表达式,如：*/30 * * * *（对应：分 时 日 月 星期）',
+                      )
+                  "
+                />
+              </template>
+              <NInput
+                v-model:value="form.brushtask_interval"
+                placeholder="10 或 */10 * * * *"
+              />
+            </NFormItem>
+            <NFormItem label="下载器" path="brushtask_downloader" required>
+              <template #label>
+                <component
+                  :is="
+                    () =>
+                      labelWithHelp(
+                        '下载器',
+                        '选择刷流任务使用的下载器，在设置-下载器中添加，如需识别转移到媒体库，所选下载器也需启用监控功能',
+                      )
+                  "
+                />
+              </template>
+              <NSelect
+                v-model:value="form.brushtask_downloader"
+                :options="downloaders"
+                placeholder="请选择下载器"
+                clearable
+              />
+            </NFormItem>
           </div>
-          <NSwitch v-model:value="stopSwitchEnabled" />
-        </li>
-        <li class="phase-list-item">
-          <IconifyIcon icon="lucide:trash-2" class="phase-list-icon" />
-          <div class="phase-list-body">
-            <span class="phase-list-title">自动删种</span>
-            <span class="phase-list-desc"
-              >达到删种条件时自动删除种子及文件</span
-            >
-          </div>
-          <NSwitch v-model:value="removeSwitchEnabled" />
-        </li>
-      </ul>
-    </div>
 
-    <!-- 基本信息 -->
-    <div class="form-section">
-      <div class="form-section-title">
-        <IconifyIcon icon="lucide:settings-2" class="h-4 w-4" />
-        基本信息
-      </div>
-      <div class="form-grid">
-        <NFormItem label="任务名称" path="brushtask_name" required>
-          <NInput
-            v-model:value="form.brushtask_name"
-            placeholder="请输入任务名称"
-          />
-        </NFormItem>
-        <NFormItem label="站点" path="brushtask_site" required>
-          <NSelect
-            v-model:value="form.brushtask_site"
-            :options="sites"
-            placeholder="请选择站点"
-            clearable
-          />
-        </NFormItem>
-        <NFormItem label="执行周期" path="brushtask_interval" required>
-          <template #label>
-            <component
-              :is="
-                () =>
-                  labelWithHelp(
-                    '执行周期',
-                    '检查站点RSS更新的周期，为了减小站点压力，建议不小于5分钟，支持两种配置方式：1、间隔时间（分钟），如 10；2、5位cron表达式,如：*/30 * * * *（对应：分 时 日 月 星期）',
-                  )
+          <!-- 高级选项（低频字段折叠） -->
+          <div class="advanced-toggle" @click="showAdvanced = !showAdvanced">
+            <IconifyIcon
+              :icon="
+                showAdvanced ? 'lucide:chevron-down' : 'lucide:chevron-right'
               "
+              class="h-3.5 w-3.5"
             />
-          </template>
-          <NInput
-            v-model:value="form.brushtask_interval"
-            placeholder="10 或 */10 * * * *"
-          />
-        </NFormItem>
-        <NFormItem label="下载器" path="brushtask_downloader" required>
-          <template #label>
-            <component
-              :is="
-                () =>
-                  labelWithHelp(
-                    '下载器',
-                    '选择刷流任务使用的下载器，在设置-下载器中添加，如需识别转移到媒体库，所选下载器也需启用监控功能',
-                  )
-              "
-            />
-          </template>
-          <NSelect
-            v-model:value="form.brushtask_downloader"
-            :options="downloaders"
-            placeholder="请选择下载器"
-            clearable
-          />
-        </NFormItem>
-        <NFormItem path="brushtask_totalsize">
-          <template #label>
-            <component
-              :is="
-                () =>
-                  labelWithHelp(
-                    '保种体积(GB)',
-                    '当前刷流任务下载做种超过设定的体积大小时不再新增下载',
-                  )
-              "
-            />
-          </template>
-          <NInput
-            v-model:value="form.brushtask_totalsize"
-            placeholder="留空不限制"
-          />
-        </NFormItem>
-        <NFormItem path="brushtask_daily_delete_limit">
-          <template #label>
-            <component
-              :is="
-                () =>
-                  labelWithHelp(
-                    '每日删种上限',
-                    '每天最多删除种子个数，保护账号，留空不限制',
-                  )
-              "
-            />
-          </template>
-          <NInput
-            v-model:value="form.brushtask_daily_delete_limit"
-            placeholder="留空不限制"
-          />
-        </NFormItem>
-        <NFormItem path="brushtask_max_seeding">
-          <template #label>
-            <component
-              :is="
-                () =>
-                  labelWithHelp(
-                    '最大做种数',
-                    '下载器中做种总数达到上限后停止新增下载，留空不限制',
-                  )
-              "
-            />
-          </template>
-          <NInput
-            v-model:value="form.brushtask_max_seeding"
-            placeholder="留空不限制"
-          />
-        </NFormItem>
-        <NFormItem path="brushtask_hr_limit">
-          <template #label>
-            <component
-              :is="
-                () =>
-                  labelWithHelp(
-                    'H&R数量上限',
-                    '全站H&R做种数达到上限后停止新增下载，留空不限制',
-                  )
-              "
-            />
-          </template>
-          <NInput
-            v-model:value="form.brushtask_hr_limit"
-            placeholder="留空不限制"
-          />
-        </NFormItem>
-        <NFormItem path="brushtask_label">
-          <template #label>
-            <component
-              :is="
-                () =>
-                  labelWithHelp(
-                    '标签',
-                    '用户在下载器中标记该任务的种子，多个标签使用,分隔',
-                  )
-              "
-            />
-          </template>
-          <NInput
-            v-model:value="form.brushtask_label"
-            placeholder="多个标签使用,分隔"
-          />
-        </NFormItem>
-        <NFormItem path="brushtask_savepath">
-          <template #label>
-            <component
-              :is="
-                () =>
-                  labelWithHelp(
-                    '保存目录',
-                    '为该刷新任务设置独立的保存目录，将会覆盖下载器中的目录设置，如果下载器为Qbittorrent还需要在Nexus Media下载器设置中关闭种子自动管理功能',
-                  )
-              "
-            />
-          </template>
-          <NSelect
-            v-model:value="form.brushtask_savepath"
-            :options="savePathOptions"
-            placeholder="留空使用下载器设置，可选择或输入目录"
-            clearable
-            filterable
-            tag
-          />
-        </NFormItem>
-      </div>
-    </div>
-
-    <!-- 时间调度 -->
-    <div class="form-section">
-      <div class="form-section-title">
-        <IconifyIcon icon="lucide:clock" class="h-4 w-4" />
-        时间调度
-      </div>
-      <div class="form-grid">
-        <NFormItem path="brushtask_time_range">
-          <template #label>
-            <component
-              :is="
-                () =>
-                  labelWithHelp(
-                    '开启时间段',
-                    '格式 HH:MM-HH:MM，多个时间段逗号分隔，为空不限制',
-                  )
-              "
-            />
-          </template>
-          <NInput
-            v-model:value="form.brushtask_time_range"
-            placeholder="如: 08:00-22:00"
-          />
-        </NFormItem>
-        <NFormItem path="brushtask_active_weekdays" class="form-col-span-2">
-          <template #label>
-            <component
-              :is="() => labelWithHelp('活跃星期', '不选表示每天都运行')"
-            />
-          </template>
-          <div class="weekday-group">
-            <NButton
-              v-for="item in weekdayOptions"
-              :key="item.value"
-              :type="
-                activeWeekdaysArray.includes(item.value) ? 'primary' : 'default'
-              "
-              size="small"
-              @click="toggleWeekday(item.value)"
-            >
-              {{ item.label }}
-            </NButton>
+            高级选项
           </div>
-        </NFormItem>
-      </div>
-    </div>
-
-    <!-- 规则模板 -->
-    <div class="form-section">
-      <div class="form-section-title">
-        <IconifyIcon icon="lucide:layers" class="h-4 w-4" />
-        规则模板
-      </div>
-      <div class="form-grid form-grid--rules">
-        <NFormItem>
-          <template #label>
-            <span class="rule-label"
-              ><span class="rule-dot dot-rss"></span> 选种规则</span
-            >
-          </template>
-          <NSelect
-            v-model:value="form.brushtask_rss_rule_id"
-            :options="rssRules"
-            placeholder="不选则不处理"
-            clearable
-            :loading="ruleLoading"
-          />
-        </NFormItem>
-        <NFormItem>
-          <template #label>
-            <span class="rule-label"
-              ><span class="rule-dot dot-remove"></span> 删种规则</span
-            >
-          </template>
-          <NSelect
-            v-model:value="form.brushtask_remove_rule_id"
-            :options="removeRules"
-            placeholder="不选则不处理"
-            clearable
-            :loading="ruleLoading"
-          />
-        </NFormItem>
-        <NFormItem>
-          <template #label>
-            <span class="rule-label"
-              ><span class="rule-dot dot-stop"></span> 停种规则</span
-            >
-          </template>
-          <NSelect
-            v-model:value="form.brushtask_stop_rule_id"
-            :options="stopRules"
-            placeholder="不选则不处理"
-            clearable
-            :loading="ruleLoading"
-          />
-        </NFormItem>
-      </div>
-    </div>
-
-    <!-- RSS配置 -->
-    <div class="form-section">
-      <div class="form-section-title">
-        <IconifyIcon icon="lucide:rss" class="h-4 w-4" />
-        RSS配置
-      </div>
-      <div class="form-grid">
-        <NFormItem path="brushtask_rssurl" class="form-col-span-3">
-          <template #label>
-            <component
-              :is="
-                () =>
-                  labelWithHelp(
-                    'RSS地址',
-                    '刷流优先使用此处填入的站点RSS，若为空则使用站点配置RSS地址',
-                  )
-              "
-            />
-          </template>
-          <NInput
-            v-model:value="form.brushtask_rssurl"
-            placeholder="站点RSS订阅URL，若为空则使用站点配置RSS地址"
-          />
-        </NFormItem>
-      </div>
-    </div>
-
-    <!-- 其他选项 -->
-    <div class="form-section form-section-inline">
-      <div class="form-section-title">
-        <IconifyIcon icon="lucide:toggle-right" class="h-4 w-4" />
-        其他选项
-      </div>
-      <ul class="phase-list">
-        <li class="phase-list-item">
-          <IconifyIcon icon="lucide:bell" class="phase-list-icon" />
-          <div class="phase-list-body">
-            <span class="phase-list-title">消息推送</span>
-            <span class="phase-list-desc"
-              >开启后将当前任务的情况进行推送通知</span
-            >
+          <div
+            v-show="showAdvanced"
+            class="form-grid form-grid--2 advanced-panel"
+          >
+            <NFormItem path="brushtask_totalsize">
+              <template #label>
+                <component
+                  :is="
+                    () =>
+                      labelWithHelp(
+                        '保种体积(GB)',
+                        '当前刷流任务下载做种超过设定的体积大小时不再新增下载',
+                      )
+                  "
+                />
+              </template>
+              <NInput
+                v-model:value="form.brushtask_totalsize"
+                placeholder="留空不限制"
+              />
+            </NFormItem>
+            <NFormItem path="brushtask_daily_delete_limit">
+              <template #label>
+                <component
+                  :is="
+                    () =>
+                      labelWithHelp(
+                        '每日删种上限',
+                        '每天最多删除种子个数，保护账号，留空不限制',
+                      )
+                  "
+                />
+              </template>
+              <NInput
+                v-model:value="form.brushtask_daily_delete_limit"
+                placeholder="留空不限制"
+              />
+            </NFormItem>
+            <NFormItem path="brushtask_max_seeding">
+              <template #label>
+                <component
+                  :is="
+                    () =>
+                      labelWithHelp(
+                        '最大做种数',
+                        '下载器中做种总数达到上限后停止新增下载，留空不限制',
+                      )
+                  "
+                />
+              </template>
+              <NInput
+                v-model:value="form.brushtask_max_seeding"
+                placeholder="留空不限制"
+              />
+            </NFormItem>
+            <NFormItem path="brushtask_hr_limit">
+              <template #label>
+                <component
+                  :is="
+                    () =>
+                      labelWithHelp(
+                        'H&R数量上限',
+                        '全站H&R做种数达到上限后停止新增下载，留空不限制',
+                      )
+                  "
+                />
+              </template>
+              <NInput
+                v-model:value="form.brushtask_hr_limit"
+                placeholder="留空不限制"
+              />
+            </NFormItem>
+            <NFormItem path="brushtask_label">
+              <template #label>
+                <component
+                  :is="
+                    () =>
+                      labelWithHelp(
+                        '标签',
+                        '用户在下载器中标记该任务的种子，多个标签使用,分隔',
+                      )
+                  "
+                />
+              </template>
+              <NInput
+                v-model:value="form.brushtask_label"
+                placeholder="多个标签使用,分隔"
+              />
+            </NFormItem>
+            <NFormItem path="brushtask_savepath">
+              <template #label>
+                <component
+                  :is="
+                    () =>
+                      labelWithHelp(
+                        '保存目录',
+                        '为该刷新任务设置独立的保存目录，将会覆盖下载器中的目录设置，如果下载器为Qbittorrent还需要在Nexus Media下载器设置中关闭种子自动管理功能',
+                      )
+                  "
+                />
+              </template>
+              <NSelect
+                v-model:value="form.brushtask_savepath"
+                :options="savePathOptions"
+                placeholder="留空使用下载器设置，可选择或输入目录"
+                clearable
+                filterable
+                tag
+              />
+            </NFormItem>
           </div>
-          <NSwitch v-model:value="form.brushtask_sendmessage" />
-        </li>
-        <li class="phase-list-item">
-          <IconifyIcon icon="lucide:folder-sync" class="phase-list-icon" />
-          <div class="phase-list-body">
-            <span class="phase-list-title">转移到媒体库</span>
-            <span class="phase-list-desc"
-              >开启后自动识别重命名并整理到媒体库目录</span
-            >
+        </div>
+
+        <!-- 阶段控制 -->
+        <div class="form-section">
+          <div class="form-section-title">
+            <IconifyIcon icon="lucide:sliders-horizontal" class="h-4 w-4" />
+            阶段控制
           </div>
-          <NSwitch v-model:value="form.brushtask_transfer" />
-        </li>
-      </ul>
-    </div>
+          <ul class="phase-list">
+            <li class="phase-list-item">
+              <IconifyIcon icon="lucide:download" class="phase-list-icon" />
+              <div class="phase-list-body">
+                <span class="phase-list-title">新增下载</span>
+                <span class="phase-list-desc"
+                  >从站点RSS解析种子并添加到下载器</span
+                >
+              </div>
+              <NSwitch v-model:value="downloadSwitchEnabled" />
+            </li>
+            <li class="phase-list-item">
+              <IconifyIcon icon="lucide:pause-circle" class="phase-list-icon" />
+              <div class="phase-list-body">
+                <span class="phase-list-title">自动停种</span>
+                <span class="phase-list-desc"
+                  >达到停种条件时自动暂停种子任务</span
+                >
+              </div>
+              <NSwitch v-model:value="stopSwitchEnabled" />
+            </li>
+            <li class="phase-list-item">
+              <IconifyIcon icon="lucide:trash-2" class="phase-list-icon" />
+              <div class="phase-list-body">
+                <span class="phase-list-title">自动删种</span>
+                <span class="phase-list-desc"
+                  >达到删种条件时自动删除种子及文件</span
+                >
+              </div>
+              <NSwitch v-model:value="removeSwitchEnabled" />
+            </li>
+          </ul>
+        </div>
+      </NTabPane>
+
+      <!-- 时间调度 -->
+      <NTabPane name="schedule" tab="时间调度">
+        <div class="form-section">
+          <div class="form-section-title">
+            <IconifyIcon icon="lucide:clock" class="h-4 w-4" />
+            时间调度
+          </div>
+          <div class="form-grid">
+            <NFormItem path="brushtask_time_range">
+              <template #label>
+                <component
+                  :is="
+                    () =>
+                      labelWithHelp(
+                        '开启时间段',
+                        '格式 HH:MM-HH:MM，多个时间段逗号分隔，为空不限制',
+                      )
+                  "
+                />
+              </template>
+              <NInput
+                v-model:value="form.brushtask_time_range"
+                placeholder="如: 08:00-22:00"
+              />
+            </NFormItem>
+            <NFormItem path="brushtask_active_weekdays" class="form-col-span-2">
+              <template #label>
+                <component
+                  :is="() => labelWithHelp('活跃星期', '不选表示每天都运行')"
+                />
+              </template>
+              <div class="weekday-group">
+                <NButton
+                  v-for="item in weekdayOptions"
+                  :key="item.value"
+                  :type="
+                    activeWeekdaysArray.includes(item.value)
+                      ? 'primary'
+                      : 'default'
+                  "
+                  size="small"
+                  @click="toggleWeekday(item.value)"
+                >
+                  {{ item.label }}
+                </NButton>
+              </div>
+            </NFormItem>
+          </div>
+        </div>
+      </NTabPane>
+
+      <!-- 规则模板 -->
+      <NTabPane name="rules" tab="规则模板">
+        <div class="form-section">
+          <div class="form-section-title">
+            <IconifyIcon icon="lucide:layers" class="h-4 w-4" />
+            规则模板
+          </div>
+          <div class="form-grid form-grid--rules">
+            <NFormItem>
+              <template #label>
+                <span class="rule-label"
+                  ><span class="rule-dot dot-rss"></span> 选种规则</span
+                >
+              </template>
+              <NSelect
+                v-model:value="form.brushtask_rss_rule_id"
+                :options="rssRules"
+                placeholder="不选则不处理"
+                clearable
+                :loading="ruleLoading"
+              />
+            </NFormItem>
+            <NFormItem>
+              <template #label>
+                <span class="rule-label"
+                  ><span class="rule-dot dot-remove"></span> 删种规则</span
+                >
+              </template>
+              <NSelect
+                v-model:value="form.brushtask_remove_rule_id"
+                :options="removeRules"
+                placeholder="不选则不处理"
+                clearable
+                :loading="ruleLoading"
+              />
+            </NFormItem>
+            <NFormItem>
+              <template #label>
+                <span class="rule-label"
+                  ><span class="rule-dot dot-stop"></span> 停种规则</span
+                >
+              </template>
+              <NSelect
+                v-model:value="form.brushtask_stop_rule_id"
+                :options="stopRules"
+                placeholder="不选则不处理"
+                clearable
+                :loading="ruleLoading"
+              />
+            </NFormItem>
+          </div>
+        </div>
+      </NTabPane>
+
+      <!-- RSS配置 -->
+      <NTabPane name="rss" tab="RSS配置">
+        <div class="form-section">
+          <div class="form-section-title">
+            <IconifyIcon icon="lucide:rss" class="h-4 w-4" />
+            RSS配置
+          </div>
+          <div class="form-grid">
+            <NFormItem path="brushtask_rssurl" class="form-col-span-3">
+              <template #label>
+                <component
+                  :is="
+                    () =>
+                      labelWithHelp(
+                        'RSS地址',
+                        '刷流优先使用此处填入的站点RSS，若为空则使用站点配置RSS地址',
+                      )
+                  "
+                />
+              </template>
+              <NInput
+                v-model:value="form.brushtask_rssurl"
+                placeholder="站点RSS订阅URL，若为空则使用站点配置RSS地址"
+              />
+            </NFormItem>
+          </div>
+        </div>
+      </NTabPane>
+
+      <!-- 其他选项 -->
+      <NTabPane name="misc" tab="其他选项">
+        <div class="form-section form-section-inline">
+          <div class="form-section-title">
+            <IconifyIcon icon="lucide:toggle-right" class="h-4 w-4" />
+            其他选项
+          </div>
+          <ul class="phase-list">
+            <li class="phase-list-item">
+              <IconifyIcon icon="lucide:bell" class="phase-list-icon" />
+              <div class="phase-list-body">
+                <span class="phase-list-title">消息推送</span>
+                <span class="phase-list-desc"
+                  >开启后将当前任务的情况进行推送通知</span
+                >
+              </div>
+              <NSwitch v-model:value="form.brushtask_sendmessage" />
+            </li>
+            <li class="phase-list-item">
+              <IconifyIcon icon="lucide:folder-sync" class="phase-list-icon" />
+              <div class="phase-list-body">
+                <span class="phase-list-title">转移到媒体库</span>
+                <span class="phase-list-desc"
+                  >开启后自动识别重命名并整理到媒体库目录</span
+                >
+              </div>
+              <NSwitch v-model:value="form.brushtask_transfer" />
+            </li>
+          </ul>
+        </div>
+      </NTabPane>
+    </NTabs>
 
     <!-- 底部按钮 -->
     <div class="form-footer">
@@ -726,6 +766,38 @@ function labelWithHelp(label: string, helpText: string) {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.75rem 1rem;
+}
+
+/* 基本信息两列 */
+.form-grid--2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.advanced-toggle {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-items: center;
+  padding: 0.375rem 0.5rem;
+  margin: 0.5rem 0 0.25rem;
+  font-size: 0.8125rem;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  border-radius: 4px;
+  transition:
+    color 0.2s,
+    background 0.2s;
+}
+
+.advanced-toggle:hover {
+  color: hsl(var(--primary));
+  background: hsl(var(--accent));
+}
+
+.advanced-panel {
+  padding: 0.625rem 0.75rem;
+  margin-top: 0.25rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
 }
 
 .phase-list {
@@ -878,7 +950,8 @@ function labelWithHelp(label: string, helpText: string) {
 }
 
 @media (max-width: 768px) {
-  .form-grid {
+  .form-grid,
+  .form-grid--2 {
     grid-template-columns: 1fr;
   }
 
