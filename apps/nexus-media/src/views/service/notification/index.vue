@@ -480,10 +480,11 @@ onMounted(fetchData);
               />
             </NFormItem>
           </NGridItem>
-          <NGridItem v-if="channels[editingType]?.search_type" :span="1">
+          <NGridItem :span="1">
             <NFormItem label="交互" required>
               <NSelect
                 v-model:value="editingClient.interactive"
+                :disabled="!channels[editingType]?.search_type"
                 :options="[
                   { label: '是', value: 1 },
                   { label: '否', value: 0 },
