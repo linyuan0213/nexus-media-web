@@ -18,6 +18,7 @@ import {
 } from 'naive-ui';
 
 import { getBrushRulesApi } from '#/api/modules/brush';
+import { brushRuleActualType } from '#/utils/brush';
 
 interface BrushTaskFormData {
   brushtask_id?: number;
@@ -165,13 +166,13 @@ async function loadBrushRules() {
       : res?.data || [];
     brushRules.value = mapRules(list);
     rssRules.value = mapRules(
-      list.filter((r: any) => r.type === 'rss' || !r.type),
+      list.filter((r: any) => brushRuleActualType(r) === 'rss'),
     );
     removeRules.value = mapRules(
-      list.filter((r: any) => r.type === 'remove' || !r.type),
+      list.filter((r: any) => brushRuleActualType(r) === 'remove'),
     );
     stopRules.value = mapRules(
-      list.filter((r: any) => r.type === 'stop' || !r.type),
+      list.filter((r: any) => brushRuleActualType(r) === 'stop'),
     );
   } catch {
     brushRules.value =

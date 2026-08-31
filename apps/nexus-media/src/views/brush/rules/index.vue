@@ -27,6 +27,7 @@ import {
 import RangeField from '#/components/brush/RangeField.vue';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
+import { brushRuleActualType, parseBrushRuleObj } from '#/utils/brush';
 import { useAppNotification } from '#/utils/notify';
 
 const notification = useAppNotification();
@@ -37,15 +38,7 @@ const editingRule = ref<BrushApi.BrushRule | null>(null);
 const activeType = ref<'remove' | 'rss' | 'stop'>('rss');
 
 function ruleActualType(rule: BrushApi.BrushRule): string {
-  const raw = (rule as any).type || 'all';
-  if (raw !== 'all') return raw;
-  const rss = parseObj(rule.rss_rule);
-  const remove = parseObj(rule.remove_rule);
-  const stop = parseObj(rule.stop_rule);
-  if (rss && Object.keys(rss).length > 0) return 'rss';
-  if (remove && Object.keys(remove).length > 0) return 'remove';
-  if (stop && Object.keys(stop).length > 0) return 'stop';
-  return 'rss';
+  return brushRuleActualType(rule);
 }
 
 const filteredRules = computed(() =>
@@ -147,13 +140,7 @@ async function fetchRules() {
 }
 
 function parseObj(val: any): Record<string, any> {
-  if (!val) return {};
-  if (typeof val === 'object') return val;
-  try {
-    return JSON.parse(val);
-  } catch {
-    return {};
-  }
+  return parseBrushRuleObj(val);
 }
 
 function openEdit(rule?: BrushApi.BrushRule) {
