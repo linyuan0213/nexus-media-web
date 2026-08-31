@@ -20,6 +20,8 @@ import { useAppNotification } from '#/utils/notify';
 const notification = useAppNotification();
 const router = useRouter();
 const loading = ref(false);
+const isRemoteIcon = (icon?: string): boolean =>
+  !!icon && (icon.startsWith('http') || icon.startsWith('/'));
 const plugins = ref<any[]>([]);
 const category = ref('all');
 const source = ref('all');
@@ -216,7 +218,14 @@ onMounted(fetchPlugins);
                   color: plugin.color || 'hsl(var(--primary))',
                 }"
               >
+                <img
+                  v-if="isRemoteIcon(plugin.icon)"
+                  :src="plugin.icon"
+                  class="h-6 w-6 object-contain"
+                  @error="($event.target as HTMLElement).style.display = 'none'"
+                />
                 <IconifyIcon
+                  v-else
                   :icon="plugin.icon || 'lucide:puzzle'"
                   class="h-6 w-6"
                 />

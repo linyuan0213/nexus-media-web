@@ -46,6 +46,9 @@ const configShow = ref(false);
 const logShow = ref(false);
 const logPluginId = ref('');
 
+const isRemoteIcon = (icon?: string): boolean =>
+  !!icon && (icon.startsWith('http') || icon.startsWith('/'));
+
 const statusOptions = [
   { key: 'all', label: '全部' },
   { key: 'enabled', label: '已启用' },
@@ -215,7 +218,14 @@ onMounted(fetchPlugins);
                   color: plugin.color || 'hsl(var(--primary))',
                 }"
               >
+                <img
+                  v-if="isRemoteIcon(plugin.icon)"
+                  :src="plugin.icon"
+                  class="h-6 w-6 object-contain"
+                  @error="($event.target as HTMLElement).style.display = 'none'"
+                />
                 <IconifyIcon
+                  v-else
                   :icon="plugin.icon || 'lucide:puzzle'"
                   class="h-6 w-6"
                 />
@@ -339,7 +349,14 @@ onMounted(fetchPlugins);
                 color: plugin.color || 'hsl(var(--primary))',
               }"
             >
+              <img
+                v-if="isRemoteIcon(plugin.icon)"
+                :src="plugin.icon"
+                class="h-5 w-5 object-contain"
+                @error="($event.target as HTMLElement).style.display = 'none'"
+              />
               <IconifyIcon
+                v-else
                 :icon="plugin.icon || 'lucide:puzzle'"
                 class="h-5 w-5"
               />
