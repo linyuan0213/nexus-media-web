@@ -112,7 +112,7 @@ function collectSources(items: any[]) {
 }
 
 async function fetchLogs() {
-  if (isPaused.value) return;
+  if (isPaused.value || isFiltering.value) return;
   loading.value = true;
   try {
     const res = await getSystemLogsApi(undefined, undefined, 1000);
@@ -154,6 +154,8 @@ function loadMore() {
 }
 
 function startSSE() {
+  // 搜索/筛选模式下不建立实时流，避免未过滤日志污染搜索结果
+  if (isFiltering.value) return;
   if (abortController.value) {
     abortController.value.abort();
   }
@@ -164,7 +166,7 @@ function startSSE() {
       signal: abortController.value.signal,
       onMessage: (content: string) => {
         sseRetryCount.value = 0;
-        if (isPaused.value) return;
+        if (isPaused.value || isFiltering.value) return;
         const lines = content.split('\n');
         for (const line of lines) {
           const trimmed = line.trim();
@@ -238,6 +240,7 @@ function togglePause() {
   } else if (isFiltering.value) {
     fetchSearch(searchPage.value);
   } else {
+    sseRetryCount.value = 0;
     fetchLogs();
     startSSE();
   }
@@ -283,6 +286,7 @@ watch([level, source], () => {
     stopSSE();
     fetchSearch(1);
   } else {
+    sseRetryCount.value = 0;
     fetchLogs();
     startSSE();
   }
@@ -298,6 +302,7 @@ watch(searchText, () => {
       stopSSE();
       fetchSearch(1);
     } else {
+      sseRetryCount.value = 0;
       fetchLogs();
       startSSE();
     }
@@ -316,6 +321,7 @@ onMounted(async () => {
       }
     })
     .catch(() => {});
+  sseRetryCount.value = 0;
   fetchLogs();
   startSSE();
 });
