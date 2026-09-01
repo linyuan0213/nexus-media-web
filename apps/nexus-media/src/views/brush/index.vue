@@ -505,22 +505,24 @@ onMounted(() => {
                     <span>{{ ruleNames(task) }}</span>
                   </span>
                 </div>
-                <div class="task-actions" @click.stop>
-                  <NSwitch
-                    :value="task.state === 'Y'"
-                    size="small"
-                    @update:value="(v) => handleToggle(task, v)"
-                  />
+                <div class="task-corner-actions" @click.stop>
                   <NDropdown
                     trigger="click"
                     :options="getMoreOptions()"
                     @select="(key) => handleMoreSelect(key, task)"
                   >
-                    <NButton text aria-label="更多操作" size="small">
-                      <IconifyIcon
-                        icon="lucide:more-vertical"
-                        class="h-4 w-4"
-                      />
+                    <NButton
+                      quaternary
+                      size="small"
+                      aria-label="更多操作"
+                      class="kebab-btn"
+                    >
+                      <template #icon>
+                        <IconifyIcon
+                          icon="lucide:more-vertical"
+                          class="size-4"
+                        />
+                      </template>
                     </NButton>
                   </NDropdown>
                 </div>
@@ -531,15 +533,30 @@ onMounted(() => {
                 ·
                 {{ formatInterval(task.interval) }}
               </div>
-              <div class="task-stats">
-                <span class="task-stat">
-                  <IconifyIcon icon="lucide:arrow-up" class="h-3.5 w-3.5" />
-                  上传 {{ task.upload_size || '-' }}
-                </span>
-                <span class="task-stat">
-                  <IconifyIcon icon="lucide:arrow-down" class="h-3.5 w-3.5" />
-                  下载 {{ task.download_size || '-' }}
-                </span>
+              <div class="task-footer">
+                <div class="task-stats">
+                  <span class="task-stat">
+                    <IconifyIcon
+                      icon="lucide:arrow-up"
+                      class="stat-arrow stat-arrow-up"
+                    />
+                    上传 {{ task.upload_size || '-' }}
+                  </span>
+                  <span class="task-stat">
+                    <IconifyIcon
+                      icon="lucide:arrow-down"
+                      class="stat-arrow stat-arrow-down"
+                    />
+                    下载 {{ task.download_size || '-' }}
+                  </span>
+                </div>
+                <div class="task-toggle" @click.stop>
+                  <NSwitch
+                    :value="task.state === 'Y'"
+                    size="small"
+                    @update:value="(v) => handleToggle(task, v)"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -1024,8 +1041,14 @@ onMounted(() => {
 
 .task-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
+}
+
+@media (max-width: 1280px) {
+  .task-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 768px) {
@@ -1104,25 +1127,44 @@ onMounted(() => {
   white-space: nowrap;
 }
 
-.task-actions {
+.task-corner-actions {
   display: flex;
   flex-shrink: 0;
-  gap: 0.75rem;
   align-items: center;
 }
 
+.kebab-btn {
+  margin-top: -0.125rem;
+  margin-right: -0.25rem;
+}
+
 .task-meta {
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   line-height: 1.4;
   color: hsl(var(--muted-foreground));
+}
+
+.task-footer {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.625rem;
+  border-top: 1px solid hsl(var(--border) / 60%);
+}
+
+.task-toggle {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
 }
 
 .task-stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem 1rem;
+  gap: 0.5rem 0.875rem;
   align-items: center;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
 }
 
@@ -1130,6 +1172,18 @@ onMounted(() => {
   display: inline-flex;
   gap: 0.25rem;
   align-items: center;
+}
+
+.stat-arrow {
+  flex-shrink: 0;
+}
+
+.stat-arrow-up {
+  color: hsl(var(--success));
+}
+
+.stat-arrow-down {
+  color: hsl(var(--primary));
 }
 
 .task-badge {
@@ -1193,13 +1247,7 @@ onMounted(() => {
   }
 
   .task-main {
-    flex-direction: column;
     gap: 0.625rem;
-  }
-
-  .task-actions {
-    justify-content: flex-end;
-    width: 100%;
   }
 
   .brush-detail-metrics {
