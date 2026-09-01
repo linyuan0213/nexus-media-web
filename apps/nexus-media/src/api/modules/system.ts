@@ -28,6 +28,21 @@ export namespace SystemApi {
     text: string;
   }
 
+  export interface LogSearchResult {
+    items: LogItem[];
+    total: number;
+    page: number;
+    page_size: number;
+  }
+
+  export interface LogSearchParams {
+    keyword?: string;
+    level?: string;
+    source?: string;
+    page?: number;
+    page_size?: number;
+  }
+
   export interface MessageClient {
     id: number;
     name: string;
@@ -131,6 +146,29 @@ export async function getSystemLogsApi(
     level,
     source,
     limit,
+  });
+}
+
+/** 全文搜索系统日志（磁盘文件，支持分页） */
+export async function searchSystemLogsApi(params: SystemApi.LogSearchParams) {
+  return requestClient.post<SystemApi.LogSearchResult>('/system/logs/search', {
+    page: 1,
+    page_size: 1000,
+    ...params,
+  });
+}
+
+/** 获取日志来源列表 */
+export async function getSystemLogSourcesApi() {
+  return requestClient.post<string[]>('/system/logs/sources', {});
+}
+
+/** 导出日志（后端生成全部匹配日志文本） */
+export function exportSystemLogsApi(params: SystemApi.LogSearchParams) {
+  return requestClient.download('/system/logs/export', {
+    method: 'POST',
+    timeout: 300_000,
+    data: params,
   });
 }
 

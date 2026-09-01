@@ -14,11 +14,18 @@ import {
   useMessage,
 } from 'naive-ui';
 
-import { getSystemLogsApi } from '#/api';
+import {
+  exportSystemLogsApi,
+  getSystemLogsApi,
+  getSystemLogSourcesApi,
+  searchSystemLogsApi,
+} from '#/api';
 import { requestClient } from '#/api/request';
 import PageHeader from '#/components/page/PageHeader.vue';
 
 const message = useMessage();
+
+const PAGE_SIZE = 1000;
 
 const logs = ref<any[]>([]);
 const availableSources = ref<string[]>([]);
@@ -30,11 +37,14 @@ const isPaused = ref(false);
 const autoScroll = ref(true);
 const listRef = ref<HTMLDivElement | null>(null);
 
+const searchTotal = ref(0);
+const searchPage = ref(1);
+
 const sseRef = ref<EventSource | null>(null);
 const abortController = ref<AbortController | null>(null);
-const refreshTimer = ref<null | number>(null);
 const sseRetryCount = ref(0);
 const MAX_SSE_RETRY = 3;
+let searchDebounce: null | number = null;
 
 const levelOptions = [
   { label: '全部级别', value: '' },
@@ -44,17 +54,24 @@ const levelOptions = [
   { label: 'ERROR', value: 'ERROR' },
 ];
 
+// 来源下拉由稳定累积的来源集合驱动（服务器全量 + 实时增量），
+// 避免随日志流每次刷新重建选项导致下拉闪烁无法选中
 const sourceOptions = computed(() => {
-  const sources = new Set<string>(['', 'System']);
-  for (const log of logs.value) {
-    if (log.source) {
-      sources.add(log.source);
-    }
-  }
-  return [...sources]
+  const values = new Set<string>(['', ...availableSources.value]);
+  return [...values]
     .toSorted((a, b) => a.localeCompare(b, 'zh-CN'))
     .map((s) => ({ label: s || '全部来源', value: s }));
 });
+
+// 任一筛选条件生效即进入全量搜索模式（磁盘文件），否则实时流模式
+const isFiltering = computed(() => {
+  return !!searchText.value.trim() || !!level.value || !!source.value;
+});
+
+const hasMore = computed(() => {
+  return isFiltering.value && logs.value.length < searchTotal.value;
+});
+
 function getLevelConfig(levelVal: string) {
   switch (levelVal) {
     case 'DEBUG': {
@@ -75,26 +92,6 @@ function getLevelConfig(levelVal: string) {
   }
 }
 
-const filteredLogs = computed(() => {
-  let result = logs.value;
-  if (level.value) {
-    result = result.filter((l) => l.level === level.value);
-  }
-  if (source.value) {
-    result = result.filter((l) => l.source === source.value);
-  }
-  if (searchText.value.trim()) {
-    const q = searchText.value.trim().toLowerCase();
-    result = result.filter(
-      (l) =>
-        l.text?.toLowerCase().includes(q) ||
-        l.source?.toLowerCase().includes(q) ||
-        l.time?.toLowerCase().includes(q),
-    );
-  }
-  return result;
-});
-
 function scrollToBottom() {
   nextTick(() => {
     if (!autoScroll.value || !listRef.value) return;
@@ -103,17 +100,22 @@ function scrollToBottom() {
   });
 }
 
-watch(() => filteredLogs.value.length, scrollToBottom);
+watch(() => logs.value.length, scrollToBottom);
+
+function collectSources(items: any[]) {
+  for (const item of items) {
+    const src = item?.source;
+    if (src && !availableSources.value.includes(src)) {
+      availableSources.value.push(src);
+    }
+  }
+}
 
 async function fetchLogs() {
   if (isPaused.value) return;
   loading.value = true;
   try {
-    const res = await getSystemLogsApi(
-      level.value || undefined,
-      source.value || undefined,
-      1000,
-    );
+    const res = await getSystemLogsApi(undefined, undefined, 1000);
     const list = Array.isArray(res) ? res : [];
     logs.value = list;
     collectSources(list);
@@ -124,12 +126,31 @@ async function fetchLogs() {
   }
 }
 
-function collectSources(list: any[]) {
-  for (const item of list) {
-    if (item.source && !availableSources.value.includes(item.source)) {
-      availableSources.value.push(item.source);
-    }
+async function fetchSearch(page = 1) {
+  if (!isFiltering.value) return;
+  loading.value = true;
+  try {
+    const res = await searchSystemLogsApi({
+      keyword: searchText.value.trim() || undefined,
+      level: level.value || undefined,
+      source: source.value || undefined,
+      page,
+      page_size: PAGE_SIZE,
+    });
+    const items = res?.items ?? [];
+    logs.value = page <= 1 ? items : [...logs.value, ...items];
+    searchTotal.value = res?.total ?? items.length;
+    searchPage.value = page;
+    collectSources(items);
+  } catch (error: any) {
+    console.error('搜索日志失败:', error);
+  } finally {
+    loading.value = false;
   }
+}
+
+function loadMore() {
+  fetchSearch(searchPage.value + 1);
 }
 
 function startSSE() {
@@ -137,8 +158,6 @@ function startSSE() {
     abortController.value.abort();
   }
   abortController.value = new AbortController();
-  const params: Record<string, string> = {};
-  if (source.value) params.source = source.value;
   requestClient
     .requestSSE('/system/stream-logging', undefined, {
       method: 'GET',
@@ -154,24 +173,21 @@ function startSSE() {
           if (!json) continue;
           try {
             const data = JSON.parse(json);
-            if (Array.isArray(data)) {
-              data.forEach((item) => {
-                collectSources([item]);
+            const appendItems = (items: any[]) => {
+              collectSources(items);
+              for (const item of items) {
                 const exists = logs.value.some(
                   (l) => l.time === item.time && l.text === item.text,
                 );
                 if (!exists) {
                   logs.value.push(item);
                 }
-              });
-            } else if (data && typeof data === 'object') {
-              collectSources([data]);
-              const exists = logs.value.some(
-                (l) => l.time === data.time && l.text === data.text,
-              );
-              if (!exists) {
-                logs.value.push(data);
               }
+            };
+            if (Array.isArray(data)) {
+              appendItems(data);
+            } else if (data && typeof data === 'object') {
+              appendItems([data]);
             }
             if (logs.value.length > 1000) {
               logs.value = logs.value.slice(-1000);
@@ -215,18 +231,12 @@ function stopSSE() {
   }
 }
 
-function stopPolling() {
-  if (refreshTimer.value) {
-    clearInterval(refreshTimer.value);
-    refreshTimer.value = null;
-  }
-}
-
 function togglePause() {
   isPaused.value = !isPaused.value;
   if (isPaused.value) {
     stopSSE();
-    stopPolling();
+  } else if (isFiltering.value) {
+    fetchSearch(searchPage.value);
   } else {
     fetchLogs();
     startSSE();
@@ -237,44 +247,90 @@ function clearLogs() {
   logs.value = [];
 }
 
-function exportLogs() {
-  const text = filteredLogs.value
-    .map((l) => `[${l.time}] [${l.level}] [${l.source}] ${l.text}`)
-    .join('\n');
-  const blob = new Blob([text], { type: 'text/plain' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `nas-tools-logs-${new Date().toISOString().slice(0, 10)}.txt`;
-  a.click();
-  URL.revokeObjectURL(url);
-  message.success('日志已导出');
+async function exportLogs() {
+  loading.value = true;
+  try {
+    const blob: Blob = await exportSystemLogsApi({
+      keyword: searchText.value.trim() || undefined,
+      level: level.value || undefined,
+      source: source.value || undefined,
+    });
+    if (blob.type.includes('application/json')) {
+      const err = JSON.parse(await blob.text());
+      message.error(err?.message || err?.msg || '导出失败');
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nexus-media-logs-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    message.success('日志已导出');
+  } catch (error: any) {
+    message.error(error?.message || '导出失败');
+  } finally {
+    loading.value = false;
+  }
 }
 
-function handleLevelChange() {
-  fetchLogs();
-}
+// 筛选条件变化：进入/退出全量搜索模式
+watch([level, source], () => {
+  if (searchDebounce) {
+    window.clearTimeout(searchDebounce);
+  }
+  if (isFiltering.value) {
+    stopSSE();
+    fetchSearch(1);
+  } else {
+    fetchLogs();
+    startSSE();
+  }
+});
 
-function handleSourceChange() {
-  fetchLogs();
-  stopSSE();
-  startSSE();
-}
+// 关键词输入防抖：搜索模式刷新结果，清空后回到实时模式
+watch(searchText, () => {
+  if (searchDebounce) {
+    window.clearTimeout(searchDebounce);
+  }
+  searchDebounce = window.setTimeout(() => {
+    if (isFiltering.value) {
+      stopSSE();
+      fetchSearch(1);
+    } else {
+      fetchLogs();
+      startSSE();
+    }
+  }, 400);
+});
 
-onMounted(() => {
+onMounted(async () => {
+  getSystemLogSourcesApi()
+    .then((list) => {
+      if (Array.isArray(list)) {
+        for (const s of list) {
+          if (s && !availableSources.value.includes(s)) {
+            availableSources.value.push(s);
+          }
+        }
+      }
+    })
+    .catch(() => {});
   fetchLogs();
   startSSE();
 });
 
 onUnmounted(() => {
+  if (searchDebounce) {
+    window.clearTimeout(searchDebounce);
+  }
   stopSSE();
-  stopPolling();
 });
 </script>
 
 <template>
   <div class="p-4">
-    <PageHeader title="系统日志" subtitle="实时查看系统运行日志">
+    <PageHeader title="系统日志" subtitle="实时查看与全文搜索系统运行日志">
       <template #actions>
         <NSpace align="center">
           <NSpace align="center" size="small">
@@ -316,7 +372,6 @@ onUnmounted(() => {
         clearable
         placeholder="日志来源"
         size="small"
-        @update:value="handleSourceChange"
       />
       <NSelect
         v-model:value="level"
@@ -325,11 +380,10 @@ onUnmounted(() => {
         clearable
         placeholder="日志级别"
         size="small"
-        @update:value="handleLevelChange"
       />
       <NInput
         v-model:value="searchText"
-        placeholder="搜索日志内容..."
+        placeholder="搜索全部日志..."
         style="width: 220px"
         size="small"
         clearable
@@ -339,12 +393,22 @@ onUnmounted(() => {
         </template>
       </NInput>
       <span class="text-xs" style="color: hsl(var(--muted-foreground))">
-        共 {{ filteredLogs.length }} 条
+        共 {{ isFiltering ? searchTotal : logs.length }} 条
+        <template v-if="isFiltering">（已搜索全部日志）</template>
       </span>
+      <NButton
+        v-if="hasMore"
+        size="tiny"
+        secondary
+        :loading="loading"
+        @click="loadMore"
+      >
+        加载更多
+      </NButton>
     </div>
 
     <NSpin :show="loading && logs.length === 0" class="mt-4">
-      <div v-if="filteredLogs.length > 0" ref="listRef" class="log-list">
+      <div v-if="logs.length > 0" ref="listRef" class="log-list">
         <!-- 表头 -->
         <div class="log-header">
           <span class="h-time">时间</span>
@@ -356,7 +420,7 @@ onUnmounted(() => {
         <!-- 日志内容 -->
         <div class="log-body">
           <div
-            v-for="(logItem, index) in filteredLogs"
+            v-for="(logItem, index) in logs"
             :key="index"
             class="log-row"
             :class="{ alt: index % 2 === 1 }"
@@ -396,7 +460,7 @@ onUnmounted(() => {
 
 .log-header {
   display: grid;
-  grid-template-columns: 64px 72px 120px 1fr;
+  grid-template-columns: 150px 72px 120px 1fr;
   gap: 8px;
   padding: 8px 16px;
   font-weight: 600;
@@ -412,7 +476,7 @@ onUnmounted(() => {
 
 .log-row {
   display: grid;
-  grid-template-columns: 64px 72px 120px 1fr;
+  grid-template-columns: 150px 72px 120px 1fr;
   gap: 8px;
   align-items: start;
   padding: 5px 16px;
@@ -430,7 +494,7 @@ onUnmounted(() => {
 
 .h-time,
 .r-time {
-  min-width: 64px;
+  min-width: 150px;
 }
 
 .h-level,
@@ -480,17 +544,22 @@ onUnmounted(() => {
 
 @media (max-width: 640px) {
   .log-header {
-    grid-template-columns: 52px 64px 90px 1fr;
+    grid-template-columns: 110px 64px 90px 1fr;
     gap: 4px;
     padding: 6px 8px;
     font-size: 12px;
   }
 
   .log-row {
-    grid-template-columns: 52px 64px 90px 1fr;
+    grid-template-columns: 110px 64px 90px 1fr;
     gap: 4px;
     padding: 4px 8px;
     font-size: 12px;
+  }
+
+  .h-time,
+  .r-time {
+    min-width: 110px;
   }
 
   .h-source,
