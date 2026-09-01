@@ -3,7 +3,7 @@ import { computed, h } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { NButton, NDataTable, NTag } from 'naive-ui';
+import { NButton, NDataTable } from 'naive-ui';
 
 import { type StatisticsItem, useSiteStats } from '#/composables/useSiteStats';
 
@@ -13,6 +13,7 @@ interface Props {
   data: StatisticsItem[];
   favicons: Record<string, string>;
   isMobile: boolean;
+  showAll?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -48,15 +49,54 @@ function getColumns(isMobile: boolean): any[] {
       width: isMobile ? 100 : 150,
       fixed: 'left' as const,
       render(row: any) {
-        return h('div', { class: 'site-cell' }, [
-          h(SiteLogo, {
-            src: getFavicon(row.site_name),
-            fallback: getFaviconFallback(row.site_name),
-            name: row.site_name,
-            url: row.url,
-          }),
-          h('span', { class: 'site-cell-name' }, row.site_name),
-        ]);
+        return h(
+          'div',
+          {
+            class: 'site-cell',
+            style: {
+              display: 'flex',
+              gap: '0.75rem',
+              alignItems: 'center',
+            },
+          },
+          [
+            h('div', { style: { position: 'relative', flexShrink: '0' } }, [
+              h(SiteLogo, {
+                src: getFavicon(row.site_name),
+                fallback: getFaviconFallback(row.site_name),
+                name: row.site_name,
+                url: row.url,
+              }),
+              row.message_count
+                ? h(
+                    'span',
+                    {
+                      style: {
+                        position: 'absolute',
+                        top: '-4px',
+                        right: '-6px',
+                        minWidth: '16px',
+                        height: '16px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '0 4px',
+                        fontSize: '10px',
+                        fontWeight: '700',
+                        lineHeight: '1',
+                        color: 'hsl(var(--primary-foreground))',
+                        backgroundColor: 'hsl(var(--destructive))',
+                        border: '2px solid hsl(var(--background))',
+                        borderRadius: '999px',
+                      },
+                    },
+                    row.message_count > 99 ? '99+' : String(row.message_count),
+                  )
+                : null,
+            ]),
+            h('span', { class: 'site-cell-name' }, row.site_name),
+          ],
+        );
       },
     },
     {
@@ -86,6 +126,16 @@ function getColumns(isMobile: boolean): any[] {
         const pad = (n: number) => String(n).padStart(2, '0');
         return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
       },
+      sorter: (a: StatisticsItem, b: StatisticsItem) => {
+        const ta = a.join_at ? Date.parse(a.join_at) : 0;
+        const tb = b.join_at ? Date.parse(b.join_at) : 0;
+        if (Number.isNaN(ta) && Number.isNaN(tb)) {
+          return String(a.join_at || '').localeCompare(String(b.join_at || ''));
+        }
+        if (Number.isNaN(ta)) return 1;
+        if (Number.isNaN(tb)) return -1;
+        return ta - tb;
+      },
     },
     {
       title: '上传',
@@ -107,11 +157,12 @@ function getColumns(isMobile: boolean): any[] {
       width: isMobile ? 75 : 90,
       render(row: StatisticsItem) {
         const ratio = Number.parseFloat(row.ratio);
-        let type: any = 'default';
-        if (ratio >= 5) type = 'success';
-        else if (ratio >= 1) type = 'warning';
-        else if (ratio > 0) type = 'error';
-        return h(NTag, { size: 'small', type }, () => row.ratio);
+        // 纯色加粗文本代替 NTag，视觉更清爽
+        let color = 'hsl(var(--muted-foreground))';
+        if (ratio >= 5) color = 'hsl(var(--success))';
+        else if (ratio >= 1) color = 'hsl(var(--warning))';
+        else if (ratio > 0) color = 'hsl(var(--destructive))';
+        return h('span', { class: 'ratio-text', style: { color } }, row.ratio);
       },
       sorter: (a: StatisticsItem, b: StatisticsItem) =>
         Number.parseFloat(a.ratio) - Number.parseFloat(b.ratio),
@@ -140,18 +191,6 @@ function getColumns(isMobile: boolean): any[] {
           sorter: (a: StatisticsItem, b: StatisticsItem) =>
             parseNumber(a.bonus) - parseNumber(b.bonus),
         },
-        {
-          title: '消息',
-          key: 'message_count',
-          width: 70,
-          render(row: StatisticsItem) {
-            if (!row.message_count)
-              return h('span', { class: 'text-muted' }, '-');
-            return h(NTag, { size: 'small', type: 'error' }, () =>
-              String(row.message_count),
-            );
-          },
-        },
       ];
 
   return [
@@ -163,7 +202,7 @@ function getColumns(isMobile: boolean): any[] {
       width: isMobile ? 75 : 90,
       fixed: 'right' as const,
       render(row: StatisticsItem) {
-        return h('div', { class: 'flex items-center gap-1' }, [
+        return h('div', { class: 'flex items-center gap-4' }, [
           h(
             NButton,
             {
@@ -207,7 +246,7 @@ const columns = computed(() => getColumns(props.isMobile));
   <NDataTable
     :columns="columns"
     :data="[...data]"
-    :pagination="{ pageSize: 20 }"
+    :pagination="props.showAll ? false : { pageSize: 20 }"
     :bordered="false"
     size="small"
     striped
@@ -231,8 +270,8 @@ const columns = computed(() => getColumns(props.isMobile));
   white-space: nowrap;
 }
 
-.text-muted {
-  color: hsl(var(--muted-foreground));
+.ratio-text {
+  font-weight: 600;
 }
 
 :deep(.row-inactive td) {

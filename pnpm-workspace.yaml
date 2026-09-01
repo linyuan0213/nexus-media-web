@@ -140,6 +140,7 @@ catalog:
   h3: ^1.15.11
   happy-dom: ^20.9.0
   html-minifier-terser: ^7.2.0
+  html-to-image: ^1.11.13
   is-ci: ^4.1.0
   json-bigint: ^1.0.0
   jsonwebtoken: ^9.0.3

@@ -1,6 +1,6 @@
 {
   "name": "@nexus-media/frontend",
-  "version": "4.12.1",
+  "version": "4.12.2",
   "homepage": "https://github.com/linyuan0213/nexus-media",
   "bugs": "https://github.com/linyuan0213/nexus-media/issues",
   "repository": {
@@ -41,6 +41,7 @@
     "@vben/types": "workspace:*",
     "@vben/utils": "workspace:*",
     "@vueuse/core": "catalog:",
+    "html-to-image": "catalog:",
     "markdown-it": "catalog:",
     "naive-ui": "catalog:",
     "pinia": "catalog:",
