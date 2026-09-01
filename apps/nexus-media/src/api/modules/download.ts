@@ -169,11 +169,11 @@ export async function batchDeleteTasksApi(
   });
 }
 
-/** 获取下载器配置列表 */
-export async function getDownloadersApi(did?: string) {
+/** 获取下载器配置列表（brush=true 仅返回支持刷流的下载器） */
+export async function getDownloadersApi(did?: string, brush = false) {
   return requestClient.post<Record<string, DownloadApi.DownloaderConfig>>(
     '/download/downloaders',
-    { did },
+    { did, brush },
   );
 }
 

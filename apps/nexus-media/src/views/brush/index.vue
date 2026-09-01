@@ -197,7 +197,8 @@ async function fetchSites() {
 
 async function fetchDownloaders() {
   try {
-    const res: any = await getDownloadersApi();
+    // 刷流仅支持 PT 站，仅加载支持 PT 的下载器
+    const res: any = await getDownloadersApi(undefined, true);
     const data = res?.data || res || {};
     downloaders.value = Object.values(data).map((d: any) => ({
       label: d.name || d.id,
