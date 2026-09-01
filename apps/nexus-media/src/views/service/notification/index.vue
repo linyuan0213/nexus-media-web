@@ -408,17 +408,17 @@ onMounted(fetchData);
                   :class="item.enabled === 1 ? 'bg-green-500' : 'bg-gray-400'"
                 ></span>
                 <span class="font-medium truncate">{{ item.name }}</span>
+                <NBadge
+                  v-if="
+                    channels[item.type]?.search_type && item.interactive === 1
+                  "
+                  value="交互"
+                  type="success"
+                  size="small"
+                />
               </div>
               <div class="text-xs text-gray-400 mt-0.5">
                 {{ channels[item.type]?.name || item.type }}
-              </div>
-              <div
-                v-if="
-                  channels[item.type]?.search_type && item.interactive === 1
-                "
-                class="mt-1"
-              >
-                <NBadge value="交互" type="success" size="small" />
               </div>
               <div class="flex flex-wrap gap-1 mt-2">
                 <span
