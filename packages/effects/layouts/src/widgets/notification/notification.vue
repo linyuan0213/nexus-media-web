@@ -86,13 +86,13 @@ const handleClear = () => {
         <VbenIconButton class="bell-button relative text-foreground">
           <span
             v-if="badgeEnabled && badgeCount > 0"
-            class="absolute -top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-white"
+            class="absolute -top-0.5 right-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-white"
           >
             {{ badgeCount > 99 ? '99+' : badgeCount }}
           </span>
           <span
             v-else-if="badgeEnabled && dot"
-            class="absolute top-0.5 right-0.5 size-2 rounded-full bg-destructive"
+            class="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-destructive"
           ></span>
           <Bell class="size-4" />
         </VbenIconButton>
