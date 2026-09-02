@@ -12,7 +12,7 @@ export const overridesPreferences = defineOverridesPreferences({
     accessMode: 'mixed',
     defaultHomePath: '/dashboard/home',
     enableRefreshToken: true,
-    preferencesButtonPosition: 'header',
+    preferencesButtonPosition: 'user-dropdown',
   },
   logo: {
     enable: true,
@@ -25,6 +25,9 @@ export const overridesPreferences = defineOverridesPreferences({
   },
   widget: {
     languageToggle: false,
+    languageToggleButtonPosition: 'none',
+    lockScreenButtonPosition: 'user-dropdown',
+    logoutButtonPosition: 'user-dropdown',
     timezone: false,
   },
   copyright: {
