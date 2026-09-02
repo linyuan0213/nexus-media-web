@@ -7,7 +7,7 @@ import { computed, nextTick, ref, useTemplateRef, watch } from 'vue';
 
 import { useNamespace } from '@vben-core/composables';
 
-import { ChevronsDown } from 'lucide-vue-next';
+import { ChevronsDown } from '@lucide/vue';
 import {
   CollapsibleContent,
   CollapsibleRoot,
@@ -31,8 +31,10 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emits = defineEmits<{ 'update:value': [any, string] }>();
 
-const modelValue = defineModel('value', {
-  default: {} as Recordable<CollapsibleParamSchema['defaultValue']>,
+const modelValue = defineModel<
+  Recordable<CollapsibleParamSchema['defaultValue']>
+>('value', {
+  default: () => ({}),
 });
 
 const visibleRefs = useTemplateRef('visibleRefs');
@@ -200,8 +202,7 @@ defineExpose({
     <div
       class="trigger-bar flex min-h-[2rem] border-t px-5 pt-1 pb-1 rounded-b-[0.5rem] z-1"
       :class="{
-        'collapsed absolute bottom-[1px] left-[1px] right-[1px] border-t-0 pt-6':
-          !open,
+        'collapsed absolute bottom-px left-px right-px border-t-0 pt-6': !open,
       }"
       v-if="collapsibleRows.length > 0"
     >

@@ -64,6 +64,8 @@ const close = () => {
   open.value = false;
 };
 
+defineExpose({ toggle });
+
 const handleViewAll = () => {
   emit('viewAll');
   close();

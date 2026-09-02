@@ -166,20 +166,42 @@ const shortcutKeysGlobalSearch = defineModel<boolean>(
 const shortcutKeysGlobalLogout = defineModel<boolean>(
   'shortcutKeysGlobalLogout',
 );
+const shortcutKeysGlobalEscape = defineModel<boolean>(
+  'shortcutKeysGlobalEscape',
+);
 
 const shortcutKeysGlobalLockScreen = defineModel<boolean>(
   'shortcutKeysGlobalLockScreen',
 );
 
-const widgetGlobalSearch = defineModel<boolean>('widgetGlobalSearch');
-const widgetFullscreen = defineModel<boolean>('widgetFullscreen');
-const widgetLanguageToggle = defineModel<boolean>('widgetLanguageToggle');
-const widgetNotification = defineModel<boolean>('widgetNotification');
-const widgetThemeToggle = defineModel<boolean>('widgetThemeToggle');
-const widgetSidebarToggle = defineModel<boolean>('widgetSidebarToggle');
-const widgetLockScreen = defineModel<boolean>('widgetLockScreen');
-const widgetRefresh = defineModel<boolean>('widgetRefresh');
-const widgetTimezone = defineModel<boolean>('widgetTimezone');
+const widgetGlobalSearchButtonPosition = defineModel<string>(
+  'widgetGlobalSearchButtonPosition',
+);
+const widgetFullscreenButtonPosition = defineModel<string>(
+  'widgetFullscreenButtonPosition',
+);
+const widgetLanguageToggleButtonPosition = defineModel<string>(
+  'widgetLanguageToggleButtonPosition',
+);
+const widgetNotificationButtonPosition = defineModel<string>(
+  'widgetNotificationButtonPosition',
+);
+const widgetThemeToggleButtonPosition = defineModel<string>(
+  'widgetThemeToggleButtonPosition',
+);
+const widgetLockScreenButtonPosition = defineModel<string>(
+  'widgetLockScreenButtonPosition',
+);
+const widgetLogoutButtonPosition = defineModel<string>(
+  'widgetLogoutButtonPosition',
+);
+const widgetOrder = defineModel<string[]>('widgetOrder', { required: true });
+const widgetRefreshButtonPosition = defineModel<string>(
+  'widgetRefreshButtonPosition',
+);
+const widgetTimezoneButtonPosition = defineModel<string>(
+  'widgetTimezoneButtonPosition',
+);
 
 const {
   customPreferences,
@@ -480,15 +502,34 @@ function handleCustomPreferencesUpdate(updates: CustomPreferencesRecord) {
                 v-model:app-preferences-button-position="
                   appPreferencesButtonPosition
                 "
-                v-model:widget-fullscreen="widgetFullscreen"
-                v-model:widget-global-search="widgetGlobalSearch"
-                v-model:widget-language-toggle="widgetLanguageToggle"
-                v-model:widget-lock-screen="widgetLockScreen"
-                v-model:widget-notification="widgetNotification"
-                v-model:widget-refresh="widgetRefresh"
-                v-model:widget-sidebar-toggle="widgetSidebarToggle"
-                v-model:widget-theme-toggle="widgetThemeToggle"
-                v-model:widget-timezone="widgetTimezone"
+                v-model:widget-fullscreen-button-position="
+                  widgetFullscreenButtonPosition
+                "
+                v-model:widget-global-search-button-position="
+                  widgetGlobalSearchButtonPosition
+                "
+                v-model:widget-language-toggle-button-position="
+                  widgetLanguageToggleButtonPosition
+                "
+                v-model:widget-lock-screen-button-position="
+                  widgetLockScreenButtonPosition
+                "
+                v-model:widget-logout-button-position="
+                  widgetLogoutButtonPosition
+                "
+                v-model:widget-order="widgetOrder"
+                v-model:widget-notification-button-position="
+                  widgetNotificationButtonPosition
+                "
+                v-model:widget-refresh-button-position="
+                  widgetRefreshButtonPosition
+                "
+                v-model:widget-theme-toggle-button-position="
+                  widgetThemeToggleButtonPosition
+                "
+                v-model:widget-timezone-button-position="
+                  widgetTimezoneButtonPosition
+                "
               />
             </Block>
             <Block :title="$t('preferences.footer.title')">
@@ -520,6 +561,7 @@ function handleCustomPreferencesUpdate(updates: CustomPreferencesRecord) {
                 v-model:shortcut-keys-global-search="shortcutKeysGlobalSearch"
                 v-model:shortcut-keys-lock-screen="shortcutKeysGlobalLockScreen"
                 v-model:shortcut-keys-logout="shortcutKeysGlobalLogout"
+                v-model:shortcut-keys-escape="shortcutKeysGlobalEscape"
               />
             </Block>
           </template>

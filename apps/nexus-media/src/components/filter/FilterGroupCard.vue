@@ -1,5 +1,4 @@
 <script setup lang="ts">
-/* eslint-disable unicorn/explicit-length-check */
 import type { FilterApi } from '#/api/modules/filter';
 
 import { computed, ref } from 'vue';

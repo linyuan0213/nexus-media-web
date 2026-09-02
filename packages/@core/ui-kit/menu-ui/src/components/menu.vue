@@ -37,7 +37,7 @@ import SubMenu from './sub-menu.vue';
 
 interface Props extends MenuProps {}
 
-defineOptions({ name: 'Menu' });
+defineOptions({ name: 'MenuUI' });
 
 const props = withDefaults(defineProps<Props>(), {
   accordion: true,
@@ -747,7 +747,7 @@ $namespace: vben;
     width: 100%;
     height: var(--menu-item-height);
 
-    span {
+    .#{$namespace}-menu__name {
       @include menu-title;
     }
   }
@@ -823,10 +823,6 @@ $namespace: vben;
   font-size: var(--menu-font-size) !important;
 
   @include menu-item;
-
-  * {
-    font-size: inherit !important;
-  }
 
   &__icon-arrow {
     position: absolute;

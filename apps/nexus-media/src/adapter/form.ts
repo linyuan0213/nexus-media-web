@@ -1,8 +1,12 @@
-import type { VbenFormSchema as FormSchema } from '@vben/common-ui';
+import type {
+  VbenFormProps as FormProps,
+  VbenFormSchema as FormSchema,
+  FormValues,
+} from '@vben/common-ui';
 
-import type { ComponentType } from './component';
+import type { ComponentPropsMap, ComponentType } from './component';
 
-import { setupVbenForm, useVbenForm as useForm } from '@vben/common-ui';
+import { setupVbenForm, useVbenForm as useForm, z } from '@vben/common-ui';
 import { $t } from '@vben/locales';
 
 async function initSetupVbenForm() {
@@ -17,7 +21,7 @@ async function initSetupVbenForm() {
         Upload: 'fileList',
       },
     },
-    defineRules: {
+    rules: {
       required: (value, _params, ctx) => {
         if (value === undefined || value === null || value.length === 0) {
           return $t('ui.formRules.required', [ctx.label]);
@@ -34,10 +38,27 @@ async function initSetupVbenForm() {
   });
 }
 
-const useVbenForm = useForm<ComponentType>;
+function useVbenForm<
+  TFormValues extends FormValues = FormValues,
+  TSubmitValues extends FormValues = TFormValues,
+>(
+  options: FormProps<
+    ComponentType,
+    ComponentPropsMap,
+    TFormValues,
+    TSubmitValues
+  >,
+) {
+  return useForm<TFormValues, ComponentType, ComponentPropsMap, TSubmitValues>(
+    options,
+  );
+}
 
-export { initSetupVbenForm, useVbenForm };
+export { initSetupVbenForm, useVbenForm, z };
 
-export type VbenFormSchema = FormSchema<ComponentType>;
-
-export { type VbenFormProps, z } from '@vben/common-ui';
+export type VbenFormSchema<TValues extends FormValues = FormValues> =
+  FormSchema<ComponentType, ComponentPropsMap, TValues>;
+export type VbenFormProps<
+  TFormValues extends FormValues = FormValues,
+  TSubmitValues extends FormValues = TFormValues,
+> = FormProps<ComponentType, ComponentPropsMap, TFormValues, TSubmitValues>;

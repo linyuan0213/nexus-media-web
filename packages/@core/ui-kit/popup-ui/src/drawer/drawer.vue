@@ -148,9 +148,7 @@ function handleFocusOutside(e: Event) {
 }
 
 const getAppendTo = computed(() => {
-  return appendToMain.value
-    ? `#${ELEMENT_ID_MAIN_CONTENT}>div:not(.absolute)>div`
-    : undefined;
+  return appendToMain.value ? `#${ELEMENT_ID_MAIN_CONTENT}` : undefined;
 });
 
 /**
@@ -167,6 +165,7 @@ watch(
       hasOpened.value = true;
     }
   },
+  { immediate: true },
 );
 function handleClosed() {
   isClosed.value = true;
@@ -185,11 +184,16 @@ const getForceMount = computed(() => {
     <SheetContent
       :append-to="getAppendTo"
       :class="
-        cn('flex w-130 flex-col', drawerClass, {
-          'w-full!': isMobile || placement === 'bottom' || placement === 'top',
-          'max-h-screen': placement === 'bottom' || placement === 'top',
-          hidden: isClosed,
-        })
+        cn(
+          'flex w-130 flex-col',
+          {
+            'w-full!':
+              isMobile || placement === 'bottom' || placement === 'top',
+            'max-h-screen': placement === 'bottom' || placement === 'top',
+            hidden: isClosed,
+          },
+          drawerClass,
+        )
       "
       :modal="modal"
       :open="state?.isOpen"
