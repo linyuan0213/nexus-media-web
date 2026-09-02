@@ -100,9 +100,15 @@ const featureSwitches = computed(() => {
     },
     {
       key: 'chrome' as const,
-      label: '浏览器仿真',
-      desc: '模拟浏览器访问站点',
+      label: '浏览器自动化',
+      desc: '模拟浏览器访问站点（可过 Cloudflare）',
       icon: 'lucide:chrome',
+    },
+    {
+      key: 'browser_persistent' as const,
+      label: '保持浏览器会话',
+      desc: '请求后保留浏览器认证会话（如 2FA 站点），需开启浏览器自动化',
+      icon: 'lucide:lock-keyhole',
     },
     {
       key: 'proxy' as const,
@@ -322,6 +328,7 @@ function parseSiteToForm(item: SiteItem): SiteForm {
     parse: !!parsedNote?.parse,
     unread_msg_notify: !!parsedNote?.message,
     chrome: !!parsedNote?.chrome,
+    browser_persistent: !!parsedNote?.browser_persistent,
     proxy: !!parsedNote?.proxy,
     subtitle: !!parsedNote?.subtitle,
     tag: !!parsedNote?.tag,
@@ -342,6 +349,7 @@ function buildNote(form: SiteForm): string {
   if (form.ua) note.ua = form.ua;
   if (form.headers) note.headers = form.headers;
   note.chrome = form.chrome;
+  note.browser_persistent = form.browser_persistent;
   note.proxy = form.proxy;
   note.message = form.unread_msg_notify;
   note.subtitle = form.subtitle;

@@ -204,6 +204,7 @@ function handleAdd() {
     parse: false,
     unread_msg_notify: false,
     chrome: false,
+    browser_persistent: false,
     proxy: false,
     subtitle: false,
     tag: false,

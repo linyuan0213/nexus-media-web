@@ -15,6 +15,7 @@ export interface SiteForm {
   parse: boolean;
   unread_msg_notify: boolean;
   chrome: boolean;
+  browser_persistent: boolean;
   proxy: boolean;
   subtitle: boolean;
   tag: boolean;
