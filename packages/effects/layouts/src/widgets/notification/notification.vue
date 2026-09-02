@@ -92,7 +92,7 @@ const handleClear = () => {
           </span>
           <span
             v-else-if="badgeEnabled && dot"
-            class="absolute top-0.5 right-0.5 size-2 rounded-sm bg-destructive"
+            class="absolute top-0.5 right-0.5 size-2 rounded-full bg-destructive"
           ></span>
           <Bell class="size-4" />
         </VbenIconButton>

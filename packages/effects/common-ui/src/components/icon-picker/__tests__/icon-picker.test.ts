@@ -1,4 +1,4 @@
-import { DOMWrapper, mount } from '@vue/test-utils';
+import { DOMWrapper, mount, type VueWrapper } from '@vue/test-utils';
 import { defineComponent, h, markRaw, nextTick } from 'vue';
 
 import {
@@ -115,7 +115,15 @@ const AntdvNextLikeInput = defineComponent({
 
 const STATIC_ICONS = ['home', 'search', 'settings', 'user-profile'];
 
+const wrappers: VueWrapper[] = [];
+
 describe('icon-picker.vue', () => {
+  afterEach(() => {
+    wrappers.forEach((wrapper) => wrapper.unmount());
+    wrappers.length = 0;
+    document.body.innerHTML = '';
+  });
+
   it('filters icons with the search input (static icons)', async () => {
     const wrapper = mount(IconPicker, {
       attachTo: document.body,
@@ -124,6 +132,7 @@ describe('icon-picker.vue', () => {
         prefix: '',
       },
     });
+    wrappers.push(wrapper);
     await openIconPicker(wrapper);
     expect(gridIconCount()).toBe(4);
 
@@ -131,8 +140,6 @@ describe('icon-picker.vue', () => {
     await searchAndExpect('ho', 1);
 
     await searchAndExpect('zzz', 0); // empty result
-
-    wrapper.unmount();
   });
 
   it('filters icons with the search input (prefix + fetched icons)', async () => {
@@ -142,6 +149,7 @@ describe('icon-picker.vue', () => {
         prefix: 'carbon',
       },
     });
+    wrappers.push(wrapper);
     // watchDebounced: immediate + 500ms debounce before fetchIconsData
     await sleep(700);
     await openIconPicker(wrapper);
@@ -149,8 +157,6 @@ describe('icon-picker.vue', () => {
 
     // 'user' matches only 'carbon:user-profile'
     await searchAndExpect('user', 1);
-
-    wrapper.unmount();
   });
 
   it('filters icons through inputComponent using the value/onUpdate:value protocol', async () => {
@@ -163,6 +169,7 @@ describe('icon-picker.vue', () => {
         prefix: '',
       },
     });
+    wrappers.push(wrapper);
     await openIconPicker(wrapper);
     expect(gridIconCount()).toBe(4);
 
@@ -170,8 +177,6 @@ describe('icon-picker.vue', () => {
     await searchAndExpect('se', 3);
 
     await searchAndExpect('zzz', 0);
-
-    wrapper.unmount();
   });
 
   it('updates the configured model value when selecting an icon', async () => {
@@ -186,6 +191,7 @@ describe('icon-picker.vue', () => {
         'onUpdate:value': onUpdateValue,
       },
     });
+    wrappers.push(wrapper);
     await openIconPicker(wrapper);
 
     const firstIcon = document.body.querySelector('.grid-cols-6 > button');
@@ -193,7 +199,5 @@ describe('icon-picker.vue', () => {
     await new DOMWrapper(firstIcon as Element).trigger('click');
 
     expect(onUpdateValue).toHaveBeenCalledWith('home');
-
-    wrapper.unmount();
   });
 });
