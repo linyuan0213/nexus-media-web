@@ -279,7 +279,12 @@ onMounted(fetchPlugins);
             <!-- 底部操作 -->
             <div class="installed-footer">
               <div class="flex gap-2">
-                <NButton size="tiny" secondary @click="openConfig(plugin)">
+                <NButton
+                  v-if="plugin.has_config !== false"
+                  size="tiny"
+                  secondary
+                  @click="openConfig(plugin)"
+                >
                   <IconifyIcon
                     icon="lucide:settings"
                     class="mr-1 h-3 w-3"
@@ -397,7 +402,12 @@ onMounted(fetchPlugins);
             />
           </div>
           <div class="list-row-actions">
-            <NButton size="tiny" secondary @click="openConfig(plugin)">
+            <NButton
+              v-if="plugin.has_config !== false"
+              size="tiny"
+              secondary
+              @click="openConfig(plugin)"
+            >
               <IconifyIcon icon="lucide:settings" class="mr-1 h-3 w-3" />配置
             </NButton>
             <NButton size="tiny" secondary @click="openLogs(plugin.id)">

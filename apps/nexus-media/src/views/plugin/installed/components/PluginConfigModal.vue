@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue';
 
+import { IconifyIcon } from '@vben/icons';
+
 import {
   NButton,
   NForm,
@@ -127,7 +129,17 @@ watch(
     class="w-full max-w-lg"
   >
     <NSpin :show="loading">
-      <NForm label-placement="left" :label-width="120">
+      <div
+        v-if="!loading && fields.length === 0"
+        class="flex flex-col items-center justify-center gap-2 py-10 text-center"
+      >
+        <IconifyIcon
+          icon="lucide:settings"
+          class="size-8 text-muted-foreground"
+        />
+        <span class="text-sm text-muted-foreground">该插件无需配置</span>
+      </div>
+      <NForm v-else label-placement="left" :label-width="120">
         <template v-for="field in fields" :key="field.key">
           <NFormItem>
             <template #label>
@@ -208,8 +220,15 @@ watch(
 
     <template #footer>
       <div class="flex justify-end gap-2">
-        <NButton @click="visible = false">取消</NButton>
-        <NButton type="primary" :loading="saving" @click="handleSave">
+        <NButton @click="visible = false">
+          {{ fields.length === 0 ? '关闭' : '取消' }}
+        </NButton>
+        <NButton
+          v-if="fields.length > 0"
+          type="primary"
+          :loading="saving"
+          @click="handleSave"
+        >
           保存
         </NButton>
       </div>
