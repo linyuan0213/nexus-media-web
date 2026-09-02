@@ -496,7 +496,16 @@ onMounted(fetchData);
 
         <!-- 类型选择卡片（编辑态仅展示当前类型，不可切换） -->
         <NFormItem label="类型" required>
-          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div
+            class="grid w-full gap-3 sm:grid-cols-4"
+            :style="
+              isMobile
+                ? {
+                    gridTemplateColumns: `repeat(${Math.min(Object.keys(visibleChannels).length, 3) || 1}, minmax(0, 1fr))`,
+                  }
+                : undefined
+            "
+          >
             <div
               v-for="(conf, key) in visibleChannels"
               :key="key"

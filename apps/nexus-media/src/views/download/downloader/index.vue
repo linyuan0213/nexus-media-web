@@ -578,7 +578,16 @@ onMounted(fetchData);
         </NGrid>
 
         <NFormItem label="类型" required>
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <div
+            class="grid w-full gap-3 sm:grid-cols-3 md:grid-cols-4"
+            :style="
+              isMobile
+                ? {
+                    gridTemplateColumns: `repeat(${Math.min(Object.keys(visibleDownloaderTypes).length, 3) || 1}, minmax(0, 1fr))`,
+                  }
+                : undefined
+            "
+          >
             <div
               v-for="(conf, key) in visibleDownloaderTypes"
               :key="key"
