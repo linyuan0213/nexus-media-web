@@ -81,9 +81,13 @@ export async function getLibraryHistoryApi() {
 }
 
 /** 获取最新入库 */
-export async function getLibraryDownloadedApi(page?: number) {
+export async function getLibraryDownloadedApi(
+  page?: number,
+  pageSize?: number,
+) {
   return requestClient.post('/media/library/downloaded', {
     page: page || 1,
+    page_size: pageSize || 30,
   });
 }
 
