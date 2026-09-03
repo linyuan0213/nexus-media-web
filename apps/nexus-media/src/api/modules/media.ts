@@ -277,6 +277,8 @@ export interface TransferHistoryItem {
   DEST: string;
   DEST_PATH: string;
   DEST_FILENAME: string;
+  DST_BACKEND?: string;
+  image?: string;
   DATE: string;
   SYNC_MODE?: string;
   RMT_MODE?: string;

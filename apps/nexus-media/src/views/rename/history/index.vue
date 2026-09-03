@@ -20,6 +20,7 @@ import {
   NSelect,
   NSpace,
   NSpin,
+  NTooltip,
 } from 'naive-ui';
 
 import {
@@ -51,6 +52,7 @@ const total = ref(0);
 const totalPage = ref(1);
 const clearModalShow = ref(false);
 const deleteModalShow = ref(false);
+const posterFailed = ref<number[]>([]);
 const deletePayload = ref<null | {
   flag: string;
   label: string;
@@ -452,6 +454,21 @@ function getModeLabel(row: any) {
   return modeMap[raw] || raw || '-';
 }
 
+function joinPath(dir: string, file: string) {
+  const parts = [dir, file].filter(Boolean);
+  return parts.join('/').replace(/\/+/g, '/');
+}
+
+function isPosterFailed(id: number) {
+  return posterFailed.value.includes(id);
+}
+
+function markPosterFailed(id: number) {
+  if (!posterFailed.value.includes(id)) {
+    posterFailed.value = [...posterFailed.value, id];
+  }
+}
+
 onMounted(() => {
   fetchData(1);
   fetchStatistics();
@@ -590,26 +607,45 @@ onMounted(() => {
             class="history-card"
           >
             <div class="flex gap-3">
+              <!-- 海报：成功仅显示海报；无图/加载失败显示类型图标 -->
               <div
-                class="history-poster-wrapper flex items-center justify-center"
-                :style="{
-                  backgroundColor: `hsl(${getTypeColor(item.TYPE)} / 0.12)`,
-                }"
+                class="history-poster flex flex-shrink-0 items-center justify-center rounded"
               >
-                <IconifyIcon
-                  :icon="getTypeIcon(item.TYPE)"
-                  class="size-6"
-                  :style="{ color: `hsl(${getTypeColor(item.TYPE)})` }"
+                <img
+                  v-if="item.image && !isPosterFailed(item.ID)"
+                  :src="getImgUrl(item.image)"
+                  class="history-poster-img rounded"
+                  alt=""
+                  loading="lazy"
+                  @error="markPosterFailed(item.ID)"
                 />
+                <div
+                  v-else
+                  class="history-poster-fallback flex items-center justify-center rounded"
+                  :style="{
+                    backgroundColor: `hsl(${getTypeColor(item.TYPE)} / 0.12)`,
+                  }"
+                >
+                  <IconifyIcon
+                    :icon="getTypeIcon(item.TYPE)"
+                    class="size-5"
+                    :style="{ color: `hsl(${getTypeColor(item.TYPE)})` }"
+                  />
+                </div>
               </div>
               <div class="min-w-0 flex-1">
                 <div class="flex items-start justify-between gap-2">
-                  <div class="history-title truncate">
-                    {{ item.TITLE || '-' }}
-                    <span v-if="item.YEAR" class="history-year"
-                      >({{ item.YEAR }})</span
-                    >
-                  </div>
+                  <NTooltip :disabled="(item.TITLE || '').length < 24">
+                    <template #trigger>
+                      <div class="history-title truncate">
+                        {{ item.TITLE || '-' }}
+                        <span v-if="item.YEAR" class="history-year"
+                          >({{ item.YEAR }})</span
+                        >
+                      </div>
+                    </template>
+                    {{ item.TITLE }}
+                  </NTooltip>
                   <NCheckbox
                     :checked="selectedIds.includes(item.ID)"
                     @update:checked="() => toggleSelect(item.ID)"
@@ -635,20 +671,57 @@ onMounted(() => {
                   </span>
                   <span class="history-mode">{{ getModeLabel(item) }}</span>
                 </div>
-                <div v-if="item.SOURCE_FILENAME" class="history-path truncate">
+
+                <!-- 源/目的：后端徽标 + 完整路径（超长截断，悬停全文） -->
+                <div
+                  v-if="item.SOURCE_PATH || item.SOURCE_FILENAME"
+                  class="path-row"
+                >
                   <IconifyIcon
                     icon="lucide:arrow-right-from-line"
-                    class="size-3 inline mr-1 source-icon"
+                    class="size-3 path-icon path-icon-source"
                   />
-                  {{ item.SOURCE_FILENAME }}
+                  <NTooltip>
+                    <template #trigger>
+                      <span class="path-label">
+                        <span v-if="item.SOURCE" class="path-backend">{{
+                          item.SOURCE
+                        }}</span>
+                        <span class="path-text">{{
+                          joinPath(item.SOURCE_PATH, item.SOURCE_FILENAME)
+                        }}</span>
+                      </span>
+                    </template>
+                    <span>{{ item.SOURCE || '源' }}</span>
+                    <br />
+                    {{ joinPath(item.SOURCE_PATH, item.SOURCE_FILENAME) }}
+                  </NTooltip>
                 </div>
-                <div v-if="item.DEST_FILENAME" class="history-path truncate">
+                <div
+                  v-if="item.DEST_PATH || item.DEST_FILENAME"
+                  class="path-row"
+                >
                   <IconifyIcon
                     icon="lucide:arrow-right-to-line"
-                    class="size-3 inline mr-1 dest-icon"
+                    class="size-3 path-icon path-icon-dest"
                   />
-                  {{ item.DEST_FILENAME }}
+                  <NTooltip>
+                    <template #trigger>
+                      <span class="path-label">
+                        <span class="path-backend">{{
+                          item.DST_BACKEND || 'local'
+                        }}</span>
+                        <span class="path-text">{{
+                          joinPath(item.DEST_PATH, item.DEST_FILENAME)
+                        }}</span>
+                      </span>
+                    </template>
+                    <span>{{ item.DST_BACKEND || '目的' }}</span>
+                    <br />
+                    {{ joinPath(item.DEST_PATH, item.DEST_FILENAME) }}
+                  </NTooltip>
                 </div>
+
                 <div class="history-footer">
                   <span class="history-date">{{ formatDate(item.DATE) }}</span>
                   <NDropdown
@@ -975,7 +1048,7 @@ onMounted(() => {
 
 .history-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(430px, 1fr));
   gap: 0.75rem;
 }
 
@@ -992,11 +1065,23 @@ onMounted(() => {
   box-shadow: 0 4px 16px hsl(var(--foreground) / 10%);
 }
 
-.history-poster-wrapper {
-  flex-shrink: 0;
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 0.5rem;
+.history-poster {
+  position: relative;
+  width: 76px;
+  height: 108px;
+  overflow: hidden;
+}
+
+.history-poster-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background-color: hsl(var(--muted));
+}
+
+.history-poster-fallback {
+  width: 100%;
+  height: 100%;
 }
 
 .history-title {
@@ -1044,21 +1129,62 @@ onMounted(() => {
   border-radius: 0.25rem;
 }
 
-.history-path {
+.path-backend {
+  flex-shrink: 0;
+  padding: 0 0.35rem;
+  margin-right: 0.35rem;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  background-color: hsl(var(--muted));
+  border-radius: 0.25rem;
+}
+
+.path-label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+}
+
+.path-row {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+  min-width: 0;
   margin-bottom: 0.125rem;
   font-family: monospace;
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
 }
 
-.source-icon {
-  color: hsl(var(--destructive));
+.path-icon {
+  flex-shrink: 0;
   opacity: 0.7;
 }
 
-.dest-icon {
+.path-icon-source {
+  color: hsl(var(--destructive));
+}
+
+.path-icon-dest {
   color: hsl(var(--success));
-  opacity: 0.7;
+}
+
+.path-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-path {
+  margin-bottom: 0.125rem;
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
 }
 
 .history-footer {
@@ -1137,9 +1263,9 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
-  .history-poster-wrapper {
-    width: 2.5rem;
-    height: 2.5rem;
+  .history-poster {
+    width: 60px;
+    height: 86px;
   }
 
   .tmdb-poster,
