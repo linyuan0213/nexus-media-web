@@ -162,21 +162,15 @@ const getSideCollapseWidth = computed(() => {
     : sideCollapseWidth;
 });
 
+// 统一桌面与移动端：侧栏折叠状态直接由“折叠菜单”偏好驱动，
+// 移动端不再引入独立抽屉开合，交互与桌面完全一致。
 const activeSidebarCollapse = computed({
-  get: () =>
-    props.isMobile ? !mobileSidebarOpen.value : sidebarCollapse.value,
+  get: () => sidebarCollapse.value,
   set: (value: boolean) => {
-    if (props.isMobile) {
-      mobileSidebarOpen.value = !value;
-      return;
-    }
     sidebarCollapse.value = value;
   },
 });
 
-/**
- * 动态获取侧边区域是否可见
- */
 const sidebarEnableState = computed(() => {
   return !isHeaderNav.value && sidebarEnable.value;
 });
@@ -213,14 +207,9 @@ const getSidebarWidth = computed(() => {
   if ((isHeaderMixedNav.value || isSidebarMixedNav.value) && !isMobile) {
     width = sidebarMixedWidth;
   } else if (activeSidebarCollapse.value) {
-    width = isMobile ? 0 : getSideCollapseWidth.value;
+    width = getSideCollapseWidth.value;
   } else {
-    // 移动端抽屉展开时遵循“折叠菜单”偏好：折叠开启则按折叠宽度渲染（窄图标栏），
-    // 未折叠保持完整宽度；桌面端不变。修复折叠偏好在移动端抽屉内以全宽渲染图标列的错位。
-    width =
-      isMobile && sidebarCollapse.value
-        ? getSideCollapseWidth.value
-        : sidebarWidth;
+    width = sidebarWidth;
   }
   return width;
 });
@@ -266,9 +255,7 @@ const showSidebar = computed(() => {
 /**
  * 遮罩可见性
  */
-const maskVisible = computed(
-  () => !activeSidebarCollapse.value && props.isMobile,
-);
+const maskVisible = computed(() => false);
 
 const mainStyle = computed(() => {
   let width = '100%';
@@ -447,12 +434,11 @@ const sidebarHeaderHeight = computed(() => {
 
 const showHeaderToggleButton = computed(() => {
   return (
-    props.isMobile ||
-    (props.headerToggleSidebarButton &&
-      isSideMode.value &&
-      !isSidebarMixedNav.value &&
-      !isMixedNav.value &&
-      !props.isMobile)
+    props.headerToggleSidebarButton &&
+    isSideMode.value &&
+    !isSidebarMixedNav.value &&
+    !isMixedNav.value &&
+    !props.isMobile
   );
 });
 
@@ -599,9 +585,9 @@ const layoutStaticHeaderTarget = `#${idLayoutStaticHeader}`;
       v-model:extra-collapse="sidebarExtraCollapse"
       v-model:extra-visible="sidebarExtraVisible"
       :show-collapse-button="sidebarCollapsedButton"
-      :show-fixed-button="sidebarFixedButton && (!isMobile || !sidebarCollapse)"
+      :show-fixed-button="sidebarFixedButton && !activeSidebarCollapse"
       :collapse-width="getSideCollapseWidth"
-      :dom-visible="!isMobile"
+      :dom-visible="true"
       :expanded-width="sidebarWidth"
       :extra-width="sidebarExtraWidth"
       :fixed-extra="sidebarExpandOnHover"
