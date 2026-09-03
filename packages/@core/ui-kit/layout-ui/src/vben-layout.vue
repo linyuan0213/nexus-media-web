@@ -215,7 +215,12 @@ const getSidebarWidth = computed(() => {
   } else if (activeSidebarCollapse.value) {
     width = isMobile ? 0 : getSideCollapseWidth.value;
   } else {
-    width = sidebarWidth;
+    // 移动端抽屉展开时遵循“折叠菜单”偏好：折叠开启则按折叠宽度渲染（窄图标栏），
+    // 未折叠保持完整宽度；桌面端不变。修复折叠偏好在移动端抽屉内以全宽渲染图标列的错位。
+    width =
+      isMobile && sidebarCollapse.value
+        ? getSideCollapseWidth.value
+        : sidebarWidth;
   }
   return width;
 });
