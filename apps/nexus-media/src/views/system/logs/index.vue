@@ -455,13 +455,18 @@ onUnmounted(() => {
 <style scoped>
 .log-list {
   max-height: 600px;
-  overflow-y: auto;
+  overflow: auto;
   font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
   font-size: 13px;
   line-height: 1.6;
   background-color: hsl(var(--background));
   border: 1px solid hsl(var(--border));
   border-radius: 8px;
+}
+
+.log-header,
+.log-row {
+  min-width: 640px;
 }
 
 .log-header {
