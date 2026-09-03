@@ -792,7 +792,7 @@ defineExpose({
 
 .switch-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 0.625rem;
 }
 
@@ -800,11 +800,17 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: space-between;
+  min-width: 0;
   padding: 0.625rem 0.75rem;
+  overflow: hidden;
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: 0.5rem;
   transition: all 0.2s ease;
+}
+
+.switch-card :deep(.n-switch) {
+  flex-shrink: 0;
 }
 
 .switch-card:hover {
