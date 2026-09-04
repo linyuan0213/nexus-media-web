@@ -1,452 +1,658 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
-import { useAccessStore, useUserStore } from '@vben/stores';
-
-import { NBadge, NButton, NCard, NEmpty, NInput, NSpin, NTag } from 'naive-ui';
 
 import {
-  enablePluginApi,
-  getPluginsApi,
-  installPluginApi,
-} from '#/api/modules/plugin_framework';
+  NAlert,
+  NButton,
+  NCard,
+  NEmpty,
+  NInput,
+  NModal,
+  NPopconfirm,
+  NSpin,
+  NTag,
+} from 'naive-ui';
+
+import { getPluginsApi } from '#/api/modules/plugin_framework';
+import {
+  addMarketSourceApi,
+  auditMarketPluginApi,
+  deleteMarketSourceApi,
+  getMarketCatalogPluginsApi,
+  getMarketPluginDetailApi,
+  getMarketSourcesApi,
+  installMarketPluginApi,
+  type MarketPluginDetail,
+  type MarketSource,
+  syncMarketSourceApi,
+  updateMarketPluginApi,
+} from '#/api/modules/plugin_market';
 import PageHeader from '#/components/page/PageHeader.vue';
-import { generateAccess } from '#/router/access';
-import { accessRoutes } from '#/router/routes';
 import { useAppNotification } from '#/utils/notify';
 
 const notification = useAppNotification();
-const router = useRouter();
-const loading = ref(false);
-const isRemoteIcon = (icon?: string): boolean =>
-  !!icon && (icon.startsWith('http') || icon.startsWith('/'));
-const plugins = ref<any[]>([]);
-const category = ref('all');
-const source = ref('all');
-const searchQuery = ref('');
-const uploading = ref(false);
-const fileInput = ref<HTMLInputElement | null>(null);
 
-const categories = [
-  { key: 'all', label: '全部', icon: 'lucide:layout-grid' },
-  { key: 'system', label: '系统', icon: 'lucide:cpu' },
-  { key: 'media', label: '媒体', icon: 'lucide:film' },
-  { key: 'download', label: '下载', icon: 'lucide:download' },
-  { key: 'site', label: '站点', icon: 'lucide:globe' },
-  { key: 'tool', label: '工具', icon: 'lucide:wrench' },
-];
+const sources = ref<MarketSource[]>([]);
+const activeSource = ref<MarketSource | null>(null);
+const plugins = ref<{ id: string; path: string }[]>([]);
+const details = ref<Record<string, MarketPluginDetail>>({});
+const installedMap = ref<
+  Record<string, { version: string; installed: boolean }>
+>({});
+const keyword = ref('');
+const syncing = ref(false);
+const loadingList = ref(false);
+const loadingDetails = ref(false);
 
-const sources = [
-  { key: 'all', label: '全部来源' },
-  { key: 'builtin', label: '内置' },
-  { key: 'thirdparty', label: '第三方' },
-];
+const sourceModal = ref(false);
+const addSourceName = ref('');
+const addSourceUrl = ref('');
+const savingSource = ref(false);
+
+const auditModal = ref(false);
+const auditTarget = ref<null | { sourceId: string; pluginId: string }>(null);
+const auditLoading = ref(false);
+const auditData = ref<any>(null);
+const auditError = ref('');
+
+const officialUrl =
+  'https://raw.githubusercontent.com/linyuan0213/nexus-media-plugins/master/catalog.json';
 
 const filteredPlugins = computed(() => {
-  let result = plugins.value;
-  if (category.value !== 'all') {
-    result = result.filter((p) => p.category === category.value);
-  }
-  if (source.value === 'builtin') {
-    result = result.filter((p) => p.is_builtin);
-  } else if (source.value === 'thirdparty') {
-    result = result.filter((p) => !p.is_builtin);
-  }
-  if (searchQuery.value) {
-    const q = searchQuery.value.toLowerCase();
-    result = result.filter(
-      (p) =>
-        p.name?.toLowerCase().includes(q) ||
-        p.description?.toLowerCase().includes(q) ||
-        p.tags?.some((t: string) => t.toLowerCase().includes(q)),
-    );
-  }
-  return result;
+  const q = keyword.value.trim().toLowerCase();
+  if (!q) return plugins.value;
+  return plugins.value.filter((p) => {
+    const d = details.value[p.id];
+    const name = d?.name ?? p.id;
+    const desc = d?.description ?? '';
+    return name.toLowerCase().includes(q) || desc.toLowerCase().includes(q);
+  });
 });
 
-async function refreshSidebarMenus() {
-  const accessStore = useAccessStore();
-  const userStore = useUserStore();
-  const userInfo = userStore.userInfo;
-  if (!userInfo) return;
-  accessStore.setIsAccessChecked(false);
-  const { accessibleMenus, accessibleRoutes } = await generateAccess({
-    roles: userInfo.roles ?? [],
-    router,
-    routes: accessRoutes,
-  });
-  accessStore.setAccessMenus(accessibleMenus);
-  accessStore.setAccessRoutes(accessibleRoutes);
-  accessStore.setIsAccessChecked(true);
+const sortedPlugins = computed(() => {
+  const q = keyword.value.trim().toLowerCase();
+  const list = q ? filteredPlugins.value : plugins.value;
+  return [...list].sort(
+    (a, b) =>
+      Number(Boolean(installedMap.value[a.id])) -
+      Number(Boolean(installedMap.value[b.id])),
+  );
+});
+
+function versionCmp(a: string, b: string): number {
+  const pa = (a || '').replace(/^v/i, '').split('.').map(Number);
+  const pb = (b || '').replace(/^v/i, '').split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d !== 0) return d;
+  }
+  return 0;
 }
 
-async function fetchPlugins() {
-  loading.value = true;
+function pluginState(p: { id: string }) {
+  const local = installedMap.value[p.id];
+  const detail = details.value[p.id];
+  if (!local)
+    return {
+      text: '安装',
+      type: 'primary',
+      disabled: false,
+      loading: false,
+    } as const;
+  const newer = detail && versionCmp(local.version, detail.version) < 0;
+  if (newer)
+    return {
+      text: `更新 ${local.version}→${detail?.version}`,
+      type: 'warning',
+      disabled: false,
+      loading: false,
+    } as const;
+  return {
+    text: `已安装 v${local.version}`,
+    type: 'default',
+    disabled: true,
+    loading: false,
+  } as const;
+}
+
+async function fetchSources(preferId?: string) {
   try {
-    plugins.value = await getPluginsApi();
-  } catch (error: any) {
-    notification.error('获取插件列表失败', {
-      description: error?.message || '',
+    const res = await getMarketSourcesApi();
+    const items = (res?.data?.items ?? res?.data ?? []) as MarketSource[];
+    sources.value = items;
+    const pick =
+      items.find((s) => s.source_id === preferId) ??
+      items.find((s) => s.enabled) ??
+      items[0] ??
+      null;
+    await selectSource(pick, true);
+  } catch (e: any) {
+    notification.error('获取市场源失败', {
+      description: e?.message ?? String(e),
     });
-  } finally {
-    loading.value = false;
   }
 }
 
-async function handleInstall(pluginId: string) {
+async function selectSource(source: MarketSource | null, forceSync = false) {
+  activeSource.value = source;
+  plugins.value = [];
+  details.value = {};
+  if (!source) return;
+  if (forceSync || !source.last_sync_at) {
+    await handleSync(source.source_id);
+  } else {
+    await loadPlugins(source.source_id);
+  }
+}
+
+async function handleSync(sourceId: string) {
+  syncing.value = true;
   try {
-    await enablePluginApi(pluginId);
-    notification.success('安装成功');
-    await fetchPlugins();
-    await refreshSidebarMenus();
-  } catch (error: any) {
-    notification.error('安装失败', { description: error?.message || '' });
-  }
-}
-
-async function handleFileUpload(e: Event) {
-  const input = e.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file) return;
-
-  uploading.value = true;
-  try {
-    await installPluginApi(file);
-    notification.success('安装成功');
-    await fetchPlugins();
-    await refreshSidebarMenus();
-  } catch (error: any) {
-    notification.error('安装失败', { description: error?.message || '' });
+    await syncMarketSourceApi(sourceId);
+    notification.success('同步完成');
+    await loadPlugins(sourceId);
+    const target = sources.value.find((s) => s.source_id === sourceId);
+    if (target) {
+      target.last_sync_at = new Date().toISOString();
+      target.last_error = '';
+    }
+  } catch (e: any) {
+    notification.error('同步失败', { description: e?.message ?? String(e) });
   } finally {
-    uploading.value = false;
-    input.value = '';
+    syncing.value = false;
   }
 }
 
-function getCategoryLabel(key: string) {
-  return categories.find((c) => c.key === key)?.label || key;
+async function loadPlugins(sourceId: string) {
+  loadingList.value = true;
+  try {
+    const res = await getMarketCatalogPluginsApi(sourceId);
+    const items = (res?.data?.items ?? []) as { id: string; path: string }[];
+    plugins.value = items;
+    await loadDetails(sourceId, items);
+  } finally {
+    loadingList.value = false;
+  }
 }
 
-onMounted(fetchPlugins);
+async function loadDetails(sourceId: string, entries: { id: string }[]) {
+  loadingDetails.value = true;
+  try {
+    const loaded: Record<string, MarketPluginDetail> = {};
+    await Promise.all(
+      entries.map(async (e) => {
+        try {
+          loaded[e.id] = await getMarketPluginDetailApi(sourceId, e.id);
+        } catch {
+          /* 单条详情失败忽略 */
+        }
+      }),
+    );
+    details.value = loaded;
+  } finally {
+    loadingDetails.value = false;
+  }
+}
+
+async function refreshInstalled() {
+  try {
+    const res = await getPluginsApi();
+    const items = (res?.data ?? []) as any[];
+    installedMap.value = Object.fromEntries(
+      items.map((p: any) => [
+        p.id,
+        { version: p.version ?? '', installed: true },
+      ]),
+    );
+  } catch {
+    installedMap.value = {};
+  }
+}
+
+async function openInstall(p: { id: string }) {
+  const sourceId = activeSource.value?.source_id;
+  if (!sourceId) return;
+  auditTarget.value = { sourceId, pluginId: p.id };
+  auditData.value = null;
+  auditError.value = '';
+  auditModal.value = true;
+  auditLoading.value = true;
+  try {
+    auditData.value = await auditMarketPluginApi(sourceId, p.id);
+  } catch (e: any) {
+    auditError.value = e?.message ?? String(e);
+  } finally {
+    auditLoading.value = false;
+  }
+}
+
+async function confirmInstall() {
+  if (!auditTarget.value) return;
+  auditModal.value = false;
+  try {
+    const res = await installMarketPluginApi(
+      auditTarget.value.sourceId,
+      auditTarget.value.pluginId,
+      true,
+    );
+    notification.success(`安装成功：版本 ${res?.data?.version ?? ''}`);
+    await refreshInstalled();
+  } catch (e: any) {
+    notification.error('安装失败', { description: e?.message ?? String(e) });
+  }
+}
+
+async function handleUpdate(pluginId: string) {
+  const sourceId = activeSource.value?.source_id;
+  if (!sourceId) return;
+  try {
+    const res = await updateMarketPluginApi(sourceId, pluginId);
+    notification.success(`更新成功：已更新到 ${res?.data?.version ?? ''}`);
+    await refreshInstalled();
+  } catch (e: any) {
+    notification.error('更新失败', { description: e?.message ?? String(e) });
+  }
+}
+
+async function openAddSource(prefillUrl = false) {
+  addSourceName.value = '';
+  addSourceUrl.value = prefillUrl ? officialUrl : '';
+  sourceModal.value = true;
+}
+
+async function confirmAddSource() {
+  if (!addSourceName.value.trim() || !addSourceUrl.value.trim()) {
+    notification.warning('请填写名称与 URL');
+    return;
+  }
+  savingSource.value = true;
+  try {
+    const res = await addMarketSourceApi({
+      name: addSourceName.value.trim(),
+      url: addSourceUrl.value.trim(),
+    });
+    sourceModal.value = false;
+    notification.success('市场源已添加');
+    await fetchSources(res?.data?.source_id);
+  } catch (e: any) {
+    notification.error('添加失败', { description: e?.message ?? String(e) });
+  } finally {
+    savingSource.value = false;
+  }
+}
+
+async function removeSource(sourceId: string) {
+  try {
+    await deleteMarketSourceApi(sourceId);
+    notification.success('已移除市场源');
+    await fetchSources();
+  } catch (e: any) {
+    notification.error('移除失败', { description: e?.message ?? String(e) });
+  }
+}
+
+onMounted(async () => {
+  await Promise.all([fetchSources(), refreshInstalled()]);
+});
 </script>
 
 <template>
-  <div class="p-4">
-    <PageHeader title="插件市场">
+  <div class="market-page">
+    <PageHeader title="插件市场" subtitle="从远程源发现、安装与更新插件">
       <template #actions>
-        <NButton size="small" :loading="uploading" @click="fileInput?.click()">
-          <template #icon>
-            <IconifyIcon icon="lucide:upload" class="h-4 w-4" />
-          </template>
-          安装本地插件
+        <NButton quaternary @click="openAddSource(true)">
+          <template #icon><IconifyIcon icon="lucide:github" /></template>
+          添加官方源
         </NButton>
-        <input
-          ref="fileInput"
-          type="file"
-          accept=".zip"
-          class="hidden"
-          @change="handleFileUpload"
-        />
+        <NButton type="primary" @click="openAddSource(false)">
+          <template #icon><IconifyIcon icon="lucide:plus" /></template>
+          管理源
+        </NButton>
       </template>
     </PageHeader>
 
-    <!-- 搜索和筛选 -->
-    <div class="mb-6 flex flex-wrap items-center gap-3">
-      <NInput
-        v-model:value="searchQuery"
-        placeholder="搜索插件名称、描述或标签..."
-        class="w-full sm:w-72"
-        clearable
-      >
-        <template #prefix>
-          <IconifyIcon
-            icon="lucide:search"
-            class="h-4 w-4 text-muted-foreground"
-          />
-        </template>
-      </NInput>
-
-      <div class="flex flex-wrap gap-2">
-        <button
-          v-for="cat in categories"
-          :key="cat.key"
-          class="market-cat-btn"
-          :class="{ active: category === cat.key }"
-          @click="category = cat.key"
-        >
-          <IconifyIcon :icon="cat.icon" class="h-3.5 w-3.5" />
-          <span>{{ cat.label }}</span>
-        </button>
-      </div>
-
-      <div class="flex flex-wrap gap-2 border-l border-border pl-4">
-        <button
+    <NCard class="source-bar" :bordered="false">
+      <div class="source-list">
+        <NButton
           v-for="src in sources"
-          :key="src.key"
-          class="market-cat-btn"
-          :class="{ active: source === src.key }"
-          @click="source = src.key"
+          :key="src.source_id"
+          class="source-chip"
+          :type="
+            activeSource?.source_id === src.source_id ? 'primary' : 'default'
+          "
+          :disabled="!src.enabled"
+          @click="selectSource(src)"
         >
-          <span>{{ src.label }}</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- 插件卡片网格 -->
-    <NSpin :show="loading">
-      <div
-        v-if="filteredPlugins.length > 0"
-        class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
-      >
-        <NCard
-          v-for="plugin in filteredPlugins"
-          :key="plugin.id"
-          size="small"
-          class="market-card"
-        >
-          <div class="market-card-body">
-            <!-- 图标和标题区 -->
-            <div class="flex items-start gap-3">
-              <div
-                class="market-icon"
-                :style="{
-                  backgroundColor: plugin.color
-                    ? `${plugin.color}18`
-                    : 'hsl(var(--primary) / 0.08)',
-                  color: plugin.color || 'hsl(var(--primary))',
-                }"
-              >
-                <img
-                  v-if="isRemoteIcon(plugin.icon)"
-                  :src="plugin.icon"
-                  class="h-6 w-6 object-contain"
-                  @error="($event.target as HTMLElement).style.display = 'none'"
-                />
-                <IconifyIcon
-                  v-else
-                  :icon="plugin.icon || 'lucide:puzzle'"
-                  class="h-6 w-6"
-                />
-              </div>
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center justify-between gap-2">
-                  <span class="market-name truncate">{{ plugin.name }}</span>
-                  <NBadge
-                    v-if="plugin.enabled"
-                    value="已启用"
-                    type="success"
-                    size="small"
-                  />
-                </div>
-                <div class="market-version">
-                  v{{ plugin.version }}
-                  <NTag
-                    v-if="plugin.is_builtin"
-                    size="tiny"
-                    :bordered="false"
-                    type="success"
-                    class="ml-1"
-                  >
-                    内置
-                  </NTag>
-                  <NTag
-                    v-else
-                    size="tiny"
-                    :bordered="false"
-                    type="warning"
-                    class="ml-1"
-                  >
-                    第三方
-                  </NTag>
-                </div>
-              </div>
-            </div>
-
-            <!-- 描述 -->
-            <div class="market-desc">
-              {{ plugin.description || '暂无描述' }}
-            </div>
-
-            <!-- 标签 -->
-            <div class="market-tags">
-              <NTag
-                v-for="tag in plugin.tags || []"
-                :key="tag"
-                size="tiny"
-                :bordered="false"
-                class="market-tag"
-              >
-                {{ tag }}
-              </NTag>
-              <NTag
-                size="tiny"
-                :bordered="false"
-                type="info"
-                class="market-tag"
-              >
-                {{ getCategoryLabel(plugin.category) }}
-              </NTag>
-            </div>
-
-            <!-- 底部操作 -->
-            <div class="market-footer">
-              <span class="market-author">{{
-                plugin.author || '未知作者'
-              }}</span>
-              <NButton
-                v-if="!plugin.installed"
-                size="tiny"
-                type="primary"
-                @click="handleInstall(plugin.id)"
-              >
-                安装
+          <template #icon><IconifyIcon icon="lucide:store" /></template>
+          {{ src.name }}
+        </NButton>
+        <div v-if="!sources.length" class="source-empty">
+          <NEmpty description="还没有市场源，点右上角添加">
+            <template #extra>
+              <NButton size="small" type="primary" @click="openAddSource(true)">
+                添加官方源
               </NButton>
+            </template>
+          </NEmpty>
+        </div>
+      </div>
+      <div v-if="activeSource" class="source-actions">
+        <NButton
+          size="small"
+          :loading="syncing"
+          @click="handleSync(activeSource.source_id)"
+        >
+          <template #icon><IconifyIcon icon="lucide:refresh-cw" /></template>
+          同步
+        </NButton>
+        <NPopconfirm @positive-click="removeSource(activeSource.source_id)">
+          <template #trigger>
+            <NButton size="small" type="error" quaternary>
+              <template #icon><IconifyIcon icon="lucide:trash-2" /></template>
+            </NButton>
+          </template>
+          移除该市场源？
+        </NPopconfirm>
+        <NSpin :show="syncing" size="small" />
+      </div>
+      <div v-if="activeSource?.last_error" class="source-error">
+        <NAlert type="warning" :show-icon="true"
+          >
+上次同步失败：{{ activeSource.last_error }}
+</NAlert
+        >
+      </div>
+    </NCard>
+
+    <NCard class="search-bar" :bordered="false">
+      <NInput
+        v-model:value="keyword"
+        clearable
+        placeholder="搜索插件名称 / 描述…"
+      >
+        <template #prefix><IconifyIcon icon="lucide:search" /></template>
+      </NInput>
+    </NCard>
+
+    <NSpin :show="loadingList || loadingDetails">
+      <div v-if="sortedPlugins.length" class="plugin-grid">
+        <NCard
+          v-for="p in sortedPlugins"
+          :key="p.id"
+          class="plugin-card"
+          :bordered="true"
+        >
+          <div class="plugin-head">
+            <div class="plugin-name-wrap">
+              <span class="plugin-name">{{ details[p.id]?.name ?? p.id }}</span>
               <NTag
-                v-else-if="!plugin.enabled"
-                size="tiny"
+                v-if="details[p.id]?.category"
+                size="small"
                 :bordered="false"
-                type="default"
               >
-                已安装
+                {{ details[p.id]?.category }}
               </NTag>
             </div>
+            <span class="plugin-version"
+              >v{{ details[p.id]?.version ?? '…' }}</span
+            >
+          </div>
+          <p class="plugin-desc">{{ details[p.id]?.description ?? '…' }}</p>
+          <div class="plugin-tags">
+            <NTag
+              v-for="tag in (details[p.id]?.tags ?? []).slice(0, 3)"
+              :key="tag"
+              size="small"
+              type="info"
+              :bordered="false"
+            >
+              {{ tag }}
+            </NTag>
+          </div>
+          <div class="plugin-foot">
+            <span class="plugin-meta">{{
+              details[p.id]?.license ?? '未知许可'
+            }}</span>
+            <NButton
+              v-if="!installedMap[p.id]"
+              size="small"
+              type="primary"
+              @click="openInstall(p)"
+            >
+              安装
+            </NButton>
+            <NButton
+              v-else-if="pluginState(p).text.startsWith('更新')"
+              size="small"
+              type="warning"
+              @click="handleUpdate(p.id)"
+            >
+              {{ pluginState(p).text }}
+            </NButton>
+            <NTag v-else size="small" type="success" :bordered="false"
+              >
+已安装
+</NTag
+            >
           </div>
         </NCard>
       </div>
-
-      <!-- 空状态 -->
-      <div v-else class="market-empty">
-        <NEmpty description="暂无插件">
-          <template #icon>
-            <IconifyIcon
-              icon="lucide:puzzle"
-              class="h-12 w-12 text-muted-foreground/40"
-            />
-          </template>
-          <template #extra>
-            <div class="mt-2 text-sm text-muted-foreground">
-              点击右上角「安装本地插件」上传插件包
-            </div>
-          </template>
-        </NEmpty>
+      <div v-else-if="!loadingList && activeSource" class="empty-state">
+        <NEmpty description="该源暂无可安装插件" />
+      </div>
+      <div v-else-if="!activeSource" class="empty-state">
+        <NEmpty description="请先添加并同步一个市场源" />
       </div>
     </NSpin>
+
+    <NModal
+      v-model:show="sourceModal"
+      preset="card"
+      title="添加市场源"
+      style="width: 520px"
+    >
+      <div class="modal-form">
+        <NInput
+          v-model:value="addSourceName"
+          placeholder="源名称（如：官方插件源）"
+        />
+        <NInput v-model:value="addSourceUrl" placeholder="catalog.json URL" />
+        <NButton
+          type="primary"
+          block
+          :loading="savingSource"
+          @click="confirmAddSource"
+        >
+          添加
+        </NButton>
+      </div>
+    </NModal>
+
+    <NModal
+      v-model:show="auditModal"
+      preset="card"
+      title="安装预检（SAST）"
+      style="width: 640px"
+    >
+      <NSpin :show="auditLoading">
+        <div v-if="auditData" class="audit-result">
+          <NAlert
+            :type="auditData?.data?.report?.passed ? 'success' : 'error'"
+            :title="
+              auditData?.data?.report?.passed ? '扫描通过' : '扫描发现高危问题'
+            "
+          >
+            <template #default>
+              sha256:{{
+                auditData?.data?.report?.sha256_ok ? '匹配' : '不匹配'
+              }}
+              · 文件数 {{ auditData?.data?.report?.file_count }}
+            </template>
+          </NAlert>
+          <template v-if="(auditData?.data?.report?.findings ?? []).length">
+            <div
+              v-for="f in auditData.data.report.findings"
+              :key="f.rule"
+              class="audit-finding"
+            >
+              <NTag
+                size="small"
+                :type="f.severity === 'block' ? 'error' : 'warning'"
+              >
+                {{ f.rule }}
+              </NTag>
+              <span>{{ f.file || f.detail }}</span>
+            </div>
+          </template>
+        </div>
+        <NAlert v-if="auditError" type="error" :title="auditError" />
+        <div v-if="auditData?.data?.report?.passed" class="audit-actions">
+          <NButton type="primary" block @click="confirmInstall"
+            >
+确认安装
+</NButton
+          >
+        </div>
+      </NSpin>
+    </NModal>
   </div>
 </template>
 
 <style scoped>
-.market-cat-btn {
-  display: inline-flex;
-  gap: 0.375rem;
-  align-items: center;
-  padding: 0.375rem 0.75rem;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: hsl(var(--muted-foreground));
-  cursor: pointer;
-  background-color: hsl(var(--muted) / 20%);
-  border: 1px solid transparent;
-  border-radius: 0.5rem;
-  transition: all 0.2s ease;
-}
-
-.market-cat-btn:hover {
-  color: hsl(var(--foreground));
-  background-color: hsl(var(--muted) / 35%);
-}
-
-.market-cat-btn.active {
-  color: hsl(var(--primary));
-  background-color: hsl(var(--primary) / 10%);
-  border-color: hsl(var(--primary) / 25%);
-}
-
-.market-card {
-  border: 1px solid hsl(var(--border) / 60%);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.market-card:hover {
-  border-color: hsl(var(--border));
-  box-shadow: 0 8px 24px hsl(var(--border) / 35%);
-  transform: translateY(-3px);
-}
-
-.market-card-body {
+.market-page {
   display: flex;
   flex-direction: column;
-  gap: 0.875rem;
+  gap: 0.5rem;
 }
 
-.market-icon {
+.source-bar {
   display: flex;
-  flex-shrink: 0;
+  gap: 0.5rem;
   align-items: center;
-  justify-content: center;
-  width: 3rem;
-  height: 3rem;
-  border-radius: 0.75rem;
 }
 
-.market-name {
-  font-size: 1rem;
+.source-list {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.source-empty {
+  width: 100%;
+  padding: 0.25rem 0;
+}
+
+.source-actions {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.source-error {
+  width: 100%;
+}
+
+.plugin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 0.75rem;
+  padding: 0.25rem 0;
+}
+
+.plugin-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.plugin-head {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.plugin-name-wrap {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.plugin-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-weight: 600;
-  line-height: 1.4;
-  color: hsl(var(--card-foreground));
+  white-space: nowrap;
 }
 
-.market-version {
-  margin-top: 0.125rem;
+.plugin-version {
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
+  white-space: nowrap;
 }
 
-.market-desc {
+.plugin-desc {
   display: -webkit-box;
-  min-height: 2.5rem;
+  min-height: 2.4em;
+  margin: 0.5rem 0;
   overflow: hidden;
   -webkit-line-clamp: 2;
-  font-size: 0.8125rem;
-  line-height: 1.5;
+  font-size: 0.85rem;
   color: hsl(var(--muted-foreground));
   -webkit-box-orient: vertical;
 }
 
-.market-tags {
+.plugin-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
 }
 
-:deep(.market-tag) {
-  height: 1.375rem;
-  padding: 0 0.375rem;
-  font-size: 0.6875rem;
-  color: hsl(var(--muted-foreground));
-  background-color: hsl(var(--muted) / 25%);
-}
-
-.market-footer {
+.plugin-foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 0.75rem;
-  margin-top: 0.25rem;
-  border-top: 1px solid hsl(var(--border) / 40%);
 }
 
-.market-author {
+.plugin-meta {
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
 }
 
-.market-empty {
+.empty-state {
+  padding: 3rem 0;
+}
+
+.modal-form {
   display: flex;
   flex-direction: column;
+  gap: 0.75rem;
+}
+
+.audit-result {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.audit-finding {
+  display: flex;
+  gap: 0.5rem;
   align-items: center;
-  justify-content: center;
-  padding: 4rem 1rem;
+  font-size: 0.85rem;
+}
+
+.audit-actions {
+  margin-top: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .source-actions {
+    width: 100%;
+  }
 }
 </style>
