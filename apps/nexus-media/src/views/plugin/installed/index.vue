@@ -48,9 +48,7 @@ const TAG_COLOR_VARS = [
   '--tag-edition',
 ] as const;
 
-function tagStyle(
-  text?: string,
-): { color: string; backgroundColor: string } {
+function tagStyle(text?: string): { color: string; backgroundColor: string } {
   let h = 0;
   for (const ch of text ?? '') h = (h * 31 + (ch.codePointAt(0) ?? 0)) >>> 0;
   const v = TAG_COLOR_VARS[h % TAG_COLOR_VARS.length];
@@ -265,7 +263,10 @@ onMounted(fetchPlugins);
                       v-if="plugin.is_builtin"
                       size="tiny"
                       :bordered="false"
-                      style="color: hsl(var(--tag-primary)); background-color: hsl(var(--tag-primary) / 10%)"
+                      style="
+                        color: hsl(var(--tag-primary));
+                        background-color: hsl(var(--tag-primary) / 10%);
+                      "
                       class="flex-shrink-0"
                     >
                       内置
@@ -274,7 +275,10 @@ onMounted(fetchPlugins);
                       v-else
                       size="tiny"
                       :bordered="false"
-                      style="color: hsl(var(--tag-default)); background-color: hsl(var(--tag-default) / 10%)"
+                      style="
+                        color: hsl(var(--tag-default));
+                        background-color: hsl(var(--tag-default) / 10%);
+                      "
                       class="flex-shrink-0"
                     >
                       第三方
@@ -408,7 +412,10 @@ onMounted(fetchPlugins);
                   v-if="plugin.is_builtin"
                   size="tiny"
                   :bordered="false"
-                  style="color: hsl(var(--tag-primary)); background-color: hsl(var(--tag-primary) / 10%)"
+                  style="
+                    color: hsl(var(--tag-primary));
+                    background-color: hsl(var(--tag-primary) / 10%);
+                  "
                   class="ml-1 flex-shrink-0"
                 >
                   内置
@@ -417,7 +424,10 @@ onMounted(fetchPlugins);
                   v-else
                   size="tiny"
                   :bordered="false"
-                  style="color: hsl(var(--tag-default)); background-color: hsl(var(--tag-default) / 10%)"
+                  style="
+                    color: hsl(var(--tag-default));
+                    background-color: hsl(var(--tag-default) / 10%);
+                  "
                   class="ml-1 flex-shrink-0"
                 >
                   第三方
@@ -691,9 +701,9 @@ onMounted(fetchPlugins);
 
 .list-row-name {
   display: flex;
+  align-items: center;
   min-width: 0;
   overflow: hidden;
-  align-items: center;
   font-size: 0.9375rem;
   font-weight: 600;
   color: hsl(var(--card-foreground));

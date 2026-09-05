@@ -56,27 +56,27 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 /** 仅这些「常用」中文标签会进入分类筛选（数据中出现才显示，其余细标签不展示） */
 const COMMON_TAGS = new Set([
-  '系统',
-  '媒体',
-  '下载',
-  '站点',
-  '工具',
-  '消息',
-  '通知',
-  '订阅',
-  '自动化',
-  '定时',
-  '网络',
-  '下载器',
-  '种子',
-  '刮削',
-  '媒体库',
-  '字幕',
-  '元数据',
-  '搜索',
-  '同步',
   'AI',
   'RSS',
+  '下载',
+  '下载器',
+  '元数据',
+  '刮削',
+  '同步',
+  '媒体',
+  '媒体库',
+  '字幕',
+  '定时',
+  '工具',
+  '搜索',
+  '消息',
+  '种子',
+  '站点',
+  '系统',
+  '网络',
+  '自动化',
+  '订阅',
+  '通知',
 ]);
 
 function categoryLabel(raw?: string): string {
@@ -100,9 +100,7 @@ function hashText(text: string): number {
   return h;
 }
 
-function tagStyle(
-  text?: string,
-): { color: string; backgroundColor: string } {
+function tagStyle(text?: string): { color: string; backgroundColor: string } {
   const v = TAG_COLOR_VARS[hashText(text ?? '') % TAG_COLOR_VARS.length];
   return {
     color: `hsl(var(${v}))`,
@@ -110,9 +108,10 @@ function tagStyle(
   };
 }
 
-function sourceStyle(
-  isBuiltin: boolean,
-): { color: string; backgroundColor: string } {
+function sourceStyle(isBuiltin: boolean): {
+  color: string;
+  backgroundColor: string;
+} {
   const v = isBuiltin ? '--tag-primary' : '--tag-default';
   return {
     color: `hsl(var(${v}))`,
@@ -182,7 +181,7 @@ const sources = ref<MarketSource[]>([]);
 const remoteList = ref<RemoteItem[]>([]);
 const localPool = ref<Record<string, LocalItem>>({});
 const sourceFilter = ref('all');
-const stateFilter = ref<'all' | 'uninstalled' | 'updatable' | 'installed'>(
+const stateFilter = ref<'all' | 'installed' | 'uninstalled' | 'updatable'>(
   'all',
 );
 const categoryFilter = ref('all');
@@ -269,10 +268,7 @@ const tagFacets = computed<string[]>(() => {
   }
   return [...stat.entries()]
     .filter(([, s]) => s.isCategory || s.count >= 2)
-    .sort(
-      (a, b) =>
-        b[1].count - a[1].count || a[0].localeCompare(b[0], 'zh'),
-    )
+    .sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0], 'zh'))
     .map(([label]) => label);
 });
 
@@ -335,8 +331,10 @@ function stateOf(item: ViewItem): {
   if (!local) return { installed: false, updatable: false };
   const remoteNewer =
     item.remote &&
-    versionCmp(local.version, (item.info as MarketPluginDetail)?.version ?? '') <
-      0;
+    versionCmp(
+      local.version,
+      (item.info as MarketPluginDetail)?.version ?? '',
+    ) < 0;
   return remoteNewer
     ? {
         installed: true,
@@ -569,7 +567,9 @@ async function quickAddOfficial() {
     notification.success('已添加官方源，正在同步…');
     await fetchSources(res?.source_id);
   } catch (e: any) {
-    notification.error('添加官方源失败', { description: e?.message ?? String(e) });
+    notification.error('添加官方源失败', {
+      description: e?.message ?? String(e),
+    });
   }
 }
 
@@ -677,7 +677,7 @@ onMounted(async () => {
         </button>
       </div>
 
-      <div class="market-filter-divider" />
+      <div class="market-filter-divider"></div>
 
       <div class="market-filter-group">
         <button
@@ -687,11 +687,7 @@ onMounted(async () => {
           :class="{ active: sourceFilter === opt.key }"
           @click="sourceFilter = sourceFilter === opt.key ? 'all' : opt.key"
         >
-          <IconifyIcon
-            v-if="opt.icon"
-            :icon="opt.icon"
-            class="h-3.5 w-3.5"
-          />
+          <IconifyIcon v-if="opt.icon" :icon="opt.icon" class="h-3.5 w-3.5" />
           <span>{{ opt.label }}</span>
         </button>
         <NButton
@@ -709,7 +705,7 @@ onMounted(async () => {
         </NButton>
       </div>
 
-      <div class="market-filter-divider" />
+      <div class="market-filter-divider"></div>
 
       <div class="market-filter-group">
         <button
@@ -1155,8 +1151,8 @@ onMounted(async () => {
 }
 
 .modal-section + .modal-section {
-  margin-top: 1.25rem;
   padding-top: 1.25rem;
+  margin-top: 1.25rem;
   border-top: 1px solid hsl(var(--border));
 }
 
@@ -1212,15 +1208,15 @@ onMounted(async () => {
 
 .source-manager-actions {
   display: flex;
-  gap: 0.375rem;
   flex-shrink: 0;
+  gap: 0.375rem;
 }
 
 .source-manager-empty {
   padding: 1.5rem 0;
-  text-align: center;
   font-size: 0.875rem;
   color: hsl(var(--muted-foreground));
+  text-align: center;
 }
 
 .modal-form {
@@ -1249,8 +1245,8 @@ onMounted(async () => {
 
 @media (min-width: 640px) {
   .market-search {
-    width: 18rem;
     flex-shrink: 0;
+    width: 18rem;
   }
 }
 
@@ -1261,8 +1257,8 @@ onMounted(async () => {
   }
 
   .source-manager-actions {
-    width: 100%;
     justify-content: flex-end;
+    width: 100%;
   }
 }
 </style>
