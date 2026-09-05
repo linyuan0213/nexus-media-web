@@ -38,6 +38,7 @@ const autoScroll = ref(true);
 const listRef = ref<HTMLDivElement | null>(null);
 
 const searchTotal = ref(0);
+const searchTruncated = ref(false);
 const searchPage = ref(1);
 
 const sseRef = ref<EventSource | null>(null);
@@ -140,6 +141,7 @@ async function fetchSearch(page = 1) {
     const items = res?.items ?? [];
     logs.value = page <= 1 ? items : [...logs.value, ...items];
     searchTotal.value = res?.total ?? items.length;
+    searchTruncated.value = Boolean(res?.truncated);
     searchPage.value = page;
     collectSources(items);
   } catch (error: any) {
@@ -399,8 +401,12 @@ onUnmounted(() => {
         </template>
       </NInput>
       <span class="text-xs" style="color: hsl(var(--muted-foreground))">
-        共 {{ isFiltering ? searchTotal : logs.length }} 条
-        <template v-if="isFiltering">（已搜索全部日志）</template>
+        <template v-if="isFiltering">
+          {{ searchTruncated ? '≥' : '共' }} {{ searchTotal }} 条
+          <template v-if="searchTruncated">（结果过多，仅展示前 20000 条）</template>
+          <template v-else>（已搜索全部日志）</template>
+        </template>
+        <template v-else>共 {{ logs.length }} 条</template>
       </span>
       <NButton
         v-if="hasMore"

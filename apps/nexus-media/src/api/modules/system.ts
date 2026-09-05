@@ -33,6 +33,7 @@ export namespace SystemApi {
     total: number;
     page: number;
     page_size: number;
+    truncated?: boolean;
   }
 
   export interface LogSearchParams {
