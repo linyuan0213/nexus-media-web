@@ -162,15 +162,21 @@ const getSideCollapseWidth = computed(() => {
     : sideCollapseWidth;
 });
 
-// 统一桌面与移动端：侧栏折叠状态直接由“折叠菜单”偏好驱动，
-// 移动端不再引入独立抽屉开合，交互与桌面完全一致。
 const activeSidebarCollapse = computed({
-  get: () => sidebarCollapse.value,
+  get: () =>
+    props.isMobile ? !mobileSidebarOpen.value : sidebarCollapse.value,
   set: (value: boolean) => {
+    if (props.isMobile) {
+      mobileSidebarOpen.value = !value;
+      return;
+    }
     sidebarCollapse.value = value;
   },
 });
 
+/**
+ * 动态获取侧边区域是否可见
+ */
 const sidebarEnableState = computed(() => {
   return !isHeaderNav.value && sidebarEnable.value;
 });
@@ -207,7 +213,7 @@ const getSidebarWidth = computed(() => {
   if ((isHeaderMixedNav.value || isSidebarMixedNav.value) && !isMobile) {
     width = sidebarMixedWidth;
   } else if (activeSidebarCollapse.value) {
-    width = getSideCollapseWidth.value;
+    width = isMobile ? 0 : getSideCollapseWidth.value;
   } else {
     width = sidebarWidth;
   }
@@ -255,7 +261,9 @@ const showSidebar = computed(() => {
 /**
  * 遮罩可见性
  */
-const maskVisible = computed(() => false);
+const maskVisible = computed(
+  () => !activeSidebarCollapse.value && props.isMobile,
+);
 
 const mainStyle = computed(() => {
   let width = '100%';
@@ -434,11 +442,12 @@ const sidebarHeaderHeight = computed(() => {
 
 const showHeaderToggleButton = computed(() => {
   return (
-    props.headerToggleSidebarButton &&
-    isSideMode.value &&
-    !isSidebarMixedNav.value &&
-    !isMixedNav.value &&
-    !props.isMobile
+    props.isMobile ||
+    (props.headerToggleSidebarButton &&
+      isSideMode.value &&
+      !isSidebarMixedNav.value &&
+      !isMixedNav.value &&
+      !props.isMobile)
   );
 });
 
@@ -585,9 +594,9 @@ const layoutStaticHeaderTarget = `#${idLayoutStaticHeader}`;
       v-model:extra-collapse="sidebarExtraCollapse"
       v-model:extra-visible="sidebarExtraVisible"
       :show-collapse-button="sidebarCollapsedButton"
-      :show-fixed-button="sidebarFixedButton && !activeSidebarCollapse"
+      :show-fixed-button="sidebarFixedButton"
       :collapse-width="getSideCollapseWidth"
-      :dom-visible="!isMobile || sidebarExpandOnHover"
+      :dom-visible="!isMobile"
       :expanded-width="sidebarWidth"
       :extra-width="sidebarExtraWidth"
       :fixed-extra="sidebarExpandOnHover"

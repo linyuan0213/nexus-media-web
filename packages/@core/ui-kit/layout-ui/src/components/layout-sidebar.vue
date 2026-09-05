@@ -364,7 +364,7 @@ onUnmounted(() => {
   ></div>
   <Transition name="mobile-sidebar">
     <aside
-      v-if="true"
+      v-if="!isMobile || !collapse"
       ref="asideRef"
       data-layout-region="sidebar"
       :inert="!show || width === 0"
