@@ -1,0 +1,21 @@
+# Nexus Media Web 组装镜像（前端产物由 CI 原生构建后随构建上下文提供，
+# 避免 buildx 多架构下在 QEMU 仿真中编译前端导致卡死）
+FROM nginx:stable-alpine AS production
+
+RUN apk add --no-cache gettext
+
+RUN echo "types { application/javascript js mjs; }" > /etc/nginx/conf.d/mjs.conf \
+    && rm -rf /etc/nginx/conf.d/default.conf
+
+COPY apps/nexus-media/dist /usr/share/nginx/html
+
+COPY scripts/deploy/nginx.conf.template /etc/nginx/nginx.conf.template
+COPY scripts/deploy/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENV BACKEND_HOST=nexus-media
+ENV BACKEND_PORT=8080
+
+EXPOSE 8080
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
