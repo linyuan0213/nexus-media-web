@@ -5,6 +5,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 
 import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 
+import { useChartTheme } from '#/composables/useChartTheme';
 import { useSiteStats } from '#/composables/useSiteStats';
 import { CHART_PALETTE } from '#/constants/chartColors';
 
@@ -15,6 +16,7 @@ interface SeriesItem {
 }
 
 interface Props {
+  colorMap?: Record<string, string>;
   dates: string[];
   focusSites?: string[];
   mode?: 'download' | 'upload';
@@ -23,6 +25,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  colorMap: () => ({}),
   focusSites: () => [],
   mode: 'upload',
   selectedSite: '',
@@ -33,14 +36,22 @@ const emit = defineEmits<{
 }>();
 
 const { formatSize, getChartDataKey } = useSiteStats();
+const { legendColor, mutedColor, textColor, isDark, borderColor } =
+  useChartTheme();
 
 const chartRef = ref<EchartsUIType>();
 const { getChartInstance, renderEcharts, updateData } = useEcharts(chartRef);
 
-const TEXT_COLOR = 'hsl(var(--card-foreground))';
+function truncateName(name: string): string {
+  return name.length > 8 ? `${name.slice(0, 8)}…` : name;
+}
 
-function getColor(index: number): string {
-  return CHART_PALETTE[index % CHART_PALETTE.length] || CHART_PALETTE[0]!;
+function getColor(name: string, index: number): string {
+  return (
+    props.colorMap[name] ??
+    CHART_PALETTE[index % CHART_PALETTE.length] ??
+    CHART_PALETTE[0]!
+  );
 }
 
 function isDimmed(name: string): boolean {
@@ -52,8 +63,12 @@ const activeSeries = computed(() => {
     const dimmed = isDimmed(s.name);
     return {
       data: props.mode === 'upload' ? s.upload : s.download,
-      itemStyle: { color: getColor(idx), opacity: dimmed ? 0.15 : 1 },
-      lineStyle: { opacity: dimmed ? 0.15 : 1, width: 2 },
+      itemStyle: { color: getColor(s.name, idx), opacity: dimmed ? 0.15 : 1 },
+      lineStyle: {
+        color: getColor(s.name, idx),
+        opacity: dimmed ? 0.15 : 1,
+        width: 2,
+      },
       name: s.name,
       showSymbol: true,
       smooth: true,
@@ -80,10 +95,11 @@ function buildOption() {
     },
     legend: {
       bottom: 0,
+      formatter: (name: string) => truncateName(name),
       itemGap: 12,
       left: 'center',
       selected,
-      textStyle: { fontSize: 11 },
+      textStyle: { color: legendColor.value, fontSize: 11 },
       type: 'scroll' as const,
     },
     series: activeSeries.value,
@@ -96,11 +112,11 @@ function buildOption() {
           ? list.filter((p: any) => p.seriesName === props.selectedSite)
           : list;
         if (items.length === 0) return '';
-        let html = `<div style="font-weight:600;margin-bottom:4px;color:${TEXT_COLOR}">${items[0]?.name}</div>`;
+        let html = `<div style="font-weight:600;margin-bottom:4px;color:${textColor.value}">${items[0]?.name}</div>`;
         items.forEach((p: any) => {
           html += `<div style="display:flex;align-items:center;gap:6px">
             <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color}"></span>
-            <span style="color:${TEXT_COLOR}">${p.seriesName}: ${formatSize(p.value)}</span>
+            <span style="color:${textColor.value}">${p.seriesName}: ${formatSize(p.value)}</span>
           </div>`;
         });
         return html;
@@ -109,6 +125,7 @@ function buildOption() {
     },
     xAxis: {
       axisLabel: {
+        color: mutedColor.value,
         fontSize: 10,
         rotate: 30,
       },
@@ -119,6 +136,7 @@ function buildOption() {
     },
     yAxis: {
       axisLabel: {
+        color: mutedColor.value,
         fontSize: 10,
         formatter: (v: number) => formatSize(v),
       },
@@ -126,7 +144,7 @@ function buildOption() {
       axisTick: { show: false },
       splitLine: {
         lineStyle: {
-          color: 'hsl(var(--border) / 0.5)',
+          color: borderColor.value,
           type: 'dashed' as const,
         },
       },
@@ -205,6 +223,8 @@ watch(
     props.mode,
     props.selectedSite,
     props.focusSites,
+    props.colorMap,
+    isDark.value,
   ],
   (newVal) => {
     const key = getChartDataKey(newVal);

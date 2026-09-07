@@ -1,11 +1,12 @@
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
 import { NButton, NCard, NEmpty, NPopover, NSelect, NTag } from 'naive-ui';
 
 import { type StatisticsItem, useSiteStats } from '#/composables/useSiteStats';
+import { CHART_PALETTE } from '#/constants/chartColors';
 
 import SiteDailyLineChart from './SiteDailyLineChart.vue';
 import SiteHistoryTrendChart from './SiteHistoryTrendChart.vue';
@@ -40,9 +41,35 @@ const selectedSite = ref('');
 /** 近30天趋势"只看站点"多选筛选 */
 const focusSites = ref<string[]>([]);
 
+/** 30天趋势：过滤全程零增量的站点 */
+const activeDailySeries = computed(() =>
+  props.dailyData.series.filter(
+    (s) => s.upload.some((v) => v > 0) || s.download.some((v) => v > 0),
+  ),
+);
+
+/** 站点多时趋势图默认聚焦流量 Top5，避免面条图 */
+watch(
+  activeDailySeries,
+  (series) => {
+    if (focusSites.value.length > 0 || series.length <= 5) return;
+    focusSites.value = series
+      .map((s) => ({
+        name: s.name,
+        total:
+          s.upload.reduce((a, b) => a + b, 0) +
+          s.download.reduce((a, b) => a + b, 0),
+      }))
+      .toSorted((a, b) => b.total - a.total)
+      .slice(0, 5)
+      .map((s) => s.name);
+  },
+  { immediate: true },
+);
+
 const focusSiteOptions = computed(() =>
-  props.statistics
-    .map((i) => ({ label: i.site_name, value: i.site_name }))
+  activeDailySeries.value
+    .map((s) => ({ label: s.name, value: s.name }))
     .toSorted((a, b) => a.label.localeCompare(b.label, 'zh')),
 );
 
@@ -51,30 +78,65 @@ function onSelectSite(site: string) {
   selectedSite.value = site;
 }
 
-const barLabels = computed(() => props.statistics.map((i) => i.site_name));
-const barUploads = computed(() =>
-  props.statistics.map((i) => parseSize(i.upload)),
+const BAR_TOP_N = 12;
+const PIE_TOP_N = 8;
+
+/** 全局站点颜色映射：按总流量排名分配，保证同一站点在所有图表中颜色一致 */
+const siteColorMap = computed(() => {
+  const ranked = props.statistics
+    .map((i) => ({
+      name: i.site_name,
+      total: parseSize(i.upload) + parseSize(i.download),
+    }))
+    .toSorted((a, b) => b.total - a.total);
+  const map: Record<string, string> = {};
+  ranked.forEach((s, i) => {
+    map[s.name] = CHART_PALETTE[i % CHART_PALETTE.length]!;
+  });
+  return map;
+});
+
+const barData = computed(() =>
+  props.statistics
+    .map((i) => ({
+      download: parseSize(i.download),
+      name: i.site_name,
+      upload: parseSize(i.upload),
+    }))
+    .toSorted((a, b) => b.upload + b.download - (a.upload + a.download))
+    .slice(0, BAR_TOP_N),
 );
-const barDownloads = computed(() =>
-  props.statistics.map((i) => parseSize(i.download)),
-);
+
+const barLabels = computed(() => barData.value.map((i) => i.name));
+const barUploads = computed(() => barData.value.map((i) => i.upload));
+const barDownloads = computed(() => barData.value.map((i) => i.download));
 
 const uploadPieData = computed(() =>
   props.statistics
     .map((i) => ({ name: i.site_name, value: parseSize(i.upload) }))
     .filter((i) => i.value > 0)
-    .toSorted((a, b) => b.value - a.value),
+    .toSorted((a, b) => b.value - a.value)
+    .slice(0, PIE_TOP_N),
 );
 
-const trendLabels = computed(() => props.historyData.map((i) => i[0]));
-const trendUploads = computed(() => props.historyData.map((i) => i[1]));
-const trendDownloads = computed(() => props.historyData.map((i) => i[2]));
+/** 近7天增量：过滤零增量站点、按总量降序、仅展示 Top 12 */
+const trendData = computed(() =>
+  props.historyData
+    .filter((i) => i[1] > 0 || i[2] > 0)
+    .toSorted((a, b) => b[1] + b[2] - (a[1] + a[2]))
+    .slice(0, BAR_TOP_N),
+);
+const trendLabels = computed(() => trendData.value.map((i) => i[0]));
+const trendUploads = computed(() => trendData.value.map((i) => i[1]));
+const trendDownloads = computed(() => trendData.value.map((i) => i[2]));
+const hasTrendData = computed(() => trendData.value.length > 0);
 
 const seedingRoseData = computed(() =>
   props.statistics
     .map((i) => ({ name: i.site_name, value: i.seeding_count || 0 }))
     .filter((i) => i.value > 0)
-    .toSorted((a, b) => b.value - a.value),
+    .toSorted((a, b) => b.value - a.value)
+    .slice(0, PIE_TOP_N),
 );
 </script>
 
@@ -92,6 +154,7 @@ const seedingRoseData = computed(() =>
     <TodayTrafficCard
       v-if="dailyData.series.length > 0"
       :daily-data="dailyData"
+      :color-map="siteColorMap"
       class="chart-card-full"
     />
 
@@ -101,6 +164,9 @@ const seedingRoseData = computed(() =>
       class="chart-card"
       title="站点流量对比"
     >
+      <template #header-extra>
+        <NTag size="small" :bordered="false" type="info">Top 12</NTag>
+      </template>
       <SiteTrafficBarChart
         v-if="statistics.length > 0"
         :labels="barLabels"
@@ -118,8 +184,11 @@ const seedingRoseData = computed(() =>
       class="chart-card"
       title="近7天流量增量"
     >
+      <template #header-extra>
+        <NTag size="small" :bordered="false" type="info">Top 12</NTag>
+      </template>
       <SiteHistoryTrendChart
-        v-if="historyData.length > 0"
+        v-if="hasTrendData"
         :labels="trendLabels"
         :upload-data="trendUploads"
         :download-data="trendDownloads"
@@ -135,9 +204,13 @@ const seedingRoseData = computed(() =>
       class="chart-card"
       title="上传量分布"
     >
+      <template #header-extra>
+        <NTag size="small" :bordered="false" type="info">Top 8</NTag>
+      </template>
       <SiteUploadPieChart
         v-if="uploadPieData.length > 0"
         :data="uploadPieData"
+        :color-map="siteColorMap"
         :selected-site="selectedSite"
         @select-site="onSelectSite"
       />
@@ -150,9 +223,13 @@ const seedingRoseData = computed(() =>
       class="chart-card"
       title="做种数分布"
     >
+      <template #header-extra>
+        <NTag size="small" :bordered="false" type="info">Top 8</NTag>
+      </template>
       <SiteSeedingRoseChart
         v-if="seedingRoseData.length > 0"
         :data="seedingRoseData"
+        :color-map="siteColorMap"
         :selected-site="selectedSite"
         @select-site="onSelectSite"
       />
@@ -160,7 +237,7 @@ const seedingRoseData = computed(() =>
     </NCard>
 
     <NCard
-      v-if="dailyData.series.length > 0"
+      v-if="activeDailySeries.length > 0"
       :bordered="false"
       :segmented="{ content: true }"
       class="chart-card chart-card-full"
@@ -205,10 +282,11 @@ const seedingRoseData = computed(() =>
       </template>
       <SiteDailyLineChart
         :dates="dailyData.dates"
-        :series="dailyData.series"
+        :series="activeDailySeries"
         :mode="dailyMode"
         :selected-site="selectedSite"
         :focus-sites="focusSites"
+        :color-map="siteColorMap"
         @select-site="onSelectSite"
       />
     </NCard>
@@ -224,6 +302,34 @@ const seedingRoseData = computed(() =>
   max-width: 100%;
 }
 
+.chart-card {
+  background: var(--tblr-card-bg);
+  border-color: var(--tblr-card-border-color);
+  border-radius: var(--tblr-card-border-radius);
+  box-shadow: var(--tblr-box-shadow-card);
+}
+
+.chart-card :deep(.n-card-header) {
+  padding: 1rem 1.25rem 0.625rem;
+}
+
+.chart-card :deep(.n-card-header__main) {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.chart-card :deep(.n-card__content) {
+  padding: 0.75rem 1.25rem 1.25rem;
+}
+
+.chart-card :deep(.n-empty) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 16rem;
+}
+
 .chart-card-full {
   grid-column: 1 / -1;
 }
@@ -235,9 +341,9 @@ const seedingRoseData = computed(() =>
   align-items: center;
   justify-content: center;
   padding: 0.5rem 0.75rem;
-  background: hsl(var(--primary) / 8%);
-  border: 1px solid hsl(var(--primary) / 25%);
-  border-radius: 0.5rem;
+  background: rgb(var(--tblr-primary-rgb) / 8%);
+  border: 1px solid rgb(var(--tblr-primary-rgb) / 25%);
+  border-radius: var(--tblr-card-border-radius);
 }
 
 .filter-text {
@@ -245,14 +351,14 @@ const seedingRoseData = computed(() =>
   gap: 0.375rem;
   align-items: center;
   font-size: 0.8125rem;
-  color: hsl(var(--card-foreground));
+  color: var(--tblr-text-heading);
 }
 
 .mode-toggle {
   display: flex;
   gap: 0;
   overflow: hidden;
-  border: 1px solid hsl(var(--border));
+  border: 1px solid var(--tblr-card-border-color);
   border-radius: 0.375rem;
 }
 
@@ -266,21 +372,22 @@ const seedingRoseData = computed(() =>
   padding: 0.125rem 0.625rem;
   font-size: 0.75rem;
   font-weight: 500;
-  color: hsl(var(--muted-foreground));
+  color: var(--tblr-text-muted);
   cursor: pointer;
-  background: hsl(var(--card));
+  background: var(--tblr-card-bg);
   border: none;
   transition: all 0.2s;
 }
 
 .mode-toggle button.active {
-  color: hsl(var(--primary-foreground));
-  background: hsl(var(--primary));
+  color: #fff;
+  background: var(--tblr-primary);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .charts-layout {
     grid-template-columns: 1fr;
+    gap: 0.75rem;
   }
 }
 </style>

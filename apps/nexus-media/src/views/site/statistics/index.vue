@@ -58,49 +58,49 @@ const summaryCards = computed(() => {
     {
       icon: 'lucide:globe',
       label: '站点总数',
-      tone: 'card-blue',
+      tone: 'primary',
       value: String(s.total),
     },
     {
       icon: 'lucide:activity',
       label: '活跃站点',
-      tone: 'card-green',
+      tone: 'info',
       value: String(s.active),
     },
     {
       icon: 'lucide:arrow-up',
       label: '总上传',
-      tone: 'card-purple',
+      tone: 'success',
       value: formatCompactSize(s.upload),
     },
     {
       icon: 'lucide:arrow-down',
       label: '总下载',
-      tone: 'card-amber',
+      tone: 'warning',
       value: formatCompactSize(s.download),
     },
     {
       icon: 'lucide:bar-chart-3',
       label: '平均分享率',
-      tone: 'card-cyan',
+      tone: 'cyan',
       value: s.avgRatio,
     },
     {
       icon: 'lucide:hard-drive',
       label: '总做种数',
-      tone: 'card-rose',
+      tone: 'purple',
       value: String(s.seeding),
     },
     {
       icon: 'lucide:sparkles',
       label: '总魔力值',
-      tone: 'card-gold',
+      tone: 'pink',
       value: Number(s.bonus).toFixed(0),
     },
     {
       icon: 'lucide:mail',
       label: '未读消息',
-      tone: 'card-red',
+      tone: 'danger',
       value: String(s.messages),
     },
   ];
@@ -277,24 +277,21 @@ onBeforeUnmount(() => {
     </PageHeader>
 
     <div v-if="summary" class="stats-overview">
-      <NCard
+      <div
         v-for="card in summaryCards"
         :key="card.label"
-        size="small"
-        class="stat-card"
+        class="tbl-card stat-card"
       >
         <div class="stat-inner">
-          <div class="stat-icon" :class="`stat-icon-${card.tone}`">
+          <div class="stat-icon" :class="`tone-${card.tone}`">
             <IconifyIcon :icon="card.icon" class="h-5 w-5" />
           </div>
           <div class="stat-body">
-            <div class="stat-value" :class="`stat-${card.tone}`">
-              {{ card.value }}
-            </div>
+            <div class="stat-value">{{ card.value }}</div>
             <div class="stat-label">{{ card.label }}</div>
           </div>
         </div>
-      </NCard>
+      </div>
     </div>
 
     <NSpin :show="loading">
@@ -361,12 +358,12 @@ onBeforeUnmount(() => {
 <style scoped>
 .stats-overview {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
   margin-bottom: 1rem;
 }
 
-.stat-card :deep(.n-card__content) {
+.stat-card {
   padding: 0.875rem 1rem;
 }
 
@@ -383,47 +380,47 @@ onBeforeUnmount(() => {
   justify-content: center;
   width: 2.5rem;
   height: 2.5rem;
-  border-radius: 0.625rem;
+  border-radius: var(--tblr-card-border-radius);
 }
 
-.stat-icon-card-blue {
-  color: hsl(217deg 91% 60%);
-  background: hsl(217deg 91% 60% / 12%);
+.tone-primary {
+  color: var(--tblr-primary);
+  background: rgb(var(--tblr-primary-rgb) / 10%);
 }
 
-.stat-icon-card-green {
-  color: hsl(160deg 84% 39%);
-  background: hsl(160deg 84% 39% / 12%);
+.tone-success {
+  color: var(--tblr-success);
+  background: color-mix(in srgb, var(--tblr-success) 10%, transparent);
 }
 
-.stat-icon-card-purple {
-  color: hsl(270deg 72% 58%);
-  background: hsl(270deg 72% 58% / 12%);
+.tone-warning {
+  color: var(--tblr-warning);
+  background: color-mix(in srgb, var(--tblr-warning) 10%, transparent);
 }
 
-.stat-icon-card-amber {
-  color: hsl(35deg 92% 50%);
-  background: hsl(35deg 92% 50% / 12%);
+.tone-info {
+  color: var(--tblr-info);
+  background: color-mix(in srgb, var(--tblr-info) 10%, transparent);
 }
 
-.stat-icon-card-cyan {
-  color: hsl(190deg 94% 42%);
-  background: hsl(190deg 94% 42% / 12%);
+.tone-cyan {
+  color: var(--tblr-cyan);
+  background: color-mix(in srgb, var(--tblr-cyan) 10%, transparent);
 }
 
-.stat-icon-card-rose {
-  color: hsl(340deg 82% 54%);
-  background: hsl(340deg 82% 54% / 12%);
+.tone-purple {
+  color: var(--tblr-purple);
+  background: color-mix(in srgb, var(--tblr-purple) 10%, transparent);
 }
 
-.stat-icon-card-gold {
-  color: hsl(45deg 93% 47%);
-  background: hsl(45deg 93% 47% / 12%);
+.tone-pink {
+  color: var(--tblr-pink);
+  background: color-mix(in srgb, var(--tblr-pink) 10%, transparent);
 }
 
-.stat-icon-card-red {
-  color: hsl(0deg 84% 60%);
-  background: hsl(0deg 84% 60% / 12%);
+.tone-danger {
+  color: var(--tblr-danger);
+  background: color-mix(in srgb, var(--tblr-danger) 10%, transparent);
 }
 
 .stat-body {
@@ -433,52 +430,29 @@ onBeforeUnmount(() => {
 }
 
 .stat-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 1.125rem;
-  font-weight: 700;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
   line-height: 1.25;
-  color: hsl(var(--card-foreground));
-}
-
-.stat-card-blue {
-  color: hsl(217deg 91% 60%);
-}
-
-.stat-card-green {
-  color: hsl(160deg 84% 39%);
-}
-
-.stat-card-purple {
-  color: hsl(270deg 72% 58%);
-}
-
-.stat-card-amber {
-  color: hsl(35deg 92% 50%);
-}
-
-.stat-card-cyan {
-  color: hsl(190deg 94% 42%);
-}
-
-.stat-card-rose {
-  color: hsl(340deg 82% 54%);
-}
-
-.stat-card-gold {
-  color: hsl(45deg 93% 47%);
-}
-
-.stat-card-red {
-  color: hsl(0deg 84% 60%);
+  color: var(--tblr-text-heading);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 
 .stat-label {
   margin-top: 0.125rem;
   font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
+  color: var(--tblr-text-muted);
 }
 
 .table-card {
   margin-top: 1rem;
+  background: var(--tblr-card-bg);
+  border-color: var(--tblr-card-border-color);
+  border-radius: var(--tblr-card-border-radius);
+  box-shadow: var(--tblr-box-shadow-card);
 }
 
 .table-card :deep(.n-card__content) {
@@ -491,23 +465,29 @@ onBeforeUnmount(() => {
   align-items: center;
   font-size: 0.875rem;
   font-weight: 600;
-  color: hsl(var(--card-foreground));
+  color: var(--tblr-text-heading);
 }
 
-@media (max-width: 1024px) {
+@media (min-width: 768px) {
   .stats-overview {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .stats-overview {
+    grid-template-columns: repeat(8, 1fr);
+    gap: 1rem;
   }
 }
 
 @media (max-width: 640px) {
   .stats-overview {
-    grid-template-columns: repeat(2, 1fr);
     gap: 0.5rem;
     margin-bottom: 0.75rem;
   }
 
-  .stat-card :deep(.n-card__content) {
+  .stat-card {
     padding: 0.625rem 0.5rem;
   }
 

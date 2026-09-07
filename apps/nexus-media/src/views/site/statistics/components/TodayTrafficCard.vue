@@ -6,6 +6,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { IconifyIcon } from '@vben/icons';
 import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 
+import { useChartTheme } from '#/composables/useChartTheme';
 import { useSiteStats } from '#/composables/useSiteStats';
 import { CHART_PALETTE } from '#/constants/chartColors';
 
@@ -16,17 +17,21 @@ interface DailySeries {
 }
 
 interface Props {
+  colorMap?: Record<string, string>;
   dailyData: { dates: string[]; series: DailySeries[] };
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  colorMap: () => ({}),
+});
 
 const { formatCompactSize, formatSize, getChartDataKey } = useSiteStats();
+const { textColor, isDark } = useChartTheme();
 
 const chartRef = ref<EchartsUIType>();
 const { renderEcharts, updateData } = useEcharts(chartRef);
 
-const TEXT_COLOR = 'hsl(var(--card-foreground))';
+const sliceBorderColor = computed(() => (isDark.value ? '#16202f' : '#ffffff'));
 
 const sortMode = ref<'download' | 'upload'>('upload');
 const showAll = ref(false);
@@ -107,11 +112,13 @@ const maxBarValue = computed(() => {
   return Math.max(...sites.map((s) => Math.max(s.upload, s.download)), 1);
 });
 
-/** 环形图：各站点占今日总流量（上传+下载）比例 */
+/** 环形图：各站点占今日总流量（上传+下载）比例，颜色与其他图表一致 */
 const donutData = computed(() => {
   const sites = todayInfo.value?.sites || [];
   return sites.map((s, i) => ({
-    itemStyle: { color: CHART_PALETTE[i % CHART_PALETTE.length] },
+    itemStyle: {
+      color: props.colorMap[s.name] ?? CHART_PALETTE[i % CHART_PALETTE.length],
+    },
     name: s.name,
     value: s.upload + s.download,
   }));
@@ -131,7 +138,7 @@ function buildDonutOption() {
         emphasis: { scale: true, scaleSize: 6 },
         itemStyle: {
           borderRadius: 6,
-          borderColor: 'hsl(var(--card))',
+          borderColor: sliceBorderColor.value,
           borderWidth: 1.5,
         },
         label: { show: false },
@@ -142,9 +149,9 @@ function buildDonutOption() {
     ],
     tooltip: {
       formatter: (params: any) =>
-        `<div style="font-weight:600;color:${TEXT_COLOR}">${params.name}</div>
-         <div style="color:${TEXT_COLOR}">流量：${formatSize(params.value)}</div>
-         <div style="color:hsl(var(--muted-foreground))">占比：${params.percent}%</div>`,
+        `<div style="font-weight:600;color:${textColor.value}">${params.name}</div>
+         <div style="color:${textColor.value}">流量：${formatSize(params.value)}</div>
+         <div style="color:#656d77">占比：${params.percent}%</div>`,
       trigger: 'item' as const,
     },
   };
@@ -156,7 +163,7 @@ onMounted(() => {
 
 let dataCacheKey = '';
 watch(
-  () => props.dailyData,
+  () => [props.dailyData, props.colorMap, isDark.value],
   (newVal) => {
     const key = getChartDataKey(newVal);
     if (key === dataCacheKey) return;
@@ -196,11 +203,9 @@ function getLegendEntries(): Array<{
 <template>
   <div v-if="todayInfo" class="today-card">
     <div class="today-header">
-      <div class="today-title-wrap">
-        <span class="today-title">今日流量 · 各站点排行</span>
-        <span class="today-date">{{ todayInfo.date }}</span>
-      </div>
+      <span class="today-title">今日流量 · 各站点排行</span>
       <div class="today-total-wrap">
+        <span class="today-date">{{ todayInfo.date }}</span>
         <span class="today-total-label">今日总量</span>
         <span class="today-total-value">
           {{ formatCompactSize(todayInfo.totalToday) }}
@@ -367,23 +372,10 @@ function getLegendEntries(): Array<{
 .today-card {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding: 1.25rem;
-  background:
-    radial-gradient(
-      120% 160% at 0% 0%,
-      hsl(217deg 90% 58% / 6%),
-      transparent 55%
-    ),
-    radial-gradient(
-      120% 160% at 100% 100%,
-      hsl(35deg 95% 55% / 5%),
-      transparent 55%
-    ),
-    hsl(var(--card));
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.875rem;
-  box-shadow: 0 1px 2px hsl(0deg 0% 0% / 4%);
+  background: var(--tblr-card-bg);
+  border: 1px solid var(--tblr-card-border-color);
+  border-radius: var(--tblr-card-border-radius);
+  box-shadow: var(--tblr-box-shadow-card);
 }
 
 .today-header {
@@ -392,24 +384,25 @@ function getLegendEntries(): Array<{
   gap: 0.5rem;
   align-items: center;
   justify-content: space-between;
-}
-
-.today-title-wrap {
-  display: flex;
-  gap: 0.625rem;
-  align-items: baseline;
+  padding: 1rem 1.25rem 0.625rem;
 }
 
 .today-title {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: hsl(var(--card-foreground));
-  letter-spacing: 0.01em;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--tblr-text-heading);
+}
+
+.today-body {
+  display: grid;
+  grid-template-columns: 15rem 1fr;
+  gap: 1.5rem;
+  padding: 0.75rem 1.25rem 1.25rem;
 }
 
 .today-date {
   font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
+  color: var(--tblr-text-muted);
 }
 
 .today-total-wrap {
@@ -420,14 +413,14 @@ function getLegendEntries(): Array<{
 
 .today-total-label {
   font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
+  color: var(--tblr-text-muted);
 }
 
 .today-total-value {
   font-size: 1.25rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: hsl(var(--card-foreground));
+  color: var(--tblr-text-heading);
 }
 
 .delta-badge {
@@ -442,19 +435,13 @@ function getLegendEntries(): Array<{
 }
 
 .delta-up {
-  color: hsl(160deg 75% 35%);
-  background: hsl(160deg 75% 45% / 12%);
+  color: var(--tblr-success);
+  background: color-mix(in srgb, var(--tblr-success) 12%, transparent);
 }
 
 .delta-down {
-  color: hsl(0deg 75% 55%);
-  background: hsl(0deg 75% 55% / 12%);
-}
-
-.today-body {
-  display: grid;
-  grid-template-columns: 15rem 1fr;
-  gap: 1.5rem;
+  color: var(--tblr-danger);
+  background: color-mix(in srgb, var(--tblr-danger) 12%, transparent);
 }
 
 .donut-column {
@@ -492,12 +479,12 @@ function getLegendEntries(): Array<{
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   line-height: 1;
-  color: hsl(var(--card-foreground));
+  color: var(--tblr-text-heading);
 }
 
 .donut-total-label {
   font-size: 0.6875rem;
-  color: hsl(var(--muted-foreground));
+  color: var(--tblr-text-muted);
   letter-spacing: 0.05em;
 }
 
@@ -526,20 +513,20 @@ function getLegendEntries(): Array<{
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: hsl(var(--card-foreground));
+  color: var(--tblr-text-heading);
   white-space: nowrap;
 }
 
 .legend-pct {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: hsl(var(--muted-foreground));
+  color: var(--tblr-text-muted);
 }
 
 .donut-empty {
   padding: 0.5rem 0;
   font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
+  color: var(--tblr-text-muted);
 }
 
 .bars-column {
@@ -559,13 +546,13 @@ function getLegendEntries(): Array<{
 .bars-title {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: hsl(var(--card-foreground));
+  color: var(--tblr-text-heading);
 }
 
 .sort-toggle {
   display: flex;
   overflow: hidden;
-  border: 1px solid hsl(var(--border));
+  border: 1px solid var(--tblr-card-border-color);
   border-radius: 0.375rem;
 }
 
@@ -573,16 +560,16 @@ function getLegendEntries(): Array<{
   padding: 0.1875rem 0.625rem;
   font-size: 0.75rem;
   font-weight: 500;
-  color: hsl(var(--muted-foreground));
+  color: var(--tblr-text-muted);
   cursor: pointer;
-  background: hsl(var(--card));
+  background: var(--tblr-card-bg);
   border: none;
   transition: all 0.2s;
 }
 
 .sort-toggle button.active {
-  color: hsl(var(--primary-foreground));
-  background: hsl(var(--primary));
+  color: #fff;
+  background: var(--tblr-primary);
 }
 
 .bars-scroll {
@@ -604,7 +591,7 @@ function getLegendEntries(): Array<{
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 0.75rem;
-  color: hsl(var(--card-foreground));
+  color: var(--tblr-text-heading);
   white-space: nowrap;
 }
 
@@ -612,7 +599,7 @@ function getLegendEntries(): Array<{
   position: relative;
   height: 0.625rem;
   overflow: hidden;
-  background: hsl(var(--muted) / 40%);
+  background: color-mix(in srgb, var(--tblr-text-muted) 15%, transparent);
   border-radius: 999px;
 }
 
@@ -626,13 +613,13 @@ function getLegendEntries(): Array<{
 }
 
 .site-fill-up {
-  background: linear-gradient(90deg, hsl(160deg 75% 48%), hsl(175deg 80% 45%));
+  background: linear-gradient(90deg, var(--tblr-success), var(--tblr-teal));
 }
 
 .site-fill-down {
   top: 50%;
   height: 50%;
-  background: hsl(35deg 95% 55%);
+  background: var(--tblr-warning);
 }
 
 .site-nums {
@@ -646,15 +633,15 @@ function getLegendEntries(): Array<{
 
 .site-up {
   font-weight: 600;
-  color: hsl(160deg 75% 40%);
+  color: var(--tblr-success);
 }
 
 .site-sep {
-  color: hsl(var(--muted-foreground));
+  color: var(--tblr-text-muted);
 }
 
 .site-down {
-  color: hsl(35deg 90% 45%);
+  color: var(--tblr-warning);
 }
 
 .site-ratio {
@@ -666,13 +653,13 @@ function getLegendEntries(): Array<{
 }
 
 .ratio-ok {
-  color: hsl(160deg 75% 35%);
-  background: hsl(160deg 75% 45% / 12%);
+  color: var(--tblr-success);
+  background: color-mix(in srgb, var(--tblr-success) 12%, transparent);
 }
 
 .ratio-low {
-  color: hsl(35deg 90% 45%);
-  background: hsl(35deg 95% 55% / 12%);
+  color: var(--tblr-warning);
+  background: color-mix(in srgb, var(--tblr-warning) 12%, transparent);
 }
 
 .expand-btn {
@@ -682,14 +669,14 @@ function getLegendEntries(): Array<{
   justify-content: center;
   padding: 0.375rem;
   font-size: 0.75rem;
-  color: hsl(var(--primary));
+  color: var(--tblr-primary);
   cursor: pointer;
   background: transparent;
   border: none;
 }
 
 .expand-btn:hover {
-  color: hsl(var(--primary) / 80%);
+  color: color-mix(in srgb, var(--tblr-primary) 80%, transparent);
 }
 
 .bars-empty {
@@ -698,9 +685,9 @@ function getLegendEntries(): Array<{
   align-items: center;
   padding: 0.75rem;
   font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
-  background: hsl(var(--muted) / 30%);
-  border: 1px dashed hsl(var(--border));
+  color: var(--tblr-text-muted);
+  background: color-mix(in srgb, var(--tblr-text-muted) 8%, transparent);
+  border: 1px dashed var(--tblr-card-border-color);
   border-radius: 0.625rem;
 }
 
@@ -709,7 +696,8 @@ function getLegendEntries(): Array<{
   gap: 1.5rem;
   align-items: center;
   padding: 0.75rem 1rem;
-  border-top: 1px solid hsl(var(--border) / 60%);
+  border-top: 1px solid
+    color-mix(in srgb, var(--tblr-card-border-color) 60%, transparent);
 }
 
 .summary-item {
@@ -720,22 +708,22 @@ function getLegendEntries(): Array<{
 
 .summary-label {
   font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
+  color: var(--tblr-text-muted);
 }
 
 .summary-value {
   font-size: 0.9375rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: hsl(var(--card-foreground));
+  color: var(--tblr-text-heading);
 }
 
 .summary-up {
-  color: hsl(160deg 75% 40%);
+  color: var(--tblr-success);
 }
 
 .summary-down {
-  color: hsl(35deg 90% 45%);
+  color: var(--tblr-warning);
 }
 
 .mini-delta {
@@ -746,7 +734,7 @@ function getLegendEntries(): Array<{
 .summary-divider {
   width: 1px;
   height: 1.25rem;
-  background: hsl(var(--border));
+  background: var(--tblr-card-border-color);
 }
 
 @media (max-width: 768px) {
@@ -785,8 +773,12 @@ function getLegendEntries(): Array<{
 }
 
 @media (max-width: 640px) {
-  .today-card {
-    padding: 1rem;
+  .today-header {
+    padding: 0.875rem 1rem 0.5rem;
+  }
+
+  .today-body {
+    padding: 0.75rem 1rem 1rem;
   }
 
   .today-total-value {

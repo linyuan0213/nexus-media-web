@@ -1,10 +1,11 @@
 <script lang="ts" setup>
 import type { EchartsUIType } from '@vben/plugins/echarts';
 
-import { onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
 import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 
+import { useChartTheme } from '#/composables/useChartTheme';
 import { useSiteStats } from '#/composables/useSiteStats';
 
 interface Props {
@@ -23,29 +24,32 @@ const emit = defineEmits<{
 }>();
 
 const { formatSize, getChartDataKey } = useSiteStats();
+const { legendColor, mutedColor, textColor, isDark, borderColor } =
+  useChartTheme();
 
 const chartRef = ref<EchartsUIType>();
 const { getChartInstance, renderEcharts } = useEcharts(chartRef);
 
 let lastClickId: null | string = null;
 
+// 与流量对比图一致：上传 success / 下载 warning
 const COLORS = {
-  download: 'hsl(340, 85%, 58%)',
-  muted: 'hsl(210, 12%, 42%)',
-  text: 'hsl(var(--card-foreground))',
-  upload: 'hsl(217, 90%, 58%)',
+  download: '#f76707',
+  upload: '#2fb344',
 };
+
+const dimColor = computed(() => (isDark.value ? '#4a5058' : '#c3c8cf'));
 
 function isDimmed(label: string): boolean {
   return props.selectedSite !== '' && label !== props.selectedSite;
 }
 
 function tooltipHtml(title: string, items: any[]): string {
-  let result = `<div style="font-weight:600;margin-bottom:4px;color:${COLORS.text}">${title}</div>`;
+  let result = `<div style="font-weight:600;margin-bottom:4px;color:${textColor.value}">${title}</div>`;
   items.forEach((p: any) => {
     result += `<div style="display:flex;align-items:center;gap:6px">
       <span style="width:8px;height:8px;border-radius:50%;background:${p.color}"></span>
-      <span style="color:${COLORS.text}">${p.seriesName}: ${formatSize(p.value)}</span>
+      <span style="color:${textColor.value}">${p.seriesName}: ${formatSize(p.value)}</span>
     </div>`;
   });
   return result;
@@ -56,7 +60,7 @@ function buildOption() {
     values.map((value, i) => ({
       itemStyle: {
         borderRadius: [4, 4, 0, 0],
-        color: isDimmed(props.labels[i] ?? '') ? COLORS.muted : seriesColor,
+        color: isDimmed(props.labels[i] ?? '') ? dimColor.value : seriesColor,
       },
       value,
     }));
@@ -74,6 +78,7 @@ function buildOption() {
         { itemStyle: { color: COLORS.upload }, name: '近7天上传' },
         { itemStyle: { color: COLORS.download }, name: '近7天下载' },
       ],
+      textStyle: { color: legendColor.value, fontSize: 11 },
       top: 0,
     },
     series: [
@@ -101,6 +106,8 @@ function buildOption() {
     },
     xAxis: {
       axisLabel: {
+        color: mutedColor.value,
+        fontSize: 10,
         interval: 0,
         rotate: 45,
       },
@@ -111,13 +118,14 @@ function buildOption() {
     },
     yAxis: {
       axisLabel: {
+        color: mutedColor.value,
         formatter: (value: number) => formatSize(value),
       },
       axisLine: { show: false },
       axisTick: { show: false },
       splitLine: {
         lineStyle: {
-          color: 'hsl(var(--border) / 0.5)',
+          color: borderColor.value,
           type: 'dashed' as const,
         },
       },
@@ -162,6 +170,7 @@ watch(
     props.uploadData,
     props.downloadData,
     props.selectedSite,
+    isDark.value,
   ],
   (newVal) => {
     const key = getChartDataKey(newVal);

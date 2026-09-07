@@ -5,15 +5,18 @@ import { onMounted, ref, watch } from 'vue';
 
 import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 
+import { useChartTheme } from '#/composables/useChartTheme';
 import { useSiteStats } from '#/composables/useSiteStats';
 import { CHART_PALETTE } from '#/constants/chartColors';
 
 interface Props {
+  colorMap?: Record<string, string>;
   data: Array<{ name: string; value: number }>;
   selectedSite?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  colorMap: () => ({}),
   selectedSite: '',
 });
 
@@ -22,11 +25,14 @@ const emit = defineEmits<{
 }>();
 
 const { getChartDataKey } = useSiteStats();
+const { legendColor, textColor, isDark } = useChartTheme();
 
 const chartRef = ref<EchartsUIType>();
 const { getChartInstance, renderEcharts, updateData } = useEcharts(chartRef);
 
-const TEXT_COLOR = 'hsl(var(--card-foreground))';
+function truncateName(name: string): string {
+  return name.length > 8 ? `${name.slice(0, 8)}…` : name;
+}
 
 const SERIES_BASE = {
   center: ['50%', '45%'],
@@ -50,27 +56,26 @@ const SERIES_BASE = {
   type: 'pie' as const,
 };
 
-const LEGEND = {
-  bottom: 0,
-  itemGap: 8,
-  left: 'center',
-  textStyle: { fontSize: 11 },
-  type: 'scroll' as const,
-};
-
-const TOOLTIP = {
-  formatter: (params: any) =>
-    `<div style="font-weight:600;color:${TEXT_COLOR}">${params.name}</div>
-     <div style="color:${TEXT_COLOR}">做种数: ${params.value}</div>
-     <div style="color:${TEXT_COLOR}">占比: ${params.percent}%</div>`,
-  trigger: 'item' as const,
-};
-
 function buildOption() {
+  const legend = {
+    bottom: 0,
+    formatter: (name: string) => truncateName(name),
+    itemGap: 8,
+    left: 'center',
+    textStyle: { color: legendColor.value, fontSize: 11 },
+    type: 'scroll' as const,
+  };
+  const tooltip = {
+    formatter: (params: any) =>
+      `<div style="font-weight:600;color:${textColor.value}">${params.name}</div>
+       <div style="color:${textColor.value}">做种数: ${params.value}</div>
+       <div style="color:${textColor.value}">占比: ${params.percent}%</div>`,
+    trigger: 'item' as const,
+  };
   const data = props.data.map((d, i) => ({
     ...d,
     itemStyle: {
-      color: CHART_PALETTE[i % CHART_PALETTE.length],
+      color: props.colorMap[d.name] ?? CHART_PALETTE[i % CHART_PALETTE.length],
       opacity:
         props.selectedSite !== '' && d.name !== props.selectedSite ? 0.15 : 1,
     },
@@ -78,9 +83,9 @@ function buildOption() {
   return {
     animation: false,
     color: CHART_PALETTE,
-    legend: LEGEND,
+    legend,
     series: [{ ...SERIES_BASE, data }],
-    tooltip: TOOLTIP,
+    tooltip,
   };
 }
 
@@ -103,7 +108,7 @@ onMounted(() => {
 let dataCacheKey = '';
 
 watch(
-  () => [props.data, props.selectedSite],
+  () => [props.data, props.selectedSite, props.colorMap, isDark.value],
   (newVal) => {
     const key = getChartDataKey(newVal);
     if (key === dataCacheKey) return;
