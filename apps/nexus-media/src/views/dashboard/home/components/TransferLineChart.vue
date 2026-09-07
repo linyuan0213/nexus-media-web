@@ -21,15 +21,16 @@ const { renderEcharts } = useEcharts(chartRef);
 const { mutedColor, borderColor } = useChartTheme();
 
 const SERIES_CONFIG = [
-  { name: '电影', dataKey: 'movieData' as const, color: 'hsl(26, 85%, 65%)' },
-  { name: '电视剧', dataKey: 'tvData' as const, color: 'hsl(201, 66%, 57%)' },
-  { name: '动漫', dataKey: 'animeData' as const, color: 'hsl(346, 74%, 67%)' },
+  { name: '电影', dataKey: 'movieData' as const, color: '#f59f00' },
+  { name: '电视剧（集）', dataKey: 'tvData' as const, color: '#206bc4' },
+  { name: '动漫（集）', dataKey: 'animeData' as const, color: '#ae3ec9' },
 ];
 
-function toTransparent(hsl: string): string {
-  const m = hsl.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
+function toTransparent(color: string): string {
+  const m = color.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
   if (m) return `hsla(${m[1]}, ${m[2]}%, ${m[3]}%, 0)`;
-  return hsl;
+  if (/^#[0-9a-f]{6}$/i.test(color)) return `${color}00`;
+  return color;
 }
 
 function buildOption() {

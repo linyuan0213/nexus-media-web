@@ -52,8 +52,7 @@ const uptimeText = computed(() => {
 
 <template>
   <div
-    class="mb-6 flex flex-col items-start justify-between gap-4 rounded-2xl border p-5 sm:flex-row sm:items-center"
-    style="background: hsl(var(--card)); border-color: hsl(var(--border))"
+    class="tbl-card mb-6 flex flex-col items-start justify-between gap-4 p-5 sm:flex-row sm:items-center"
   >
     <!-- 左侧：头像 + 问候 -->
     <div class="flex items-center gap-4">

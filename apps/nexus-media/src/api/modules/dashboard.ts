@@ -10,6 +10,7 @@ export namespace DashboardApi {
     movie_nums: number[];
     tv_nums: number[];
     anime_nums: number[];
+    tv_series_nums: number[];
   }
 
   export interface LibraryHome {
@@ -116,6 +117,10 @@ export async function getDashboardSchedulerJobsApi() {
 /** 获取系统状态 */
 export async function getDashboardSystemStatusApi() {
   return requestClient.post<{
+    cpu_percent: number;
+    memory_percent: number;
+    memory_total_mb: number;
+    memory_used_mb: number;
     python_version: string;
     uptime: number;
     version: string;
