@@ -96,6 +96,50 @@ export async function getSiteDefinitionsApi() {
   return requestClient.post<SiteDefinition[]>('/site/sites/definitions', {});
 }
 
+/** 站点解析健康度（各站点最新） */
+export async function getSiteParseHealthLatestApi() {
+  return requestClient.get<
+    Array<{
+      attr_fail: number;
+      attr_ok: number;
+      check_date: string;
+      issues: string[];
+      sample_count: number;
+      selectors: Record<string, number>;
+      site_id: number;
+      site_name: string;
+      status: string;
+    }>
+  >('/site/parse-health/latest');
+}
+
+/** 手动触发站点解析健康自检 */
+export async function runSiteParseHealthApi(siteId?: number) {
+  return requestClient.post<{
+    started?: boolean;
+  }>('/site/parse-health/run', { site_id: siteId ?? null });
+}
+
+/** 解析自检是否正在后台运行 */
+export async function getSiteParseHealthRunStateApi() {
+  return requestClient.get<{ running: boolean }>(
+    '/site/parse-health/run-state',
+  );
+}
+
+/** 站点解析健康历史 */
+export async function getSiteParseHealthHistoryApi(siteId: number, limit = 30) {
+  return requestClient.get<
+    Array<{
+      check_date: string;
+      issues: string[];
+      site_id: number;
+      site_name: string;
+      status: string;
+    }>
+  >('/site/parse-health/history', { params: { site_id: siteId, limit } });
+}
+
 /** 获取站点列表 */
 export async function getSitesApi(filter?: {
   basic?: boolean;

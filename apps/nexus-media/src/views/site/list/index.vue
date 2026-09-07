@@ -10,7 +10,15 @@ import { computed, onMounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { NButton, NInput, NSelect, NSpace, NSpin } from 'naive-ui';
+import {
+  NButton,
+  NInput,
+  NSelect,
+  NSpace,
+  NSpin,
+  NTag,
+  useMessage,
+} from 'naive-ui';
 
 import { getDownloadSettingsApi } from '#/api/modules/download';
 import { getFilterGroupsApi } from '#/api/modules/filter';
@@ -18,7 +26,10 @@ import {
   deleteSiteApi,
   getSiteDefinitionsApi,
   getSiteFaviconsApi,
+  getSiteParseHealthLatestApi,
+  getSiteParseHealthRunStateApi,
   getSitesApi,
+  runSiteParseHealthApi,
   saveSiteApi,
   syncIndexerSitesApi,
   testSiteApi,
@@ -55,6 +66,148 @@ const filterGroups = ref<SiteSelectOption[]>([{ label: '默认', value: '' }]);
 const downloadSettings = ref<SiteSelectOption[]>([
   { label: '默认', value: '' },
 ]);
+const message = useMessage();
+
+// 站点解析健康度
+const parseHealthLoading = ref(false);
+const parseHealthRunAt = ref('');
+const parseHealthExpanded = ref(false);
+
+const PARSE_HEALTH_STRUCTURE = ['degraded', 'invalid'];
+const PARSE_HEALTH_LABEL: Record<string, string> = {
+  auth_error: '凭据失效',
+  degraded: '降级',
+  invalid: '失效',
+};
+
+const parseHealthRows = ref<
+  Array<{
+    site_id: number;
+    site_name: string;
+    status: string;
+    check_date: string;
+    sample_count: number;
+    attr_ok: number;
+    attr_fail: number;
+    issues: string[];
+  }>
+>([]);
+
+const parseHealthStructureIssues = computed(() =>
+  parseHealthRows.value.filter((r) =>
+    PARSE_HEALTH_STRUCTURE.includes(r.status),
+  ),
+);
+const parseHealthAuthIssues = computed(() =>
+  parseHealthRows.value.filter((r) => r.status === 'auth_error'),
+);
+const parseHealthIssueCount = computed(
+  () =>
+    parseHealthStructureIssues.value.length +
+    parseHealthAuthIssues.value.length,
+);
+
+async function fetchParseHealth() {
+  try {
+    parseHealthRows.value = (await getSiteParseHealthLatestApi()) as any;
+  } catch {
+    parseHealthRows.value = [];
+  }
+}
+
+async function fetchParseHealthRunState(): Promise<boolean> {
+  try {
+    const res = (await getSiteParseHealthRunStateApi()) as any;
+    return !!res?.running;
+  } catch {
+    return false;
+  }
+}
+
+function notifyRunResult() {
+  const structureBad = parseHealthStructureIssues.value;
+  const authBad = parseHealthAuthIssues.value;
+  if (structureBad.length > 0) {
+    notification.error(
+      `解析自检完成：${structureBad.length} 个站点解析异常` +
+        (authBad.length > 0 ? `，另 ${authBad.length} 个凭据失效` : ''),
+    );
+  } else if (authBad.length > 0) {
+    notification.warning(
+      `解析自检完成：${authBad.length} 个站点凭据失效，解析均正常`,
+    );
+  } else {
+    notification.success('解析自检完成：站点解析均正常');
+  }
+}
+
+async function pollParseHealthDone() {
+  // 后台执行较长，最多轮询 5 分钟
+  for (let i = 0; i < 60; i += 1) {
+    await new Promise((r) => setTimeout(r, 5000));
+    if (!(await fetchParseHealthRunState())) {
+      await fetchParseHealth();
+      parseHealthRunAt.value = new Date().toLocaleString();
+      parseHealthLoading.value = false;
+      notifyRunResult();
+      return;
+    }
+  }
+  parseHealthLoading.value = false;
+  await fetchParseHealth();
+  notification.warning('解析自检仍在后台执行，可在结果刷新后查看');
+}
+
+async function handleParseHealthRun() {
+  if (parseHealthLoading.value) return;
+  parseHealthLoading.value = true;
+  try {
+    const res = (await runSiteParseHealthApi()) as any;
+    if (res?.started === false) {
+      notification.warning('解析自检已在后台执行中，请稍候');
+    } else {
+      notification.info('解析自检已在后台开始，完成后自动刷新');
+    }
+    await fetchParseHealth();
+    void pollParseHealthDone();
+  } catch {
+    parseHealthLoading.value = false;
+    notification.error('触发解析自检失败，请查看后端日志');
+  }
+}
+
+function formatHealthIssues(issues: unknown[]): string {
+  return (issues || [])
+    .map((item) => {
+      if (typeof item === 'string') return item;
+      if (item && typeof item === 'object') {
+        const o = item as Record<string, unknown>;
+        return `${String(o.url ?? '')} ${String(o.error ?? '')}`.trim();
+      }
+      return String(item);
+    })
+    .join('；');
+}
+
+function copyParseHealthFeedback(row: {
+  site_name: string;
+  status: string;
+  issues: string[];
+}) {
+  const issues = formatHealthIssues(row.issues) || '未知';
+  const text =
+    row.status === 'auth_error'
+      ? `站点「${row.site_name}」详情页访问需要登录或凭据已过期，请在站点维护中更新 Cookie/API Key。\n问题：${issues}`
+      : `站点「${row.site_name}」详情页解析异常（状态：${row.status}）。\n` +
+        `问题：${issues}\n` +
+        `请检查站点定义（HTML 选择器 / API 字段）是否因页面改版失效，并提交修复到\n` +
+        `https://github.com/linyuan0213/nexus-media-sites\n` +
+        `（站点类型: html / api，配置路径: config/sites/ 下对应 json）`;
+  navigator.clipboard
+    .writeText(text)
+    .then(() => message.success('问题反馈文本已复制'))
+    .catch(() => message.warning('复制失败，请手动复制'));
+}
 
 const sourceOptions = [
   { key: 'all', label: '全部来源', icon: 'lucide:layers' },
@@ -368,6 +521,7 @@ async function fetchSiteDefinitions() {
 onMounted(() => {
   fetchSites();
   fetchSiteDefinitions();
+  fetchParseHealth();
 });
 </script>
 
@@ -381,6 +535,12 @@ onMounted(() => {
               <IconifyIcon icon="lucide:refresh-cw" class="h-4 w-4" />
             </template>
             同步站点
+          </NButton>
+          <NButton :loading="parseHealthLoading" @click="handleParseHealthRun">
+            <template #icon>
+              <IconifyIcon icon="lucide:heart-pulse" class="h-4 w-4" />
+            </template>
+            解析自检
           </NButton>
           <NButton @click="handleBatchTest">
             <template #icon>
@@ -403,6 +563,95 @@ onMounted(() => {
         </NSpace>
       </template>
     </PageHeader>
+
+    <div v-if="parseHealthIssueCount > 0" class="mb-3">
+      <div class="health-summary tbl-card">
+        <button
+          class="health-summary-toggle"
+          type="button"
+          @click="parseHealthExpanded = !parseHealthExpanded"
+        >
+          <IconifyIcon
+            :icon="
+              parseHealthExpanded
+                ? 'lucide:chevron-down'
+                : 'lucide:chevron-right'
+            "
+            class="h-4 w-4"
+          />
+          <span class="health-summary-title">站点解析健康</span>
+          <NTag
+            v-if="parseHealthStructureIssues.length > 0"
+            size="small"
+            :bordered="false"
+            type="warning"
+          >
+            {{ parseHealthStructureIssues.length }} 个解析异常
+          </NTag>
+          <NTag
+            v-if="parseHealthAuthIssues.length > 0"
+            size="small"
+            :bordered="false"
+            type="default"
+          >
+            {{ parseHealthAuthIssues.length }} 个凭据失效
+          </NTag>
+        </button>
+
+        <div v-if="parseHealthExpanded" class="health-detail">
+          <div v-if="parseHealthStructureIssues.length > 0" class="space-y-2">
+            <div class="text-xs font-medium" style="color: var(--tblr-warning)">
+              解析异常（疑似页面改版）
+            </div>
+            <div
+              v-for="row in parseHealthStructureIssues"
+              :key="row.site_id"
+              class="flex flex-wrap items-center gap-2 text-sm"
+            >
+              <NTag size="small" :bordered="false" type="warning">
+                {{ PARSE_HEALTH_LABEL[row.status] || '异常' }}
+              </NTag>
+              <span class="font-medium">{{ row.site_name }}</span>
+              <span class="text-xs opacity-70">
+                {{ formatHealthIssues(row.issues) || '解析未知' }}
+              </span>
+              <NButton
+                size="tiny"
+                quaternary
+                type="primary"
+                @click="copyParseHealthFeedback(row)"
+              >
+                反馈修复
+              </NButton>
+            </div>
+          </div>
+          <div v-if="parseHealthAuthIssues.length > 0" class="mt-2 space-y-2">
+            <div
+              class="text-xs font-medium"
+              style="color: var(--tblr-text-muted)"
+            >
+              凭据失效（请在站点维护中更新 Cookie / API Key）
+            </div>
+            <div
+              v-for="row in parseHealthAuthIssues"
+              :key="row.site_id"
+              class="flex flex-wrap items-center gap-2 text-sm"
+            >
+              <NTag size="small" :bordered="false" type="default">
+                凭据失效
+              </NTag>
+              <span class="font-medium">{{ row.site_name }}</span>
+              <span class="text-xs opacity-70">
+                {{ formatHealthIssues(row.issues) || '未登录' }}
+              </span>
+            </div>
+          </div>
+          <div v-if="parseHealthRunAt" class="mt-2 text-xs opacity-60">
+            最近自检：{{ parseHealthRunAt }}
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div class="toolbar-bar">
       <div class="source-filter-bar" role="tablist" aria-label="来源筛选">
@@ -520,6 +769,36 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.health-summary {
+  overflow: hidden;
+}
+
+.health-summary-toggle {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  width: 100%;
+  padding: 0.625rem 1rem;
+  font-size: 0.8125rem;
+  color: var(--tblr-text-heading);
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.health-summary-toggle:hover {
+  background: rgb(var(--tblr-primary-rgb) / 4%);
+}
+
+.health-summary-title {
+  font-weight: 600;
+}
+
+.health-detail {
+  padding: 0 1rem 1rem;
+  border-top: 1px solid var(--tblr-card-border-color);
+}
+
 .toolbar-bar {
   display: flex;
   flex-wrap: wrap;
