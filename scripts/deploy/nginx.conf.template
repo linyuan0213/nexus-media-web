@@ -19,9 +19,7 @@ http {
   default_type application/octet-stream;
 
   types {
-    application/javascript  js mjs;
-    text/css                css;
-    text/html               html;
+    application/javascript  mjs;
   }
 
   sendfile on;
@@ -55,6 +53,27 @@ http {
       root /usr/share/nginx/html;
       try_files $uri $uri/ /index.html;
       index index.html;
+    }
+
+    # 静态资源：不存在时返回 404，避免 SPA 回退把 HTML 当图片返回
+    location ~* \.(?:js|mjs|css|png|jpe?g|gif|svg|ico|webp|avif|woff2?|ttf|otf|eot|json|map)$ {
+      root /usr/share/nginx/html;
+      try_files $uri =404;
+      access_log off;
+      expires 30d;
+      add_header Cache-Control "public, max-age=2592000, immutable";
+    }
+
+    location = /sw.js {
+      root /usr/share/nginx/html;
+      try_files $uri =404;
+      access_log off;
+    }
+
+    location = /manifest.webmanifest {
+      root /usr/share/nginx/html;
+      try_files $uri =404;
+      access_log off;
     }
 
     # API 代理到后端服务（通过 BACKEND_HOST / BACKEND_PORT 配置）
