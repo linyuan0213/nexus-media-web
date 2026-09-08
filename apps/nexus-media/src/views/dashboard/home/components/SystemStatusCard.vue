@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import { computed } from 'vue';
 
+import { IconifyIcon } from '@vben/icons';
+
 import { NEmpty } from 'naive-ui';
 
 interface SystemStatus {
@@ -23,15 +25,25 @@ interface StorageSpace {
 interface Props {
   status?: SystemStatus | undefined;
   storage?: StorageSpace | undefined;
-  downloaderActive?: number;
-  downloaderTotal?: number;
+  downloaderOnline?: boolean;
+  downloaderCount?: number;
+  downloadSpeed?: number;
+  uploadSpeed?: number;
+  downloadLimit?: null | number;
+  uploadLimit?: null | number;
+  updatedAt?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   status: undefined,
   storage: undefined,
-  downloaderActive: 0,
-  downloaderTotal: 0,
+  downloaderOnline: false,
+  downloaderCount: 0,
+  downloadSpeed: 0,
+  uploadSpeed: 0,
+  downloadLimit: null,
+  uploadLimit: null,
+  updatedAt: 0,
 });
 
 function levelColor(percent: number): string {
@@ -61,28 +73,43 @@ const memText = computed(() => {
   return `${toGb(used)} / ${toGb(total)}`;
 });
 
-const uptimeText = computed(() => {
-  const s = props.status?.uptime ?? 0;
-  const days = Math.floor(s / 86_400);
-  const hours = Math.floor((s % 86_400) / 3600);
-  const mins = Math.floor((s % 3600) / 60);
-  if (days > 0) return `运行 ${days} 天 ${hours} 小时`;
-  if (hours > 0) return `运行 ${hours} 小时 ${mins} 分钟`;
-  return `运行 ${mins} 分钟`;
+const updatedText = computed(() => {
+  if (!props.updatedAt) return '-';
+  const d = new Date(props.updatedAt);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 });
 
 const storagePercent = computed(() =>
   Math.min(Math.max(Number(props.storage?.UsedPercent ?? 0), 0), 100),
 );
 
-const downloaderPercent = computed(() =>
-  props.downloaderTotal > 0
-    ? Math.min(
-        Math.max((props.downloaderActive / props.downloaderTotal) * 100, 0),
-        100,
-      )
-    : 0,
+function formatSpeed(bps?: null | number): string {
+  const b = Math.max(Number(bps ?? 0), 0);
+  if (b >= 1024 ** 4) return `${(b / 1024 ** 4).toFixed(2)} TB/s`;
+  if (b >= 1024 ** 3) return `${(b / 1024 ** 3).toFixed(2)} GB/s`;
+  if (b >= 1024 ** 2) return `${(b / 1024 ** 2).toFixed(2)} MB/s`;
+  if (b >= 1024) return `${(b / 1024).toFixed(1)} KB/s`;
+  return `${Math.round(b)} B/s`;
+}
+
+function utilPercent(speed: number, limit?: null | number): number {
+  if (!limit || limit <= 0) return 0;
+  return Math.min(Math.max((speed / limit) * 100, 0), 100);
+}
+
+const downloaderUtil = computed(() =>
+  utilPercent(props.downloadSpeed, props.downloadLimit),
 );
+const uploaderUtil = computed(() =>
+  utilPercent(props.uploadSpeed, props.uploadLimit),
+);
+
+const downloaderText = computed(() => {
+  if (props.downloaderCount === 0) return '未启用下载器';
+  if (!props.downloaderOnline) return '下载器离线';
+  return '';
+});
 </script>
 
 <template>
@@ -127,7 +154,13 @@ const downloaderPercent = computed(() =>
 
       <template v-if="storage">
         <div class="mb-1.5 flex items-center justify-between text-xs">
-          <span style="color: var(--tblr-text-muted)">存储空间</span>
+          <span
+            class="inline-flex items-center gap-1.5"
+            style="color: var(--tblr-text-muted)"
+          >
+            <IconifyIcon icon="lucide:hard-drive" class="size-3.5" />
+            存储空间
+          </span>
           <span class="num font-medium">
             {{ storage.UsedSpace }} / {{ storage.TotalSpace }}
           </span>
@@ -144,25 +177,107 @@ const downloaderPercent = computed(() =>
       </template>
 
       <div class="mb-1.5 mt-4 flex items-center justify-between text-xs">
-        <span style="color: var(--tblr-text-muted)">下载器负载</span>
-        <span class="num font-medium">
-          {{ downloaderActive }} / {{ downloaderTotal }} 个任务进行中
+        <span
+          class="inline-flex items-center gap-1.5"
+          style="color: var(--tblr-text-muted)"
+        >
+          <IconifyIcon icon="lucide:gauge" class="size-3.5" />
+          下载器负载
+        </span>
+        <span
+          v-if="downloaderText"
+          class="num font-medium"
+          style="color: var(--tblr-text-muted)"
+        >
+          {{ downloaderText }}
+        </span>
+        <span
+          v-else-if="downloaderCount > 1"
+          class="num font-medium"
+          style="color: var(--tblr-text-muted)"
+        >
+          {{ downloaderCount }} 个下载器
         </span>
       </div>
-      <div class="progress-bar-tblr">
-        <div
-          class="progress-bar-tblr-fill"
-          :style="{
-            width: `${downloaderPercent}%`,
-            backgroundColor: 'var(--tblr-teal)',
-          }"
-        ></div>
-      </div>
+      <template v-if="downloaderOnline">
+        <div class="mt-0.5">
+          <div class="flex items-center justify-between text-xs">
+            <span
+              class="inline-flex items-center gap-1"
+              style="color: var(--tblr-text-muted)"
+            >
+              <IconifyIcon
+                icon="lucide:arrow-down"
+                class="size-3"
+                style="color: var(--tblr-warning)"
+              />
+              下载
+            </span>
+            <span class="num font-medium">{{
+              formatSpeed(downloadSpeed)
+            }}</span>
+          </div>
+          <div
+            v-if="downloadLimit && downloadLimit > 0"
+            class="mt-1 flex items-center gap-1.5"
+          >
+            <div class="progress-bar-tblr flex-1">
+              <div
+                class="progress-bar-tblr-fill"
+                :style="{
+                  width: `${downloaderUtil}%`,
+                  backgroundColor: levelColor(downloaderUtil),
+                }"
+              ></div>
+            </div>
+            <span
+              class="num shrink-0 text-[0.625rem]"
+              style="color: var(--tblr-text-muted)"
+              >{{ Math.round(downloaderUtil) }}%</span
+            >
+          </div>
+        </div>
+        <div class="mt-2">
+          <div class="flex items-center justify-between text-xs">
+            <span
+              class="inline-flex items-center gap-1"
+              style="color: var(--tblr-text-muted)"
+            >
+              <IconifyIcon
+                icon="lucide:arrow-up"
+                class="size-3"
+                style="color: var(--tblr-success)"
+              />
+              上传
+            </span>
+            <span class="num font-medium">{{ formatSpeed(uploadSpeed) }}</span>
+          </div>
+          <div
+            v-if="uploadLimit && uploadLimit > 0"
+            class="mt-1 flex items-center gap-1.5"
+          >
+            <div class="progress-bar-tblr flex-1">
+              <div
+                class="progress-bar-tblr-fill"
+                :style="{
+                  width: `${uploaderUtil}%`,
+                  backgroundColor: levelColor(uploaderUtil),
+                }"
+              ></div>
+            </div>
+            <span
+              class="num shrink-0 text-[0.625rem]"
+              style="color: var(--tblr-text-muted)"
+              >{{ Math.round(uploaderUtil) }}%</span
+            >
+          </div>
+        </div>
+      </template>
 
       <div
         class="status-footer mt-auto flex items-center justify-between pt-3 text-xs"
       >
-        <span>{{ uptimeText }}</span>
+        <span>更新于 {{ updatedText }}</span>
         <span>{{ status.version }} · Python {{ status.python_version }}</span>
       </div>
     </div>

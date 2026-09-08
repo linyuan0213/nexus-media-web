@@ -88,7 +88,7 @@ function openLink(link?: string) {
 
 .latest-item:hover .latest-poster,
 .latest-item:focus-visible .latest-poster {
-  box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 12%);
+  box-shadow: var(--tblr-box-shadow);
   transform: translateY(-2px);
 }
 

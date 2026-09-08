@@ -120,6 +120,33 @@ export async function getDownloadTasksApi(
   );
 }
 
+export interface DownloaderSpeedStatistic {
+  download_speed: number;
+  upload_speed: number;
+  download_limit?: null | number;
+  upload_limit?: null | number;
+}
+
+export interface DownloaderSpeedStatistics {
+  online: boolean;
+  online_count: number;
+  downloader_count: number;
+  download_speed: number;
+  upload_speed: number;
+  download_limit?: null | number;
+  upload_limit?: null | number;
+  downloaders: DownloaderSpeedStatistic[];
+}
+
+/** 获取下载器实时速率统计 */
+export async function getDownloaderSpeedStatisticsApi() {
+  return requestClient.post<DownloaderSpeedStatistics>(
+    '/download/statistics',
+    {},
+    { timeout: 15_000 },
+  );
+}
+
 /** 获取下载历史 */
 export async function getDownloadHistoryApi(page?: number, pageSize?: number) {
   return requestClient.post<DownloadApi.DownloadHistoryItem[]>(

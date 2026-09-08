@@ -1,9 +1,8 @@
 <script lang="ts" setup>
-import type { DashboardApi } from '#/api';
+import type { DashboardApi, DownloaderSpeedStatistics } from '#/api';
 
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
-import { useIntervalFn } from '@vueuse/core';
 import { NCard, NEmpty, NSpin, NTag } from 'naive-ui';
 
 import {
@@ -14,8 +13,10 @@ import {
   getDashboardSiteStatsApi,
   getDashboardSystemStatusApi,
   getDashboardTransferStatsApi,
-  getDownloadTasksApi,
+  getDownloaderSpeedStatisticsApi,
+  getMovieSubscriptionApi,
   getSiteDailyHistoryApi,
+  getTvSubscriptionApi,
 } from '#/api';
 import { PluginSlot } from '#/plugin-framework';
 
@@ -26,6 +27,7 @@ import SiteBarChart from './components/SiteBarChart.vue';
 import SiteRoseChart from './components/SiteRoseChart.vue';
 import StatCard from './components/StatCard.vue';
 import SystemStatusCard from './components/SystemStatusCard.vue';
+import TrafficCard from './components/TrafficCard.vue';
 import TransferLineChart from './components/TransferLineChart.vue';
 import WelcomeHeader from './components/WelcomeHeader.vue';
 
@@ -41,6 +43,8 @@ const systemStatus = ref<{
   uptime: number;
   version: string;
 }>();
+
+const sysUpdatedAt = ref(0);
 
 // 媒体库
 const libraryData = ref<DashboardApi.LibraryHome>();
@@ -60,12 +64,6 @@ const siteStats = ref<
   }>
 >([]);
 
-// 站点每日流量（今/昨两天增量，用于趋势徽标）
-const dailyTraffic = ref<{ download: number[]; upload: number[] }>({
-  download: [],
-  upload: [],
-});
-
 // 索引器统计（次数/成功/失败/平均耗时）
 const indexerStats = ref<{ stats: any[] }>();
 
@@ -74,6 +72,64 @@ const brushTasks = ref<any[]>([]);
 
 // 调度任务
 const schedulerJobs = ref<any[]>([]);
+
+// 订阅数（电影+电视剧订阅总数）
+const subscribeCount = ref(0);
+const subscribeNewToday = ref(0);
+
+// 订阅数趋势：今日新增订阅数（按条目 add_date 统计）
+const subscribeTrend = computed(() => {
+  const n = subscribeNewToday.value;
+  return {
+    text: n > 0 ? `+${n}` : '0',
+    type: (n > 0 ? 'up' : 'neutral') as 'neutral' | 'up',
+  };
+});
+
+// 站点每日流量增量：今 vs 昨（/site/sites/statistics/daily，按天增量）
+const trafficDaily = ref<{
+  dates: string[];
+  series: Array<{ download: number[]; name: string; upload: number[] }>;
+}>({ dates: [], series: [] });
+
+type TrafficTrend = { text: string; type: 'down' | 'neutral' | 'up' };
+
+function trafficDelta(cur: number, prev: number): TrafficTrend | undefined {
+  if (cur === 0 && prev === 0) return undefined;
+  const diff = cur - prev;
+  if (diff === 0) return { text: '0', type: 'neutral' };
+  const sign = diff > 0 ? '+' : '-';
+  return {
+    text: `${sign}${formatSize(Math.abs(diff))}`,
+    type: diff > 0 ? 'up' : 'down',
+  };
+}
+
+const uploadTrend = computed(() => {
+  const d = trafficDaily.value;
+  if (d.dates.length < 2 || d.series.length === 0) return undefined;
+  const last = d.dates.length - 1;
+  let cur = 0;
+  let prev = 0;
+  for (const s of d.series) {
+    cur += s.upload[last] || 0;
+    prev += s.upload[last - 1] || 0;
+  }
+  return trafficDelta(cur, prev);
+});
+
+const downloadTrend = computed(() => {
+  const d = trafficDaily.value;
+  if (d.dates.length < 2 || d.series.length === 0) return undefined;
+  const last = d.dates.length - 1;
+  let cur = 0;
+  let prev = 0;
+  for (const s of d.series) {
+    cur += s.download[last] || 0;
+    prev += s.download[last - 1] || 0;
+  }
+  return trafficDelta(cur, prev);
+});
 
 // 计算属性
 const mediaCount = computed(() => {
@@ -169,18 +225,16 @@ function dayTrend(
   const today = nums.at(-1) ?? 0;
   const yesterday = nums.length > 1 ? (nums.at(-2) ?? 0) : 0;
   const diff = today - yesterday;
-  return {
-    text:
-      diff > 0
-        ? `+${formatter(diff)}`
-        : diff < 0
-          ? `-${formatter(-diff)}`
-          : '0',
-    type: (diff > 0 ? 'up' : diff < 0 ? 'down' : 'neutral') as
-      | 'down'
-      | 'neutral'
-      | 'up',
-  };
+  let text = '0';
+  let type: 'down' | 'neutral' | 'up' = 'neutral';
+  if (diff > 0) {
+    text = `+${formatter(diff)}`;
+    type = 'up';
+  } else if (diff < 0) {
+    text = `-${formatter(-diff)}`;
+    type = 'down';
+  }
+  return { text, type };
 }
 
 const movieTrend = computed(() =>
@@ -189,12 +243,6 @@ const movieTrend = computed(() =>
 // 电视剧卡片按剧数口径，趋势用去重剧数
 const seriesTrend = computed(() =>
   dayTrend(transferStats.value?.tv_series_nums, (n) => `${n} 部`),
-);
-const uploadTrend = computed(() =>
-  dayTrend(dailyTraffic.value.upload, (n) => formatSize(n)),
-);
-const downloadTrend = computed(() =>
-  dayTrend(dailyTraffic.value.download, (n) => formatSize(n)),
 );
 
 function parseSizeToBytes(size?: number | string): number {
@@ -242,20 +290,12 @@ function setTransferDays(days: number) {
   fetchTransferStats();
 }
 
-// 下载器负载（进行中任务 / 总任务）
-const downloaderLoad = ref<{ active: number; total: number }>({
-  active: 0,
-  total: 0,
-});
+// 下载器实时速率负载（速率占用速度上限比例）
+const downloaderStats = ref<DownloaderSpeedStatistics>();
 
-async function fetchDownloaderLoad() {
+async function fetchDownloaderStats() {
   try {
-    const res = await getDownloadTasksApi(1, 100);
-    const items = res?.items || [];
-    downloaderLoad.value = {
-      active: items.filter((t) => t.status === 'downloading').length,
-      total: res?.total ?? items.length,
-    };
+    downloaderStats.value = await getDownloaderSpeedStatisticsApi();
   } catch {
     // 静默失败
   }
@@ -263,7 +303,9 @@ async function fetchDownloaderLoad() {
 
 async function fetchSystemStatus() {
   try {
-    systemStatus.value = (await getDashboardSystemStatusApi()) as any;
+    const res = (await getDashboardSystemStatusApi()) as any;
+    systemStatus.value = res;
+    sysUpdatedAt.value = Date.now();
   } catch {
     // 静默失败
   }
@@ -280,7 +322,9 @@ async function fetchData() {
       indexerRes,
       brushRes,
       jobRes,
-      dailyRes,
+      movieSubs,
+      tvSubs,
+      dailyTraffic,
     ] = await Promise.all([
       getDashboardSystemStatusApi(),
       getDashboardLibraryApi(),
@@ -289,28 +333,35 @@ async function fetchData() {
       getDashboardIndexerStatsApi(),
       getDashboardBrushTasksApi(),
       getDashboardSchedulerJobsApi(),
-      getSiteDailyHistoryApi({ days: 2 }),
+      getMovieSubscriptionApi(),
+      getTvSubscriptionApi(),
+      // 拉 3 天：首日只作差分基线，最后两天才是“今日/昨日”真实增量
+      getSiteDailyHistoryApi({ days: 3 }),
     ]);
 
     systemStatus.value = sysRes as any;
+    sysUpdatedAt.value = Date.now();
     libraryData.value = libRes;
     transferStats.value = transferRes;
 
     siteStats.value = (siteRes || []) as any;
+    trafficDaily.value = dailyTraffic || { dates: [], series: [] };
     indexerStats.value = indexerRes;
     brushTasks.value = brushRes || [];
     schedulerJobs.value = jobRes || [];
-    fetchDownloaderLoad();
-
-    // 汇总各站点今/昨增量
-    const series = dailyRes?.series || [];
-    const len = dailyRes?.dates?.length || 0;
-    const sumAt = (key: 'download' | 'upload', idx: number) =>
-      idx >= 0 ? series.reduce((sum, s) => sum + (s[key][idx] || 0), 0) : 0;
-    dailyTraffic.value = {
-      upload: [sumAt('upload', len - 2), sumAt('upload', len - 1)],
-      download: [sumAt('download', len - 2), sumAt('download', len - 1)],
-    };
+    subscribeCount.value =
+      (Array.isArray(movieSubs) ? movieSubs.length : 0) +
+      (Array.isArray(tvSubs) ? tvSubs.length : 0);
+    // 今日新增订阅数：按条目 add_date 统计
+    const todayStr = new Date().toISOString().slice(0, 10);
+    subscribeNewToday.value =
+      (Array.isArray(movieSubs) ? movieSubs : []).filter(
+        (s: any) => String(s?.add_date || '').slice(0, 10) === todayStr,
+      ).length +
+      (Array.isArray(tvSubs) ? tvSubs : []).filter(
+        (s: any) => String(s?.add_date || '').slice(0, 10) === todayStr,
+      ).length;
+    fetchDownloaderStats();
   } catch {
     // 静默失败
   } finally {
@@ -318,13 +369,20 @@ async function fetchData() {
   }
 }
 
-// 系统状态 30s 轮询（含下载器负载）
-useIntervalFn(() => {
-  fetchSystemStatus();
-  fetchDownloaderLoad();
-}, 30_000);
+// 系统状态 30s 轮询（含下载器负载）：显式 setInterval，组件卸载清理
+let sysTimer: null | ReturnType<typeof setInterval> = null;
 
-onMounted(fetchData);
+onMounted(() => {
+  fetchData();
+  sysTimer = setInterval(() => {
+    fetchSystemStatus();
+    fetchDownloaderStats();
+  }, 30_000);
+});
+
+onBeforeUnmount(() => {
+  if (sysTimer) clearInterval(sysTimer);
+});
 </script>
 
 <template>
@@ -345,7 +403,7 @@ onMounted(fetchData);
           title="电影"
           :value="mediaCount.movie"
           icon-color="var(--tblr-primary)"
-          icon-bg="rgb(var(--tblr-primary-rgb) / 10%)"
+          icon-bg="color-mix(in srgb, var(--tblr-primary) 10%, transparent)"
           to="/library"
           :trend="movieTrend?.text"
           :trend-type="movieTrend?.type"
@@ -360,28 +418,25 @@ onMounted(fetchData);
           :trend="seriesTrend?.text"
           :trend-type="seriesTrend?.type"
         />
-        <StatCard
-          icon="lucide:arrow-up"
-          title="上传量"
-          :value="formatSize(totalUpload)"
-          icon-color="var(--tblr-success)"
-          icon-bg="color-mix(in srgb, var(--tblr-success) 10%, transparent)"
+        <TrafficCard
+          :upload="formatSize(totalUpload)"
+          :download="formatSize(totalDownload)"
+          :upload-trend="uploadTrend"
+          :download-trend="downloadTrend"
           to="/site/statistics"
-          :trend="uploadTrend?.text"
-          :trend-type="uploadTrend?.type"
-        />
-        <StatCard
-          icon="lucide:arrow-down"
-          title="下载量"
-          :value="formatSize(totalDownload)"
-          icon-color="var(--tblr-warning)"
-          icon-bg="color-mix(in srgb, var(--tblr-warning) 10%, transparent)"
-          to="/site/statistics"
-          :trend="downloadTrend?.text"
-          :trend-type="downloadTrend?.type"
         />
         <StatCard
           icon="lucide:rss"
+          title="订阅数"
+          :value="subscribeCount"
+          icon-color="var(--tblr-cyan)"
+          icon-bg="color-mix(in srgb, var(--tblr-cyan) 10%, transparent)"
+          to="/subscription/movie"
+          :trend="subscribeTrend?.text"
+          :trend-type="subscribeTrend?.type"
+        />
+        <StatCard
+          icon="lucide:zap"
           title="刷流任务"
           :value="`${activeBrushCount} / ${brushTasks.length}`"
           icon-color="var(--tblr-purple)"
@@ -441,8 +496,13 @@ onMounted(fetchData);
         <SystemStatusCard
           :status="systemStatus"
           :storage="libraryData?.library_spaces"
-          :downloader-active="downloaderLoad.active"
-          :downloader-total="downloaderLoad.total"
+          :downloader-online="downloaderStats?.online"
+          :downloader-count="downloaderStats?.downloader_count ?? 0"
+          :download-speed="downloaderStats?.download_speed ?? 0"
+          :upload-speed="downloaderStats?.upload_speed ?? 0"
+          :download-limit="downloaderStats?.download_limit"
+          :upload-limit="downloaderStats?.upload_limit"
+          :updated-at="sysUpdatedAt"
         />
       </div>
 

@@ -17,7 +17,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   iconColor: 'var(--tblr-primary)',
-  iconBg: 'rgb(var(--tblr-primary-rgb) / 10%)',
+  iconBg: 'var(--tblr-primary-light)',
   to: undefined,
   trend: undefined,
   trendType: 'neutral',
@@ -61,15 +61,18 @@ function handleKeydown(event: KeyboardEvent) {
     @click="handleClick"
     @keydown="handleKeydown"
   >
+    <!-- 竖排精炼：淡底图标盒（语义色）→ 大数值 → 标题+趋势徽标 -->
     <div class="mb-3 flex items-start justify-between">
       <div
-        class="flex h-10 w-10 items-center justify-center"
-        style="border-radius: var(--tblr-card-border-radius)"
-        :style="{ background: iconBg }"
+        class="stat-icon-box flex items-center justify-center"
+        :style="{
+          background: iconBg,
+          borderRadius: 'var(--tblr-card-border-radius)',
+        }"
       >
         <IconifyIcon
           :icon="icon"
-          class="size-5"
+          class="size-[22px]"
           :style="{ color: iconColor }"
         />
       </div>
@@ -79,13 +82,13 @@ function handleKeydown(event: KeyboardEvent) {
         class="jump-icon size-3.5"
       />
     </div>
-    <div class="num text-2xl font-semibold leading-tight">
+    <div class="num text-[1.75rem] font-semibold leading-tight">
       {{ value }}
     </div>
     <div class="mt-1 flex items-center justify-between gap-2">
-      <span class="truncate text-xs" style="color: var(--tblr-text-muted)">
-        {{ title }}
-      </span>
+      <span class="truncate text-xs" style="color: var(--tblr-text-muted)">{{
+        title
+      }}</span>
       <span v-if="trend" class="trend-badge" :class="trendClass">
         <IconifyIcon :icon="trendIcon" class="size-3" />
         {{ trend }}
@@ -98,8 +101,7 @@ function handleKeydown(event: KeyboardEvent) {
 .stat-card {
   transition:
     transform 0.2s ease,
-    box-shadow 0.2s ease,
-    border-color 0.2s ease;
+    box-shadow 0.2s ease;
 }
 
 .stat-card--link {
@@ -109,9 +111,13 @@ function handleKeydown(event: KeyboardEvent) {
 .stat-card--link:hover,
 .stat-card--link:focus-visible {
   outline: none;
-  border-color: rgb(var(--tblr-primary-rgb) / 40%);
-  box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 10%);
+  box-shadow: var(--tblr-box-shadow);
   transform: translateY(-2px);
+}
+
+.stat-icon-box {
+  width: 44px;
+  height: 44px;
 }
 
 .num {
