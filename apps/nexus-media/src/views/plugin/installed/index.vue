@@ -77,7 +77,8 @@ const statusOptions = [
 ];
 
 const installedPlugins = computed(() => {
-  let result = plugins.value.filter((p) => p.installed);
+  // 已安装(installed) 或 已启用(enabled) 都展示，避免“启用后却进不了列表”的问题
+  let result = plugins.value.filter((p) => p.installed || p.enabled);
   if (statusFilter.value === 'enabled') {
     result = result.filter((p) => p.enabled);
   } else if (statusFilter.value === 'disabled') {

@@ -1,4 +1,9 @@
 <script lang="ts" setup>
+import type {
+  MarketPluginDetail,
+  MarketSource,
+} from '#/api/modules/plugin_market';
+
 import { computed, onMounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
@@ -28,8 +33,6 @@ import {
   getMarketPluginDetailApi,
   getMarketSourcesApi,
   installMarketPluginApi,
-  type MarketPluginDetail,
-  type MarketSource,
   syncMarketSourceApi,
   updateMarketPluginApi,
   updateMarketSourceApi,
@@ -268,7 +271,9 @@ const tagFacets = computed<string[]>(() => {
   }
   return [...stat.entries()]
     .filter(([, s]) => s.isCategory || s.count >= 2)
-    .sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0], 'zh'))
+    .toSorted(
+      (a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0], 'zh'),
+    )
     .map(([label]) => label);
 });
 
@@ -329,6 +334,9 @@ function stateOf(item: ViewItem): {
 } {
   const local = localPool.value[item.id];
   if (!local) return { installed: false, updatable: false };
+  // 已安装或已启用都视为“已装”，与已安装列表一致
+  if (!local.installed && !local.enabled)
+    return { installed: false, updatable: false };
   const remoteNewer =
     item.remote &&
     versionCmp(
@@ -392,9 +400,9 @@ async function doSync(sourceId: string) {
       target.last_error = '';
     }
     return true;
-  } catch (e: any) {
+  } catch (error: any) {
     notification.error(`同步失败：${sourceId}`, {
-      description: e?.message ?? String(e),
+      description: error?.message ?? String(error),
     });
     return false;
   } finally {
@@ -428,8 +436,8 @@ async function fetchCatalog(source: MarketSource) {
 
 async function loadAllSources(forceSync = false) {
   const targets = sources.value.filter((s) => s.enabled);
-  const list = targets.length ? targets : [...sources.value];
-  if (!list.length) {
+  const list = targets.length > 0 ? targets : [...sources.value];
+  if (list.length === 0) {
     remoteList.value = [];
     return;
   }
@@ -438,12 +446,10 @@ async function loadAllSources(forceSync = false) {
     if (forceSync) {
       await Promise.all(list.map((s) => doSync(s.source_id)));
     }
-    const merged = (
-      await Promise.all(
-        list.map((s) => fetchCatalog(s).catch(() => [] as RemoteItem[])),
-      )
-    ).flat();
-    remoteList.value = merged;
+    const catalogs = await Promise.all(
+      list.map((s) => fetchCatalog(s).catch(() => [] as RemoteItem[])),
+    );
+    remoteList.value = catalogs.flat();
   } finally {
     loading.value = false;
   }
@@ -460,9 +466,9 @@ async function fetchSources(preferId?: string) {
       items[0]?.source_id ??
       '';
     await loadAllSources(true);
-  } catch (e: any) {
+  } catch (error: any) {
     notification.error('获取市场源失败', {
-      description: e?.message ?? String(e),
+      description: error?.message ?? String(error),
     });
   }
 }
@@ -477,8 +483,10 @@ async function handleLocalInstall(item: ViewItem) {
     await enablePluginApi(item.id);
     notification.success(`安装成功：${item.info?.name ?? item.id}`);
     await loadLocal();
-  } catch (e: any) {
-    notification.error('安装失败', { description: e?.message ?? String(e) });
+  } catch (error: any) {
+    notification.error('安装失败', {
+      description: error?.message ?? String(error),
+    });
   }
 }
 
@@ -508,8 +516,8 @@ async function openInstall(item: ViewItem) {
   auditLoading.value = true;
   try {
     auditData.value = await auditMarketPluginApi(item.source_id, item.id);
-  } catch (e: any) {
-    auditError.value = e?.message ?? String(e);
+  } catch (error: any) {
+    auditError.value = error?.message ?? String(error);
   } finally {
     auditLoading.value = false;
   }
@@ -526,8 +534,10 @@ async function confirmInstall() {
     )) as { version?: string };
     notification.success(`安装成功：版本 ${res?.version ?? ''}`);
     await loadLocal();
-  } catch (e: any) {
-    notification.error('安装失败', { description: e?.message ?? String(e) });
+  } catch (error: any) {
+    notification.error('安装失败', {
+      description: error?.message ?? String(error),
+    });
   }
 }
 
@@ -539,8 +549,10 @@ async function handleUpdate(item: ViewItem) {
     };
     notification.success(`更新成功：已更新到 ${res?.version ?? ''}`);
     await loadLocal();
-  } catch (e: any) {
-    notification.error('更新失败', { description: e?.message ?? String(e) });
+  } catch (error: any) {
+    notification.error('更新失败', {
+      description: error?.message ?? String(error),
+    });
   }
 }
 
@@ -566,9 +578,9 @@ async function quickAddOfficial() {
     })) as MarketSource;
     notification.success('已添加官方源，正在同步…');
     await fetchSources(res?.source_id);
-  } catch (e: any) {
+  } catch (error: any) {
     notification.error('添加官方源失败', {
-      description: e?.message ?? String(e),
+      description: error?.message ?? String(error),
     });
   }
 }
@@ -594,8 +606,10 @@ async function confirmAddSource() {
     sourceModal.value = false;
     notification.success('市场源已添加');
     await fetchSources(res?.source_id);
-  } catch (e: any) {
-    notification.error('添加失败', { description: e?.message ?? String(e) });
+  } catch (error: any) {
+    notification.error('添加失败', {
+      description: error?.message ?? String(error),
+    });
   } finally {
     savingSource.value = false;
   }
@@ -606,8 +620,10 @@ async function removeSource(sourceId: string) {
     await deleteMarketSourceApi(sourceId);
     notification.success('已移除市场源');
     await fetchSources();
-  } catch (e: any) {
-    notification.error('移除失败', { description: e?.message ?? String(e) });
+  } catch (error: any) {
+    notification.error('移除失败', {
+      description: error?.message ?? String(error),
+    });
   }
 }
 
