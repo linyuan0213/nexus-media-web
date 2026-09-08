@@ -56,7 +56,16 @@ http {
     }
 
     # 静态资源：不存在时返回 404，避免 SPA 回退把 HTML 当图片返回
-    location ~* \.(?:js|mjs|css|png|jpe?g|gif|svg|ico|webp|avif|woff2?|ttf|otf|eot|json|map)$ {
+    # 仅匹配真实静态目录（/static /assets），避免误伤 /api 等反向代理路径
+    location ^~ /static/ {
+      root /usr/share/nginx/html;
+      try_files $uri =404;
+      access_log off;
+      expires 30d;
+      add_header Cache-Control "public, max-age=2592000, immutable";
+    }
+
+    location ^~ /assets/ {
       root /usr/share/nginx/html;
       try_files $uri =404;
       access_log off;
