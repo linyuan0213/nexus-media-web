@@ -54,6 +54,12 @@ export async function ensureNotifyPermission(): Promise<boolean> {
   }
 }
 
+/** 在用户手势（开启开关）时主动请求通知权限，避免无手势请求被浏览器静默拒绝 */
+export function requestNotifyPermissionOnGesture(): void {
+  permissionAsked = false;
+  void ensureNotifyPermission();
+}
+
 /** 新消息提示音（WebAudio 双音短促提示） */
 let audioCtx: AudioContext | null = null;
 
@@ -86,6 +92,29 @@ interface QueuedNotify {
   onClick?: () => void;
 }
 
+/** 是否具备弹系统通知的条件（开关开启 + 浏览器已授权） */
+export function canOsNotify(): boolean {
+  try {
+    return (
+      notifySettings.value.osEnabled &&
+      typeof Notification !== 'undefined' &&
+      Notification.permission === 'granted'
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** 浏览器通知权限状态（用于给用户明确反馈） */
+export function notifyPermissionState(): string {
+  try {
+    if (typeof Notification === 'undefined') return 'unsupported';
+    return Notification.permission; // granted / denied / default
+  } catch {
+    return 'unsupported';
+  }
+}
+
 let notifyQueue: QueuedNotify[] = [];
 let queueTimer: null | ReturnType<typeof setTimeout> = null;
 
@@ -110,7 +139,6 @@ async function flushNotifyQueue() {
   notifyQueue = [];
   queueTimer = null;
   if (batch.length === 0) return;
-  if (!document.hidden && document.hasFocus()) return; // 前台不弹系统通知
   if (!(await ensureNotifyPermission())) return;
   let title = 'Nexus Media';
   let body: string;
@@ -128,7 +156,7 @@ async function flushNotifyQueue() {
   try {
     const notification = new Notification(title, {
       body,
-      icon: '/static/img/logo.png',
+      icon: '/static/img/logo/logo-mark.png',
       tag: 'nexus-message',
     });
     notification.addEventListener('click', () => {

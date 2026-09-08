@@ -23,18 +23,24 @@ import {
 } from '#/api/modules/agent';
 import { $t } from '#/locales';
 import { useAuthStore } from '#/store';
+import { useAppNotification } from '#/utils/notify';
 import {
+  canOsNotify,
   ensureNotifyPermission,
+  notifyPermissionState,
   notifySettings,
   playNotifySound,
   queueOsNotify,
+  requestNotifyPermissionOnGesture,
   updateNotifySettings,
 } from '#/utils/os-notify';
 import { isTauri, openBackendConfig } from '#/utils/tauri';
 import { dispatchUnreadSync, listenUnreadSync } from '#/utils/unread-sync';
+import { disableWebPush, enableWebPush } from '#/utils/web-push';
 import LoginForm from '#/views/_core/authentication/login.vue';
 
 const notifications = ref<NotificationItem[]>([]);
+const notification = useAppNotification();
 const unreadCount = ref(0);
 let notifyTimer: null | ReturnType<typeof setInterval> = null;
 
@@ -61,6 +67,42 @@ function openMessageCenter() {
   router.push({ path: '/message-center' });
 }
 
+/** 开启/关闭系统通知（合并：页面 OS 通知 + Web Push 手机/后台推送） */
+let osToggling = false;
+
+async function onToggleOsEnabled(v: boolean) {
+  updateNotifySettings({ osEnabled: v });
+  if (osToggling) return;
+  osToggling = true;
+  try {
+    if (v) {
+      // 把存量未读全部记入已推送去重集：开启系统通知不重推旧消息，只推之后新到的
+      for (const item of notifications.value) {
+        const id = item.id ?? item.query?.notify;
+        if (id != null) notifiedIds.add(Number(id));
+      }
+      saveNotifiedIds();
+      // 借点击手势请求权限并订阅 Web Push（后台/手机也可达）
+      requestNotifyPermissionOnGesture();
+      const ok = await enableWebPush();
+      const state = notifyPermissionState();
+      if (!ok || state !== 'granted') {
+        const hint =
+          state === 'denied'
+            ? '浏览器通知权限被拒绝：请在地址栏左侧站点设置中改为“允许”'
+            : state === 'default'
+              ? '请在弹窗中允许通知权限'
+              : '当前环境不支持通知（需 HTTPS 访问）';
+        notification.warning(`推送未开启：${hint}`);
+      }
+    } else {
+      await disableWebPush();
+    }
+  } finally {
+    osToggling = false;
+  }
+}
+
 /** 更新未读数：变化时广播跨标签同步 */
 function setUnreadCount(next: number) {
   if (next !== unreadCount.value) {
@@ -74,14 +116,16 @@ async function loadNotifications() {
   try {
     const res = await getMessageUnreadList(100);
     const items = res?.messages || [];
-    // 新未读消息 → OS 通知栏（仅后台时记录去重并弹出，前台不占去重位）
+    // 新未读消息 → OS 通知栏：有授权才弹并记录去重（前台也弹，去重防重复）
+    const osReady = canOsNotify();
     for (const m of items) {
       const id = m.id ?? m.cursor;
       if (!id || notifiedIds.has(id)) continue;
-      if (!document.hidden && document.hasFocus()) continue;
-      notifiedIds.add(id);
-      saveNotifiedIds();
-      queueOsNotify(m.title || '新消息', m.content || '', openMessageCenter);
+      if (osReady) {
+        notifiedIds.add(id);
+        saveNotifiedIds();
+        queueOsNotify(m.title || '新消息', m.content || '', openMessageCenter);
+      }
     }
     notifications.value = items.map((m: any) => ({
       id: m.id ?? m.cursor,
@@ -326,7 +370,7 @@ watch(
         @make-all="handleMakeAll"
         @view-all="handleViewAll"
         @update-badge-enabled="(v) => updateNotifySettings({ badgeEnabled: v })"
-        @update-os-enabled="(v) => updateNotifySettings({ osEnabled: v })"
+        @update-os-enabled="onToggleOsEnabled"
         @update-sound-enabled="(v) => updateNotifySettings({ soundEnabled: v })"
       />
     </template>

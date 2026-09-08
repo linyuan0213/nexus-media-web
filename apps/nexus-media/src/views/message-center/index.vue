@@ -32,7 +32,7 @@ import {
   streamMessages,
 } from '#/api/modules/agent';
 import { getAllSystemConfigApi } from '#/api/modules/system';
-import { queueOsNotify } from '#/utils/os-notify';
+import { canOsNotify, queueOsNotify } from '#/utils/os-notify';
 import { dispatchUnreadSync } from '#/utils/unread-sync';
 
 import ChatMessage from './components/ChatMessage.vue';
@@ -128,16 +128,13 @@ function saveNotifiedIds() {
   localStorage.setItem(NOTIFIED_KEY, JSON.stringify([...notifiedIds.value]));
 }
 
-/** 页面不在前台且该消息未推送过 → 排队弹 OS 通知（聚合 + 提示音由工具处理） */
+/** 新消息 → 排队弹 OS 通知（去重；已授权才弹并记录） */
 function maybeNotify(item: AgentApi.MessageStreamItem) {
   if (!item.id) return;
   const title = item.title?.trim() || '新消息';
   const body = (item.content || '').trim() || '';
   if (item.kind === 'list') return;
-  if (
-    (document.hidden || !document.hasFocus()) &&
-    !notifiedIds.value.has(item.id)
-  ) {
+  if (canOsNotify() && !notifiedIds.value.has(item.id)) {
     notifiedIds.value.add(item.id);
     saveNotifiedIds();
     queueOsNotify(title, body);

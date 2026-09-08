@@ -80,7 +80,7 @@ const handleClear = () => {
 };
 </script>
 <template>
-  <VbenPopover v-model:open="open" content-class="relative right-2 w-90 p-0">
+  <VbenPopover v-model:open="open" content-class="relative right-2 w-100 p-0">
     <template #trigger>
       <div class="mr-2 flex-center h-full" @click.stop="toggle()">
         <VbenIconButton class="bell-button relative text-foreground">
@@ -102,7 +102,7 @@ const handleClear = () => {
     <div class="relative">
       <div class="flex items-center justify-between p-4 py-3">
         <div class="text-foreground">{{ $t('ui.widgets.notifications') }}</div>
-        <div class="flex items-center gap-1">
+        <div class="flex shrink-0 items-center gap-1 whitespace-nowrap">
           <VbenIconButton
             :tooltip="badgeEnabled ? '未读角标已开启' : '未读角标已关闭'"
             @click="emit('updateBadgeEnabled', !badgeEnabled)"

@@ -18,7 +18,7 @@ import PageHeader from '#/components/page/PageHeader.vue';
 
 const loading = ref(false);
 const systemInfo = ref<any>({});
-const logoUrl = '/static/img/logo/logo-web-apple-180-light.png';
+const logoUrl = '/static/img/logo/logo-mark.png';
 const frontendVersion = import.meta.env.VITE_APP_VERSION
   ? `v${import.meta.env.VITE_APP_VERSION}`
   : '-';
