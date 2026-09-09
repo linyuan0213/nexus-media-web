@@ -173,7 +173,7 @@ function startEdit(word: WordItem) {
 function cancelEdit(groupId: string, wordId: number) {
   const key = `${groupId}_${wordId}`;
   editingIds.value.delete(key);
-  delete editForms.value[key];
+  editForms.value[key] = undefined;
 }
 
 async function handleSaveEdit(groupId: string, wordId: number) {
@@ -185,7 +185,7 @@ async function handleSaveEdit(groupId: string, wordId: number) {
     await saveWordApi({
       id: wordId,
       gid: Number.parseInt(groupId),
-      group_type: groups.value.find((g) => g.id === groupId)?.type || '1',
+      group_type: String(groups.value.find((g) => g.id === groupId)?.type ?? 1),
       new_replaced: f.replaced || '',
       new_replace: f.replace || '',
       new_front: f.front || '',
@@ -198,7 +198,7 @@ async function handleSaveEdit(groupId: string, wordId: number) {
       regex: f.regex ?? 0,
     });
     editingIds.value.delete(key);
-    delete editForms.value[key];
+    editForms.value[key] = undefined;
     message.success('保存成功');
     await fetchData();
   } catch (error: any) {
@@ -227,7 +227,7 @@ function startAdd(group: WordGroup) {
 
 function cancelAdd(tempId: string) {
   addingIds.value.delete(tempId);
-  delete addForms.value[tempId];
+  addForms.value[tempId] = undefined;
 }
 
 async function handleSaveAdd(tempId: string) {
@@ -242,7 +242,9 @@ async function handleSaveAdd(tempId: string) {
   try {
     await saveWordApi({
       gid: f.gid || 0,
-      group_type: groups.value.find((g) => g.id === f.group_id)?.type || '1',
+      group_type: String(
+        groups.value.find((g) => g.id === f.group_id)?.type ?? 1,
+      ),
       new_replaced: f.replaced || '',
       new_replace: f.replace || '',
       new_front: f.front || '',
@@ -255,7 +257,7 @@ async function handleSaveAdd(tempId: string) {
       regex: f.regex ?? 0,
     });
     addingIds.value.delete(tempId);
-    delete addForms.value[tempId];
+    addForms.value[tempId] = undefined;
     message.success('添加成功');
     await fetchData();
   } catch (error: any) {
