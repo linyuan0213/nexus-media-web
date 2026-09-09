@@ -2289,6 +2289,12 @@ async function confirmDownload() {
   gap: 1rem;
 }
 
+.season-table-block {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .season-table-header {
   display: flex;
   gap: 0.5rem;
@@ -2490,6 +2496,13 @@ async function confirmDownload() {
   opacity: 1;
 }
 
+/* 触屏没有 hover：下载/详情按钮保持可见，否则移动端看不到 */
+@media (hover: none) {
+  .td-actions {
+    opacity: 1;
+  }
+}
+
 .tbl-btn {
   padding: 0.1563rem 0.375rem;
   font-family: inherit;
@@ -2659,5 +2672,98 @@ async function confirmDownload() {
 .resource-tag-edition {
   color: hsl(var(--tag-edition));
   background-color: hsl(var(--tag-edition) / 20%);
+}
+
+/* Mobile：结果表转卡片布局，避免横向切列 */
+@media (max-width: 900px) {
+  .season-table-block {
+    overflow: visible;
+  }
+
+  .torrent-table,
+  .torrent-table tbody {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+
+  .torrent-table thead {
+    display: none;
+  }
+
+  .torrent-tr {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem 0.75rem;
+    padding: 0.625rem 0.75rem;
+    margin-bottom: 0.625rem;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border) / 60%);
+    border-radius: var(--radius);
+  }
+
+  .torrent-tr:hover td {
+    background: transparent;
+  }
+
+  .torrent-tr td {
+    display: inline-block;
+    padding: 0;
+    white-space: normal;
+    background: transparent;
+    border: none;
+  }
+
+  .torrent-tr td.td-site {
+    width: 100%;
+    font-weight: 600;
+  }
+
+  .torrent-tr td.td-title {
+    width: 100%;
+    max-width: none;
+  }
+
+  .torrent-tr td.td-seed,
+  .torrent-tr td.td-size,
+  .torrent-tr td.td-free {
+    margin-right: 0.75rem;
+    font-size: 0.75rem;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .torrent-tr td.td-seed::before {
+    content: '做种 ';
+  }
+
+  .torrent-tr td.td-size::before {
+    content: '大小 ';
+  }
+
+  .torrent-tr td.td-free::before {
+    content: '促销 ';
+  }
+
+  .torrent-tr td.td-free {
+    color: hsl(var(--success));
+  }
+
+  .torrent-tr > td:last-child {
+    width: 100%;
+  }
+
+  .torrent-tr .td-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    width: 100%;
+    margin-top: 0.125rem;
+    opacity: 1;
+  }
+
+  .torrent-tr .td-actions .tbl-btn.gh {
+    order: -1;
+  }
 }
 </style>
