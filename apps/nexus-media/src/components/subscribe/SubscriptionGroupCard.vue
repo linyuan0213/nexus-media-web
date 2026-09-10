@@ -107,6 +107,14 @@ function avatarHue(item: Record<string, any>): number {
 
 // 海报底部叠放头像：最多 4 个 + 计数
 const MAX_AVATARS = 4;
+
+// 面板订阅行折叠：超过 3 行默认折叠
+const MAX_ROWS = 3;
+const rowsExpanded = ref(false);
+const visibleItems = computed(() =>
+  rowsExpanded.value ? props.items : props.items.slice(0, MAX_ROWS),
+);
+const rowOverflow = computed(() => Math.max(0, props.items.length - MAX_ROWS));
 const avatarItems = computed(() => props.items.slice(0, MAX_AVATARS));
 const avatarOverflow = computed(() =>
   Math.max(0, props.items.length - MAX_AVATARS),
@@ -260,7 +268,7 @@ onMounted(ensureOutsideListener);
 
         <div class="sgc-section-label">订阅用户（{{ subscriberCount }}）</div>
         <div class="sgc-sub-rows">
-          <div v-for="item in items" :key="item.id" class="sgc-sub-row">
+          <div v-for="item in visibleItems" :key="item.id" class="sgc-sub-row">
             <div class="sgc-sub-user">
               <span
                 class="sgc-avatar sgc-avatar--row"
@@ -341,6 +349,14 @@ onMounted(ensureOutsideListener);
               ></div>
             </div>
           </div>
+          <button
+            v-if="rowOverflow > 0 || rowsExpanded"
+            type="button"
+            class="sgc-rows-toggle"
+            @click.stop="rowsExpanded = !rowsExpanded"
+          >
+            {{ rowsExpanded ? '收起' : `展开其余 ${rowOverflow} 人` }}
+          </button>
         </div>
       </div>
     </div>
@@ -682,6 +698,21 @@ onMounted(ensureOutsideListener);
 
 .sgc-sub-progress-bar {
   flex-basis: 100%;
+}
+
+.sgc-rows-toggle {
+  align-self: center;
+  padding: 0.15rem 0.6rem;
+  font-size: 11px;
+  color: hsl(var(--primary));
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 9999px;
+}
+
+.sgc-rows-toggle:hover {
+  background: hsl(var(--primary) / 8%);
 }
 
 .sgc-progress-track {
