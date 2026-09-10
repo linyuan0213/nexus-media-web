@@ -232,7 +232,7 @@ export interface SiteSearchStatus {
 
 /** WEB搜索（从发现页触发） */
 export async function webSearchApi(params: {
-  filters?: string;
+  filters?: Record<string, any> | string;
   media_type?: string;
   search_word: string;
   tmdbid?: string;

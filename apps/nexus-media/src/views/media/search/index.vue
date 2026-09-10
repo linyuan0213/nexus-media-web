@@ -27,6 +27,7 @@ import {
   getDownloadDirsApi,
   getDownloadSettingsApi,
 } from '#/api/modules/download';
+import { getVisibleSitesApi } from '#/api/modules/site';
 import {
   addSubscriptionApi,
   addSubscriptionMediaApi,
@@ -452,6 +453,42 @@ function toggleSeasonCollapse(key: string) {
 
 // 高级搜索模态框
 const advancedModalVisible = ref(false);
+// 可选索引器（站点）：空 = 全部当前用户可见站点
+const siteOptions = ref<{ label: string; value: string }[]>([]);
+const selectedSites = ref<string[]>([]);
+const SITE_FILTER_KEY = 'media_search_sites';
+
+function buildSiteFilter(): Record<string, any> | undefined {
+  return selectedSites.value.length > 0
+    ? { site: [...selectedSites.value] }
+    : undefined;
+}
+
+async function loadVisibleSites() {
+  try {
+    const res: any = await getVisibleSitesApi();
+    const list = Array.isArray(res) ? res : res?.data || [];
+    siteOptions.value = list
+      .filter((i: any) => (i.permissions || []).includes('search'))
+      .map((i: any) => ({ label: i.name, value: i.name }));
+    const saved = localStorage.getItem(SITE_FILTER_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      selectedSites.value = Array.isArray(parsed)
+        ? parsed.filter((n: string) =>
+            siteOptions.value.some((o) => o.value === n),
+          )
+        : [];
+    }
+  } catch {
+    siteOptions.value = [];
+  }
+}
+
+watch(selectedSites, (val) => {
+  localStorage.setItem(SITE_FILTER_KEY, JSON.stringify(val));
+});
+
 const advancedForm = ref({
   name: '',
   year: '',
@@ -542,6 +579,7 @@ async function handleMediaSearch(media: MediaItem) {
   setSearchKeyword(media.title);
   try {
     const resp: any = await webSearchApi({
+      filters: buildSiteFilter(),
       search_word: media.title,
       tmdbid: String(media.tmdb_id || media.id || ''),
       media_type: media.type || media.media_type || '',
@@ -570,6 +608,7 @@ async function handleAdvancedSearch() {
   loading.value = true;
   try {
     const resp: any = await webSearchApi({
+      filters: buildSiteFilter(),
       search_word: advancedForm.value.name,
       tmdbid: '',
       media_type: advancedForm.value.type,
@@ -666,6 +705,7 @@ function handleKeydown(e: KeyboardEvent) {
 let lastHandledQueryKey = '';
 
 onMounted(() => {
+  loadVisibleSites();
   startSSE();
   // 有进行中的搜索（页面切回）→ 恢复 SSE 连接和进度
   if (resumeOngoingSearch()) return;
@@ -700,7 +740,12 @@ onMounted(() => {
       const mediaType = (route.query.media_type as string) || '';
       displayMode.value = 'torrent';
       loading.value = true;
-      webSearchApi({ search_word: s, tmdbid: tmdbId, media_type: mediaType })
+      webSearchApi({
+        filters: buildSiteFilter(),
+        search_word: s,
+        tmdbid: tmdbId,
+        media_type: mediaType,
+      })
         .then((resp: any) => {
           searchSessionId.value = resp?.session_id || '';
           if (searchSessionId.value)
@@ -720,7 +765,7 @@ onMounted(() => {
       displayMode.value = 'torrent';
       results.value = [];
       loading.value = true;
-      webSearchApi({ search_word: s })
+      webSearchApi({ filters: buildSiteFilter(), search_word: s })
         .then((resp: any) => {
           searchSessionId.value = resp?.session_id || '';
           if (searchSessionId.value)
@@ -758,7 +803,12 @@ watch(
     if (from === 'discovery' || from === 'detail' || from === 'subscription') {
       displayMode.value = 'torrent';
       loading.value = true;
-      webSearchApi({ search_word: s, tmdbid: tmdbId, media_type: mediaType })
+      webSearchApi({
+        filters: buildSiteFilter(),
+        search_word: s,
+        tmdbid: tmdbId,
+        media_type: mediaType,
+      })
         .then((resp: any) => {
           searchSessionId.value = resp?.session_id || '';
           if (searchSessionId.value)
@@ -1135,6 +1185,19 @@ async function confirmDownload() {
           v-model:value="searchtype"
           :options="typeOptions"
           class="search-select"
+        />
+        <NSelect
+          v-model:value="selectedSites"
+          :options="siteOptions"
+          :placeholder="
+            siteOptions.length > 0 ? '全部已授权站点' : '无可用站点'
+          "
+          :disabled="siteOptions.length === 0"
+          multiple
+          clearable
+          filterable
+          :max-tag-count="1"
+          class="search-select site-select"
         />
         <NButton
           type="primary"
@@ -2587,6 +2650,10 @@ async function confirmDownload() {
   width: 140px;
 }
 
+.site-select {
+  width: 200px;
+}
+
 .search-btn {
   gap: 0.25rem;
 }
@@ -2602,7 +2669,8 @@ async function confirmDownload() {
 
 @media (max-width: 640px) {
   .search-input,
-  .search-select {
+  .search-select,
+  .site-select {
     width: 100%;
   }
 }
