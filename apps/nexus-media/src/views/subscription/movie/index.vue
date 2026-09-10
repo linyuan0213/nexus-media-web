@@ -412,6 +412,7 @@ onUnmounted(() => {
           <SubscriptionGroupCard
             v-for="group in subscriptionGroups"
             :key="group.key"
+            :group-key="group.key"
             :name="group.name"
             :year="group.year"
             :season="group.season"
