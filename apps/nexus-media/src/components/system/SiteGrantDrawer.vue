@@ -27,9 +27,14 @@ interface Props {
   targetType: 'role' | 'user';
   targetId: null | number;
   targetName?: string;
+  /** 超级管理员：默认拥有全部站点授权，全选展示且不可编辑 */
+  unrestricted?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), { targetName: '' });
+const props = withDefaults(defineProps<Props>(), {
+  targetName: '',
+  unrestricted: false,
+});
 
 const emit = defineEmits<{
   (e: 'update:show', value: boolean): void;
@@ -79,6 +84,10 @@ async function fetchData() {
       grantList.map((g: any) => [g.site_name, new Set(g.permissions || [])]),
     );
     sites.value = indexerList.map((i: any) => {
+      if (props.unrestricted) {
+        // 超级管理员默认拥有全部站点授权
+        return { name: i.name, builtin: !!i.builtin, search: true, rss: true };
+      }
       const perms = grantMap.get(i.name) || grantMap.get(`builtin:${i.name}`);
       return {
         name: i.name,
@@ -180,6 +189,10 @@ const title = computed(
         <div class="grant-summary">
           已授权 {{ grantedCount }} / {{ sites.length }} 个站点
         </div>
+        <div v-if="unrestricted" class="grant-notice">
+          <IconifyIcon icon="lucide:shield-check" class="size-4" />
+          超级管理员默认拥有全部站点授权，无需单独配置
+        </div>
 
         <div v-if="filteredSites.length > 0" class="grant-list">
           <div v-for="site in filteredSites" :key="site.name" class="grant-row">
@@ -192,10 +205,18 @@ const title = computed(
               </NTag>
             </div>
             <div class="grant-perms">
-              <NCheckbox v-model:checked="site.search" size="small">
+              <NCheckbox
+                v-model:checked="site.search"
+                size="small"
+                :disabled="unrestricted"
+              >
                 搜索
               </NCheckbox>
-              <NCheckbox v-model:checked="site.rss" size="small">
+              <NCheckbox
+                v-model:checked="site.rss"
+                size="small"
+                :disabled="unrestricted"
+              >
                 RSS
               </NCheckbox>
             </div>
@@ -206,8 +227,15 @@ const title = computed(
 
       <template #footer>
         <div class="grant-footer">
-          <NButton @click="emit('update:show', false)">取消</NButton>
-          <NButton type="primary" :loading="saving" @click="handleSave">
+          <NButton @click="emit('update:show', false)">
+            {{ unrestricted ? '关闭' : '取消' }}
+          </NButton>
+          <NButton
+            v-if="!unrestricted"
+            type="primary"
+            :loading="saving"
+            @click="handleSave"
+          >
             <template #icon>
               <IconifyIcon icon="lucide:save" class="size-4" />
             </template>
@@ -255,6 +283,19 @@ const title = computed(
   margin-top: 0.6rem;
   font-size: 12px;
   color: hsl(var(--muted-foreground));
+}
+
+.grant-notice {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.5rem 0.6rem;
+  margin-top: 0.5rem;
+  font-size: 12px;
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 8%);
+  border: 1px solid hsl(var(--primary) / 25%);
+  border-radius: 0.4rem;
 }
 
 .grant-list {

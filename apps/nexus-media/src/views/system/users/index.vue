@@ -60,13 +60,22 @@ const editModalShow = ref(false);
 const resetPwdModalShow = ref(false);
 const deleteModalShow = ref(false);
 const grantDrawerShow = ref(false);
-const grantTarget = ref<{ id: null | number; name: string }>({
+const grantTarget = ref<{
+  id: null | number;
+  name: string;
+  unrestricted: boolean;
+}>({
   id: null,
   name: '',
+  unrestricted: false,
 });
 
 function openGrantDrawer(row: UserItem) {
-  grantTarget.value = { id: row.id, name: row.nickname || row.username };
+  grantTarget.value = {
+    id: row.id,
+    name: row.nickname || row.username,
+    unrestricted: !!row.roles?.some((r) => r.role_code === 'superadmin'),
+  };
   grantDrawerShow.value = true;
 }
 const userStore = useUserStore();
@@ -682,6 +691,7 @@ function handleActionSelect(key: string, row: UserItem) {
       target-type="user"
       :target-id="grantTarget.id"
       :target-name="grantTarget.name"
+      :unrestricted="grantTarget.unrestricted"
     />
   </div>
 </template>

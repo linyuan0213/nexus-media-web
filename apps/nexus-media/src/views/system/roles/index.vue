@@ -72,13 +72,22 @@ const canAssignSites = computed(() => {
     !!info.is_superadmin || perms.includes('*') || perms.includes('site:assign')
   );
 });
-const grantTarget = ref<{ id: null | number; name: string }>({
+const grantTarget = ref<{
+  id: null | number;
+  name: string;
+  unrestricted: boolean;
+}>({
   id: null,
   name: '',
+  unrestricted: false,
 });
 
 function openGrantDrawer(item: any) {
-  grantTarget.value = { id: item.id, name: item.role_name };
+  grantTarget.value = {
+    id: item.id,
+    name: item.role_name,
+    unrestricted: item.role_code === 'superadmin',
+  };
   grantDrawerShow.value = true;
 }
 const deleteModalShow = ref(false);
@@ -616,6 +625,7 @@ onMounted(() => {
       target-type="role"
       :target-id="grantTarget.id"
       :target-name="grantTarget.name"
+      :unrestricted="grantTarget.unrestricted"
     />
   </div>
 </template>
