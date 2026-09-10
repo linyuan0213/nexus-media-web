@@ -29,6 +29,9 @@ export namespace SubscriptionApi {
     total?: number;
     lack?: number;
     over_edition?: boolean | number | string;
+    user_id?: null | number;
+    username?: null | string;
+    vote?: number | string;
     filter_restype?: string;
     filter_pix?: string;
     filter_team?: string;
@@ -82,17 +85,19 @@ export async function getSubscriptionCalendarWebcalUrlApi() {
   );
 }
 
-/** 获取电影订阅 */
-export async function getMovieSubscriptionApi() {
+/** 获取电影订阅（superadmin 可传 userId 过滤指定用户） */
+export async function getMovieSubscriptionApi(userId?: number) {
   return requestClient.post<SubscriptionApi.Subscription[]>(
     '/subscription/movie/list',
+    userId ? { user_id: userId } : {},
   );
 }
 
-/** 获取剧集订阅 */
-export async function getTvSubscriptionApi() {
+/** 获取剧集订阅（superadmin 可传 userId 过滤指定用户） */
+export async function getTvSubscriptionApi(userId?: number) {
   return requestClient.post<SubscriptionApi.Subscription[]>(
     '/subscription/tv/list',
+    userId ? { user_id: userId } : {},
   );
 }
 

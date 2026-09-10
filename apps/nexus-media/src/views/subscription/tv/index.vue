@@ -1,8 +1,10 @@
 <script lang="ts" setup>
 import type { SubscribeEditItem } from '#/components/subscribe/SubscribeEditModal.vue';
 
-import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+
+import { useUserStore } from '@vben/stores';
 
 import { NButton, NInput, NModal, NProgress, NSpace, NSpin } from 'naive-ui';
 
@@ -23,6 +25,7 @@ import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 import SubscribeDefaultSettingModal from '#/components/subscribe/SubscribeDefaultSettingModal.vue';
 import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
+import SubscriptionGroupCard from '#/components/subscribe/SubscriptionGroupCard.vue';
 import SubscriptionHoverCard from '#/components/subscribe/SubscriptionHoverCard.vue';
 import { useSearchProgress } from '#/composables/useSearchProgress';
 import { useSubscriptionStore } from '#/store';
@@ -32,11 +35,56 @@ import { useAppNotification } from '#/utils/notify';
 const subscriptionStore = useSubscriptionStore();
 const router = useRouter();
 const notification = useAppNotification();
+const userStore = useUserStore();
 
 const loading = ref(false);
 const refreshing = ref(false);
 const deleteModalShow = ref(false);
 const deleteTarget = ref<any>(null);
+
+// 管理员聚合视图：同一媒体的多个用户订阅合并为一张卡片
+const isSuperAdmin = computed(
+  () => !!(userStore.userInfo as any)?.is_superadmin,
+);
+const groupView = ref(true);
+const showGroupView = computed(() => isSuperAdmin.value && groupView.value);
+
+interface SubscriptionGroup {
+  key: string;
+  name: string;
+  year: string;
+  season: string;
+  image: string;
+  vote: number | string;
+  items: any[];
+}
+
+function groupKey(item: any): string {
+  const media = item.tmdbid ? `tmdb:${item.tmdbid}` : `name:${item.name}`;
+  return `${media}:${item.season || ''}`;
+}
+
+const subscriptionGroups = computed<SubscriptionGroup[]>(() => {
+  const map = new Map<string, SubscriptionGroup>();
+  for (const item of subscriptionStore.tvSubscriptions) {
+    const key = groupKey(item);
+    const group = map.get(key);
+    if (group) {
+      group.items.push(item);
+    } else {
+      map.set(key, {
+        key,
+        name: item.name || '',
+        year: item.year || '',
+        season: item.season || '',
+        image: item.image || '',
+        vote: item.vote || '',
+        items: [item],
+      });
+    }
+  }
+  return [...map.values()];
+});
 
 // 资源搜索进度弹窗
 const searchModalVisible = ref(false);
@@ -354,6 +402,9 @@ onUnmounted(() => {
     <PageHeader title="电视剧订阅">
       <template #actions>
         <NSpace>
+          <NButton v-if="isSuperAdmin" @click="groupView = !groupView">
+            {{ groupView ? '平铺视图' : '聚合视图' }}
+          </NButton>
           <NButton type="primary" @click="openAddModal">新增订阅</NButton>
           <NButton @click="settingModalShow = true">默认设置</NButton>
         </NSpace>
@@ -361,24 +412,41 @@ onUnmounted(() => {
     </PageHeader>
 
     <NSpin :show="loading">
-      <div
-        v-if="subscriptionStore.tvSubscriptions.length > 0"
-        class="subscription-flow"
-      >
-        <SubscriptionHoverCard
-          v-for="item in subscriptionStore.tvSubscriptions"
-          :key="item.id"
-          :item="item"
-          type="tv"
-          :filter-rule-map="filterRuleMap"
-          :download-setting-map="downloadSettingMap"
-          @click="handleCardClick"
-          @edit="handleEdit"
-          @delete="handleDelete"
-          @search="handleCardSearch"
-          @refresh="handleCardRefresh"
-        />
-      </div>
+      <template v-if="subscriptionStore.tvSubscriptions.length > 0">
+        <div v-if="showGroupView" class="subscription-groups">
+          <SubscriptionGroupCard
+            v-for="group in subscriptionGroups"
+            :key="group.key"
+            :name="group.name"
+            :year="group.year"
+            :season="group.season"
+            :image="group.image"
+            :vote="group.vote"
+            :items="group.items"
+            type="tv"
+            @click="handleCardClick"
+            @edit="handleEdit"
+            @delete="handleDelete"
+            @search="handleCardSearch"
+            @refresh="handleCardRefresh"
+          />
+        </div>
+        <div v-else class="subscription-flow">
+          <SubscriptionHoverCard
+            v-for="item in subscriptionStore.tvSubscriptions"
+            :key="item.id"
+            :item="item"
+            type="tv"
+            :filter-rule-map="filterRuleMap"
+            :download-setting-map="downloadSettingMap"
+            @click="handleCardClick"
+            @edit="handleEdit"
+            @delete="handleDelete"
+            @search="handleCardSearch"
+            @refresh="handleCardRefresh"
+          />
+        </div>
+      </template>
       <EmptyState v-else title="没有订阅" subtitle="当前没有正在订阅的电视剧" />
     </NSpin>
 
@@ -494,6 +562,18 @@ onUnmounted(() => {
   flex-wrap: wrap;
   gap: 1rem;
   align-content: flex-start;
+}
+
+.subscription-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(460px, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .subscription-groups {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (hover: none) {
