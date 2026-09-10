@@ -34,37 +34,61 @@ const pushKey = ref('');
 const pushSaving = ref(false);
 
 const INTERACTIVE_CHANNELS = [
-  { value: 'telegram', label: 'Telegram' },
-  { value: 'wechat', label: '企业微信' },
-  { value: 'slack', label: 'Slack' },
-  { value: 'synologychat', label: 'Synology Chat' },
+  { value: 'telegram', label: 'Telegram', icon: 'lucide:send' },
+  { value: 'wechat', label: '企业微信', icon: 'lucide:message-circle' },
+  { value: 'slack', label: 'Slack', icon: 'lucide:hash' },
+  { value: 'synologychat', label: 'Synology Chat', icon: 'lucide:server' },
 ];
 
 const PUSH_CHANNELS = [
   {
     value: 'bark',
     label: 'Bark',
+    icon: 'lucide:smartphone',
     hint: 'Bark App 首页地址中的 Key（api.day.app/<KEY>/）',
   },
   {
     value: 'ntfy',
     label: 'Ntfy',
+    icon: 'lucide:bell',
     hint: '你的 ntfy topic 名称（自建或 ntfy.sh）',
   },
-  { value: 'gotify', label: 'Gotify', hint: 'Gotify 后台创建应用的 Token' },
+  {
+    value: 'gotify',
+    label: 'Gotify',
+    icon: 'lucide:bell-ring',
+    hint: 'Gotify 后台创建应用的 Token',
+  },
   {
     value: 'serverchan',
     label: 'Server酱',
+    icon: 'lucide:mail',
     hint: 'Server酱官网登录后的 SendKey',
   },
-  { value: 'pushplus', label: 'PushPlus', hint: 'PushPlus 个人中心的 token' },
-  { value: 'pushdeer', label: 'PushDeer', hint: 'PushDeer App 内的 PushKey' },
+  {
+    value: 'pushplus',
+    label: 'PushPlus',
+    icon: 'lucide:bell-plus',
+    hint: 'PushPlus 个人中心的 token',
+  },
+  {
+    value: 'pushdeer',
+    label: 'PushDeer',
+    icon: 'lucide:send',
+    hint: 'PushDeer App 内的 PushKey',
+  },
   {
     value: 'dingtalk',
     label: '钉钉',
+    icon: 'lucide:message-square',
     hint: '群机器人 webhook 的 access_token',
   },
-  { value: 'chanify', label: 'Chanify', hint: 'Chanify App 的 Token' },
+  {
+    value: 'chanify',
+    label: 'Chanify',
+    icon: 'lucide:bell-dot',
+    hint: 'Chanify App 的 Token',
+  },
 ];
 
 const pushHint = computed(
@@ -78,6 +102,21 @@ const channelLabelMap = computed(() => {
   }
   return map;
 });
+
+const channelIconMap = computed(() => {
+  const map: Record<string, string> = {
+    feishu: 'lucide:bird',
+    dingtalk: 'lucide:message-square',
+  };
+  for (const c of [...INTERACTIVE_CHANNELS, ...PUSH_CHANNELS]) {
+    map[c.value] = c.icon;
+  }
+  return map;
+});
+
+function channelIcon(channel: string): string {
+  return channelIconMap.value[channel] || 'lucide:link';
+}
 
 const ttlText = computed(() => {
   const m = Math.floor(bindCodeTTL.value / 60);
@@ -169,7 +208,7 @@ onUnmounted(() => {
     <!-- 交互渠道绑定 -->
     <div class="cb-section">
       <div class="cb-section-title">
-        <IconifyIcon icon="lucide:message-square-link" class="size-4" />
+        <IconifyIcon icon="lucide:messages-square" class="size-4" />
         交互渠道绑定（Telegram / 企业微信 / Slack）
       </div>
       <p class="cb-desc">
@@ -201,6 +240,9 @@ onUnmounted(() => {
         登记你自己的推送 Key，订阅/下载完成等通知会定向推送到你的设备。
       </p>
       <div class="cb-push-row">
+        <span class="cb-push-icon" :title="channelLabelMap[pushChannel]">
+          <IconifyIcon :icon="channelIcon(pushChannel)" class="size-4" />
+        </span>
         <select v-model="pushChannel" class="cb-select">
           <option v-for="c in PUSH_CHANNELS" :key="c.value" :value="c.value">
             {{ c.label }}
@@ -232,9 +274,12 @@ onUnmounted(() => {
       </div>
       <div v-if="bindings.length > 0" v-loading="loading" class="cb-list">
         <div v-for="row in bindings" :key="row.id" class="cb-row">
-          <NTag size="small" class="cb-channel-tag">
-            {{ channelLabelMap[row.channel] || row.channel }}
-          </NTag>
+          <span class="cb-channel">
+            <IconifyIcon :icon="channelIcon(row.channel)" class="size-4" />
+            <NTag size="small" class="cb-channel-tag">
+              {{ channelLabelMap[row.channel] || row.channel }}
+            </NTag>
+          </span>
           <span class="cb-target" :title="row.channel_user_id">
             {{ maskKey(row.channel_user_id) }}
           </span>
@@ -364,8 +409,23 @@ onUnmounted(() => {
   border-radius: 0.4rem;
 }
 
+.cb-channel {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 0.35rem;
+  align-items: center;
+  color: hsl(var(--muted-foreground));
+}
+
 .cb-channel-tag {
   flex-shrink: 0;
+}
+
+.cb-push-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  color: hsl(var(--muted-foreground));
 }
 
 .cb-target {
