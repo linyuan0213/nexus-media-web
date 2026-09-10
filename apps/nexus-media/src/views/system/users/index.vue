@@ -28,6 +28,7 @@ import {
   uploadAvatarApi,
 } from '#/api';
 import PageHeader from '#/components/page/PageHeader.vue';
+import SiteGrantDrawer from '#/components/system/SiteGrantDrawer.vue';
 
 interface RoleOption {
   label: string;
@@ -58,6 +59,16 @@ const loading = ref(false);
 const editModalShow = ref(false);
 const resetPwdModalShow = ref(false);
 const deleteModalShow = ref(false);
+const grantDrawerShow = ref(false);
+const grantTarget = ref<{ id: null | number; name: string }>({
+  id: null,
+  name: '',
+});
+
+function openGrantDrawer(row: UserItem) {
+  grantTarget.value = { id: row.id, name: row.nickname || row.username };
+  grantDrawerShow.value = true;
+}
 const userStore = useUserStore();
 const deleteTarget = ref<null | UserItem>(null);
 const editingUser = ref<
@@ -265,6 +276,12 @@ function getUserActions(row: UserItem) {
       icon: () => h(IconifyIcon, { icon: 'lucide:pencil', class: 'size-3.5' }),
     },
     {
+      label: '站点授权',
+      key: 'site-grant',
+      icon: () =>
+        h(IconifyIcon, { icon: 'lucide:shield-check', class: 'size-3.5' }),
+    },
+    {
       label: '重置密码',
       key: 'reset-pwd',
       icon: () =>
@@ -299,6 +316,10 @@ function handleActionSelect(key: string, row: UserItem) {
     }
     case 'reset-pwd': {
       openResetPwd(row);
+      break;
+    }
+    case 'site-grant': {
+      openGrantDrawer(row);
       break;
     }
   }
@@ -643,6 +664,14 @@ function handleActionSelect(key: string, row: UserItem) {
       <strong>{{ deleteTarget?.nickname || deleteTarget?.username }}</strong>
       吗？
     </NModal>
+
+    <!-- 站点授权抽屉 -->
+    <SiteGrantDrawer
+      v-model:show="grantDrawerShow"
+      target-type="user"
+      :target-id="grantTarget.id"
+      :target-name="grantTarget.name"
+    />
   </div>
 </template>
 

@@ -237,3 +237,78 @@ export async function getPermissionsApi() {
 export async function getAccessCodesApi() {
   return requestClient.get<string[]>('/rbac/codes');
 }
+
+/** 站点授权条目 */
+export interface SiteGrantItem {
+  site_name: string;
+  permissions: string[];
+  granted_by?: null | number;
+  created_at?: null | string;
+}
+
+/** 获取角色站点授权 */
+export async function getRoleSiteGrantsApi(roleId: number) {
+  return requestClient.get<SiteGrantItem[]>(`/rbac/roles/${roleId}/sites`);
+}
+
+/** 设置角色站点授权 */
+export async function setRoleSiteGrantsApi(
+  roleId: number,
+  grants: SiteGrantItem[],
+) {
+  return requestClient.put(`/rbac/roles/${roleId}/sites`, { grants });
+}
+
+/** 获取用户站点授权 */
+export async function getUserSiteGrantsApi(userId: number) {
+  return requestClient.get<SiteGrantItem[]>(`/rbac/users/${userId}/sites`);
+}
+
+/** 设置用户站点授权 */
+export async function setUserSiteGrantsApi(
+  userId: number,
+  grants: SiteGrantItem[],
+) {
+  return requestClient.put(`/rbac/users/${userId}/sites`, { grants });
+}
+
+/** 渠道绑定条目 */
+export interface ChannelBindingItem {
+  id: number;
+  user_id: number;
+  channel: string;
+  channel_user_id: string;
+  status: number;
+  created_at?: null | string;
+}
+
+/** 生成渠道绑定码 */
+export async function createChannelBindCodeApi() {
+  return requestClient.post<{ code: string; ttl: number }>(
+    '/rbac/users/channel-bindings/code',
+    {},
+  );
+}
+
+/** 登记推送渠道绑定 */
+export async function createChannelBindingApi(data: {
+  channel: string;
+  channel_user_id: string;
+}) {
+  return requestClient.post('/rbac/users/channel-bindings', data);
+}
+
+/** 获取我的渠道绑定 */
+export async function getChannelBindingsApi() {
+  return requestClient.get<ChannelBindingItem[]>(
+    '/rbac/users/channel-bindings',
+  );
+}
+
+/** 解绑渠道身份 */
+export async function deleteChannelBindingApi(data: {
+  channel: string;
+  channel_user_id: string;
+}) {
+  return requestClient.delete('/rbac/users/channel-bindings', { data });
+}

@@ -10,6 +10,7 @@ import { message } from '#/adapter/naive';
 import { getUserInfoApi, uploadAvatarApi } from '#/api';
 
 import ProfileBase from './base-setting.vue';
+import ProfileChannelBinding from './channel-binding.vue';
 import ProfilePasswordSetting from './password-setting.vue';
 import ProfileSecuritySetting from './security-setting.vue';
 
@@ -30,6 +31,10 @@ const tabs = ref([
   {
     label: '修改密码',
     value: 'password',
+  },
+  {
+    label: '渠道绑定',
+    value: 'channel',
   },
 ]);
 
@@ -99,6 +104,7 @@ async function handleAvatarUpload(event: Event) {
       <ProfileBase v-if="tabsValue === 'basic'" />
       <ProfileSecuritySetting v-if="tabsValue === 'security'" />
       <ProfilePasswordSetting v-if="tabsValue === 'password'" />
+      <ProfileChannelBinding v-if="tabsValue === 'channel'" />
     </template>
   </Profile>
 </template>

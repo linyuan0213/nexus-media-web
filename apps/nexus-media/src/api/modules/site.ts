@@ -335,3 +335,10 @@ export async function batchUpdateIndexerSiteConfigApi(
 ) {
   return requestClient.post('/site/sites/indexer-config/batch', { sites });
 }
+
+/** 获取当前用户可见站点（带用途粒度 permissions: search/rss） */
+export async function getVisibleSitesApi() {
+  return requestClient.get<
+    { name: string; source: string; builtin: boolean; permissions: string[] }[]
+  >('/site/sites/visible');
+}
