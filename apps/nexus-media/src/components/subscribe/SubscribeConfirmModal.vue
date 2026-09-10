@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue';
 
+import { IconifyIcon } from '@vben/icons';
+
 import {
   NButton,
   NCard,
@@ -12,6 +14,7 @@ import {
 } from 'naive-ui';
 
 import { getTvSeasonListApi } from '#/api/modules/media';
+import { getVisibleSitesApi } from '#/api/modules/site';
 import { getSubscribedSeasonsApi } from '#/api/modules/subscription';
 import { getImgUrl } from '#/utils/image';
 
@@ -55,6 +58,23 @@ const seasons = ref<
 >([]);
 const selectedSeasons = ref<number[]>([]);
 const subscribedSeasons = ref<number[]>([]);
+// 当前将使用的站点（未配置 = 全部已授权站点）
+const siteSummary = ref<{ rss: number; search: number }>({ rss: 0, search: 0 });
+
+async function loadSiteSummary() {
+  try {
+    const res: any = await getVisibleSitesApi();
+    const list = Array.isArray(res) ? res : res?.data || [];
+    siteSummary.value = {
+      search: list.filter((i: any) => (i.permissions || []).includes('search'))
+        .length,
+      rss: list.filter((i: any) => (i.permissions || []).includes('rss'))
+        .length,
+    };
+  } catch {
+    siteSummary.value = { rss: 0, search: 0 };
+  }
+}
 const isTv = computed(() => props.item?.type === 'tv');
 
 watch(
@@ -64,6 +84,7 @@ watch(
       selectedSeasons.value = [];
       seasons.value = [];
       subscribedSeasons.value = [];
+      loadSiteSummary();
       const tmdbId = props.item.tmdbid || props.item.id;
       if (isTv.value && tmdbId) {
         loading.value = true;
@@ -258,23 +279,25 @@ function toggleSeason(num: number) {
         </NSpin>
       </div>
 
+      <!-- 站点提示：未单独配置时使用全部已授权站点 -->
+      <div class="site-hint">
+        <IconifyIcon icon="lucide:globe" class="size-3.5" />
+        <span v-if="siteSummary.search === 0">
+          暂无可用站点，请联系管理员为你授权站点
+        </span>
+        <span v-else>
+          将使用全部已授权站点（搜索 {{ siteSummary.search }} 个 · RSS
+          {{ siteSummary.rss }} 个），可在「修改配置」中指定
+        </span>
+      </div>
+
       <!-- 操作按钮 -->
       <div class="border-t pt-4 flex justify-between items-center">
         <NButton quaternary size="small" @click="handleEdit">
           <template #icon>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-            </svg>
+            <IconifyIcon icon="lucide:pencil" class="size-4" />
           </template>
-          编辑
+          修改配置
         </NButton>
         <NSpace>
           <NButton size="small" @click="emit('update:show', false)">
@@ -295,6 +318,15 @@ function toggleSeason(num: number) {
 </template>
 
 <style scoped>
+.site-hint {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin-top: 0.75rem;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
+
 .line-clamp-2 {
   display: -webkit-box;
   overflow: hidden;
