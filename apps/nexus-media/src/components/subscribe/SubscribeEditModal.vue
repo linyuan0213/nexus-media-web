@@ -467,6 +467,15 @@ function handleConfirm() {
                 />
               </div>
             </div>
+            <div v-if="rssSites.length === 0" class="site-empty-hint">
+              暂无可用订阅站点，请联系管理员为你授权站点
+            </div>
+            <div
+              v-else-if="form.rss_sites.length === 0"
+              class="site-empty-hint"
+            >
+              未选择时默认使用全部已授权订阅站点
+            </div>
           </div>
         </div>
 
@@ -512,6 +521,15 @@ function handleConfirm() {
                   "
                 />
               </div>
+            </div>
+            <div v-if="searchSites.length === 0" class="site-empty-hint">
+              暂无可用搜索站点，请联系管理员为你授权站点
+            </div>
+            <div
+              v-else-if="form.search_sites.length === 0"
+              class="site-empty-hint"
+            >
+              未选择时默认使用全部已授权搜索站点
             </div>
           </div>
         </div>
@@ -598,6 +616,13 @@ function handleConfirm() {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.625rem;
+}
+
+.site-empty-hint {
+  margin-top: 0.5rem;
+  font-size: 11px;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
 }
 
 .site-select-card {

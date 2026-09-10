@@ -48,6 +48,15 @@ const isSuperAdmin = computed(
 );
 const groupView = ref(false);
 const showGroupView = computed(() => isSuperAdmin.value && groupView.value);
+const canEditDefault = computed(() => {
+  const info: any = userStore.userInfo || {};
+  const perms: string[] = info.permissions || [];
+  return (
+    !!info.is_superadmin ||
+    perms.includes('*') ||
+    perms.includes('setting:update')
+  );
+});
 
 interface SubscriptionGroup {
   key: string;
@@ -406,7 +415,9 @@ onUnmounted(() => {
             {{ groupView ? '平铺视图' : '聚合视图' }}
           </NButton>
           <NButton type="primary" @click="openAddModal">新增订阅</NButton>
-          <NButton @click="settingModalShow = true">默认设置</NButton>
+          <NButton v-if="canEditDefault" @click="settingModalShow = true">
+            默认设置
+          </NButton>
         </NSpace>
       </template>
     </PageHeader>
