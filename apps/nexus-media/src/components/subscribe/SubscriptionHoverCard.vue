@@ -323,16 +323,15 @@ onMounted(ensureOutsideListener);
             ></div>
           </div>
         </div>
-      </div>
-
-      <!-- 归属用户角标（管理员视角） -->
-      <div
-        v-if="ownerName"
-        class="shc-owner-badge"
-        :title="`订阅者：${ownerName}`"
-      >
-        <span class="shc-owner-avatar">{{ ownerInitial }}</span>
-        <span class="shc-owner-name">{{ ownerName }}</span>
+        <!-- 归属用户胶囊（管理员视角） -->
+        <div
+          v-if="ownerName"
+          class="shc-owner-pill"
+          :title="`订阅者：${ownerName}`"
+        >
+          <span class="shc-owner-avatar">{{ ownerInitial }}</span>
+          <span class="shc-owner-name">{{ ownerName }}</span>
+        </div>
       </div>
     </div>
 
@@ -597,22 +596,21 @@ onMounted(ensureOutsideListener);
   fill: currentcolor;
 }
 
-/* 归属用户角标（管理员视角，海报右下、标题渐变区上方） */
-.shc-owner-badge {
-  position: absolute;
-  right: 0.5rem;
-  bottom: 2.9rem;
-  display: flex;
+/* 归属用户胶囊（管理员视角，标题下方居中，随渐变区一体隐藏） */
+.shc-owner-pill {
+  display: inline-flex;
   gap: 0.3rem;
   align-items: center;
-  max-width: calc(100% - 1rem);
-  padding: 0.12rem 0.45rem 0.12rem 0.15rem;
+  max-width: 100%;
+  padding: 0.1rem 0.5rem 0.1rem 0.2rem;
+  margin-top: 0.35rem;
   font-size: 10px;
   font-weight: 500;
-  color: hsl(0deg 0% 100% / 95%);
-  background: hsl(0deg 0% 0% / 55%);
+  color: hsl(0deg 0% 100% / 90%);
+  background: hsl(0deg 0% 100% / 16%);
+  border: 1px solid hsl(0deg 0% 100% / 22%);
   border-radius: 9999px;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(2px);
 }
 
 .shc-owner-avatar {

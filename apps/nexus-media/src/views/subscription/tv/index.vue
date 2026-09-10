@@ -46,7 +46,7 @@ const deleteTarget = ref<any>(null);
 const isSuperAdmin = computed(
   () => !!(userStore.userInfo as any)?.is_superadmin,
 );
-const groupView = ref(true);
+const groupView = ref(false);
 const showGroupView = computed(() => isSuperAdmin.value && groupView.value);
 
 interface SubscriptionGroup {
