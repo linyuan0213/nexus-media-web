@@ -70,6 +70,13 @@ function openGrantDrawer(row: UserItem) {
   grantDrawerShow.value = true;
 }
 const userStore = useUserStore();
+const canAssignSites = computed(() => {
+  const info: any = userStore.userInfo || {};
+  const perms: string[] = info.permissions || [];
+  return (
+    !!info.is_superadmin || perms.includes('*') || perms.includes('site:assign')
+  );
+});
 const deleteTarget = ref<null | UserItem>(null);
 const editingUser = ref<
   Partial<UserItem> & { password?: string; role_ids?: number[] }
@@ -269,17 +276,20 @@ onMounted(() => {
 
 function getUserActions(row: UserItem) {
   const deleteReason = deleteDisabledReason(row);
-  return [
-    {
-      label: '编辑',
-      key: 'edit',
-      icon: () => h(IconifyIcon, { icon: 'lucide:pencil', class: 'size-3.5' }),
-    },
-    {
+  const actions: any[] = [];
+  if (canAssignSites.value) {
+    actions.push({
       label: '站点授权',
       key: 'site-grant',
       icon: () =>
         h(IconifyIcon, { icon: 'lucide:shield-check', class: 'size-3.5' }),
+    });
+  }
+  actions.push(
+    {
+      label: '编辑',
+      key: 'edit',
+      icon: () => h(IconifyIcon, { icon: 'lucide:pencil', class: 'size-3.5' }),
     },
     {
       label: '重置密码',
@@ -300,7 +310,8 @@ function getUserActions(row: UserItem) {
         ? {}
         : { style: { color: 'hsl(var(--destructive))' } },
     },
-  ] as any;
+  );
+  return actions;
 }
 
 function handleActionSelect(key: string, row: UserItem) {

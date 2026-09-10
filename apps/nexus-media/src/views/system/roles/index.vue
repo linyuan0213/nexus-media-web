@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
+import { useUserStore } from '@vben/stores';
 
 import {
   NButton,
@@ -63,6 +64,14 @@ const menuTree = ref<MenuTreeNode[]>([]);
 const loading = ref(false);
 const editModalShow = ref(false);
 const grantDrawerShow = ref(false);
+const userStore = useUserStore();
+const canAssignSites = computed(() => {
+  const info: any = userStore.userInfo || {};
+  const perms: string[] = info.permissions || [];
+  return (
+    !!info.is_superadmin || perms.includes('*') || perms.includes('site:assign')
+  );
+});
 const grantTarget = ref<{ id: null | number; name: string }>({
   id: null,
   name: '',
@@ -369,7 +378,7 @@ onMounted(() => {
             class="flex items-center justify-end gap-2 px-5 py-3 border-t"
             style="border-color: hsl(var(--border))"
           >
-            <NTooltip>
+            <NTooltip v-if="canAssignSites">
               <template #trigger>
                 <NButton text size="small" @click="openGrantDrawer(item)">
                   <template #icon>
