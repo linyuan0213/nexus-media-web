@@ -41,15 +41,35 @@ const INTERACTIVE_CHANNELS = [
 ];
 
 const PUSH_CHANNELS = [
-  { value: 'bark', label: 'Bark' },
-  { value: 'ntfy', label: 'Ntfy' },
-  { value: 'gotify', label: 'Gotify' },
-  { value: 'serverchan', label: 'Server酱' },
-  { value: 'pushplus', label: 'PushPlus' },
-  { value: 'pushdeer', label: 'PushDeer' },
-  { value: 'dingtalk', label: '钉钉' },
-  { value: 'chanify', label: 'Chanify' },
+  {
+    value: 'bark',
+    label: 'Bark',
+    hint: 'Bark App 首页地址中的 Key（api.day.app/<KEY>/）',
+  },
+  {
+    value: 'ntfy',
+    label: 'Ntfy',
+    hint: '你的 ntfy topic 名称（自建或 ntfy.sh）',
+  },
+  { value: 'gotify', label: 'Gotify', hint: 'Gotify 后台创建应用的 Token' },
+  {
+    value: 'serverchan',
+    label: 'Server酱',
+    hint: 'Server酱官网登录后的 SendKey',
+  },
+  { value: 'pushplus', label: 'PushPlus', hint: 'PushPlus 个人中心的 token' },
+  { value: 'pushdeer', label: 'PushDeer', hint: 'PushDeer App 内的 PushKey' },
+  {
+    value: 'dingtalk',
+    label: '钉钉',
+    hint: '群机器人 webhook 的 access_token',
+  },
+  { value: 'chanify', label: 'Chanify', hint: 'Chanify App 的 Token' },
 ];
+
+const pushHint = computed(
+  () => PUSH_CHANNELS.find((c) => c.value === pushChannel.value)?.hint || '',
+);
 
 const channelLabelMap = computed(() => {
   const map: Record<string, string> = {};
@@ -189,7 +209,7 @@ onUnmounted(() => {
         <input
           v-model="pushKey"
           class="cb-input"
-          placeholder="推送 Key / Token / 设备标识"
+          :placeholder="pushHint || '推送 Key / Token'"
           type="text"
           @keyup.enter="handleAddPushBinding"
         />
