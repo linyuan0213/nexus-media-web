@@ -577,14 +577,16 @@ onUnmounted(() => {
 }
 
 .subscription-groups {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(460px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
+  align-content: flex-start;
 }
 
-@media (max-width: 640px) {
+@media (hover: none) {
   .subscription-groups {
-    grid-template-columns: 1fr;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   }
 }
 
