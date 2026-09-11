@@ -77,11 +77,25 @@ async function saveSection(sectionKey: string, data: Record<string, any>) {
   }
 }
 
+// 敏感字段（密码/密钥/令牌/Cookie）：空值代表“不修改”，跳过以避免误清
+const SECRET_KEY_RE =
+  /(password|secret|token|api[_-]?key|apikey|tmdbkey|ssl_cert|ssl_key|cookie)/i;
+
+function isSecretKey(key: string): boolean {
+  return SECRET_KEY_RE.test(key);
+}
+
 function buildPayload(fields: string[]) {
   const data: Record<string, any> = {};
   for (const f of fields) {
     let v = config.value[f];
-    if (v === undefined || v === '') continue;
+    if (v === undefined) continue;
+    // 空值：非敏感字段允许清空（如代理置空），敏感字段跳过以保留原值
+    if (v === '') {
+      if (isSecretKey(f)) continue;
+      data[f] = '';
+      continue;
+    }
     if (numericKeys.has(f) && typeof v === 'string') {
       v = v.includes('.') ? Number.parseFloat(v) : Number.parseInt(v, 10);
     }
