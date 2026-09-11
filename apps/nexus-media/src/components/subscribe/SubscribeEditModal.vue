@@ -20,7 +20,6 @@ import {
 } from '#/api/modules/download';
 import { getFilterRulesApi } from '#/api/modules/filter';
 import { getVisibleSitesApi } from '#/api/modules/site';
-import { getDefaultSubscriptionSettingApi } from '#/api/modules/subscription';
 import {
   joinMultiSelect,
   pixOptions,
@@ -114,34 +113,6 @@ watch([() => props.show, () => props.item], async ([visible, item]) => {
       await loadOptions();
       optionsLoaded.value = true;
     }
-    // 编辑/新增均以默认订阅设置为兜底：记录中为空的字段回填默认值，
-    // 与后端运行期"空值走默认设置"的语义保持一致
-    const defaultRes: any = await getDefaultSubscriptionSettingApi(
-      item.type === 'movie' ? 'movie' : 'tv',
-    ).catch(() => ({}));
-    const def = defaultRes?.data || defaultRes || {};
-
-    const filterByOptions = (
-      val: unknown,
-      opts: { label: string; value: string }[],
-    ): string[] =>
-      (Array.isArray(val) ? val : []).filter((s: string) =>
-        opts.some((x) => x.value === s),
-      );
-    const nullableString = (val: unknown): string =>
-      val === null || val === undefined || val === 0 || val === '0'
-        ? ''
-        : String(val);
-
-    const recordRestype = splitMultiSelect(item.filter_restype);
-    const recordPix = splitMultiSelect(item.filter_pix).map((v) =>
-      v.toUpperCase(),
-    );
-    const recordRssSites = Array.isArray(item.rss_sites) ? item.rss_sites : [];
-    const recordSearchSites = Array.isArray(item.search_sites)
-      ? item.search_sites
-      : [];
-
     form.value = {
       name: item.name,
       year: item.year || '',
@@ -152,42 +123,33 @@ watch([() => props.show, () => props.item], async ([visible, item]) => {
       keyword: item.keyword || '',
       fuzzy_match: item.fuzzy_match ?? false,
       over_edition: item.over_edition ?? false,
-      filter_restype:
-        recordRestype.length > 0
-          ? recordRestype
-          : splitMultiSelect(def.restype),
-      filter_pix:
-        recordPix.length > 0
-          ? recordPix
-          : splitMultiSelect(def.pix).map((v) => v.toUpperCase()),
-      filter_team: item.filter_team || def.team || '',
+      filter_restype: splitMultiSelect(item.filter_restype),
+      filter_pix: splitMultiSelect(item.filter_pix).map((v) => v.toUpperCase()),
+      filter_team: item.filter_team || '',
       filter_rule:
         item.filter_rule != null && String(item.filter_rule) !== '0'
           ? String(item.filter_rule)
-          : nullableString(def.rule),
-      filter_include: item.filter_include || def.include || '',
-      filter_exclude: item.filter_exclude || def.exclude || '',
-      filter_free:
-        item.filter_free ??
-        (def.free !== null && def.free !== undefined
-          ? String(def.free) === '1'
-          : false),
-      download_setting: item.download_setting
-        ? String(item.download_setting)
-        : nullableString(def.download_setting),
+          : '',
+      filter_include: item.filter_include || '',
+      filter_exclude: item.filter_exclude || '',
+      filter_free: item.filter_free ?? false,
+      download_setting:
+        item.download_setting == null ? '' : String(item.download_setting),
       save_path: item.save_path || '',
       total_ep: item.total_ep == null ? '' : String(item.total_ep),
       current_ep: item.current_ep == null ? '' : String(item.current_ep),
-      rss_sites:
-        recordRssSites.length > 0
-          ? filterByOptions(recordRssSites, rssSites.value)
-          : filterByOptions(def.rss_sites, rssSites.value),
-      search_sites:
-        recordSearchSites.length > 0
-          ? filterByOptions(recordSearchSites, searchSites.value)
-          : filterByOptions(def.search_sites, searchSites.value),
+      rss_sites: Array.isArray(item.rss_sites)
+        ? [...item.rss_sites].filter((s) =>
+            rssSites.value.some((x) => x.value === s),
+          )
+        : [],
+      search_sites: Array.isArray(item.search_sites)
+        ? [...item.search_sites].filter((s) =>
+            searchSites.value.some((x) => x.value === s),
+          )
+        : [],
     };
-    if (form.value.download_setting) {
+    if (item.download_setting != null) {
       await fetchDownloadDirs();
     }
   }
