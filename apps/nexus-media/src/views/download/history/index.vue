@@ -7,13 +7,18 @@ import {
   NButton,
   NCard,
   NPagination,
+  NPopconfirm,
   NSpace,
   NSpin,
   NTooltip,
   useMessage,
 } from 'naive-ui';
 
-import { getDownloadHistoryApi } from '#/api';
+import {
+  deleteAllDownloadHistoryApi,
+  deleteDownloadHistoryApi,
+  getDownloadHistoryApi,
+} from '#/api';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import { useDownloadStore } from '#/store';
 import { getImgUrl } from '#/utils/image';
@@ -41,6 +46,29 @@ async function fetchData(page = 1) {
         : page * pageSize.value;
   } finally {
     loading.value = false;
+  }
+}
+
+async function handleDelete(item: any) {
+  const historyId = Number(item?.history_id);
+  if (!historyId) return;
+  try {
+    await deleteDownloadHistoryApi(historyId);
+    message.success('已删除记录');
+    await fetchData(currentPage.value);
+  } catch (error: any) {
+    message.error(error?.message || '删除失败');
+  }
+}
+
+async function handleDeleteAll() {
+  try {
+    const res: any = await deleteAllDownloadHistoryApi();
+    const count = res?.count ?? res?.data?.count ?? 0;
+    message.success(`已清空 ${count} 条记录`);
+    await fetchData(1);
+  } catch (error: any) {
+    message.error(error?.message || '清空失败');
   }
 }
 
@@ -131,6 +159,22 @@ onMounted(() => fetchData(1));
           </template>
           刷新
         </NButton>
+        <NPopconfirm @positive-click="handleDeleteAll">
+          <template #trigger>
+            <NButton
+              type="error"
+              secondary
+              :disabled="history.length === 0"
+              title="清空全部记录"
+            >
+              <template #icon>
+                <IconifyIcon icon="lucide:trash-2" class="size-4" />
+              </template>
+              清空全部
+            </NButton>
+          </template>
+          确定清空全部下载记录？此操作不可恢复
+        </NPopconfirm>
         <NButton
           text
           :type="viewMode === 'grid' ? 'primary' : 'default'"
@@ -218,6 +262,27 @@ onMounted(() => fetchData(1));
                       </template>
                       复制链接
                     </NButton>
+                    <NPopconfirm
+                      v-if="item.history_id"
+                      @positive-click="handleDelete(item)"
+                    >
+                      <template #trigger>
+                        <NButton
+                          size="tiny"
+                          text
+                          type="error"
+                          title="删除该条记录"
+                        >
+                          <template #icon>
+                            <IconifyIcon
+                              icon="lucide:trash-2"
+                              class="size-3.5"
+                            />
+                          </template>
+                        </NButton>
+                      </template>
+                      确定删除该条下载记录？
+                    </NPopconfirm>
                     <span class="history-date">{{
                       formatDate(item.date)
                     }}</span>
@@ -288,6 +353,19 @@ onMounted(() => fetchData(1));
                 </template>
                 <span class="hidden sm:inline">复制链接</span>
               </NButton>
+              <NPopconfirm
+                v-if="item.history_id"
+                @positive-click="handleDelete(item)"
+              >
+                <template #trigger>
+                  <NButton size="tiny" text type="error" title="删除该条记录">
+                    <template #icon>
+                      <IconifyIcon icon="lucide:trash-2" class="size-3.5" />
+                    </template>
+                  </NButton>
+                </template>
+                确定删除该条下载记录？
+              </NPopconfirm>
               <span class="history-date">{{ formatDate(item.date) }}</span>
             </div>
           </div>

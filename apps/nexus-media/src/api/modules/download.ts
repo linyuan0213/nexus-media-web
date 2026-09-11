@@ -91,6 +91,7 @@ export namespace DownloadApi {
 
   export interface DownloadHistoryItem {
     id: string;
+    history_id?: number;
     title: string;
     type: 'MOV' | 'TV';
     media_type: string;
@@ -155,6 +156,21 @@ export async function getDownloadHistoryApi(page?: number, pageSize?: number) {
       page,
       page_size: pageSize || 30,
     },
+  );
+}
+
+/** 删除单条下载历史记录 */
+export async function deleteDownloadHistoryApi(historyId: number) {
+  return requestClient.post('/media/library/downloaded/delete', {
+    history_id: historyId,
+  });
+}
+
+/** 清空全部下载历史记录 */
+export async function deleteAllDownloadHistoryApi() {
+  return requestClient.post<{ count: number }>(
+    '/media/library/downloaded/delete_all',
+    {},
   );
 }
 
