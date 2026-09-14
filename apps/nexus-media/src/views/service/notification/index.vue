@@ -78,6 +78,33 @@ const editingTemplateMap = ref<Record<string, any>>({});
 const defaultTemplates = ref<Record<string, { text: string; title: string }>>(
   {},
 );
+
+/** 非事件开关、仅作为模板暴露的类型（后端 DEFAULT_MESSAGE_TEMPLATES 中无对应 switch） */
+const TEMPLATE_ONLY_LABELS: Record<string, string> = {
+  message_digest: '通知聚合摘要',
+};
+
+interface TemplateEntry {
+  id: string;
+  label: string;
+  isSwitch: boolean;
+}
+
+/** 模板编辑器条目：用户可见开关 ∪ 仅模板类型（如聚合摘要） */
+const templateEntries = computed<TemplateEntry[]>(() => {
+  const entries: TemplateEntry[] = Object.entries(switches.value).map(
+    ([swid, sw]) => ({ id: swid, label: sw.name, isSwitch: true }),
+  );
+  for (const tid of Object.keys(defaultTemplates.value)) {
+    if (switches.value[tid]) continue;
+    entries.push({
+      id: tid,
+      label: TEMPLATE_ONLY_LABELS[tid] || tid,
+      isSwitch: false,
+    });
+  }
+  return entries;
+});
 function channelIcon(type?: string): string {
   return type ? `/static/img/message/${type}.png` : '';
 }
@@ -158,9 +185,9 @@ async function fetchData() {
 
 function initTemplateMap() {
   editingTemplateMap.value = {};
-  for (const swid of Object.keys(switches.value)) {
-    editingTemplateMap.value[swid] = defaultTemplates.value[swid]
-      ? { ...defaultTemplates.value[swid] }
+  for (const entry of templateEntries.value) {
+    editingTemplateMap.value[entry.id] = defaultTemplates.value[entry.id]
+      ? { ...defaultTemplates.value[entry.id] }
       : { title: '', text: '' };
   }
 }
@@ -644,37 +671,52 @@ onMounted(fetchData);
         <NFormItem label="消息模板">
           <div class="space-y-3 max-h-[400px] overflow-y-auto pr-2">
             <div
-              v-for="(sw, swid) in switches"
-              :key="swid"
+              v-for="entry in templateEntries"
+              :key="entry.id"
               class="border rounded-lg p-3"
               :class="
-                editingSwitches.includes(swid)
-                  ? 'border-blue-300 bg-blue-50/30'
-                  : 'border-gray-200 opacity-60'
+                entry.isSwitch
+                  ? editingSwitches.includes(entry.id)
+                    ? 'border-primary/30 bg-primary/5'
+                    : 'border-border opacity-60'
+                  : 'border-primary/30 bg-primary/5'
               "
             >
               <div class="flex items-center justify-between mb-2">
-                <span class="font-medium text-sm">{{ sw.name }}</span>
+                <span class="font-medium text-sm">{{ entry.label }}</span>
                 <span
-                  v-if="!editingSwitches.includes(swid)"
-                  class="text-xs text-gray-400"
+                  v-if="entry.isSwitch && !editingSwitches.includes(entry.id)"
+                  class="text-xs text-muted-foreground"
                   >未启用推送</span
+                >
+                <span
+                  v-else-if="!entry.isSwitch"
+                  class="text-xs text-muted-foreground"
+                  >批量通知聚合模板</span
                 >
               </div>
               <div class="space-y-2">
                 <NInput
-                  v-model:value="editingTemplateMap[swid].title"
+                  v-model:value="editingTemplateMap[entry.id].title"
                   size="small"
                   placeholder="标题模板（可选）"
-                  :disabled="!editingSwitches.includes(swid)"
+                  :disabled="
+                    entry.isSwitch && !editingSwitches.includes(entry.id)
+                  "
                 />
                 <NInput
-                  v-model:value="editingTemplateMap[swid].text"
+                  v-model:value="editingTemplateMap[entry.id].text"
                   size="small"
                   type="textarea"
                   :rows="3"
-                  placeholder="内容模板（可选）"
-                  :disabled="!editingSwitches.includes(swid)"
+                  :placeholder="
+                    entry.isSwitch
+                      ? '内容模板（可选）'
+                      : '可用变量：{{ label }} {{ count }} {{ samples }} {{ more }}'
+                  "
+                  :disabled="
+                    entry.isSwitch && !editingSwitches.includes(entry.id)
+                  "
                 />
               </div>
             </div>
