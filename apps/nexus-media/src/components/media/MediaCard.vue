@@ -57,6 +57,7 @@ const _rssid = ref(props.rssid || '');
 const typeLabel = computed(() => {
   const t = props.mediaType || props.type || '';
   if (t === 'movie' || t === '电影') return '电影';
+  if (t === 'anime' || t === '动漫') return '动漫';
   if (t === 'tv' || t === '剧集' || t === '电视剧') return '剧集';
   return '';
 });
@@ -286,17 +287,45 @@ function onImgError(e: Event) {
         {{ vote }}
       </span>
       <span
-        v-if="inLibrary"
-        class="rounded-full p-0.5 flex items-center justify-center"
+        v-if="subscribed || inLibrary"
+        class="flex items-center gap-1 rounded-full px-1.5 py-0.5 shadow-sm"
         :style="{
-          backgroundColor: 'hsl(var(--success))',
-          color: 'hsl(var(--primary-foreground))',
+          backgroundColor: 'hsl(var(--card) / 0.85)',
+          color: 'hsl(var(--card-foreground))',
+          backdropFilter: 'blur(4px)',
         }"
       >
-        <IconifyIcon
-          icon="lucide:check"
-          :style="{ width: '12px', height: '12px' }"
-        />
+        <span
+          v-if="subscribed"
+          class="flex items-center"
+          title="已订阅"
+          aria-label="已订阅"
+        >
+          <IconifyIcon
+            icon="lucide:heart"
+            :style="{
+              width: '12px',
+              height: '12px',
+              color: 'hsl(var(--destructive))',
+              fill: 'currentcolor',
+            }"
+          />
+        </span>
+        <span
+          v-if="inLibrary"
+          class="flex items-center"
+          title="已入库"
+          aria-label="已入库"
+        >
+          <IconifyIcon
+            icon="lucide:check"
+            :style="{
+              width: '12px',
+              height: '12px',
+              color: 'hsl(var(--success))',
+            }"
+          />
+        </span>
       </span>
     </div>
 
