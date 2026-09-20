@@ -6,7 +6,16 @@ import { useRouter } from 'vue-router';
 
 import { useUserStore } from '@vben/stores';
 
-import { NButton, NInput, NModal, NProgress, NSpace, NSpin } from 'naive-ui';
+import {
+  NButton,
+  NInput,
+  NModal,
+  NProgress,
+  NRadioButton,
+  NRadioGroup,
+  NSpace,
+  NSpin,
+} from 'naive-ui';
 
 import { getDownloadSettingsApi } from '#/api/modules/download';
 import { getFilterRulesApi } from '#/api/modules/filter';
@@ -34,8 +43,21 @@ import { useAppNotification } from '#/utils/notify';
 
 const subscriptionStore = useSubscriptionStore();
 const router = useRouter();
+
 const notification = useAppNotification();
 const userStore = useUserStore();
+
+const SUB_TYPE = 'tv';
+
+// 页内类型筛选：动漫与电视剧同表，仅展示层区分
+const typeFilter = ref<'all' | 'anime' | 'tv'>('all');
+const displayList = computed(() =>
+  subscriptionStore.tvSubscriptions.filter((it: any) => {
+    if (typeFilter.value === 'all') return true;
+    const t = String(it.type || 'tv').toLowerCase();
+    return typeFilter.value === 'anime' ? t === 'anime' : t !== 'anime';
+  }),
+);
 
 const loading = ref(false);
 const refreshing = ref(false);
@@ -75,7 +97,7 @@ function groupKey(item: any): string {
 
 const subscriptionGroups = computed<SubscriptionGroup[]>(() => {
   const map = new Map<string, SubscriptionGroup>();
-  for (const item of subscriptionStore.tvSubscriptions) {
+  for (const item of displayList.value) {
     const key = groupKey(item);
     const group = map.get(key);
     if (group) {
@@ -207,7 +229,7 @@ async function handleCardRefresh(item: any) {
   if (refreshing.value) return;
   refreshing.value = true;
   try {
-    await refreshSubscriptionApi('tv', String(item.id));
+    await refreshSubscriptionApi(SUB_TYPE, String(item.id));
     notification.success('已触发刷新');
     // 后台异步搜索启动后状态才变为"搜索中"，轮询拉取以反映最新状态
     for (let i = 0; i < 5; i += 1) {
@@ -228,7 +250,10 @@ async function handleCardRefresh(item: any) {
 async function handleEdit(item: any) {
   let detail: any;
   try {
-    const res: any = await getSubscriptionDetailApi(item.id, 'tv');
+    const res: any = await getSubscriptionDetailApi(
+      item.id,
+      item.type || SUB_TYPE,
+    );
     detail = res?.detail || res || {};
   } catch {
     detail = item;
@@ -237,7 +262,7 @@ async function handleEdit(item: any) {
     rssid: String(detail.id || item.id),
     name: detail.name || item.name || '',
     year: detail.year || item.year || '',
-    type: 'tv',
+    type: detail.type || item.type || SUB_TYPE,
     season: detail.season
       ? String(Number(String(detail.season).replace(/^S/i, '')))
       : '',
@@ -290,7 +315,7 @@ async function confirmDelete() {
     const t = deleteTarget.value;
     await removeSubscriptionApi({
       name: t.name,
-      type: 'tv',
+      type: t.type || SUB_TYPE,
       year: String(t.year || ''),
       rssid: String(t.id),
       tmdbid: t.tmdbid ? String(t.tmdbid) : undefined,
@@ -361,10 +386,15 @@ async function selectAddMedia(media: any) {
   } catch {
     // ignore
   }
+  const rawMediaType = String(
+    media.media_type || media.type || '',
+  ).toLowerCase();
+  const defaultSubType: 'anime' | 'movie' | 'tv' =
+    rawMediaType === 'anime' || rawMediaType === 'movie' ? rawMediaType : 'tv';
   subscribeEditItem.value = {
     name: media.title || '',
     year: media.year || '',
-    type: 'tv',
+    type: defaultSubType,
     tmdbid: String(media.id || media.tmdb_id || ''),
     image: media.image || media.poster || '',
     season: '',
@@ -422,8 +452,16 @@ onUnmounted(() => {
       </template>
     </PageHeader>
 
+    <div class="mb-3 flex flex-wrap items-center gap-2">
+      <NRadioGroup v-model:value="typeFilter" size="small">
+        <NRadioButton value="all">全部</NRadioButton>
+        <NRadioButton value="tv">电视剧</NRadioButton>
+        <NRadioButton value="anime">动漫</NRadioButton>
+      </NRadioGroup>
+    </div>
+
     <NSpin :show="loading">
-      <template v-if="subscriptionStore.tvSubscriptions.length > 0">
+      <template v-if="displayList.length > 0">
         <div v-if="showGroupView" class="subscription-groups">
           <SubscriptionGroupCard
             v-for="group in subscriptionGroups"
@@ -435,7 +473,7 @@ onUnmounted(() => {
             :image="group.image"
             :vote="group.vote"
             :items="group.items"
-            type="tv"
+            :type="group.items[0]?.type || 'tv'"
             @click="handleCardClick"
             @edit="handleEdit"
             @delete="handleDelete"
@@ -445,10 +483,10 @@ onUnmounted(() => {
         </div>
         <div v-else class="subscription-flow">
           <SubscriptionHoverCard
-            v-for="item in subscriptionStore.tvSubscriptions"
+            v-for="item in displayList"
             :key="item.id"
             :item="item"
-            type="tv"
+            :type="item.type || 'tv'"
             :filter-rule-map="filterRuleMap"
             :download-setting-map="downloadSettingMap"
             @click="handleCardClick"

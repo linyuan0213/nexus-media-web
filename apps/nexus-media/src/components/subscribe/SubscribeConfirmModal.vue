@@ -75,7 +75,8 @@ async function loadSiteSummary() {
     siteSummary.value = { rss: 0, search: 0 };
   }
 }
-const isTv = computed(() => props.item?.type === 'tv');
+// 动漫与电视剧共用季/集模型，仅电影走单片流程
+const isTv = computed(() => props.item?.type !== 'movie');
 
 watch(
   () => props.show,
@@ -213,7 +214,13 @@ function toggleSeason(num: number) {
                   : 'bg-blue-100 text-blue-700'
               "
             >
-              {{ item.type === 'movie' ? '电影' : '剧集' }}
+              {{
+                item.type === 'movie'
+                  ? '电影'
+                  : item.type === 'anime'
+                    ? '动漫'
+                    : '剧集'
+              }}
             </span>
           </div>
         </div>

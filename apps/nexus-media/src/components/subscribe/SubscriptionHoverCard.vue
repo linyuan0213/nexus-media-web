@@ -30,7 +30,7 @@ import { formatPix, formatRestype } from '#/utils/subscribe';
 
 interface Props {
   item: Record<string, any>;
-  type: 'movie' | 'tv';
+  type: 'anime' | 'movie' | 'tv';
   filterRuleMap?: Record<string, string>;
   downloadSettingMap?: Record<string, string>;
 }
@@ -72,7 +72,9 @@ const stateLabel = computed(
   () => stateLabelMap[props.item.state || ''] || props.item.state || '未知',
 );
 
-const typeLabel = computed(() => (props.type === 'movie' ? '电影' : '剧集'));
+const typeLabel = computed(() =>
+  props.type === 'movie' ? '电影' : props.type === 'anime' ? '动漫' : '剧集',
+);
 
 const voteText = computed(() => {
   const v = props.item.vote;
@@ -99,7 +101,7 @@ const ownerInitial = computed(() =>
 
 const captionTitle = computed(() => {
   let text = props.item.name || '';
-  if (props.type === 'tv' && seasonLabel.value) {
+  if (props.type !== 'movie' && seasonLabel.value) {
     text += ` ${seasonLabel.value}`;
   }
   if (props.item.year) {
@@ -109,7 +111,7 @@ const captionTitle = computed(() => {
 });
 
 const showProgress = computed(
-  () => props.type === 'tv' && props.item.total && props.item.total > 0,
+  () => props.type !== 'movie' && props.item.total && props.item.total > 0,
 );
 
 const progressPercent = computed(() => {

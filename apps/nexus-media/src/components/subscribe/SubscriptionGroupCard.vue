@@ -33,7 +33,7 @@ interface Props {
   image?: string;
   vote?: number | string;
   items: Record<string, any>[];
-  type: 'movie' | 'tv';
+  type: 'anime' | 'movie' | 'tv';
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -80,7 +80,8 @@ const voteText = computed(() => {
 
 const captionTitle = computed(() => {
   let text = props.name || '';
-  if (props.type === 'tv' && seasonLabel.value) text += ` ${seasonLabel.value}`;
+  if (props.type !== 'movie' && seasonLabel.value)
+    text += ` ${seasonLabel.value}`;
   if (props.year) text += `（${props.year}）`;
   return text;
 });
@@ -129,7 +130,7 @@ const aggregateState = computed(() => {
 });
 
 function itemProgress(item: Record<string, any>) {
-  if (props.type !== 'tv') return null;
+  if (props.type === 'movie') return null;
   const total = Number(item.total) || 0;
   if (!total) return null;
   const lack = Number(item.lack) || 0;
@@ -259,7 +260,9 @@ onMounted(ensureOutsideListener);
         <div class="sgc-meta">
           <span v-if="year">{{ year }}</span>
           <span class="sgc-dot-sep">·</span>
-          <span>{{ type === 'movie' ? '电影' : '剧集' }}</span>
+          <span>{{
+            type === 'movie' ? '电影' : type === 'anime' ? '动漫' : '剧集'
+          }}</span>
           <template v-if="seasonLabel">
             <span class="sgc-dot-sep">·</span>
             <span>{{ seasonLabel }}</span>

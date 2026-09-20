@@ -131,10 +131,11 @@ const subscribeEditItem = ref<null | SubscribeEditItem>(null);
 const unsubscribingMedia = ref<MediaItem | null>(null);
 const subscribeConfirmPending = ref(false);
 
-function normalizeMediaType(type?: string): 'movie' | 'tv' {
+function normalizeMediaType(type?: string): 'anime' | 'movie' | 'tv' {
   if (!type) return 'tv';
   const t = type.toLowerCase();
   if (t === 'movie' || t === '电影') return 'movie';
+  if (t === 'anime' || t === '动漫') return 'anime';
   if (t === 'tv' || t === '剧集' || t === '电视剧') return 'tv';
   return 'tv';
 }

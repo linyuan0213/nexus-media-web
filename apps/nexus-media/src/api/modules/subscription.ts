@@ -15,7 +15,7 @@ export namespace SubscriptionApi {
   export interface Subscription {
     id: number;
     name: string;
-    type: 'movie' | 'tv';
+    type: 'anime' | 'movie' | 'tv';
     status: number;
     last_update?: string;
     rss_url?: string;
@@ -47,7 +47,7 @@ export namespace SubscriptionApi {
   export interface SubscriptionHistory {
     id: number | string;
     title: string;
-    type: 'movie' | 'tv';
+    type: 'anime' | 'movie' | 'tv';
     date: string;
     status: string;
     IMAGE?: string;

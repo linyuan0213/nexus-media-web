@@ -31,7 +31,7 @@ export interface SubscribeEditItem {
   rssid?: string;
   name: string;
   year?: string;
-  type: 'movie' | 'tv';
+  type: 'anime' | 'movie' | 'tv';
   tmdbid?: string;
   image?: string;
   season?: string;
@@ -104,7 +104,8 @@ const form = ref({
   search_sites: [] as string[],
 });
 
-const isTv = computed(() => form.value.type === 'tv');
+// 动漫与电视剧共用季/集相关表单项
+const isTv = computed(() => form.value.type !== 'movie');
 
 watch([() => props.show, () => props.item], async ([visible, item]) => {
   if (visible && item) {
@@ -317,6 +318,13 @@ function handleConfirm() {
                 </NCheckbox>
               </NFormItem>
             </div>
+            <NFormItem label="媒体类型">
+              <NRadioGroup v-model:value="form.type" :disabled="isEdit">
+                <NRadioButton value="movie">电影</NRadioButton>
+                <NRadioButton value="tv">电视剧</NRadioButton>
+                <NRadioButton value="anime">动漫</NRadioButton>
+              </NRadioGroup>
+            </NFormItem>
             <div v-if="isTv" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <NFormItem label="季">
                 <NSelect v-model:value="form.season" :options="seasonOptions" />
