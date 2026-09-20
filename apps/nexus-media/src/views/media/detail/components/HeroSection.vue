@@ -24,7 +24,7 @@ const emit = defineEmits<{
   subscribe: [];
 }>();
 
-const isTv = computed(() => props.detail.type === 'tv');
+const isTv = computed(() => props.detail.type !== 'movie');
 
 const tmdbUrl = computed(() => {
   const tid = props.detail.tmdbid;
@@ -114,7 +114,13 @@ function replaceLocalhost(url?: any) {
               background: hsl(var(--accent));
             "
           >
-            {{ detail.type === 'tv' ? '电视剧' : '电影' }}
+            {{
+              detail.type === 'movie'
+                ? '电影'
+                : detail.type === 'anime'
+                  ? '动漫'
+                  : '电视剧'
+            }}
           </NTag>
         </div>
 

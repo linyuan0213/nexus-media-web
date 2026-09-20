@@ -162,6 +162,15 @@ async function handleTmdbSearch() {
 
 function selectTmdbMedia(media: any) {
   form.value.tmdb = media.id || media.tmdb_id || undefined;
+  // 选中结果时同步媒体类型（此前不同步，电视剧/动漫会按默认“电影”查询导致查不到 TMDB）
+  const t = String(media.media_type || media.type || '').toLowerCase();
+  if (t === 'anime' || t === '动漫') {
+    form.value.type = 'anime';
+  } else if (t === 'tv' || t === '剧集' || t === '电视剧') {
+    form.value.type = 'tv';
+  } else if (t === 'movie' || t === '电影') {
+    form.value.type = 'movie';
+  }
   tmdbSearchShow.value = false;
   tmdbSearchResults.value = [];
 }

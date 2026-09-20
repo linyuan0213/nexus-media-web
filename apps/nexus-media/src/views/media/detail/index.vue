@@ -49,6 +49,8 @@ const mediaType = computed(() => {
   return t;
 });
 const isTv = computed(() => mediaType.value !== 'movie');
+// TMDB 没有动漫类型：动漫/电视剧都走 tv 接口
+const tmdbType = computed(() => (mediaType.value === 'movie' ? 'movie' : 'tv'));
 
 async function loadDetail() {
   if (!mediaId.value) {
@@ -57,7 +59,7 @@ async function loadDetail() {
   }
   loading.value = true;
   try {
-    const res: any = await getMediaDetailApi(mediaId.value, mediaType.value);
+    const res: any = await getMediaDetailApi(mediaId.value, tmdbType.value);
     if (res && typeof res === 'object' && res.title) {
       detail.value = res;
       fav.value = String(res.fav || '0');
@@ -85,7 +87,7 @@ async function loadSimilar() {
   if (!tid) return;
   try {
     const res: any = await getSimilarApi({
-      type: mediaType.value,
+      type: tmdbType.value,
       tmdbid: String(tid),
       page: 1,
     });
@@ -100,7 +102,7 @@ async function loadRecommends() {
   if (!tid) return;
   try {
     const res: any = await getRecommendationsApi({
-      type: mediaType.value,
+      type: tmdbType.value,
       tmdbid: String(tid),
       page: 1,
     });
@@ -121,7 +123,7 @@ async function handleSearch() {
     const resp: any = await webSearchApi({
       search_word: detail.value.title,
       tmdbid: mediaId.value,
-      media_type: mediaType.value,
+      media_type: tmdbType.value,
     });
     sessionId = resp?.session_id || '';
   } catch {}
