@@ -1,5 +1,12 @@
 # 版本历史
 
+## v4.21.4 (2026-09-29)
+
+### 修复
+
+- 服务配置「目录同步监控间隔(秒)」保存后丢失：`media.sync_transfer_interval` 在页面上可编辑，但不在保存提交字段白名单中，已补入（与 `media.mediasync_interval` 同批保存）
+- 版本号与后端 v4.21.4 对齐（后端为电影订阅重复下载、TMDB API Key 热重载、刷流任务「保存目录」留空报错等修复）；同步 `apps/nexus-media/.env` 的 `VITE_APP_VERSION`
+
 ## v4.21.3 (2026-09-21)
 
 ### 修复
