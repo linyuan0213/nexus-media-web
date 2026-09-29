@@ -179,6 +179,7 @@ function saveService() {
       'pt.pt_check_interval',
       'pt.search_rss_interval',
       'media.mediasync_interval',
+      'media.sync_transfer_interval',
       'pt.ptrefresh_date_cron',
       'pt.search_auto',
       'pt.search_no_result_rss',
