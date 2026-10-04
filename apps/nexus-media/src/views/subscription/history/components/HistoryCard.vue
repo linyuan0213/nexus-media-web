@@ -67,7 +67,7 @@ function getTmdbUrl() {
           </span>
         </div>
         <div v-if="item.total > 0" class="history-card-episodes">
-          共 {{ item.total - item.start }} 集
+          共 {{ item.total }} 集
         </div>
         <div class="history-card-desc" :title="item.desc">
           {{ item.desc }}
