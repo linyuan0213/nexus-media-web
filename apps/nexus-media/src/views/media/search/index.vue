@@ -459,10 +459,11 @@ const siteOptions = ref<{ label: string; value: string }[]>([]);
 const selectedSites = ref<string[]>([]);
 const SITE_FILTER_KEY = 'media_search_sites';
 
-function buildSiteFilter(): Record<string, any> | undefined {
-  return selectedSites.value.length > 0
-    ? { site: [...selectedSites.value] }
-    : undefined;
+function buildSiteFilter(): Record<string, any> {
+  // 未选择站点时必须显式传空数组：后端约定「空数组 = 全部当前用户可见站点」，
+  // 若省略 site 字段会被当成"未指定"，转而套用默认订阅设置的 search_sites，
+  // 导致第三方索引器站点被排除。
+  return { site: [...selectedSites.value] };
 }
 
 async function loadVisibleSites() {
