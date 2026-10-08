@@ -120,6 +120,24 @@ http {
       access_log off;
     }
 
+    # 消息通知 Webhook 回调代理（企业微信/公众号、Telegram、Slack、群晖 Chat 等）
+    # 这些回调挂在后端根路径（无 /api 前缀），必须和 API 一样反代到后端；
+    # 否则会被下面的 location / SPA 兜底捕获：GET 返回 index.html（平台校验失败），
+    # POST 被静态服务器拒绝返回 405（消息无法推送）。
+    location ~ ^/(wechat|telegram|slack|synologychat)(/|$) {
+      proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT};
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_set_header Connection "";
+      proxy_buffering off;
+      proxy_connect_timeout 60s;
+      proxy_send_timeout 60s;
+      proxy_read_timeout 60s;
+    }
+
     # API 文档（Scalar）
     location /docs {
       proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT}/docs;
