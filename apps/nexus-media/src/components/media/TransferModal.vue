@@ -6,6 +6,7 @@ import { IconifyIcon } from '@vben/icons';
 import {
   NButton,
   NCard,
+  NDivider,
   NEmpty,
   NForm,
   NFormItem,
@@ -33,6 +34,10 @@ export interface TransferFormData {
   type: string;
   tmdb?: number;
   season?: number;
+  episode_format?: string;
+  episode_details?: string;
+  episode_part?: string;
+  episode_offset?: string;
   min_filesize?: number;
   src_backend_id?: string;
   dst_backend_id?: string;
@@ -58,6 +63,11 @@ const form = ref<TransferFormData>({
   outpath: '',
   syncmod: 'copy',
   type: 'movie',
+  season: undefined,
+  episode_format: '',
+  episode_details: '',
+  episode_part: '',
+  episode_offset: '',
 });
 
 watch(
@@ -71,6 +81,10 @@ watch(
         type: props.type || 'movie',
         tmdb: undefined,
         season: undefined,
+        episode_format: '',
+        episode_details: '',
+        episode_part: '',
+        episode_offset: '',
         min_filesize: undefined,
         src_backend_id: props.srcBackendId || 'local',
         dst_backend_id: 'local',
@@ -281,6 +295,51 @@ function selectTmdbMedia(media: any) {
             </NButton>
           </NSpace>
         </NFormItem>
+        <template v-if="form.type !== 'movie'">
+          <NDivider style="margin: 0.5rem 0">季集设置</NDivider>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <NFormItem label="季">
+              <NInputNumber
+                v-model:value="form.season"
+                placeholder="如 1"
+                :min="1"
+                :show-button="false"
+                clearable
+                size="small"
+              />
+            </NFormItem>
+            <NFormItem label="指定集数">
+              <NInput
+                v-model:value="form.episode_format"
+                placeholder="如 1,2,3"
+                size="small"
+              />
+            </NFormItem>
+          </div>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <NFormItem label="定位集数">
+              <NInput
+                v-model:value="form.episode_details"
+                placeholder="如 E01"
+                size="small"
+              />
+            </NFormItem>
+            <NFormItem label="集数偏移">
+              <NInput
+                v-model:value="form.episode_offset"
+                placeholder="如 -10"
+                size="small"
+              />
+            </NFormItem>
+          </div>
+          <NFormItem label="指定 Part">
+            <NInput
+              v-model:value="form.episode_part"
+              placeholder="如 Part1"
+              size="small"
+            />
+          </NFormItem>
+        </template>
         <NFormItem label="过滤大小">
           <NInputNumber
             v-model:value="form.min_filesize"

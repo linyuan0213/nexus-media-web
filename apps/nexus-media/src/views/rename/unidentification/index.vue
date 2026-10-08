@@ -198,6 +198,10 @@ async function submitTransfer(data: TransferFormData) {
       type: data.type,
       tmdb: data.tmdb,
       season: data.season,
+      episode_format: data.episode_format || undefined,
+      episode_details: data.episode_details || undefined,
+      episode_part: data.episode_part || undefined,
+      episode_offset: data.episode_offset || undefined,
       min_filesize: data.min_filesize,
     });
     notification.success('转移任务已提交');
