@@ -35,7 +35,11 @@ import {
   updateNotifySettings,
 } from '#/utils/os-notify';
 import { isTauri, openBackendConfig } from '#/utils/tauri';
-import { dispatchUnreadSync, listenUnreadSync } from '#/utils/unread-sync';
+import {
+  dispatchScrollFirstUnread,
+  dispatchUnreadSync,
+  listenUnreadSync,
+} from '#/utils/unread-sync';
 import { disableWebPush, enableWebPush } from '#/utils/web-push';
 import LoginForm from '#/views/_core/authentication/login.vue';
 
@@ -124,7 +128,23 @@ async function loadNotifications() {
       if (osReady) {
         notifiedIds.add(id);
         saveNotifiedIds();
-        queueOsNotify(m.title || '新消息', m.content || '', openMessageCenter);
+        // 点击系统通知即视为已读：单条标记该条；聚合通知一次全部已读；随后定位到第一条未读
+        queueOsNotify(
+          m.title || '新消息',
+          m.content || '',
+          () => {
+            markMessageRead([Number(id)]).catch(() => {});
+            openMessageCenter();
+            dispatchScrollFirstUnread();
+            void loadNotifications();
+          },
+          () => {
+            markMessageRead().catch(() => {});
+            openMessageCenter();
+            dispatchScrollFirstUnread();
+            void loadNotifications();
+          },
+        );
       }
     }
     notifications.value = items.map((m: any) => ({

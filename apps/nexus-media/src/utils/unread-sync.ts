@@ -36,3 +36,17 @@ export function listenUnreadSync(callback: () => void): () => void {
     if (ch) ch.removeEventListener('message', onChannel);
   };
 }
+
+/** 请求消息中心定位到第一条未读（点击系统通知后定位用） */
+export function dispatchScrollFirstUnread() {
+  window.dispatchEvent(new Event('nexus-scroll-first-unread'));
+}
+
+/** 监听"定位第一条未读"请求，返回取消函数 */
+export function listenScrollFirstUnread(callback: () => void): () => void {
+  const onWindow = () => callback();
+  window.addEventListener('nexus-scroll-first-unread', onWindow);
+  return () => {
+    window.removeEventListener('nexus-scroll-first-unread', onWindow);
+  };
+}

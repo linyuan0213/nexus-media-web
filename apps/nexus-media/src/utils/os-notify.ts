@@ -90,6 +90,8 @@ interface QueuedNotify {
   title: string;
   body: string;
   onClick?: () => void;
+  /** 聚合通知被点击时的回调（多条合并场景，一次标记全部已读，避免逐条请求） */
+  batchOnClick?: () => void;
 }
 
 /** 是否具备弹系统通知的条件（开关开启 + 浏览器已授权） */
@@ -126,10 +128,11 @@ export function queueOsNotify(
   title: string,
   body: string,
   onClick?: () => void,
+  batchOnClick?: () => void,
 ) {
   playNotifySound();
   if (!notifySettings.value.osEnabled) return;
-  notifyQueue.push({ title, body, onClick });
+  notifyQueue.push({ title, body, onClick, batchOnClick });
   if (queueTimer) clearTimeout(queueTimer);
   queueTimer = setTimeout(flushNotifyQueue, 1500);
 }
@@ -143,6 +146,7 @@ async function flushNotifyQueue() {
   let title = 'Nexus Media';
   let body: string;
   let onClick: (() => void) | undefined;
+  let batchOnClick: (() => void) | undefined;
   if (batch.length === 1) {
     const first = batch[0];
     title = first?.title || title;
@@ -152,6 +156,8 @@ async function flushNotifyQueue() {
     title = `你收到 ${batch.length} 条新消息`;
     const titles = batch.map((n) => n.title).filter(Boolean);
     body = titles.slice(0, 3).join('、') + (titles.length > 3 ? '…' : '');
+    // 聚合通知点击：一次标记这批全部已读（避免逐条请求）
+    batchOnClick = batch.find((n) => n.batchOnClick)?.batchOnClick;
   }
   try {
     const notification = new Notification(title, {
@@ -161,7 +167,11 @@ async function flushNotifyQueue() {
     });
     notification.addEventListener('click', () => {
       window.focus();
-      onClick?.();
+      if (batch.length === 1) {
+        onClick?.();
+      } else {
+        batchOnClick?.();
+      }
       notification.close();
     });
   } catch {

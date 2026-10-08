@@ -33,7 +33,10 @@ import {
 } from '#/api/modules/agent';
 import { getAllSystemConfigApi } from '#/api/modules/system';
 import { canOsNotify, queueOsNotify } from '#/utils/os-notify';
-import { dispatchUnreadSync } from '#/utils/unread-sync';
+import {
+  dispatchUnreadSync,
+  listenScrollFirstUnread,
+} from '#/utils/unread-sync';
 
 import ChatMessage from './components/ChatMessage.vue';
 import ConfirmCard from './components/ConfirmCard.vue';
@@ -115,6 +118,7 @@ const readTimers = new Map<number, ReturnType<typeof setTimeout>>();
 const msgElements = new Map<number, HTMLElement>();
 let streamReconnectTimer: null | number = null;
 let placeholderId: null | number = null;
+let unlistenScrollFirstUnread: (() => void) | null = null;
 
 const STREAM_CURSOR_KEY = 'nexus-agent-stream-cursor';
 const NOTIFIED_KEY = 'nexus-agent-notified-ids';
@@ -137,7 +141,26 @@ function maybeNotify(item: AgentApi.MessageStreamItem) {
   if (canOsNotify() && !notifiedIds.value.has(item.id)) {
     notifiedIds.value.add(item.id);
     saveNotifiedIds();
-    queueOsNotify(title, body);
+    // 点击系统通知即视为已读：单条标记该条，聚合通知一次全部已读；随后回滚到第一条未读
+    queueOsNotify(
+      title,
+      body,
+      () => {
+        markOneRead(Number(item.id));
+        scrollToFirstUnread();
+      },
+      () => {
+        markMessageRead().catch(() => {});
+        messages.value.forEach((m) => {
+          m.read = true;
+          m.isNew = false;
+        });
+        unreadCount.value = 0;
+        dispatchUnreadSync();
+        refreshUnread();
+        scrollToFirstUnread();
+      },
+    );
   }
 }
 
@@ -180,6 +203,20 @@ async function markAllRead() {
   } catch {
     // 标记失败不阻断
   }
+}
+
+/** 单条已读（点击系统通知时用）：落库 + 本地取消高亮 + 同步未读数 */
+function markOneRead(backendId: number) {
+  if (!backendId) return;
+  markMessageRead([backendId]).catch(() => {});
+  const target = messages.value.find((m) => m.backendId === backendId);
+  if (target) {
+    target.read = true;
+    target.isNew = false;
+  }
+  unreadCount.value = Math.max(0, unreadCount.value - 1);
+  dispatchUnreadSync();
+  refreshUnread();
 }
 
 /** 滚动到列表底部（看到最新消息）即视为已读；程序性滚动不触发 */
@@ -336,22 +373,38 @@ function scrollToBottom() {
 }
 
 /** 滚动到第一条未读消息（置顶显示）；无未读返回 false */
-function scrollToFirstUnread(): boolean {
+function scrollToFirstUnread(retries = 10): boolean {
   const idx = messages.value.findIndex((m) => isUnread(m));
   const target = idx >= 0 ? messages.value[idx] : undefined;
   if (!target) return false;
   autoScrolling = true;
+  const finish = () => {
+    window.setTimeout(() => {
+      autoScrolling = false;
+    }, 400);
+  };
+  // 元素可能尚未挂载（长列表/异步渲染）→ 有界重试，避免一次失败就停在顶部
+  const tryScroll = (attempt: number) => {
+    const el = msgElements.get(target.id);
+    const list = listRef.value;
+    if (el && list) {
+      // 相对滚动容器的偏移：offsetTop 受 offsetParent 影响，长列表里可能不准
+      const top =
+        el.getBoundingClientRect().top -
+        list.getBoundingClientRect().top +
+        list.scrollTop;
+      list.scrollTop = Math.max(0, top - 8);
+      finish();
+      return;
+    }
+    if (attempt < retries) {
+      window.setTimeout(() => tryScroll(attempt + 1), 120);
+      return;
+    }
+    autoScrolling = false;
+  };
   nextTick(() => {
-    requestAnimationFrame(() => {
-      const el = msgElements.get(target.id);
-      const list = listRef.value;
-      if (el && list) {
-        list.scrollTop = Math.max(0, el.offsetTop - 8);
-      }
-      setTimeout(() => {
-        autoScrolling = false;
-      }, 400);
-    });
+    requestAnimationFrame(() => tryScroll(0));
   });
   return true;
 }
@@ -722,6 +775,10 @@ onMounted(async () => {
   window.addEventListener('storage', onStorageSync);
   window.addEventListener('resize', measureListHeight);
   document.addEventListener('visibilitychange', onVisibilityChange);
+  // 点击系统通知（可能已在本页）时重新定位到第一条未读
+  unlistenScrollFirstUnread = listenScrollFirstUnread(() => {
+    scrollToFirstUnread();
+  });
   fetchStatus();
   measureListHeight();
   // 视口观察：进视口的未读消息自动已读
@@ -758,6 +815,8 @@ onBeforeUnmount(() => {
   window.removeEventListener('storage', onStorageSync);
   window.removeEventListener('resize', measureListHeight);
   document.removeEventListener('visibilitychange', onVisibilityChange);
+  unlistenScrollFirstUnread?.();
+  unlistenScrollFirstUnread = null;
   chatAbort.value?.abort();
   streamAbort.value?.abort();
   if (streamReconnectTimer) clearTimeout(streamReconnectTimer);
@@ -765,17 +824,17 @@ onBeforeUnmount(() => {
   clearReadTimers();
 });
 
-/** 页面是否曾切到后台（仅真正从后台切回时才全部已读，避免初始加载误清未读） */
+/** 页面是否曾切到后台（仅真正从后台切回时才重新定位，避免初始加载误判） */
 let wasHidden = false;
 
-/** 从后台切回页面时刷新未读数并全部已读 */
+/** 从后台切回页面时刷新未读数并定位到第一条未读（由视口观察逐条标记已读，不整页清空） */
 function onVisibilityChange() {
   if (document.visibilityState === 'hidden') {
     wasHidden = true;
   } else if (document.visibilityState === 'visible' && wasHidden) {
     wasHidden = false;
     refreshUnread();
-    markAllRead();
+    scrollToFirstUnread();
   }
 }
 </script>
