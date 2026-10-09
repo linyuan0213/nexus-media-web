@@ -115,6 +115,10 @@ let streamCursor = 0;
 let streamBackoff = 3000;
 let ioObserver: IntersectionObserver | null = null;
 const readTimers = new Map<number, ReturnType<typeof setTimeout>>();
+// 已读批量合并：视口内多条消息的已读请求去抖为一次提交，避免同秒并发打爆后端
+const pendingReadIds = new Set<number>();
+let pendingReadTimer: null | number = null;
+const READ_BATCH_DELAY = 400;
 const msgElements = new Map<number, HTMLElement>();
 let streamReconnectTimer: null | number = null;
 let placeholderId: null | number = null;
@@ -219,6 +223,29 @@ function markOneRead(backendId: number) {
   refreshUnread();
 }
 
+/** 已读请求合并：同批 id 去抖后一次提交，避免逐条并发 */
+function enqueueRead(backendId: number) {
+  if (!backendId) return;
+  pendingReadIds.add(backendId);
+  if (pendingReadTimer) return;
+  pendingReadTimer = window.setTimeout(() => {
+    pendingReadTimer = null;
+    flushPendingRead();
+  }, READ_BATCH_DELAY);
+}
+
+/** 立即提交待读 id（离开页面时兜底） */
+function flushPendingRead() {
+  if (pendingReadTimer) {
+    clearTimeout(pendingReadTimer);
+    pendingReadTimer = null;
+  }
+  if (pendingReadIds.size === 0) return;
+  const ids = [...pendingReadIds];
+  pendingReadIds.clear();
+  markMessageRead(ids).catch(() => {});
+}
+
 /** 滚动到列表底部（看到最新消息）即视为已读；程序性滚动不触发 */
 function onListScroll() {
   if (autoScrolling || unreadCount.value === 0) return;
@@ -240,15 +267,11 @@ function scheduleRead(msgId: number) {
   }
   readTimers.set(
     msgId,
-    setTimeout(async () => {
+    setTimeout(() => {
       readTimers.delete(msgId);
       const target = messages.value.find((m) => m.id === msgId);
       if (!target || target.read || !target.backendId) return;
-      try {
-        await markMessageRead([target.backendId]);
-      } catch {
-        return;
-      }
+      enqueueRead(target.backendId);
       target.read = true;
       target.isNew = false;
       if (unreadCount.value > 0) unreadCount.value -= 1;
@@ -821,6 +844,7 @@ onBeforeUnmount(() => {
   streamAbort.value?.abort();
   if (streamReconnectTimer) clearTimeout(streamReconnectTimer);
   ioObserver?.disconnect();
+  flushPendingRead();
   clearReadTimers();
 });
 
