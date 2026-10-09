@@ -115,14 +115,28 @@ const showRefresh = computed(() => {
   return props.status === '500' || props.status === 'offline';
 });
 
-const { push } = useRouter();
+const router = useRouter();
 
 // 返回首页
 function back() {
-  push(props.homePath);
+  router.push(props.homePath);
 }
 
 function refresh() {
+  // 离线页原地刷新没有意义：优先回到上一页，其次回首页，最后才整页刷新
+  if (props.status === 'offline') {
+    const backTarget = router.options.history.state.back;
+    if (
+      typeof backTarget === 'string' &&
+      backTarget &&
+      !backTarget.startsWith('/offline')
+    ) {
+      router.back();
+      return;
+    }
+    router.push(props.homePath);
+    return;
+  }
   location.reload();
 }
 </script>
