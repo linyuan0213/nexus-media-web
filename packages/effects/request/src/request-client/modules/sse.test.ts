@@ -26,6 +26,7 @@ const createFetchMock = (chunks: string[], ok = true) => {
   return vi.fn().mockResolvedValue({
     ok,
     status: ok ? 200 : 500,
+    text: vi.fn().mockResolvedValue(''),
     body: {
       getReader: () => ({
         read: async () => {
