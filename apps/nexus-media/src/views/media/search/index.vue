@@ -2,7 +2,7 @@
 import type { SubscribeConfirmItem } from '#/components/subscribe/SubscribeConfirmModal.vue';
 import type { SubscribeEditItem } from '#/components/subscribe/SubscribeEditModal.vue';
 
-import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
@@ -21,7 +21,13 @@ import {
   NTag,
 } from 'naive-ui';
 
-import { getSearchResultApi, searchMediaApi, webSearchApi } from '#/api';
+import {
+  getMetadataProvidersApi,
+  getSearchResultApi,
+  searchMediaApi,
+  searchMetadataApi,
+  webSearchApi,
+} from '#/api';
 import {
   downloadSearchResultApi,
   getDownloadDirsApi,
@@ -41,6 +47,16 @@ import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.
 import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
 import { useDownloadEventStream } from '#/composables/useDownloadEventStream';
 import { useSearchProgress } from '#/composables/useSearchProgress';
+import {
+  getContentProfileDefaultSearchSource,
+  getContentProfileDetailPath,
+  getContentProfileLabel,
+  getContentProfileOverviewFallback,
+  getContentProfilePosterPosition,
+  getContentProfileSearchSources,
+  getContentProfileSourceOptions,
+} from '#/plugin-framework';
+import { getImgUrl } from '#/utils/image';
 import { useAppNotification } from '#/utils/notify';
 import { useResourceHelpers } from '#/views/site/resources/composables/useResourceHelpers';
 
@@ -95,6 +111,9 @@ interface SearchResult {
   type_key?: string;
   year: string;
   vote: string;
+  content_profile?: string;
+  metadata_ref?: string;
+  provider?: string;
   poster: string;
   overview: string;
   fav: string;
@@ -140,6 +159,38 @@ function normalizeMediaType(type?: string): 'anime' | 'movie' | 'tv' {
   return 'tv';
 }
 
+function itemLinks(item: any): Array<{ label: string; url: string }> {
+  if (Array.isArray(item?.links) && item.links.length > 0) return item.links;
+  const links: Array<{ label: string; url: string }> = [];
+  if (item?.douban_id) {
+    links.push({
+      label: '豆瓣',
+      url: `https://movie.douban.com/subject/${item.douban_id}`,
+    });
+  }
+  if (item?.tmdbid && String(item.tmdbid) !== '0') {
+    links.push({
+      label: 'TMDB',
+      url: `https://www.themoviedb.org/${item.type === 'movie' ? 'movie' : 'tv'}/${item.tmdbid}`,
+    });
+  }
+  if (item?.anchor_provider === 'bangumi' && item?.anchor_external_id) {
+    links.push({
+      label: 'Bangumi',
+      url: `https://bgm.tv/subject/${item.anchor_external_id}`,
+    });
+  }
+  return links;
+}
+
+function itemLink(item: any): string {
+  if (item?.link) return item.link;
+  if (item?.anchor_provider === 'douban' && item?.douban_id) {
+    return `https://movie.douban.com/subject/${item.douban_id}`;
+  }
+  return itemLinks(item)[0]?.url || '';
+}
+
 function updateCardSubscribeState(title: string, fav: string, rssid?: string) {
   for (const item of results.value) {
     if (item.title === title) {
@@ -166,11 +217,16 @@ async function handleSubscribe(item: SearchResult, e: Event) {
   subscribeConfirmItem.value = {
     id: String(item.tmdbid || item.key),
     tmdbid: item.tmdbid,
+    mediaid: (item as any).metadata_ref || String(item.tmdbid || item.key),
     title: item.title,
     year: item.year || '',
     type: mtype,
     image: item.poster,
     overview: item.overview,
+    content_profile: (item as any).content_profile,
+    metadata_ref: (item as any).metadata_ref,
+    anchor_provider: (item as any).anchor_provider,
+    anchor_external_id: (item as any).anchor_external_id,
   };
   subscribeConfirmShow.value = true;
 }
@@ -194,8 +250,11 @@ async function handleConfirmSubscribe(payload: {
           name: it.title,
           year: it.year || '',
           type: 'tv',
-          mediaid: String(it.id),
+          mediaid: it.mediaid || String(it.id),
           season: String(season),
+          content_profile: it.content_profile,
+          metadata_ref: it.metadata_ref,
+          provider: it.provider,
         });
         lastRssid = r?.rssid ? String(r.rssid) : lastRssid;
       }
@@ -206,6 +265,7 @@ async function handleConfirmSubscribe(payload: {
           type: 'tv',
           tmdbid: String(it.tmdbid || it.id),
           season: String(season),
+          content_profile: it.content_profile,
         });
       }
       const fav = selected.length > 0 ? '1' : '';
@@ -222,7 +282,12 @@ async function handleConfirmSubscribe(payload: {
         name: it.title,
         year: it.year || '',
         type: typeParam,
-        mediaid: String(it.id),
+        mediaid: it.mediaid || String(it.id),
+        content_profile: it.content_profile,
+        metadata_ref: it.metadata_ref,
+        provider: it.provider,
+        anchor_provider: it.anchor_provider,
+        anchor_external_id: it.anchor_external_id,
       });
       const success = res?.code === 0 || res?.success || res?.rssid || !res;
       if (success) {
@@ -257,7 +322,10 @@ async function handleEditSubscribe() {
   const mtype = it.type === 'movie' ? 'movie' : 'tv';
   let defaults: any = {};
   try {
-    const res: any = await getDefaultSubscriptionSettingApi(mtype);
+    const res: any = await getDefaultSubscriptionSettingApi(
+      mtype,
+      it.content_profile,
+    );
     defaults = res?.data || res || {};
   } catch {
     // ignore
@@ -268,6 +336,9 @@ async function handleEditSubscribe() {
     type: mtype,
     tmdbid: String(it.tmdbid || it.id || ''),
     image: it.image,
+    content_profile: it.content_profile,
+    metadata_ref: it.metadata_ref,
+    mediaid: it.mediaid,
     season: '',
     fuzzy_match: false,
     over_edition: !!(
@@ -298,7 +369,11 @@ async function handleEditSubscribe() {
 
 async function handleConfirmEdit(data: Record<string, any>) {
   try {
-    const res: any = await addSubscriptionApi(data);
+    const isCustom =
+      !!data.content_profile && data.content_profile !== 'default';
+    const res: any = isCustom
+      ? await addSubscriptionMediaApi(data)
+      : await addSubscriptionApi(data);
     const it = subscribeConfirmItem.value;
     if (it) {
       updateCardSubscribeState(
@@ -339,11 +414,14 @@ function handleMediaSubscribe(media: MediaItem) {
   subscribeConfirmItem.value = {
     id: String(media.tmdb_id || media.id),
     tmdbid: String(media.tmdb_id || media.id),
+    mediaid: (media as any).metadata_ref || String(media.tmdb_id || media.id),
     title: media.title,
     year: media.year || '',
     type: normalizeMediaType(media.media_type || media.type),
     image: media.image || media.poster,
     overview: media.overview,
+    content_profile: (media as any).content_profile,
+    metadata_ref: (media as any).metadata_ref,
   };
   subscribeConfirmShow.value = true;
 }
@@ -377,15 +455,26 @@ async function confirmUnsubscribe() {
   }
 }
 
-/** 图片 URL 处理：后端已统一转换代理路径，直接使用 */
-function getImgUrl(src?: string) {
-  if (!src) return '/static/img/no-image.png';
-  return src;
-}
-
 const loading = ref(false);
 const keyword = ref('');
-const searchtype = ref<'' | 'douban' | 'tmdb'>('tmdb');
+const searchtype = ref<string>('tmdb');
+const contentProfileKey = computed(() =>
+  String(route.query.content_profile || ''),
+);
+const profileSources = computed(() =>
+  getContentProfileSearchSources(contentProfileKey.value),
+);
+const metadataSource = ref(
+  String(route.query.metadata_source || '') ||
+    getContentProfileDefaultSearchSource(contentProfileKey.value),
+);
+
+watch(profileSources, (sources) => {
+  if (!sources.length) return;
+  if (!sources.some((item) => item.value === metadataSource.value)) {
+    metadataSource.value = sources[0]!.value;
+  }
+});
 
 // 持久化当前搜索关键词，用于从其他页面切回（无 query 参数）时恢复标题显示
 const SEARCH_KEYWORD_KEY = 'nexus:search:keyword';
@@ -406,11 +495,21 @@ interface MediaItem {
   year?: string;
   type?: string;
   media_type?: string;
+  content_profile?: string;
+  metadata_ref?: string;
+  provider?: string;
+  anchor_provider?: string;
+  anchor_external_id?: string;
+  search_query?: string;
+  studio?: string;
   vote?: number | string;
   image?: string;
   poster?: string;
   overview?: string;
   tmdb_id?: number | string;
+  douban_id?: string;
+  link?: string;
+  links?: Array<{ label: string; url: string }>;
   fav?: string;
   rssid?: string;
 }
@@ -535,22 +634,144 @@ function resumeOngoingSearch(): boolean {
   return true;
 }
 
-const typeOptions = [
-  { label: '全部来源', value: '' },
-  { label: 'TMDB', value: 'tmdb' },
-  { label: '豆瓣', value: 'douban' },
-];
+const metadataProviders = ref<
+  Array<{ label: string; profile: string; value: string }>
+>([]);
+const baseTypeOptions = computed(() => [
+  { label: '全部来源', profile: '', value: '' },
+  ...metadataProviders.value,
+]);
+const pluginSourceOptions = computed(() => getContentProfileSourceOptions());
+const sourceProfileMap = computed(() =>
+  Object.fromEntries(
+    [...baseTypeOptions.value, ...pluginSourceOptions.value].map((item) => [
+      item.value,
+      item.profile,
+    ]),
+  ),
+);
+const typeOptions = computed(() => [
+  ...baseTypeOptions.value,
+  ...pluginSourceOptions.value,
+]);
+
+async function loadMetadataProviders() {
+  try {
+    const res: any = await getMetadataProvidersApi();
+    const list = Array.isArray(res) ? res : res?.data || [];
+    metadataProviders.value = list
+      .filter(
+        (item: any) =>
+          item?.visibility === 'public' &&
+          Array.isArray(item?.capabilities) &&
+          item.capabilities.includes('search'),
+      )
+      .map((item: any) => ({
+        label: String(item.name || item.provider),
+        profile: String(item.content_profiles?.[0] || ''),
+        value: String(item.provider),
+      }));
+  } catch {
+    metadataProviders.value = [];
+  }
+}
+
+function metadataContentId(item: any): string {
+  const extra = item?.extra || {};
+  return String(
+    Object.entries(extra).find(([key]) => key.endsWith('.content_id'))?.[1] ||
+      '',
+  );
+}
+
+function filterMetadataHits(list: any[], query: string): any[] {
+  const keywordUp = query.trim().toUpperCase();
+  if (!keywordUp) return list;
+  const exact = list.filter(
+    (item) =>
+      metadataContentId(item).toUpperCase() === keywordUp ||
+      String(item.title || '').toUpperCase() === keywordUp,
+  );
+  return exact.length > 0 ? exact : list;
+}
+
+function mapMetadataResults(list: any[]): MediaItem[] {
+  const routePoster = String(route.query.poster || '');
+  const routeVote = String(route.query.vote || '');
+  const routeYear = String(route.query.year || '');
+  return list.map((item) => {
+    const extra = item.extra || {};
+    const profile = item.content_profile || 'default';
+    const contentId = metadataContentId(item);
+    const searchQuery = String(
+      extra.search_query || contentId || item.title || '',
+    );
+    const anchorProvider = String(
+      extra.anchor_provider || item.ref?.provider || 'content_id',
+    );
+    const anchorExternalId = String(
+      extra.anchor_external_id || item.ref?.external_id || contentId || '',
+    );
+    const studio = String(extra.studio || extra[`${profile}.studio`] || '');
+    const isKeywordHit =
+      String(item.title || '').toUpperCase() ===
+        keyword.value.trim().toUpperCase() ||
+      String(contentId || '').toUpperCase() ===
+        keyword.value.trim().toUpperCase();
+    return {
+      content_profile: item.content_profile,
+      id: String(contentId || item.title || ''),
+      image: (isKeywordHit ? routePoster : '') || item.poster || '',
+      media_type: item.media_type || 'movie',
+      metadata_ref: item.ref
+        ? `${item.ref.provider}:${item.ref.external_id}`
+        : '',
+      overview: item.overview || '',
+      poster: (isKeywordHit ? routePoster : '') || item.poster || '',
+      provider: item.ref?.provider || '',
+      anchor_provider: anchorProvider,
+      anchor_external_id: anchorExternalId,
+      search_query: searchQuery,
+      studio,
+      title: item.title || String(contentId || ''),
+      tmdb_id: '',
+      type: item.media_type || 'movie',
+      vote: item.extra?.rating || (isKeywordHit ? routeVote : ''),
+      year: item.year || (isKeywordHit ? routeYear : ''),
+    };
+  });
+}
 
 /** 普通搜索：搜索媒体词条 */
+function handleSourceTypeChange(value: string) {
+  searchtype.value = value;
+  if (keyword.value.trim()) handleSearch();
+}
+
 async function handleSearch() {
   if (!keyword.value.trim()) return;
   displayMode.value = 'media';
   mediaResults.value = [];
   loading.value = true;
   try {
+    const sourceProfile =
+      contentProfileKey.value || sourceProfileMap.value[searchtype.value] || '';
+    if (sourceProfile) {
+      const res: any = await searchMetadataApi({
+        content_profile: sourceProfile,
+        limit: 24,
+        provider: metadataSource.value || searchtype.value || undefined,
+        query: keyword.value,
+      });
+      const list = Array.isArray(res) ? res : res?.data || [];
+      mediaResults.value = mapMetadataResults(
+        filterMetadataHits(list, keyword.value),
+      );
+      return;
+    }
     const res: any = await searchMediaApi({
       keyword: keyword.value,
-      searchtype: searchtype.value,
+      searchtype: searchtype.value as '' | 'douban' | 'tmdb',
     });
     // requestClient 在 code===0 时自动解包返回 data，所以 res 直接是数组
     mediaResults.value = Array.isArray(res) ? res : res?.data || [];
@@ -565,6 +786,40 @@ async function handleSearch() {
 
 /** 点击媒体卡片 → 进入媒体详情 */
 function handleMediaCardClick(media: MediaItem) {
+  const anchorProvider = String(
+    (media as any).anchor_provider || media.provider || '',
+  );
+  const anchorExternal = String(
+    (media as any).anchor_external_id ||
+      (media as any).douban_id ||
+      String(media.metadata_ref || '').split(':')[1] ||
+      '',
+  );
+  if (
+    (anchorProvider === 'douban' || anchorProvider === 'bangumi') &&
+    anchorExternal
+  ) {
+    router.push({
+      name: 'MediaDetail',
+      query: {
+        provider: anchorProvider,
+        ref: anchorExternal,
+        type: normalizeMediaType(media.media_type || media.type),
+      },
+    });
+    return;
+  }
+  if (media.content_profile && media.content_profile !== 'default') {
+    const detailPath = getContentProfileDetailPath(media.content_profile);
+    if (!detailPath) return;
+    const params = new URLSearchParams({
+      id: String(media.id),
+      profile: media.content_profile,
+      ...(media.metadata_ref ? { ref: media.metadata_ref } : {}),
+    });
+    router.push(`${detailPath}?${params.toString()}`);
+    return;
+  }
   const id = media.tmdb_id || media.id;
   if (!id) return;
   const t = normalizeMediaType(media.media_type || media.type);
@@ -576,6 +831,23 @@ function handleMediaCardClick(media: MediaItem) {
 
 /** 点击「搜索资源」→ 触发种子搜索 */
 async function handleMediaSearch(media: MediaItem) {
+  if (media.content_profile && media.content_profile !== 'default') {
+    const code = String(media.search_query || media.id || media.title || '');
+    const query: Record<string, string> = {
+      s: code,
+      from: 'subscription',
+      media_type: 'movie',
+      content_profile: media.content_profile,
+      metadata_source: media.provider || metadataSource.value,
+      anchor_provider: media.anchor_provider || 'content_id',
+      anchor_external_id: media.anchor_external_id || code,
+    };
+    if (media.poster) query.poster = media.poster;
+    if (media.vote) query.vote = String(media.vote);
+    if (media.year) query.year = String(media.year);
+    router.push({ path: '/media/search', query });
+    return;
+  }
   displayMode.value = 'torrent';
   loading.value = true;
   setSearchKeyword(media.title);
@@ -597,6 +869,84 @@ async function handleMediaSearch(media: MediaItem) {
     loading.value = false;
     sessionStorage.removeItem(SEARCH_SESSION_KEY);
     notification.error('搜索失败', {
+      description: error?.message || '未知错误',
+    });
+  }
+}
+
+function openResultDetail(item: SearchResult) {
+  if (item.content_profile && item.content_profile !== 'default') {
+    const detailPath = getContentProfileDetailPath(item.content_profile);
+    if (!detailPath) return;
+    const params = new URLSearchParams({
+      id: item.title,
+      profile: item.content_profile,
+      ...(item.metadata_ref ? { ref: item.metadata_ref } : {}),
+    });
+    router.push(`${detailPath}?${params.toString()}`);
+    return;
+  }
+  if (item.tmdbid && item.tmdbid !== '0') {
+    router.push({
+      name: 'MediaDetail',
+      query: {
+        id: item.tmdbid,
+        type: item.type_key || (item.type === 'movie' ? 'movie' : 'tv'),
+      },
+    });
+  }
+}
+
+async function handleResultSubscribe(item: SearchResult) {
+  if (!item.content_profile || item.content_profile === 'default') {
+    return;
+  }
+  const code = item.title;
+  const preferredProvider =
+    item.provider ||
+    getContentProfileDefaultSearchSource(item.content_profile) ||
+    metadataSource.value ||
+    '';
+  let metadataRef = item.metadata_ref;
+  let metadataTitle = item.title;
+  try {
+    if (!metadataRef || metadataRef.startsWith('tmdb:')) {
+      const res: any = await searchMetadataApi({
+        content_profile: item.content_profile,
+        limit: 1,
+        provider: preferredProvider || undefined,
+        query: code,
+      });
+      const list = Array.isArray(res) ? res : res?.data || [];
+      const hit = list.find(
+        (entry: any) => entry?.ref?.external_id || entry?.external_id,
+      );
+      if (hit) {
+        const provider = hit.ref?.provider || hit.provider || preferredProvider;
+        const externalId = String(
+          hit.ref?.external_id || hit.external_id || '',
+        );
+        metadataRef = `${provider}:${externalId}`;
+        metadataTitle = hit.title || metadataTitle;
+      }
+    }
+    subscribeConfirmItem.value = {
+      id: code,
+      mediaid: `content_id:${code}`,
+      title: metadataTitle,
+      year: item.year || '',
+      type: 'movie',
+      image: item.poster,
+      overview: item.overview,
+      content_profile: item.content_profile,
+      metadata_ref: metadataRef,
+      provider: preferredProvider,
+      anchor_provider: 'content_id',
+      anchor_external_id: code,
+    };
+    subscribeConfirmShow.value = true;
+  } catch (error: any) {
+    notification.error('订阅失败', {
       description: error?.message || '未知错误',
     });
   }
@@ -631,6 +981,108 @@ async function handleAdvancedSearch() {
   }
 }
 
+function withRoutePoster(item: any) {
+  const profile = String(
+    item.content_profile || route.query.content_profile || '',
+  ).trim();
+  const raw = String(route.query.poster || '').trim();
+  if (!raw) return { ...item, content_profile: profile };
+  const poster = raw.startsWith('/img')
+    ? raw
+    : `/img?url=${encodeURIComponent(raw)}`;
+  const vote = String(route.query.vote || '').trim();
+  const year = String(route.query.year || '').trim();
+  const itemVote = String(item.vote || '').trim();
+  const hasVote = itemVote && itemVote !== '0' && itemVote !== '0.0';
+  const base = {
+    ...item,
+    backdrop: item.backdrop || poster,
+    image: item.image || poster,
+    poster: item.poster || poster,
+    vote: hasVote ? item.vote : vote,
+    year: item.year || year,
+    content_profile: profile,
+    metadata_ref: String(route.query.metadata_ref || ''),
+    provider: String(route.query.metadata_source || ''),
+  };
+  if (!profile) return base;
+  // 自定义画像按单片展示，避免出现 S01 季分组
+  return {
+    ...base,
+    filter: { ...base.filter, season: [], episode: [] },
+    torrent_dict: (base.torrent_dict || []).map(
+      ([, dict]: [string, any]) => ['movie', dict] as [string, any],
+    ),
+    type: 'movie',
+    type_key: 'movie',
+  };
+}
+
+const overviewTitleCache = new Map<string, string>();
+
+async function fillResultOverviews(items: any[]) {
+  const groups = new Map<
+    string,
+    { code: string; items: any[]; profile: string }
+  >();
+  for (const item of items) {
+    if (String(item.overview || '').trim()) continue;
+    const profile = String(
+      item.content_profile || contentProfileKey.value || '',
+    );
+    if (getContentProfileOverviewFallback(profile) !== 'title') continue;
+    const code = String(item.title || '').trim();
+    if (!code) continue;
+    const key = `${profile}:${code}`;
+    const group = groups.get(key) || { code, items: [], profile };
+    group.items.push(item);
+    groups.set(key, group);
+  }
+  await Promise.all(
+    [...groups.entries()].map(async ([key, group]) => {
+      let title = overviewTitleCache.get(key) || '';
+      if (!title) {
+        try {
+          const res: any = await searchMetadataApi({
+            content_profile: group.profile,
+            limit: 10,
+            provider:
+              group.items[0]?.provider ||
+              getContentProfileDefaultSearchSource(group.profile) ||
+              undefined,
+            query: group.code,
+          });
+          const hits = Array.isArray(res) ? res : res?.data || [];
+          const code = group.code.toUpperCase();
+          const hit =
+            hits.find((entry: any) =>
+              String(entry?.title || '')
+                .trim()
+                .toUpperCase()
+                .startsWith(code),
+            ) ||
+            hits.find((entry: any) =>
+              String(entry?.title || '')
+                .toUpperCase()
+                .includes(code),
+            );
+          title = String(hit?.title || '').trim();
+          if (title) overviewTitleCache.set(key, title);
+        } catch {
+          title = '';
+        }
+      }
+      if (title) {
+        for (const item of group.items) item.overview = title;
+      }
+    }),
+  );
+}
+
+function resultOverview(item: any): string {
+  return String(item.overview || '').trim() || '暂无简介';
+}
+
 async function loadSearchResults() {
   loading.value = true;
   results.value = [];
@@ -640,8 +1092,8 @@ async function loadSearchResults() {
     );
     const searchData = res?.result || {};
     if (typeof searchData === 'object') {
-      results.value = Object.entries(searchData).map(
-        ([, item]: [string, any]) => {
+      results.value = Object.entries(searchData)
+        .map(([, item]: [string, any]) => {
           // 从 torrent_dict 键中提取集数，范围展开为单集（如 "S01 E02-E03" → E02, E03）
           const episodeSet = new Set<string>();
           const dict = item.torrent_dict || [];
@@ -685,9 +1137,20 @@ async function loadSearchResults() {
               resolution: [],
             },
           };
-        },
-      );
-      resultCount.value = res?.total || results.value.length;
+        })
+        .map(withRoutePoster);
+      void fillResultOverviews(results.value);
+      // 卡片搜索是按条目搜索：只保留卡片对应年份，避免 studio 搜索带出其他年份
+      const targetYear = String(route.query.year || '').trim();
+      if (route.query.from === 'subscription' && targetYear) {
+        results.value = results.value.filter(
+          (item: any) => !item.year || String(item.year) === targetYear,
+        );
+      }
+      resultCount.value =
+        results.value.length !== Object.keys(searchData).length
+          ? results.value.length
+          : res?.total || results.value.length;
       if (results.value.length > 0) {
         displayMode.value = 'torrent';
       }
@@ -707,6 +1170,7 @@ function handleKeydown(e: KeyboardEvent) {
 let lastHandledQueryKey = '';
 
 onMounted(() => {
+  void loadMetadataProviders();
   loadVisibleSites();
   startSSE();
   // 有进行中的搜索（页面切回）→ 恢复 SSE 连接和进度
@@ -743,7 +1207,18 @@ onMounted(() => {
       displayMode.value = 'torrent';
       loading.value = true;
       webSearchApi({
-        filters: buildSiteFilter(),
+        filters: {
+          ...buildSiteFilter(),
+          ...(contentProfileKey.value
+            ? { content_profile: contentProfileKey.value }
+            : {}),
+          ...(String(route.query.metadata_source || '')
+            ? { metadata_source: String(route.query.metadata_source) }
+            : {}),
+          ...(String(route.query.anchor_external_id || '')
+            ? { anchor_external_id: String(route.query.anchor_external_id) }
+            : {}),
+        },
         search_word: s,
         tmdbid: tmdbId,
         media_type: mediaType,
@@ -761,6 +1236,9 @@ onMounted(() => {
           loading.value = false;
           sessionStorage.removeItem(SEARCH_SESSION_KEY);
         });
+    } else if (from === 'profile-search') {
+      displayMode.value = 'media';
+      handleSearch();
     } else if (from === 'global-search' || !from) {
       handleSearch();
     } else {
@@ -793,9 +1271,23 @@ onMounted(() => {
 watch(
   () => route.query,
   (q) => {
-    const queryKey = `${q.s}|${q.from}|${q.session_id}|${q.tmdbid}`;
+    const queryKey = [
+      q.s,
+      q.from,
+      q.session_id,
+      q.tmdbid,
+      q.content_profile,
+      q.metadata_source,
+      q.anchor_external_id,
+    ].join('|');
     if (queryKey === lastHandledQueryKey) return;
     lastHandledQueryKey = queryKey;
+    const incomingSource = String(q.metadata_source || '').trim();
+    if (incomingSource) metadataSource.value = incomingSource;
+    else if (q.content_profile)
+      metadataSource.value = getContentProfileDefaultSearchSource(
+        String(q.content_profile),
+      );
     const s = q.s as string;
     const from = q.from as string;
     const tmdbId = (q.tmdbid as string) || '';
@@ -805,8 +1297,18 @@ watch(
     if (from === 'discovery' || from === 'detail' || from === 'subscription') {
       displayMode.value = 'torrent';
       loading.value = true;
+      const profile = String(q.content_profile || '').trim();
       webSearchApi({
-        filters: buildSiteFilter(),
+        filters: {
+          ...buildSiteFilter(),
+          ...(profile ? { content_profile: profile } : {}),
+          ...(String(q.metadata_source || '')
+            ? { metadata_source: String(q.metadata_source) }
+            : {}),
+          ...(String(q.anchor_external_id || '')
+            ? { anchor_external_id: String(q.anchor_external_id) }
+            : {}),
+        },
         search_word: s,
         tmdbid: tmdbId,
         media_type: mediaType,
@@ -839,7 +1341,10 @@ function getTypeColor(type: string) {
   return 'info';
 }
 
-function getMediaTypeLabel(type?: string) {
+function getMediaTypeLabel(type?: string, profile?: string) {
+  if (profile && profile !== 'default') {
+    return getContentProfileLabel(profile) || profile.toUpperCase();
+  }
   const map: Record<string, string> = {
     movie: '电影',
     tv: '电视剧',
@@ -1184,9 +1689,17 @@ async function confirmDownload() {
           </template>
         </NInput>
         <NSelect
+          v-if="contentProfileKey && profileSources.length > 0"
+          v-model:value="metadataSource"
+          :options="profileSources"
+          class="search-select"
+        />
+        <NSelect
+          v-else-if="displayMode !== 'torrent'"
           v-model:value="searchtype"
           :options="typeOptions"
           class="search-select"
+          @update:value="handleSourceTypeChange"
         />
         <NSelect
           v-model:value="selectedSites"
@@ -1243,6 +1756,11 @@ async function confirmDownload() {
               <img
                 :src="getImgUrl(media.image || media.poster)"
                 class="w-full h-full object-cover"
+                :style="{
+                  objectPosition:
+                    getContentProfilePosterPosition(media.content_profile) ||
+                    '50% 50%',
+                }"
                 alt=""
                 @error="
                   (e: any) => {
@@ -1252,14 +1770,19 @@ async function confirmDownload() {
               />
             </div>
             <span
-              v-if="media.media_type || media.type"
+              v-if="media.media_type || media.type || media.content_profile"
               class="absolute top-1.5 left-1.5 text-[10px] px-1.5 py-0.5 rounded"
               :style="{
                 backgroundColor: 'hsl(var(--primary))',
                 color: 'hsl(var(--primary-foreground))',
               }"
             >
-              {{ getMediaTypeLabel(media.media_type || media.type) }}
+              {{
+                getMediaTypeLabel(
+                  media.media_type || media.type,
+                  media.content_profile,
+                )
+              }}
             </span>
             <span
               v-if="media.vote && media.vote !== '0.0' && media.vote !== '0'"
@@ -1298,7 +1821,11 @@ async function confirmDownload() {
                 搜索资源
               </NButton>
               <NButton
-                v-if="media.fav !== '1'"
+                v-if="
+                  (!media.content_profile ||
+                    media.content_profile === 'default') &&
+                  media.fav !== '1'
+                "
                 size="small"
                 round
                 style="color: #fff; border-color: #fff"
@@ -1311,7 +1838,9 @@ async function confirmDownload() {
                 订阅
               </NButton>
               <NButton
-                v-else
+                v-else-if="
+                  !media.content_profile || media.content_profile === 'default'
+                "
                 size="small"
                 type="error"
                 ghost
@@ -1397,24 +1926,32 @@ async function confirmDownload() {
               <div
                 v-if="item.poster"
                 class="result-poster"
-                @click="
-                  item.tmdbid && item.tmdbid !== '0'
-                    ? $router.push({
-                        name: 'MediaDetail',
-                        query: {
-                          id: item.tmdbid,
-                          type:
-                            item.type_key ||
-                            (item.type === 'movie' ? 'movie' : 'tv'),
-                        },
-                      })
-                    : null
-                "
+                @click="openResultDetail(item)"
               >
-                <img :src="item.poster" alt="" />
-                <div v-if="item.type_key" class="result-poster-tag">
-                  <NTag :type="getTypeColor(item.type_key)" size="small" round>
-                    {{ getMediaTypeLabel(item.type_key) }}
+                <img
+                  :src="getImgUrl(item.poster)"
+                  :style="{
+                    objectPosition:
+                      getContentProfilePosterPosition(item.content_profile) ||
+                      '50% 50%',
+                  }"
+                  alt=""
+                  @error="
+                    (e: any) => {
+                      e.target.src = '/static/img/no-image.png';
+                    }
+                  "
+                />
+                <div
+                  v-if="item.type_key || item.content_profile"
+                  class="result-poster-tag"
+                >
+                  <NTag
+                    :type="getTypeColor(item.type_key || '')"
+                    size="small"
+                    round
+                  >
+                    {{ getMediaTypeLabel(item.type_key, item.content_profile) }}
                   </NTag>
                 </div>
                 <div v-if="item.fav === '2'" class="result-poster-fav">
@@ -1424,24 +1961,48 @@ async function confirmDownload() {
               <div class="result-info">
                 <h2 class="result-title">
                   <a
-                    v-if="item.tmdbid && item.tmdbid !== '0'"
-                    :href="`https://www.themoviedb.org/${item.type === 'movie' ? 'movie' : 'tv'}/${item.tmdbid}`"
+                    v-if="itemLink(item)"
+                    :href="itemLink(item)"
                     target="_blank"
                     class="result-title-link"
                     >{{ item.title }}</a
                   >
-                  <span v-else>{{ item.title }}</span>
+                  <span v-else>{{ item.title || keyword }}</span>
                   <span v-if="item.year" class="result-year"
                     >({{ item.year }})</span
                   >
                 </h2>
+                <div
+                  v-if="itemLinks(item).length > 1"
+                  class="result-sources"
+                  style="display: flex; gap: 0.5rem; margin-top: 0.15rem"
+                >
+                  <a
+                    v-for="source in itemLinks(item)"
+                    :key="source.url"
+                    :href="source.url"
+                    target="_blank"
+                    rel="noopener"
+                    style="
+                      font-size: 0.72rem;
+                      color: hsl(var(--primary));
+                      text-decoration: underline;
+                    "
+                    >{{ source.label }}</a
+                  >
+                </div>
                 <div class="result-meta">
                   <span v-if="item.vote" class="result-rating">
                     <IconifyIcon icon="lucide:star" class="size-4" />{{
                       item.vote
                     }}
                   </span>
-                  <template v-if="item.type_key || item.filter?.season?.length">
+                  <template
+                    v-if="
+                      !item.content_profile &&
+                      (item.type_key || item.filter?.season?.length)
+                    "
+                  >
                     <span v-if="getMediaStatSeasonCount(item) > 0"
                       >{{ getMediaStatSeasonCount(item) }} 季</span
                     >
@@ -1449,10 +2010,20 @@ async function confirmDownload() {
                 </div>
                 <div class="result-meta">
                   <span
-                    v-if="item.tmdbid && item.tmdbid !== '0'"
+                    v-if="
+                      (item.tmdbid && item.tmdbid !== '0') ||
+                      (item.content_profile &&
+                        item.content_profile !== 'default')
+                    "
                     class="result-sub-badge"
                     :class="{ subbed: item.fav === '1' }"
-                    @click="(e) => handleSubscribe(item, e)"
+                    @click="
+                      (e) =>
+                        item.content_profile &&
+                        item.content_profile !== 'default'
+                          ? handleResultSubscribe(item)
+                          : handleSubscribe(item, e)
+                    "
                   >
                     <IconifyIcon
                       icon="lucide:heart"
@@ -1464,7 +2035,7 @@ async function confirmDownload() {
                     {{ item.fav === '1' ? '已订阅' : '订阅' }}
                   </span>
                 </div>
-                <p class="result-overview">{{ item.overview || '暂无简介' }}</p>
+                <p class="result-overview">{{ resultOverview(item) }}</p>
                 <div class="result-stats">
                   <div class="result-stat">
                     <div class="stat-num">{{ totalTorrentCount(item) }}</div>

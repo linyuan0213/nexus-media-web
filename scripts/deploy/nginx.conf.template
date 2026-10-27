@@ -44,9 +44,10 @@ http {
     text/javascript;
   gzip_vary on;
 
-  server {
-    listen 8080;
-    server_name localhost;
+    server {
+        listen 80;
+        server_name localhost;
+        client_max_body_size 30m;
     merge_slashes off;
 
     location / {

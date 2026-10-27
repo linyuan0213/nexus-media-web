@@ -8,6 +8,7 @@ import {
   NCard,
   NCheckbox,
   NModal,
+  NSelect,
   NSpace,
   NSpin,
   NTag,
@@ -16,16 +17,23 @@ import {
 import { getTvSeasonListApi } from '#/api/modules/media';
 import { getVisibleSitesApi } from '#/api/modules/site';
 import { getSubscribedSeasonsApi } from '#/api/modules/subscription';
+import { getContentProfileLabel } from '#/plugin-framework';
 import { getImgUrl } from '#/utils/image';
 
 export interface SubscribeConfirmItem {
   id: string;
+  mediaid?: string;
+  anchor_provider?: string;
+  anchor_external_id?: string;
   tmdbid?: string;
   title: string;
   year?: string;
   type: string; // MOV/TV
   image?: string;
   overview?: string;
+  content_profile?: string;
+  metadata_ref?: string;
+  provider?: string;
 }
 
 const props = defineProps<{
@@ -40,12 +48,24 @@ const emit = defineEmits<{
     payload: {
       add: number[];
       autoMode: boolean;
+      policy: string;
       remove: number[];
       selected: number[];
     },
   ): void;
   (e: 'edit'): void;
 }>();
+
+const typeLabel = computed(() => {
+  if (!props.item) return '';
+  const profile = props.item.content_profile;
+  if (profile && profile !== 'default') {
+    return getContentProfileLabel(profile) || profile.toUpperCase();
+  }
+  if (props.item.type === 'movie') return '电影';
+  if (props.item.type === 'anime') return '动漫';
+  return '剧集';
+});
 
 const loading = ref(false);
 const seasons = ref<
@@ -57,6 +77,13 @@ const seasons = ref<
   }>
 >([]);
 const selectedSeasons = ref<number[]>([]);
+const policy = ref('auto');
+const policyOptions = [
+  { label: '跟随来源（推荐）', value: 'auto' },
+  { label: '豆瓣为主', value: 'douban_primary' },
+  { label: 'TMDB 为主', value: 'tmdb_primary' },
+  { label: 'Bangumi 为主', value: 'bangumi_primary' },
+];
 const subscribedSeasons = ref<number[]>([]);
 // 当前将使用的站点（未配置 = 全部已授权站点）
 const siteSummary = ref<{ rss: number; search: number }>({ rss: 0, search: 0 });
@@ -83,6 +110,7 @@ watch(
   async (visible) => {
     if (visible && props.item) {
       selectedSeasons.value = [];
+      policy.value = (props.item as any).metadata_policy || 'auto';
       seasons.value = [];
       subscribedSeasons.value = [];
       loadSiteSummary();
@@ -157,6 +185,7 @@ function handleConfirm(autoMode: boolean) {
     remove: removeSeasons.value,
     selected: [...selectedSeasons.value],
     autoMode,
+    policy: policy.value,
   });
   emit('update:show', false);
 }
@@ -186,6 +215,17 @@ function toggleSeason(num: number) {
     :bordered="false"
   >
     <div v-if="item" class="space-y-4">
+      <!-- 元数据策略 -->
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-500 flex-shrink-0">元数据策略</span>
+        <NSelect
+          v-model:value="policy"
+          :options="policyOptions"
+          size="small"
+          class="flex-1"
+        />
+      </div>
+
       <!-- 基本信息 -->
       <div class="flex gap-3">
         <img
@@ -214,13 +254,7 @@ function toggleSeason(num: number) {
                   : 'bg-blue-100 text-blue-700'
               "
             >
-              {{
-                item.type === 'movie'
-                  ? '电影'
-                  : item.type === 'anime'
-                    ? '动漫'
-                    : '剧集'
-              }}
+              {{ typeLabel }}
             </span>
           </div>
         </div>

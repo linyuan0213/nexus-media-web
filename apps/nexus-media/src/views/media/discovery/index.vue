@@ -1,708 +1,1169 @@
 <script lang="ts" setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import type { DiscoveryApi } from '#/api/modules/media';
+
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { NButton, NPopover, NSpin } from 'naive-ui';
+import { NButton, NSpin } from 'naive-ui';
 
-import { getRecommendApi } from '#/api';
+import {
+  getDiscoveryItemsApi,
+  getDiscoveryProvidersApi,
+} from '#/api/modules/media';
+import {
+  getMovieSubscriptionApi,
+  getTvSubscriptionApi,
+} from '#/api/modules/subscription';
+import EmptyState from '#/components/empty/EmptyState.vue';
 import MediaCard from '#/components/media/MediaCard.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
-
-interface RecommendItem {
-  id: string;
-  title: string;
-  image?: string;
-  type?: string;
-  year?: string;
-  vote?: string;
-  overview?: string;
-  weekday?: string;
-  fav?: string;
-  date?: string;
-  site?: string;
-  media_type?: string;
-  tmdbid?: string;
-  doubanid?: string;
-  rssid?: string;
-  genres?: string[];
-  countries?: string[];
-  languages?: string[];
-}
-
-interface CategoryConfig {
-  type: string;
-  subtype: string;
-  title: string;
-  week?: string;
-  params?: Record<string, any>;
-}
+import {
+  getContentProfileDetailPath,
+  getContentProfileOptions,
+  getContentProfilePresentationType,
+  PluginSlot,
+} from '#/plugin-framework';
 
 const route = useRoute();
 const router = useRouter();
-// notification unused now, removed
 
-const loadingMap = ref<Record<string, boolean>>({});
-const categoryItems = ref<Record<string, RecommendItem[]>>({});
-const singlePage = ref(1);
-const singleHasMore = ref(true);
-const singleLoadingMore = ref(false);
-const sentinelRef = ref<HTMLDivElement | null>(null);
-let observer: IntersectionObserver | null = null;
-const selectedGenre = ref('');
-const selectedCountry = ref('');
-const selectedLanguage = ref('');
-const selectedYear = ref('');
-
-const priorityCountries = [
-  '中国大陆',
-  '中国香港',
-  '中国台湾',
-  '中国澳门',
-  '美国',
-  '日本',
-  '韩国',
-  '英国',
-  '法国',
-  '德国',
-  '加拿大',
-  '澳大利亚',
-  '印度',
-  '泰国',
-  '俄罗斯',
-];
-
-const priorityLanguages = [
-  '中文',
-  '英语',
-  '日语',
-  '韩语',
-  '法语',
-  '德语',
-  '西班牙语',
-  '意大利语',
-  '俄语',
-  '葡萄牙语',
-  '阿拉伯语',
-  '泰语',
-  '印地语',
-];
-
-function sortByPriority(items: string[], priority: string[]) {
-  const order = new Map(priority.map((v, i) => [v, i]));
-  return items.toSorted((a, b) => {
-    if (a === '其他') return 1;
-    if (b === '其他') return -1;
-    const pa = order.get(a);
-    const pb = order.get(b);
-    if (pa !== undefined && pb !== undefined) return pa - pb;
-    if (pa !== undefined) return -1;
-    if (pb !== undefined) return 1;
-    return a.localeCompare(b, 'zh-CN');
-  });
-}
-
-const allGenres = computed(() => {
-  const genres = new Set<string>();
-  Object.values(categoryItems.value).forEach((items) => {
-    items.forEach((item: any) => {
-      (item.genres || []).forEach((g: string) => genres.add(g));
-    });
-  });
-  return [...genres].toSorted((a, b) => {
-    if (a === '其他') return 1;
-    if (b === '其他') return -1;
-    return a.localeCompare(b, 'zh-CN');
-  });
-});
-
-const allCountries = computed(() => {
-  const countries = new Set<string>();
-  Object.values(categoryItems.value).forEach((items) => {
-    items.forEach((item: any) => {
-      (item.countries || []).forEach((c: string) => countries.add(c));
-    });
-  });
-  return sortByPriority([...countries], priorityCountries);
-});
-
-const allLanguages = computed(() => {
-  const languages = new Set<string>();
-  Object.values(categoryItems.value).forEach((items) => {
-    items.forEach((item: any) => {
-      (item.languages || []).forEach((l: string) => languages.add(l));
-    });
-  });
-  return sortByPriority([...languages], priorityLanguages);
-});
-
-const allYears = computed(() => {
-  const years = new Set<string>();
-  Object.values(categoryItems.value).forEach((items) => {
-    items.forEach((item: any) => {
-      if (item.year) years.add(String(item.year));
-    });
-  });
-  return [...years].toSorted((a, b) => Number(b) - Number(a));
-});
-
-function filterItems(items: RecommendItem[]) {
-  if (
-    !selectedGenre.value &&
-    !selectedCountry.value &&
-    !selectedLanguage.value &&
-    !selectedYear.value
-  )
-    return items;
-  return items.filter((item: any) => {
-    const genres = item.genres || [];
-    const countries = item.countries || [];
-    const languages = item.languages || [];
-    const year = item.year ? String(item.year) : '';
-    if (selectedGenre.value && !genres.includes(selectedGenre.value))
-      return false;
-    if (selectedCountry.value && !countries.includes(selectedCountry.value))
-      return false;
-    if (selectedLanguage.value && !languages.includes(selectedLanguage.value))
-      return false;
-    if (selectedYear.value && year !== selectedYear.value) return false;
-    return true;
-  });
-}
-
-const activeFilterCount = computed(
+const sources = ref<DiscoveryApi.Source[]>([]);
+const activeProvider = ref('');
+const activeFeed = ref('');
+const items = ref<DiscoveryApi.Item[]>([]);
+const page = ref(1);
+const hasMore = ref(false);
+const loading = ref(false);
+const loadingMore = ref(false);
+const loadingSources = ref(true);
+const loadError = ref<null | { message: string; retryable: boolean }>(null);
+const selectedSeasonQuarter = ref(currentSeason().split('-q')[1]);
+const selectedYear = ref(String(new Date().getFullYear()));
+const selectedSeason = computed(
   () =>
-    Number(!!selectedCountry.value) +
-    Number(!!selectedLanguage.value) +
-    Number(!!selectedYear.value),
+    `${selectedYear.value || new Date().getFullYear()}-q${selectedSeasonQuarter.value}`,
+);
+const selectedWeekday = ref('');
+const selectedGenre = ref('');
+const genreOptions = ref<Array<{ label: string; value: string }>>([]);
+const genreOptionsFeed = ref('');
+const weekdayOptions = [
+  { label: '全部', value: '' },
+  { label: '周一', value: '1' },
+  { label: '周二', value: '2' },
+  { label: '周三', value: '3' },
+  { label: '周四', value: '4' },
+  { label: '周五', value: '5' },
+  { label: '周六', value: '6' },
+  { label: '周日', value: '7' },
+];
+const sentinelRef = ref<HTMLElement | null>(null);
+let loadMoreObserver: IntersectionObserver | null = null;
+let scrollCheckFrame = 0;
+const PREF_KEY = 'nexus.discovery.preference';
+
+const pageTitleMap: Record<string, string> = {
+  DiscoveryAll: '排行榜',
+  Ranking: '排行榜',
+  Bangumi: 'Bangumi 新番',
+  DoubanMovie: '豆瓣电影',
+  DoubanTv: '豆瓣电视剧',
+  TmdbMovie: 'TMDB 电影',
+  TmdbTv: 'TMDB 电视剧',
+  DiscoveryRecommend: '更多推荐',
+};
+
+const routePreset: Record<string, { feed?: string; provider?: string }> = {
+  Ranking: { feed: 'movie_showing', provider: 'douban' },
+  Bangumi: { feed: 'calendar', provider: 'bangumi' },
+  DoubanMovie: { feed: 'movie_hot_gaia', provider: 'douban' },
+  DoubanTv: { feed: 'tv_hot', provider: 'douban' },
+  TmdbMovie: { feed: 'popular_movies', provider: 'tmdb' },
+  TmdbTv: { feed: 'popular_tvs', provider: 'tmdb' },
+};
+
+const pageTitle = computed(() => pageTitleMap[String(route.name)] || '探索');
+const activeSource = computed(() =>
+  sources.value.find((item) => item.provider === activeProvider.value),
+);
+const orderedSources = computed(() =>
+  [...sources.value].sort(
+    (a, b) =>
+      Number(a.visibility === 'private') - Number(b.visibility === 'private'),
+  ),
+);
+const feeds = computed(() => activeSource.value?.feeds || []);
+const feedsExpanded = ref(false);
+const COLLAPSED_FEED_COUNT = 6;
+const visibleFeeds = computed(() =>
+  feedsExpanded.value
+    ? feeds.value
+    : feeds.value.slice(0, COLLAPSED_FEED_COUNT),
+);
+const hiddenFeedCount = computed(() =>
+  Math.max(0, feeds.value.length - COLLAPSED_FEED_COUNT),
+);
+const activeFeedConfig = computed(() =>
+  feeds.value.find((item) => item.key === activeFeed.value),
+);
+const supportsSeason = computed(() =>
+  (activeFeedConfig.value?.facets || []).includes('season'),
+);
+const supportsYear = computed(() =>
+  (activeFeedConfig.value?.facets || []).includes('year'),
+);
+const supportsWeekday = computed(() =>
+  (activeFeedConfig.value?.facets || []).includes('weekday'),
+);
+const supportsGenre = computed(() =>
+  (activeFeedConfig.value?.facets || []).includes('genre'),
+);
+const hasGenreOptions = computed(() =>
+  genreOptions.value.some((item) => item.value !== '其他'),
+);
+const yearOptions = computed(() => {
+  const current = new Date().getFullYear();
+  const values = [{ label: '全部年份', value: '' }];
+  for (let year = current + 1; year >= current - 10; year--) {
+    values.push({ label: String(year), value: String(year) });
+  }
+  return values;
+});
+const yearsExpanded = ref(false);
+const COLLAPSED_YEAR_COUNT = 7;
+const visibleYearOptions = computed(() =>
+  yearsExpanded.value
+    ? yearOptions.value
+    : yearOptions.value.slice(0, COLLAPSED_YEAR_COUNT),
+);
+const hiddenYearCount = computed(() =>
+  Math.max(0, yearOptions.value.length - COLLAPSED_YEAR_COUNT),
 );
 
-// 搜索进度模态框状态
-// 各页面分类配置（key 用 route.name，不受父菜单 path 变化影响）
-const pageCategories: Record<string, CategoryConfig[]> = {
-  Ranking: [
-    { type: 'movie', subtype: 'dbom', title: '正在热映' },
-    { type: 'movie', subtype: 'dbnm', title: '即将上映' },
-    { type: 'TRENDING', subtype: 'tmdb', title: 'TMDB流行趋势' },
-    { type: 'movie', subtype: 'dbhm', title: '豆瓣热门电影' },
-    { type: 'movie', subtype: 'dbtop', title: '豆瓣电影TOP250' },
-    { type: 'tv', subtype: 'dbht', title: '豆瓣热门剧集' },
-    { type: 'tv', subtype: 'dbdh', title: '豆瓣热门动漫' },
-    { type: 'tv', subtype: 'dbzy', title: '豆瓣热门综艺' },
-    { type: 'tv', subtype: 'dbct', title: '华语口碑剧集榜' },
-    { type: 'tv', subtype: 'dbgt', title: '全球口碑剧集榜' },
-  ],
-  Bangumi: [
-    { type: 'tv', subtype: 'bangumi', title: '星期一', week: '1' },
-    { type: 'tv', subtype: 'bangumi', title: '星期二', week: '2' },
-    { type: 'tv', subtype: 'bangumi', title: '星期三', week: '3' },
-    { type: 'tv', subtype: 'bangumi', title: '星期四', week: '4' },
-    { type: 'tv', subtype: 'bangumi', title: '星期五', week: '5' },
-    { type: 'tv', subtype: 'bangumi', title: '星期六', week: '6' },
-    { type: 'tv', subtype: 'bangumi', title: '星期日', week: '7' },
-  ],
-};
+function currentSeason() {
+  const now = new Date();
+  return `${now.getFullYear()}-q${Math.floor(now.getMonth() / 3) + 1}`;
+}
 
-// 单列表页面配置
-const singlePageMap: Record<string, CategoryConfig> = {
-  DoubanMovie: { type: 'movie', subtype: 'dbhm', title: '豆瓣电影' },
-  DoubanTv: { type: 'tv', subtype: 'dbht', title: '豆瓣电视剧' },
-  TmdbMovie: { type: 'movie', subtype: 'nm', title: 'TMDB电影' },
-  TmdbTv: { type: 'tv', subtype: 'nt', title: 'TMDB电视剧' },
-};
+function selectSeasonQuarter(value: string) {
+  selectedSeasonQuarter.value = value;
+  if (!selectedYear.value) {
+    selectedYear.value = String(new Date().getFullYear());
+  }
+  loadItems(true);
+}
 
-const pageTitle = computed(() => {
-  const map: Record<string, string> = {
-    Ranking: '排行榜',
-    DoubanMovie: '豆瓣电影',
-    DoubanTv: '豆瓣电视剧',
-    TmdbMovie: 'TMDB电影',
-    TmdbTv: 'TMDB电视剧',
-    Bangumi: 'Bangumi',
-  };
-  return map[route.name as string] || '推荐';
-});
+function unwrap<T>(res: any): T {
+  return (res?.data ?? res) as T;
+}
 
-const isRankOrBangumi = computed(() => {
-  return route.name === 'Ranking' || route.name === 'Bangumi';
-});
-
-const categories = computed<CategoryConfig[]>(() => {
-  return pageCategories[route.name as string] || [];
-});
-
-const singleConfig = computed<CategoryConfig | null>(() => {
-  return singlePageMap[route.name as string] || null;
-});
-
-async function loadCategory(cfg: CategoryConfig) {
-  const key = `${cfg.subtype}_${cfg.week || ''}`;
-  if (loadingMap.value[key]) return;
-  loadingMap.value[key] = true;
+async function loadSources() {
+  loadingSources.value = true;
   try {
-    const res: any = await getRecommendApi({
-      type: cfg.type,
-      subtype: cfg.subtype,
-      page: 1,
-      ...(cfg.week ? { week: cfg.week } : {}),
-    } as any);
-    const list = Array.isArray(res) ? res : res?.data || [];
-    categoryItems.value[key] = list;
+    sources.value = unwrap<DiscoveryApi.Source[]>(
+      await getDiscoveryProvidersApi(),
+    );
+    applyPreset();
   } finally {
-    loadingMap.value[key] = false;
+    loadingSources.value = false;
   }
 }
 
-async function loadSingle(reset = false) {
-  const cfg = singleConfig.value;
-  if (!cfg) return;
-  const key = 'single';
-  if (loadingMap.value[key] || singleLoadingMore.value) return;
+function applyPreset() {
+  if (!sources.value.length) return;
+  const preset = routePreset[String(route.name)] || {};
+  let saved: { feed?: string; provider?: string };
+  try {
+    saved = JSON.parse(localStorage.getItem(PREF_KEY) || '{}');
+  } catch {
+    saved = {};
+  }
+  const wantedProvider = preset.provider || saved.provider;
+  const wantedFeed = preset.feed || saved.feed;
+  const source =
+    sources.value.find((item) => item.provider === wantedProvider) ||
+    sources.value[0];
+  if (!source) return;
+  activeProvider.value = source.provider;
+  const feed =
+    source.feeds.find((item) => item.key === wantedFeed) || source.feeds[0];
+  activeFeed.value = feed?.key || '';
+}
+
+let loadSeq = 0;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error('discovery request timeout')),
+      ms,
+    );
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+async function loadItems(reset = false) {
+  if (!activeProvider.value || !activeFeed.value) return;
+  if (!reset && (loading.value || loadingMore.value)) return;
+  if (!reset && !hasMore.value) return;
+
+  const seq = ++loadSeq;
+  const provider = activeProvider.value;
+  const feed = activeFeed.value;
   if (reset) {
-    singlePage.value = 1;
-    singleHasMore.value = true;
-    categoryItems.value[key] = [];
+    page.value = 1;
+    items.value = [];
+    hasMore.value = true;
+    loading.value = true;
+    loadError.value = null;
+  } else {
+    loadingMore.value = true;
   }
-  if (!singleHasMore.value) return;
-
-  if (singlePage.value === 1) loadingMap.value[key] = true;
-  else singleLoadingMore.value = true;
 
   try {
-    const res: any = await getRecommendApi({
-      type: cfg.type,
-      subtype: cfg.subtype,
-      page: singlePage.value,
+    const result = unwrap<DiscoveryApi.Page>(
+      await withTimeout(
+        getDiscoveryItemsApi({
+          provider,
+          feed,
+          page: page.value,
+          filters: {
+            ...(supportsSeason.value ? { season: selectedSeason.value } : {}),
+            ...(supportsYear.value && selectedYear.value
+              ? { year: selectedYear.value }
+              : {}),
+            ...(supportsWeekday.value && selectedWeekday.value
+              ? { weekday: selectedWeekday.value }
+              : {}),
+            ...(supportsGenre.value && selectedGenre.value
+              ? { genre: selectedGenre.value }
+              : {}),
+          },
+        }),
+        30000,
+      ),
+    );
+    if (seq !== loadSeq) return;
+    if (result?.error) {
+      loadError.value = {
+        message: result.error,
+        retryable: result.retryable !== false,
+      };
+      hasMore.value = false;
+      return;
+    }
+    loadError.value = null;
+    if (supportsGenre.value) {
+      // 题材是 feed 级目录：只在首次加载/切换 feed 时刷新，避免翻页或筛选后被当前页结果改写。
+      const feedKey = `${provider}:${feed}`;
+      if (genreOptionsFeed.value !== feedKey) {
+        const facets: any[] = (result as any)?.facets?.genre || [];
+        if (facets.length) {
+          genreOptions.value = facets.map((item) => ({
+            label: String(item.label || item.value),
+            value: String(item.value),
+          }));
+          if (
+            selectedGenre.value &&
+            !genreOptions.value.some(
+              (item) => item.value === selectedGenre.value,
+            )
+          ) {
+            selectedGenre.value = '';
+          }
+          genreOptionsFeed.value = feedKey;
+        }
+      }
+    }
+    const list = result?.items || [];
+    const merged = reset ? list : [...items.value, ...list];
+    const seen = new Set<string>();
+    items.value = merged.filter((item) => {
+      // 同一内容的不同版本（如 Blu-ray/通常版）共用一个 anchor content_id，
+      // 优先按锚点去重，避免探索页出现重复卡片。
+      const anchor = item.anchor_ref;
+      const key = anchor?.external_id
+        ? `${item.content_profile || 'default'}:${anchor.provider}:${anchor.external_id}`
+        : `${item.provider}:${item.ref?.external_id || item.title}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
-    const list = Array.isArray(res) ? res : res?.data || [];
-    const existing = categoryItems.value[key] || [];
-    categoryItems.value[key] = [...existing, ...list];
-    if (list.length === 0) singleHasMore.value = false;
+    hasMore.value = Boolean(result?.has_more);
+  } catch {
+    // 超时/失败时停止无限滚动，避免底部一直显示加载中。
+    if (seq === loadSeq) {
+      loadError.value = { message: '加载失败，请稍后重试', retryable: true };
+      hasMore.value = false;
+    }
   } finally {
-    loadingMap.value[key] = false;
-    singleLoadingMore.value = false;
-    nextTick(() => checkInfiniteScroll());
+    if (seq === loadSeq) {
+      loading.value = false;
+      loadingMore.value = false;
+    }
   }
 }
 
-async function loadAll() {
-  if (isRankOrBangumi.value) {
-    for (const cfg of categories.value) {
-      await loadCategory(cfg);
-    }
+function retryLoad() {
+  loadError.value = null;
+  if (!items.value.length) {
+    page.value = 1;
+    loadItems(true);
   } else {
-    await loadSingle();
+    loadItems(false);
   }
+}
+
+function beginTabSwitch() {
+  // 立即清空并让在途请求失效，避免切换后短暂显示旧榜单内容。
+  loadSeq += 1;
+  page.value = 1;
+  items.value = [];
+  hasMore.value = true;
+  loading.value = true;
+  selectedWeekday.value = '';
+  selectedGenre.value = '';
+  genreOptions.value = [];
+  genreOptionsFeed.value = '';
+  loadError.value = null;
+}
+
+async function selectProvider(provider: string) {
+  if (provider === activeProvider.value) return;
+  activeProvider.value = provider;
+  activeFeed.value =
+    sources.value.find((item) => item.provider === provider)?.feeds[0]?.key ||
+    '';
+  beginTabSwitch();
+  savePreference();
+  // 等 facets/activeFeedConfig 重新计算后再请求，避免切 tab 仍用旧榜单参数。
+  await nextTick();
+  loadItems(true);
+}
+
+async function selectFeed(feed: string) {
+  if (feed === activeFeed.value) return;
+  activeFeed.value = feed;
+  beginTabSwitch();
+  savePreference();
+  await nextTick();
+  loadItems(true);
+}
+
+interface SubscriptionStatus {
+  fav: string;
+  rssid: string;
+}
+
+const subscriptionIndex = ref(new Map<string, SubscriptionStatus>());
+
+function addSubscriptionKey(
+  map: Map<string, SubscriptionStatus>,
+  key: string | undefined,
+  status: SubscriptionStatus,
+) {
+  if (key && !map.has(key)) map.set(key, status);
+}
+
+function normalizeMediaTitle(title: string): string {
+  // 只保留字母/数字/汉字，抹平空格、冒号、间隔号等来源差异。
+  return (
+    String(title || '')
+      .toLowerCase()
+      .match(/[\p{L}\p{N}]+/gu) || []
+  ).join('');
+}
+
+function addTitleKeys(
+  map: Map<string, SubscriptionStatus>,
+  title: string,
+  year: string,
+  status: SubscriptionStatus,
+) {
+  const normalized = normalizeMediaTitle(title);
+  if (!normalized) return;
+  addSubscriptionKey(map, `title:${normalized}:${year}`, status);
+  // 不同来源标题可能只有空格/冒号差异，年份也可能缺失，保留纯标题兜底。
+  addSubscriptionKey(map, `title:${normalized}`, status);
+}
+
+function subscriptionKeys(sub: any): string[] {
+  const keys: string[] = [];
+  const anchorProvider = String(
+    sub.anchor_provider || sub.provider || '',
+  ).trim();
+  const anchorExternal = String(sub.anchor_external_id || '').trim();
+  if (anchorProvider && anchorExternal) {
+    keys.push(`anchor:${anchorProvider}:${anchorExternal}`);
+  }
+  if (anchorExternal) keys.push(`external:${anchorExternal}`);
+  if (sub.tmdbid) keys.push(`tmdb:${sub.tmdbid}`);
+  if (sub.keyword) {
+    keys.push(`keyword:${sub.content_profile || 'default'}:${sub.keyword}`);
+    keys.push(`keyword:${sub.keyword}`);
+  }
+  if (sub.name) keys.push(`name:${sub.name}:${sub.year || ''}`);
+  return keys;
+}
+
+async function loadSubscriptionIndex() {
+  try {
+    const movieProfiles = [
+      'default',
+      ...getContentProfileOptions()
+        .filter(
+          (option) =>
+            !['anime', 'tv'].includes(
+              getContentProfilePresentationType(option.value) || 'movie',
+            ),
+        )
+        .map((option) => option.value),
+    ];
+    const [movies, tvs] = await Promise.all([
+      Promise.all(
+        movieProfiles.map((profile) =>
+          getMovieSubscriptionApi(undefined, profile).catch(() => []),
+        ),
+      ),
+      getTvSubscriptionApi().catch(() => []),
+    ]);
+    const index = new Map<string, SubscriptionStatus>();
+    for (const sub of [...movies.flat(), ...(tvs as any[])]) {
+      if (!sub?.id) continue;
+      const status = { fav: '1', rssid: String(sub.id) };
+      for (const key of subscriptionKeys(sub)) {
+        addSubscriptionKey(index, key, status);
+      }
+      addTitleKeys(index, sub.name || '', String(sub.year || ''), status);
+    }
+    subscriptionIndex.value = index;
+  } catch {
+    subscriptionIndex.value = new Map();
+  }
+}
+
+function subscriptionFor(
+  item: DiscoveryApi.Item,
+): SubscriptionStatus | undefined {
+  const index = subscriptionIndex.value;
+  const anchorProvider = item.anchor_ref?.provider;
+  const anchorExternal = item.anchor_ref?.external_id;
+  if (anchorProvider && anchorExternal) {
+    const found = index.get(`anchor:${anchorProvider}:${anchorExternal}`);
+    if (found) return found;
+  }
+  if (anchorExternal) {
+    const found = index.get(`external:${anchorExternal}`);
+    if (found) return found;
+  }
+  if (item.provider === 'tmdb' && item.ref.external_id) {
+    const found = index.get(`tmdb:${item.ref.external_id}`);
+    if (found) return found;
+  }
+  const external = item.ref.external_id || '';
+  const keywordKey = index.get(
+    `keyword:${item.content_profile || 'default'}:${external}`,
+  );
+  if (keywordKey) return keywordKey;
+  const byName = index.get(`name:${item.title}:${item.year || ''}`);
+  if (byName) return byName;
+  // 不同元数据源标题可能只差空格/冒号（如“龙珠超：比鲁斯” vs “龙珠超 比鲁斯”）。
+  const normalized = normalizeMediaTitle(item.title);
+  return (
+    index.get(`title:${normalized}:${item.year || ''}`) ||
+    index.get(`title:${normalized}`)
+  );
+}
+
+function itemId(item: DiscoveryApi.Item) {
+  return item.anchor_ref?.external_id || item.ref.external_id;
+}
+
+function itemTmdbId(item: DiscoveryApi.Item) {
+  return item.provider === 'tmdb' ? item.ref.external_id : undefined;
+}
+
+function itemType(item: DiscoveryApi.Item) {
+  // 自定义画像可声明自己的 presentation_type（如 av），剧集类才走季/集流程
+  const profileType = getContentProfilePresentationType(item.content_profile);
+  if (profileType === 'tv' || profileType === 'anime') return 'tv';
+  return item.ref.media_type || 'movie';
+}
+
+function itemMetadataRef(item: DiscoveryApi.Item) {
+  return `${item.ref.provider}:${item.ref.external_id}`;
+}
+
+function itemDetailLink(item: DiscoveryApi.Item) {
+  const path = getContentProfileDetailPath(item.content_profile);
+  if (!path) return undefined;
+  const params = new URLSearchParams({
+    id: item.anchor_ref?.external_id || item.ref.external_id,
+    profile: item.content_profile || '',
+    ref: itemMetadataRef(item),
+  });
+  return `${path}?${params.toString()}`;
+}
+
+function itemVote(item: DiscoveryApi.Item) {
+  const values = Object.values(item.rating || {});
+  return values.length ? values[0] : undefined;
 }
 
 function handleSearchFromCard(item: Record<string, any>) {
-  handleSearch(
-    {
-      id: item.tmdbId || item.id,
-      title: item.title,
-      media_type: item.mediaType || item.type,
-      type: item.type,
-    } as any,
-    new MouseEvent('click'),
+  router.push({
+    path: '/media/search',
+    query: {
+      s:
+        item.contentProfile && item.anchorExternalId
+          ? item.anchorExternalId
+          : item.title,
+      from: item.contentProfile ? 'subscription' : 'discovery',
+      tmdbid: item.tmdbId || '',
+      media_type: item.mediaType || item.type || '',
+      anchor_provider: item.anchorProvider || '',
+      anchor_external_id: item.anchorExternalId || '',
+      content_profile: item.contentProfile || '',
+      poster: item.poster || '',
+      vote: item.vote || '',
+      year: item.year || '',
+    },
+  });
+}
+
+function handleCardSearch(item: DiscoveryApi.Item) {
+  const customProfile =
+    item.content_profile && item.content_profile !== 'default';
+  handleSearchFromCard({
+    anchorExternalId: item.anchor_ref?.external_id,
+    anchorProvider: item.anchor_ref?.provider,
+    contentProfile: item.content_profile || '',
+    id: itemId(item),
+    mediaType: itemType(item),
+    // 自定义画像（如 AV）用番号/内容 ID 搜索，而不是日文标题
+    title: customProfile
+      ? item.anchor_ref?.external_id || item.title
+      : item.title,
+    tmdbId: itemTmdbId(item),
+    poster: item.poster || '',
+    vote: itemVote(item),
+    year: item.year || '',
+    type: itemType(item),
+  });
+}
+
+function savePreference() {
+  localStorage.setItem(
+    PREF_KEY,
+    JSON.stringify({ provider: activeProvider.value, feed: activeFeed.value }),
   );
 }
 
-async function handleSearch(item: RecommendItem, e: Event) {
-  e.stopPropagation();
-  router.push(
-    `/media/search?s=${encodeURIComponent(item.title)}&from=discovery&tmdbid=${encodeURIComponent(item.id || '')}&media_type=${encodeURIComponent(item.type || item.media_type || '')}`,
-  );
+function selectYear(value: string) {
+  selectedYear.value = value;
+  loadItems(true);
 }
+
+function selectWeekday(value: string) {
+  selectedWeekday.value = value;
+  loadItems(true);
+}
+
+function selectGenre(value: string) {
+  selectedGenre.value = value;
+  loadItems(true);
+}
+
+function loadMore() {
+  if (!hasMore.value || loading.value || loadingMore.value) return;
+  page.value += 1;
+  loadItems(false);
+}
+
+function isNearPageBottom(target?: EventTarget | null) {
+  const viewportHeight = window.innerHeight;
+  const documentElement = document.documentElement;
+  if (documentElement.scrollHeight - window.scrollY - viewportHeight < 600) {
+    return true;
+  }
+  if (
+    target instanceof HTMLElement &&
+    target.scrollHeight > target.clientHeight + 100
+  ) {
+    return target.scrollHeight - target.scrollTop - target.clientHeight < 600;
+  }
+  return false;
+}
+
+function handleScrollForLoadMore(event: Event) {
+  if (!hasMore.value || loading.value || loadingMore.value) return;
+  if (scrollCheckFrame) return;
+  scrollCheckFrame = requestAnimationFrame(() => {
+    scrollCheckFrame = 0;
+    if (isNearPageBottom(event.target)) loadMore();
+  });
+}
+
+function setupLoadMoreObserver() {
+  if (!('IntersectionObserver' in window)) return;
+  loadMoreObserver?.disconnect();
+  loadMoreObserver = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) loadMore();
+    },
+    { rootMargin: '240px 0px' },
+  );
+  if (sentinelRef.value) loadMoreObserver.observe(sentinelRef.value);
+}
+
+watch(selectedYear, (value) => {
+  if (!value) return;
+  const index = yearOptions.value.findIndex((item) => item.value === value);
+  if (index >= COLLAPSED_YEAR_COUNT) yearsExpanded.value = true;
+});
 
 watch(
-  () => route.path,
+  [feeds, activeFeed],
   () => {
-    categoryItems.value = {};
-    singlePage.value = 1;
-    singleHasMore.value = true;
-    loadAll();
+    const index = feeds.value.findIndex(
+      (item) => item.key === activeFeed.value,
+    );
+    feedsExpanded.value = index >= COLLAPSED_FEED_COUNT;
   },
   { immediate: true },
 );
 
-function setupInfiniteScroll() {
-  if (observer) {
-    observer.disconnect();
-    observer = null;
-  }
-  if (!singleConfig.value || !sentinelRef.value) return;
-  observer = new IntersectionObserver(
-    (entries) => {
-      if (
-        entries[0]?.isIntersecting &&
-        !loadingMap.value.single &&
-        !singleLoadingMore.value &&
-        singleHasMore.value
-      ) {
-        singlePage.value += 1;
-        loadSingle();
-      }
-    },
-    { rootMargin: '100px' },
-  );
-  observer.observe(sentinelRef.value);
-}
+watch(
+  () => route.name,
+  async () => {
+    applyPreset();
+    await nextTick();
+    loadItems(true);
+  },
+);
 
-function checkInfiniteScroll() {
-  if (!singleConfig.value || !sentinelRef.value) return;
-  if (
-    singleHasMore.value &&
-    !singleLoadingMore.value &&
-    !loadingMap.value.single
-  ) {
-    const rect = sentinelRef.value.getBoundingClientRect();
-    if (rect.top < window.innerHeight + 100) {
-      singlePage.value += 1;
-      loadSingle();
+watch(
+  [hasMore, loading, loadingMore],
+  async () => {
+    await nextTick();
+    if (hasMore.value && sentinelRef.value) {
+      if (!loadMoreObserver) setupLoadMoreObserver();
+      else loadMoreObserver.observe(sentinelRef.value);
     }
-  }
-}
+  },
+  { immediate: true },
+);
 
-onMounted(() => {
-  loadAll();
-  setupInfiniteScroll();
+onMounted(async () => {
+  // 榜单数据优先：订阅状态只影响卡片角标，等首屏数据渲染后再后台加载。
+  await loadSources();
+  await loadItems(true);
+  await nextTick();
+  setupLoadMoreObserver();
+  window.addEventListener('scroll', handleScrollForLoadMore, true);
+  void loadSubscriptionIndex();
+});
+
+onUnmounted(() => {
+  loadMoreObserver?.disconnect();
+  loadMoreObserver = null;
+  window.removeEventListener('scroll', handleScrollForLoadMore, true);
+  if (scrollCheckFrame) cancelAnimationFrame(scrollCheckFrame);
 });
 </script>
 
 <template>
   <div class="p-4">
-    <PageHeader :title="pageTitle" subtitle="探索热门电影和剧集">
+    <PageHeader :title="pageTitle" subtitle="按来源浏览榜单、季度新番与新剧">
       <template #actions>
-        <NButton @click="loadAll()"> 刷新 </NButton>
+        <NButton :loading="loading" @click="loadItems(true)">刷新</NButton>
       </template>
     </PageHeader>
 
-    <div class="flex items-start gap-2 mb-4 genre-tabs-wrapper">
-      <div
-        class="flex items-center gap-6 overflow-x-auto pb-2 genre-tabs"
-        style="scroll-snap-type: x mandatory"
-      >
-        <button
-          v-for="g in ['', ...allGenres]"
-          :key="g || 'all'"
-          class="genre-tab relative whitespace-nowrap text-sm transition-colors"
-          :class="{ active: selectedGenre === g }"
-          style="flex-shrink: 0; padding: 6px 0; scroll-snap-align: start"
-          @click="selectedGenre = g"
-        >
-          {{ g || '全部' }}
-        </button>
-      </div>
-      <NPopover
-        placement="bottom-start"
-        trigger="click"
-        :show-arrow="false"
-        style="padding: 0"
-      >
-        <template #trigger>
-          <button
-            class="genre-tab relative whitespace-nowrap text-sm transition-colors flex items-center gap-1"
-            style="padding: 6px 0"
-          >
-            <IconifyIcon
-              icon="lucide:filter"
-              style="width: 14px; height: 14px"
-            />
-            筛选
-            <span
-              v-if="activeFilterCount > 0"
-              class="text-xs px-1.5 py-0 rounded-full"
-              :style="{
-                backgroundColor: 'hsl(var(--primary))',
-                color: 'hsl(var(--primary-foreground))',
-              }"
+    <NSpin :show="loadingSources">
+      <section class="discovery-filter" aria-label="内容筛选">
+        <div class="filter-row">
+          <span class="filter-label">来源</span>
+          <div class="filter-scroll source-list" role="tablist">
+            <button
+              v-for="source in orderedSources"
+              :key="source.provider"
+              type="button"
+              class="source-tab"
+              :class="{ active: activeProvider === source.provider }"
+              :aria-pressed="activeProvider === source.provider"
+              @click="selectProvider(source.provider)"
             >
-              {{ activeFilterCount }}
-            </span>
-          </button>
+              {{ source.name }}
+            </button>
+          </div>
+        </div>
+
+        <div class="filter-divider"></div>
+
+        <div class="filter-row filter-row--wrap">
+          <span class="filter-label">榜单</span>
+          <div class="filter-scroll feed-list" role="tablist">
+            <button
+              v-for="feed in visibleFeeds"
+              :key="feed.key"
+              type="button"
+              class="feed-tab"
+              :class="{ active: activeFeed === feed.key }"
+              :aria-pressed="activeFeed === feed.key"
+              @click="selectFeed(feed.key)"
+            >
+              {{ feed.title }}
+            </button>
+            <button
+              v-if="hiddenFeedCount > 0 || feedsExpanded"
+              type="button"
+              class="feed-toggle"
+              @click="feedsExpanded = !feedsExpanded"
+            >
+              <IconifyIcon
+                :icon="
+                  feedsExpanded ? 'lucide:chevron-up' : 'lucide:chevron-down'
+                "
+                class="feed-toggle-icon"
+              />
+              {{ feedsExpanded ? '收起' : '更多' }}
+            </button>
+          </div>
+        </div>
+
+        <template v-if="supportsYear">
+          <div class="filter-divider"></div>
+          <div class="filter-row filter-row--facets">
+            <span class="filter-label">年份</span>
+            <div class="facet-group">
+              <div class="facet facet--years">
+                <div class="year-list">
+                  <button
+                    v-for="year in visibleYearOptions"
+                    :key="year.value || 'all'"
+                    type="button"
+                    class="year-tab"
+                    :class="{ active: selectedYear === year.value }"
+                    :aria-pressed="selectedYear === year.value"
+                    @click="selectYear(year.value)"
+                  >
+                    {{ year.label === '全部年份' ? '全部' : year.label }}
+                  </button>
+                  <button
+                    v-if="hiddenYearCount > 0 || yearsExpanded"
+                    type="button"
+                    class="feed-toggle"
+                    @click="yearsExpanded = !yearsExpanded"
+                  >
+                    <IconifyIcon
+                      :icon="
+                        yearsExpanded
+                          ? 'lucide:chevron-up'
+                          : 'lucide:chevron-down'
+                      "
+                      class="feed-toggle-icon"
+                    />
+                    {{ yearsExpanded ? '收起' : '更多' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </template>
+
+        <template v-if="supportsSeason">
+          <div class="filter-divider"></div>
+          <div class="filter-row filter-row--facets">
+            <span class="filter-label">季度</span>
+            <div class="facet-group">
+              <div class="year-list">
+                <button
+                  v-for="quarter in ['1', '2', '3', '4']"
+                  :key="quarter"
+                  type="button"
+                  class="year-tab"
+                  :class="{ active: selectedSeasonQuarter === quarter }"
+                  :aria-pressed="selectedSeasonQuarter === quarter"
+                  @click="selectSeasonQuarter(quarter)"
+                >
+                  Q{{ quarter }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <div v-if="supportsWeekday" class="filter-row filter-row--wrap">
+          <span class="filter-label">放送日</span>
+          <div class="year-list">
+            <button
+              v-for="day in weekdayOptions"
+              :key="day.value || 'all'"
+              type="button"
+              class="year-tab"
+              :class="{ active: selectedWeekday === day.value }"
+              :aria-pressed="selectedWeekday === day.value"
+              @click="selectWeekday(day.value)"
+            >
+              {{ day.value ? day.label : '全部' }}
+            </button>
+          </div>
+        </div>
         <div
-          class="p-3"
-          style="width: 300px; max-height: 50vh; overflow-y: auto"
+          v-if="supportsGenre && hasGenreOptions"
+          class="filter-row filter-row--wrap"
         >
-          <div class="mb-4">
-            <div class="text-sm font-medium mb-2">地区</div>
-            <div
-              class="grid gap-2"
-              style="grid-template-columns: repeat(2, 1fr)"
+          <span class="filter-label">题材</span>
+          <div class="year-list">
+            <button
+              type="button"
+              class="year-tab"
+              :class="{ active: selectedGenre === '' }"
+              :aria-pressed="selectedGenre === ''"
+              @click="selectGenre('')"
             >
-              <div
-                class="flex items-center justify-center px-2 py-2 rounded-lg cursor-pointer transition-colors text-sm text-center"
-                :style="
-                  selectedCountry === ''
-                    ? {
-                        backgroundColor: 'hsl(var(--accent))',
-                        color: 'hsl(var(--accent-foreground))',
-                      }
-                    : {}
-                "
-                @click="selectedCountry = ''"
-              >
-                <span>全部</span>
-              </div>
-              <div
-                v-for="c in allCountries"
-                :key="c"
-                class="flex items-center justify-center px-2 py-2 rounded-lg cursor-pointer transition-colors text-sm text-center"
-                :style="
-                  selectedCountry === c
-                    ? {
-                        backgroundColor: 'hsl(var(--accent))',
-                        color: 'hsl(var(--accent-foreground))',
-                      }
-                    : {}
-                "
-                @click="selectedCountry = c"
-              >
-                <span>{{ c }}</span>
-              </div>
-            </div>
-          </div>
-          <div class="mb-4">
-            <div class="text-sm font-medium mb-2">年份</div>
-            <div
-              class="grid gap-2"
-              style="grid-template-columns: repeat(3, 1fr)"
+              全部
+            </button>
+            <button
+              v-for="genre in genreOptions"
+              :key="genre.value"
+              type="button"
+              class="year-tab"
+              :class="{ active: selectedGenre === genre.value }"
+              :aria-pressed="selectedGenre === genre.value"
+              @click="selectGenre(genre.value)"
             >
-              <div
-                class="flex items-center justify-center px-2 py-2 rounded-lg cursor-pointer transition-colors text-sm text-center"
-                :style="
-                  selectedYear === ''
-                    ? {
-                        backgroundColor: 'hsl(var(--accent))',
-                        color: 'hsl(var(--accent-foreground))',
-                      }
-                    : {}
-                "
-                @click="selectedYear = ''"
-              >
-                <span>全部</span>
-              </div>
-              <div
-                v-for="y in allYears"
-                :key="y"
-                class="flex items-center justify-center px-2 py-2 rounded-lg cursor-pointer transition-colors text-sm text-center"
-                :style="
-                  selectedYear === y
-                    ? {
-                        backgroundColor: 'hsl(var(--accent))',
-                        color: 'hsl(var(--accent-foreground))',
-                      }
-                    : {}
-                "
-                @click="selectedYear = y"
-              >
-                <span>{{ y }}</span>
-              </div>
-            </div>
-          </div>
-          <div>
-            <div class="text-sm font-medium mb-2">语言</div>
-            <div
-              class="grid gap-2"
-              style="grid-template-columns: repeat(2, 1fr)"
-            >
-              <div
-                class="flex items-center justify-center px-2 py-2 rounded-lg cursor-pointer transition-colors text-sm text-center"
-                :style="
-                  selectedLanguage === ''
-                    ? {
-                        backgroundColor: 'hsl(var(--accent))',
-                        color: 'hsl(var(--accent-foreground))',
-                      }
-                    : {}
-                "
-                @click="selectedLanguage = ''"
-              >
-                <span>全部</span>
-              </div>
-              <div
-                v-for="l in allLanguages"
-                :key="l"
-                class="flex items-center justify-center px-2 py-2 rounded-lg cursor-pointer transition-colors text-sm text-center"
-                :style="
-                  selectedLanguage === l
-                    ? {
-                        backgroundColor: 'hsl(var(--accent))',
-                        color: 'hsl(var(--accent-foreground))',
-                      }
-                    : {}
-                "
-                @click="selectedLanguage = l"
-              >
-                <span>{{ l }}</span>
-              </div>
-            </div>
+              {{ genre.label }}
+            </button>
           </div>
         </div>
-      </NPopover>
-    </div>
+      </section>
 
-    <!-- 排行榜 / Bangumi：按分类横向滚动 -->
-    <template v-if="isRankOrBangumi">
-      <div
-        v-for="cfg in categories"
-        :key="`${cfg.subtype}_${cfg.week || ''}`"
-        class="mb-6"
-      >
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-lg font-bold">{{ cfg.title }}</h3>
-          <NButton
-            text
-            size="small"
-            @click="
-              router.push({
-                name: 'DiscoveryRecommend',
-                query: {
-                  type: cfg.type,
-                  subtype: cfg.subtype,
-                  week: cfg.week || '',
-                  title: cfg.title,
-                },
-              })
-            "
-          >
-            更多 >
-          </NButton>
-        </div>
-
-        <NSpin :show="loadingMap[`${cfg.subtype}_${cfg.week || ''}`]">
-          <div
-            v-if="
-              filterItems(
-                categoryItems[`${cfg.subtype}_${cfg.week || ''}`] || [],
-              ).length > 0
-            "
-            class="flex gap-4 overflow-x-auto pb-2 px-1"
-            style="scroll-snap-type: x mandatory"
-          >
-            <MediaCard
-              v-for="item in filterItems(
-                categoryItems[`${cfg.subtype}_${cfg.week || ''}`] || [],
-              )"
-              :key="item.id"
-              :id="item.id"
-              :tmdb-id="item.tmdbid"
-              :title="item.title"
-              :poster="item.image"
-              :type="item.type"
-              :media-type="item.media_type"
-              :vote="item.vote"
-              :year="item.year"
-              :overview="item.overview"
-              :fav="item.fav"
-              :rssid="item.rssid"
-              :genres="item.genres"
-              :countries="item.countries"
-              :languages="item.languages"
-              class="flex-shrink-0"
-              style="width: 160px; scroll-snap-align: start"
-              @search="handleSearchFromCard"
-            />
-          </div>
-          <div v-else class="text-sm text-muted-foreground py-4">暂无数据</div>
-        </NSpin>
-      </div>
-    </template>
-
-    <!-- 单列表页：豆瓣电影/电视剧/TMDB -->
-    <template v-else>
-      <NSpin :show="loadingMap.single">
+      <NSpin :show="loading">
         <div
-          v-if="filterItems(categoryItems.single || []).length > 0"
-          class="grid gap-4"
-          style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr))"
+          v-if="items.length > 0"
+          class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4"
         >
           <MediaCard
-            v-for="item in filterItems(categoryItems.single || [])"
-            :key="item.id"
-            :id="item.id"
-            :tmdb-id="item.tmdbid"
+            v-for="item in items"
+            :key="`${item.provider}:${item.ref.external_id}`"
+            :id="itemId(item)"
+            :tmdb-id="itemTmdbId(item)"
             :title="item.title"
-            :poster="item.image"
-            :type="item.type"
-            :media-type="item.media_type"
-            :vote="item.vote"
+            :poster="item.poster"
+            :type="itemType(item)"
+            :media-type="itemType(item)"
+            :vote="itemVote(item)"
             :year="item.year"
-            :overview="item.overview"
-            :fav="item.fav"
-            :rssid="item.rssid"
-            :genres="item.genres"
-            :countries="item.countries"
-            :languages="item.languages"
-            @search="handleSearchFromCard"
+            :genres="item.tags?.slice(0, 4)"
+            :anchor-provider="item.anchor_ref?.provider"
+            :anchor-external-id="item.anchor_ref?.external_id"
+            :content-profile="item.content_profile"
+            :metadata-ref="itemMetadataRef(item)"
+            :detail-link="itemDetailLink(item)"
+            :fav="subscriptionFor(item)?.fav || '0'"
+            :rssid="subscriptionFor(item)?.rssid || ''"
+            @search="() => handleCardSearch(item)"
           />
         </div>
-        <div v-else class="text-center text-muted-foreground py-12">
-          暂无数据
-        </div>
-      </NSpin>
-      <!-- 无限滚动哨兵 -->
-      <div
-        v-if="!isRankOrBangumi"
-        ref="sentinelRef"
-        class="h-8 w-full flex items-center justify-center mt-4"
-      >
-        <NSpin v-if="singleLoadingMore" size="small" />
-        <span
-          v-else-if="!singleHasMore && (categoryItems.single || []).length > 0"
-          class="text-sm text-muted-foreground"
-          >已加载全部</span
+        <EmptyState
+          v-else-if="!loading && loadError"
+          title="加载失败"
+          :subtitle="loadError.message"
         >
+          <template #action>
+            <NButton
+              v-if="loadError.retryable"
+              size="small"
+              type="primary"
+              @click="retryLoad"
+            >
+              重试
+            </NButton>
+          </template>
+        </EmptyState>
+        <EmptyState
+          v-else-if="!loading"
+          title="没有找到内容"
+          subtitle="切换来源、榜单或筛选条件后再试"
+        />
+      </NSpin>
+
+      <div
+        v-if="hasMore || loadingMore"
+        ref="sentinelRef"
+        class="flex flex-col items-center justify-center gap-2 mt-6 min-h-12"
+      >
+        <template v-if="loadingMore">
+          <IconifyIcon
+            icon="lucide:loader-circle"
+            class="size-6 animate-spin text-primary"
+          />
+          <span class="text-xs text-muted-foreground">加载中...</span>
+        </template>
+        <span v-else class="text-xs text-muted-foreground">
+          已加载 {{ items.length }} 条，继续滚动加载
+        </span>
       </div>
-    </template>
+      <div
+        v-else-if="loadError && items.length > 0"
+        class="flex flex-col items-center justify-center gap-2 mt-6"
+      >
+        <span class="text-sm text-muted-foreground">{{
+          loadError.message
+        }}</span>
+        <NButton
+          v-if="loadError.retryable"
+          size="small"
+          type="primary"
+          @click="retryLoad"
+        >
+          重试
+        </NButton>
+      </div>
+      <div
+        v-else-if="items.length > 0"
+        class="text-center text-sm text-muted-foreground mt-6"
+      >
+        已加载全部
+      </div>
+
+      <PluginSlot target="discovery.panels" />
+    </NSpin>
   </div>
 </template>
 
 <style scoped>
-.genre-tab {
-  display: inline-flex;
+.discovery-filter {
+  padding: 0 0.9rem;
+  margin-bottom: 1rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+}
+
+.filter-row {
+  display: flex;
+  gap: 0.9rem;
   align-items: center;
-  line-height: 1;
-  color: hsl(var(--muted-foreground));
-  cursor: pointer;
-  background: transparent;
-  border: none;
+  min-height: 3rem;
 }
 
-.genre-tab.active {
+.filter-row--wrap {
+  flex-wrap: wrap;
+  padding: 0.55rem 0;
+}
+
+.filter-label {
+  flex: none;
+  width: 2.25rem;
+  font-size: 0.6875rem;
   font-weight: 600;
-  color: hsl(var(--foreground));
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
-.genre-tab.active::after {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  width: 20px;
-  height: 3px;
-  content: '';
-  background-color: hsl(var(--primary));
-  border-radius: 2px;
-  transform: translateX(-50%);
+.filter-divider {
+  height: 1px;
+  margin: 0 -0.9rem;
+  background: hsl(var(--border));
 }
 
-.genre-tabs::-webkit-scrollbar {
+.filter-scroll {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.25rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.filter-scroll::-webkit-scrollbar {
   display: none;
 }
 
-.line-clamp-2 {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+.source-list {
+  align-items: center;
 }
 
-.line-clamp-3 {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
+.source-tab {
+  flex: none;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 0.4rem;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.source-tab:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--accent));
+}
+
+.source-tab.active {
+  font-weight: 600;
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 10%);
+}
+
+.feed-list {
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  overflow: visible;
+}
+
+.feed-tab {
+  flex: none;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8125rem;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.feed-tab:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--accent));
+}
+
+.feed-tab.active {
+  font-weight: 500;
+  color: hsl(var(--primary-foreground));
+  background: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+}
+
+.year-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.year-tab {
+  flex: none;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.35rem;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.year-tab:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--accent));
+}
+
+.year-tab.active {
+  font-weight: 600;
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 10%);
+  border-color: hsl(var(--primary) / 30%);
+}
+
+.facet--years {
+  flex-wrap: wrap;
+}
+
+.feed-toggle {
+  display: inline-flex;
+  flex: none;
+  gap: 0.15rem;
+  align-items: center;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.8125rem;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.feed-toggle:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--accent));
+}
+
+.feed-toggle-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.filter-row--facets {
+  padding: 0.55rem 0;
+}
+
+.facet-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.facet {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+@media (max-width: 640px) {
+  .discovery-filter {
+    padding: 0 0.75rem;
+  }
+
+  .filter-row {
+    flex-direction: column;
+    gap: 0.35rem;
+    align-items: flex-start;
+    padding: 0.55rem 0;
+  }
+
+  .filter-label {
+    width: auto;
+  }
+
+  .feed-list {
+    flex: none;
+    width: 100%;
+  }
 }
 </style>

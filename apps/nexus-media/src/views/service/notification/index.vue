@@ -28,6 +28,7 @@ import {
   getMessageClientApi,
   getMessageClientConfigApi,
   getMessageClientDefaultTemplatesApi,
+  getMessageClientProfileTemplatesApi,
   sendCustomMessageApi,
   testMessageClientApi,
   updateMessageClientApi,
@@ -78,6 +79,7 @@ const editingTemplateMap = ref<Record<string, any>>({});
 const defaultTemplates = ref<Record<string, { text: string; title: string }>>(
   {},
 );
+const profileTemplateLabels = ref<Record<string, string>>({});
 
 /** 非事件开关、仅作为模板暴露的类型（后端 DEFAULT_MESSAGE_TEMPLATES 中无对应 switch） */
 const TEMPLATE_ONLY_LABELS: Record<string, string> = {
@@ -88,6 +90,7 @@ interface TemplateEntry {
   id: string;
   label: string;
   isSwitch: boolean;
+  isProfileTemplate?: boolean;
 }
 
 /** 模板编辑器条目：用户可见开关 ∪ 仅模板类型（如聚合摘要） */
@@ -99,8 +102,10 @@ const templateEntries = computed<TemplateEntry[]>(() => {
     if (switches.value[tid]) continue;
     entries.push({
       id: tid,
-      label: TEMPLATE_ONLY_LABELS[tid] || tid,
+      label:
+        profileTemplateLabels.value[tid] || TEMPLATE_ONLY_LABELS[tid] || tid,
       isSwitch: false,
+      isProfileTemplate: Boolean(profileTemplateLabels.value[tid]),
     });
   }
   return entries;
@@ -145,11 +150,13 @@ function getSwitchColorClass(swid: string): string {
 async function fetchData() {
   loading.value = true;
   try {
-    const [clientRes, configRes, templatesRes] = await Promise.all([
-      getMessageClientApi(),
-      getMessageClientConfigApi(),
-      getMessageClientDefaultTemplatesApi(),
-    ]);
+    const [clientRes, configRes, templatesRes, profileTemplatesRes] =
+      await Promise.all([
+        getMessageClientApi(),
+        getMessageClientConfigApi(),
+        getMessageClientDefaultTemplatesApi(),
+        getMessageClientProfileTemplatesApi(),
+      ]);
 
     // AxiosResponse 中提取实际响应体
     const clientData: any = clientRes;
@@ -170,11 +177,31 @@ async function fetchData() {
       switches.value = cfg.switches || {};
     }
 
-    // 处理默认模板
+    // 处理默认模板 + 插件画像模板（profile:msg_type）
     const tpl = templatesData?.code === 0 ? templatesData.data : templatesData;
-    if (tpl && typeof tpl === 'object' && !Array.isArray(tpl)) {
-      defaultTemplates.value = tpl;
+    const mergedTemplates: Record<string, { text: string; title: string }> =
+      tpl && typeof tpl === 'object' && !Array.isArray(tpl)
+        ? { ...(tpl as Record<string, { text: string; title: string }>) }
+        : {};
+    const labels: Record<string, string> = {};
+    const profileData: any = profileTemplatesRes;
+    const profilePayload =
+      profileData?.code === 0 ? profileData.data : profileData;
+    for (const profile of profilePayload?.profiles || []) {
+      for (const [msgType, template] of Object.entries(
+        profile.templates || {},
+      )) {
+        const key = `${profile.key}:${msgType}`;
+        mergedTemplates[key] = template as { text: string; title: string };
+        labels[key] = `${profile.label || profile.key} · ${
+          switches.value[msgType]?.name ||
+          TEMPLATE_ONLY_LABELS[msgType] ||
+          msgType
+        }`;
+      }
     }
+    profileTemplateLabels.value = labels;
+    defaultTemplates.value = mergedTemplates;
   } catch (error: any) {
     console.error('fetchData error:', error);
     message.error(error?.message || '获取配置失败');
@@ -692,7 +719,11 @@ onMounted(fetchData);
                 <span
                   v-else-if="!entry.isSwitch"
                   class="text-xs text-muted-foreground"
-                  >批量通知聚合模板</span
+                  >{{
+                    entry.isProfileTemplate
+                      ? '插件内容画像模板'
+                      : '批量通知聚合模板'
+                  }}</span
                 >
               </div>
               <div class="space-y-2">

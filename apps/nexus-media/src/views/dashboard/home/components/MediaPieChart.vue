@@ -68,7 +68,7 @@ function buildOption() {
     title: {
       itemGap: 4,
       left: 'center',
-      subtext: '媒体总数',
+      subtext: '全部实例媒体总数',
       subtextStyle: {
         color: mutedColor.value,
         fontSize: 11,

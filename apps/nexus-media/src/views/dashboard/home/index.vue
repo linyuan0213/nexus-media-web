@@ -14,9 +14,8 @@ import {
   getDashboardSystemStatusApi,
   getDashboardTransferStatsApi,
   getDownloaderSpeedStatisticsApi,
-  getMovieSubscriptionApi,
   getSiteDailyHistoryApi,
-  getTvSubscriptionApi,
+  getSubscriptionCountApi,
 } from '#/api';
 import { PluginSlot } from '#/plugin-framework';
 
@@ -322,8 +321,7 @@ async function fetchData() {
       indexerRes,
       brushRes,
       jobRes,
-      movieSubs,
-      tvSubs,
+      subscriptionCount,
       dailyTraffic,
     ] = await Promise.all([
       getDashboardSystemStatusApi(),
@@ -333,8 +331,7 @@ async function fetchData() {
       getDashboardIndexerStatsApi(),
       getDashboardBrushTasksApi(),
       getDashboardSchedulerJobsApi(),
-      getMovieSubscriptionApi(),
-      getTvSubscriptionApi(),
+      getSubscriptionCountApi(),
       // 拉 3 天：首日只作差分基线，最后两天才是“今日/昨日”真实增量
       getSiteDailyHistoryApi({ days: 3 }),
     ]);
@@ -349,18 +346,8 @@ async function fetchData() {
     indexerStats.value = indexerRes;
     brushTasks.value = brushRes || [];
     schedulerJobs.value = jobRes || [];
-    subscribeCount.value =
-      (Array.isArray(movieSubs) ? movieSubs.length : 0) +
-      (Array.isArray(tvSubs) ? tvSubs.length : 0);
-    // 今日新增订阅数：按条目 add_date 统计
-    const todayStr = new Date().toISOString().slice(0, 10);
-    subscribeNewToday.value =
-      (Array.isArray(movieSubs) ? movieSubs : []).filter(
-        (s: any) => String(s?.add_date || '').slice(0, 10) === todayStr,
-      ).length +
-      (Array.isArray(tvSubs) ? tvSubs : []).filter(
-        (s: any) => String(s?.add_date || '').slice(0, 10) === todayStr,
-      ).length;
+    subscribeCount.value = Number(subscriptionCount?.total || 0);
+    subscribeNewToday.value = Number(subscriptionCount?.new_today || 0);
     fetchDownloaderStats();
   } catch {
     // 静默失败

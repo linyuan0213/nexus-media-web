@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import { IconifyIcon } from '@vben/icons';
 
+import { getImgUrl } from '#/utils/image';
+
 interface Props {
   title: string;
   items: any[];
@@ -20,6 +22,14 @@ function replaceLocalhost(url?: any) {
     /^(https?:\/\/)(127\.0\.0\.1|localhost)(:\d+)?/,
     window.location.origin,
   );
+}
+
+function imageUrl(url?: any) {
+  if (!url) return '';
+  const s = String(url);
+  if (s.startsWith('/img/') || s.startsWith('/img?')) return s;
+  if (/^https?:\/\//.test(s)) return getImgUrl(s);
+  return replaceLocalhost(s);
 }
 </script>
 
@@ -54,7 +64,7 @@ function replaceLocalhost(url?: any) {
       >
         <div class="relative aspect-[2/3] overflow-hidden">
           <img
-            :src="replaceLocalhost(item.image || item.poster)"
+            :src="imageUrl(item.image || item.poster)"
             class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             alt=""
             @error="($event.target as HTMLImageElement).style.display = 'none'"

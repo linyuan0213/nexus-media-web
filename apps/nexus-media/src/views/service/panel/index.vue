@@ -41,6 +41,11 @@ const showCacheManage = ref(false);
 const nameTestInput = ref('');
 const nameTestResult = ref<any>(null);
 const nameTestLoading = ref(false);
+const nameExamples = ['Spider-Man', '流浪地球 2023', 'Some.Show.S01E01.1080p'];
+
+function useNameExample(value: string) {
+  nameTestInput.value = value;
+}
 
 interface CacheItem {
   name: string;
@@ -540,6 +545,13 @@ async function handleSyncRun() {
 
 const showNameTestResult = ref(false);
 
+function handleNameTestResultVisibility(value: boolean) {
+  showNameTestResult.value = value;
+  if (!value) {
+    showNameTest.value = true;
+  }
+}
+
 async function handleNameTest() {
   if (!nameTestInput.value.trim()) {
     message.warning('请输入名称');
@@ -554,6 +566,7 @@ async function handleNameTest() {
       { timeout: 60_000 },
     );
     nameTestResult.value = res;
+    showNameTest.value = false;
     showNameTestResult.value = true;
   } catch (error: any) {
     message.error(error?.message || '测试失败');
@@ -773,38 +786,74 @@ onMounted(() => {
     <!-- 名称识别测试弹窗 -->
     <NModal
       v-model:show="showNameTest"
-      title="名称识别测试"
       preset="card"
-      style="width: 640px; max-width: 95vw"
+      :bordered="false"
+      style="width: 720px; max-width: 95vw"
     >
-      <NSpace vertical size="large">
-        <div>
-          <label class="form-label">资源名称</label>
-          <NInput
-            v-model:value="nameTestInput"
-            placeholder="请输入电影/电视剧名称"
-            @keyup.enter="handleNameTest"
-          />
+      <div class="nametest-intro">
+        <div class="nametest-icon">
+          <IconifyIcon icon="lucide:scan-text" />
         </div>
+        <div>
+          <div class="nametest-title">名称识别测试</div>
+          <div class="nametest-desc">
+            支持 TMDB、豆瓣、Bangumi 与插件元数据源；匹配来源优先
+          </div>
+        </div>
+      </div>
 
-        <IdentifyResult
-          v-model:show="showNameTestResult"
-          :loading="nameTestLoading"
-          :result="nameTestResult || {}"
-        />
+      <div class="nametest-field">
+        <NInput
+          v-model:value="nameTestInput"
+          size="large"
+          clearable
+          placeholder="输入文件名、内容编号或媒体名称"
+          @keyup.enter="handleNameTest"
+        >
+          <template #prefix>
+            <IconifyIcon icon="lucide:search" class="nametest-input-icon" />
+          </template>
+        </NInput>
+        <div class="nametest-examples">
+          <span class="nametest-examples-label">示例</span>
+          <button
+            v-for="example in nameExamples"
+            :key="example"
+            type="button"
+            class="nametest-example"
+            @click="useNameExample(example)"
+          >
+            {{ example }}
+          </button>
+        </div>
+      </div>
 
+      <div class="nametest-footer">
+        <span class="nametest-hint">
+          插件解析器优先处理其内容画像；普通名称再走多数据源匹配
+        </span>
         <div class="form-actions">
-          <NButton @click="showNameTest = false"> 取消 </NButton>
+          <NButton @click="showNameTest = false">取消</NButton>
           <NButton
             type="primary"
             :loading="nameTestLoading"
             @click="handleNameTest"
           >
+            <template #icon>
+              <IconifyIcon icon="lucide:sparkles" />
+            </template>
             识别
           </NButton>
         </div>
-      </NSpace>
+      </div>
     </NModal>
+
+    <IdentifyResult
+      :show="showNameTestResult"
+      :loading="nameTestLoading"
+      :result="nameTestResult || {}"
+      @update:show="handleNameTestResultVisibility"
+    />
 
     <!-- 缓存管理弹窗 -->
     <NModal
@@ -1422,6 +1471,100 @@ onMounted(() => {
   flex: 1 1 100%;
 }
 
+.nametest-intro {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
+}
+
+.nametest-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 12%);
+  border-radius: 0.75rem;
+}
+
+.nametest-icon svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.nametest-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: hsl(var(--card-foreground));
+}
+
+.nametest-desc {
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+}
+
+.nametest-field {
+  padding: 1rem;
+  background: hsl(var(--muted) / 25%);
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+}
+
+.nametest-input-icon {
+  width: 1rem;
+  height: 1rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.nametest-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  margin-top: 0.7rem;
+}
+
+.nametest-examples-label {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.nametest-example {
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  color: hsl(var(--primary));
+  cursor: pointer;
+  background: hsl(var(--primary) / 8%);
+  border: 1px solid hsl(var(--primary) / 20%);
+  border-radius: 999px;
+  transition: background 0.15s ease;
+}
+
+.nametest-example:hover {
+  background: hsl(var(--primary) / 16%);
+}
+
+.nametest-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1.25rem;
+}
+
+.nametest-hint {
+  flex: 1;
+  min-width: 12rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+}
+
 .form-label {
   font-size: 0.875rem;
   font-weight: 500;
@@ -1548,6 +1691,11 @@ onMounted(() => {
 }
 
 @media (max-width: 640px) {
+  .nametest-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .cache-item {
     flex-direction: column;
     align-items: stretch;

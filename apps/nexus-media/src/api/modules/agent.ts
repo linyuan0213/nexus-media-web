@@ -3,18 +3,29 @@
  * 对应后端: /api/agent/*
  */
 import { requestClient } from '#/api/request';
+import { createSseParser } from '#/utils/sse';
 
 export namespace AgentApi {
   /** 对话 SSE 事件 */
   export interface ChatEvent {
     type:
       | 'answer'
+      | 'cancelled'
       | 'confirm_required'
       | 'error'
       | 'reasoning'
       | 'token'
       | 'tool_call'
-      | 'tool_result';
+      | 'tool_result'
+      | 'turn_start'
+      | 'usage';
+    id?: number;
+    session_id?: string;
+    turn_id?: string;
+    ts?: number;
+    payload?: Record<string, any>;
+    pending_action_id?: string;
+    status?: string;
     content?: string;
     tool?: string;
     parameters?: Record<string, any>;
@@ -22,7 +33,23 @@ export namespace AgentApi {
     message?: string;
     success?: boolean;
     need_confirm?: boolean;
+    result_summary?: string;
+    input_tokens?: number;
+    output_tokens?: number;
+    total_tokens?: number;
+    requests?: number;
+    tool_calls?: number;
     step?: number;
+  }
+
+  export interface ChatAttachment {
+    name: string;
+    kind?: string;
+    size?: number;
+    truncated?: boolean;
+    text?: string;
+    image_data?: string;
+    media_type?: string;
   }
 
   /** 消息流条目（命令回复 + 事件通知） */
@@ -52,25 +79,20 @@ export namespace AgentApi {
   }
 }
 
-/** SSE data 块解析（处理单条完整事件块） */
-function parseSseBlock(block: string, onEvent: (data: any) => void) {
-  const trimmed = block.trim();
-  if (!trimmed) return;
-  for (const line of trimmed.split('\n')) {
-    if (line.startsWith(':')) break; // 心跳注释
-    if (line.startsWith('data:')) {
-      try {
-        onEvent(JSON.parse(line.slice(5).trim()));
-      } catch {
-        // ignore parse errors
-      }
-    }
+/** 上传文本类附件并提取上下文 */
+export async function uploadAgentAttachment(file: File) {
+  if (file.size > 25 * 1024 * 1024) {
+    throw new Error('附件不能超过 25 MB');
   }
+  const response: any = await requestClient.upload('/agent/chat/attachment', {
+    file,
+  });
+  return response?.data ?? response;
 }
-
 /** Agent 对话（POST SSE 流式） */
 export function streamAgentChat(
   payload: {
+    attachments?: AgentApi.ChatAttachment[];
     disable_thinking?: boolean;
     question: string;
     /** 推理强度：low | high | max（空 = 使用后端配置默认） */
@@ -84,39 +106,94 @@ export function streamAgentChat(
   },
   signal?: AbortSignal,
 ) {
-  // 跨网络块缓冲：事件可能被 TCP 分块拆开，按 \n\n 边界拼完整后再解析
-  let buffer = '';
+  const parser = createSseParser(callbacks.onEvent);
   return requestClient
     .postSSE('/agent/chat', payload, {
       signal,
       headers: { 'Content-Type': 'application/json' },
-      onMessage: (content: string) => {
-        buffer += content;
-        let idx = buffer.indexOf('\n\n');
-        while (idx !== -1) {
-          parseSseBlock(buffer.slice(0, idx), callbacks.onEvent);
-          buffer = buffer.slice(idx + 2);
-          idx = buffer.indexOf('\n\n');
-        }
-      },
+      onMessage: parser.push,
     })
     .catch((error) => {
+      if (typeof error?.data === 'string') {
+        try {
+          const parsed = JSON.parse(error.data);
+          error.detail = parsed.detail || parsed.message || error.data;
+        } catch {
+          error.detail = error.data;
+        }
+      }
       callbacks.onError?.(error);
     })
     .finally(() => {
       // 流结束时处理残留的未闭合事件
-      if (buffer.trim()) parseSseBlock(buffer, callbacks.onEvent);
+      parser.end();
       callbacks.onEnd?.();
     });
 }
 
 /** 危险操作确认 */
-export function confirmAgentChat(data: {
-  arguments: Record<string, any>;
-  session_id?: string;
-  tool: string;
-}) {
-  return requestClient.post('/agent/chat/confirm', data);
+export function confirmAgentChat(pendingActionId: string) {
+  return requestClient.post('/agent/chat/confirm', {
+    pending_action_id: pendingActionId,
+  });
+}
+
+/** 拒绝危险操作 */
+export function rejectAgentChat(pendingActionId: string) {
+  return requestClient.post('/agent/chat/reject', {
+    pending_action_id: pendingActionId,
+  });
+}
+
+/** 协作式取消 Turn */
+export function cancelAgentChat(turnId: string) {
+  return requestClient.post('/agent/chat/cancel', { turn_id: turnId });
+}
+
+/** 会话列表 */
+export function getAgentSessions() {
+  return requestClient.get<{
+    sessions: {
+      preview: string;
+      session_id: string;
+      title?: string;
+      updated_at?: string;
+    }[];
+  }>('/agent/chat/sessions');
+}
+
+/** 重命名会话 */
+export function renameAgentSession(sessionId: string, title: string) {
+  return requestClient.post('/agent/chat/session/rename', {
+    session_id: sessionId,
+    title,
+  });
+}
+
+/** 创建会话 */
+export function createAgentSession() {
+  return requestClient.post<{ session_id: string }>('/agent/chat/session', {});
+}
+
+/** 删除会话 */
+export function deleteAgentSession(sessionId: string) {
+  return requestClient.delete('/agent/chat/session', {
+    data: { session_id: sessionId },
+  });
+}
+
+/** 轻量 Agent 状态 */
+export function getAgentStatus() {
+  return requestClient.get<{
+    conversation_enabled: boolean;
+    enabled: boolean;
+    long_term_memory_enabled: boolean;
+    model: string;
+    provider: string;
+    rag_enabled: boolean;
+    reasoning_effort: 'high' | 'low' | 'max';
+    thinking_enabled: boolean;
+  }>('/agent/status');
 }
 
 /** 清空会话 */
@@ -192,26 +269,18 @@ export function streamMessages(
   },
   signal?: AbortSignal,
 ) {
-  let buffer = '';
+  const parser = createSseParser(callbacks.onEvent);
   return requestClient
     .requestSSE(`/agent/message/stream?cursor=${cursor}`, undefined, {
       method: 'GET',
       signal,
-      onMessage: (content: string) => {
-        buffer += content;
-        let idx = buffer.indexOf('\n\n');
-        while (idx !== -1) {
-          parseSseBlock(buffer.slice(0, idx), callbacks.onEvent);
-          buffer = buffer.slice(idx + 2);
-          idx = buffer.indexOf('\n\n');
-        }
-      },
+      onMessage: parser.push,
     })
     .catch(() => {
       // 断线由调用方重连
     })
     .finally(() => {
-      if (buffer.trim()) parseSseBlock(buffer, callbacks.onEvent);
+      parser.end();
       callbacks.onEnd?.();
     });
 }

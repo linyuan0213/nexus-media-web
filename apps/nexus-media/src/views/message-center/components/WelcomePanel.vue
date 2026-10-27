@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { computed } from 'vue';
+import { useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
 
@@ -13,6 +14,12 @@ const props = defineProps<{
 const emit = defineEmits<{
   prompt: [text: string];
 }>();
+
+const router = useRouter();
+
+function goSettings() {
+  void router.push({ path: '/system/basic', query: { tab: 'agent' } });
+}
 
 const quickPrompts = computed(() =>
   props.agentEnabled
@@ -83,9 +90,8 @@ const quickPrompts = computed(() =>
       class="mt-4"
       size="small"
       text
-      tag="a"
-      href="#/system/basic"
       :style="{ color: 'hsl(var(--primary))' }"
+      @click="goSettings"
     >
       <template #icon>
         <IconifyIcon icon="lucide:settings" class="size-3.5" />

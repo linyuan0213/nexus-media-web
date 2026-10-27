@@ -67,7 +67,8 @@ const currentProvider = computed({
   set: (v: string) => {
     emit('updateConfig', 'agent.default_provider', v);
     const preset = providerUrlPresets[v];
-    if (preset && !getProviderConfig('api_url')) {
+    const targetUrl = props.config[`agent.providers.${v}.api_url`];
+    if (preset && !targetUrl) {
       emit('updateConfig', `agent.providers.${v}.api_url`, preset);
     }
   },
@@ -131,13 +132,20 @@ async function fetchEmbeddingModels() {
   const provider =
     embeddingProvider.value || props.config['agent.default_provider'] || '';
   if (!provider) return;
+  const inherited = !embeddingProvider.value;
+  const apiUrl = inherited
+    ? getProviderConfig('api_url') || providerUrlPresets[provider] || ''
+    : getEmbeddingConfig('api_url') || providerUrlPresets[provider] || '';
+  const apiKey = inherited
+    ? getProviderConfig('api_key')
+    : getEmbeddingConfig('api_key');
   loadingEmbeddingModels.value = true;
+  embeddingModelOptions.value = [];
   try {
     const res: any = await listAgentEmbeddingModelsApi({
       provider_name: provider,
-      api_url:
-        getEmbeddingConfig('api_url') || providerUrlPresets[provider] || '',
-      api_key: getEmbeddingConfig('api_key') || '',
+      api_url: apiUrl,
+      api_key: apiKey,
     });
     // requestClient 已解包：res 可能为数组或 {data}
     const models = Array.isArray(res) ? res : res?.data || [];
@@ -341,6 +349,7 @@ onMounted(() => {
                 :options="modelOptions.map((m) => ({ label: m, value: m }))"
                 :placeholder="placeholder('model')"
                 filterable
+                tag
                 clearable
                 class="flex-1"
                 @update:value="(v) => setProviderConfig('model', v)"

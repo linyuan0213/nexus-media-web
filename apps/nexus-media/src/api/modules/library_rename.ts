@@ -40,6 +40,7 @@ export namespace LibraryRenameApi {
     allow_online_metadata: boolean;
     reidentify_no_metadata: boolean;
     limit: number;
+    server_id?: null | number;
   }
 
   export interface PlanJob {

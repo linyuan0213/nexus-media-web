@@ -12,6 +12,7 @@ import {
   NModal,
   NSelect,
   NSpace,
+  NTag,
 } from 'naive-ui';
 
 import {
@@ -20,6 +21,7 @@ import {
 } from '#/api/modules/download';
 import { getFilterRulesApi } from '#/api/modules/filter';
 import { getVisibleSitesApi } from '#/api/modules/site';
+import { getContentProfileLabel } from '#/plugin-framework/loader';
 import {
   joinMultiSelect,
   pixOptions,
@@ -36,6 +38,12 @@ export interface SubscribeEditItem {
   image?: string;
   season?: string;
   keyword?: string;
+  content_profile?: string;
+  provider?: string;
+  metadata_ref?: string;
+  mediaid?: string;
+  source_label?: string;
+  overview?: string;
   fuzzy_match?: boolean;
   over_edition?: boolean;
   filter_restype?: string | string[];
@@ -71,7 +79,6 @@ const filterRules = ref<{ label: string; value: string }[]>([]);
 const downloadSettings = ref<{ label: string; value: string }[]>([]);
 const downloadDirs = ref<{ label: string; value: string }[]>([]);
 const loading = ref(false);
-const optionsLoaded = ref(false);
 
 const seasonOptions = Array.from({ length: 51 }, (_, i) =>
   i === 0
@@ -87,6 +94,11 @@ const form = ref({
   tmdbid: '',
   image: '',
   keyword: '',
+  content_profile: '',
+  provider: '',
+  metadata_ref: '',
+  mediaid: '',
+  overview: '',
   fuzzy_match: false,
   over_edition: false,
   filter_restype: [] as string[],
@@ -106,14 +118,20 @@ const form = ref({
 
 // 动漫与电视剧共用季/集相关表单项
 const isTv = computed(() => form.value.type !== 'movie');
+const isCustomProfile = computed(
+  () =>
+    !!form.value.content_profile && form.value.content_profile !== 'default',
+);
+const profileLabel = computed(
+  () =>
+    getContentProfileLabel(form.value.content_profile) ||
+    form.value.content_profile.toUpperCase(),
+);
 
 watch([() => props.show, () => props.item], async ([visible, item]) => {
   if (visible && item) {
-    // 先加载站点选项，再用其校验默认站点，避免默认 rss_sites/search_sites 被空选项过滤掉
-    if (!optionsLoaded.value) {
-      await loadOptions();
-      optionsLoaded.value = true;
-    }
+    // 每次打开刷新站点选项，确保新增/停用的自定义 RSS 立即生效
+    await loadOptions();
     form.value = {
       name: item.name,
       year: item.year || '',
@@ -122,6 +140,11 @@ watch([() => props.show, () => props.item], async ([visible, item]) => {
       tmdbid: item.tmdbid || '',
       image: item.image || '',
       keyword: item.keyword || '',
+      content_profile: item.content_profile || '',
+      provider: item.provider || '',
+      metadata_ref: item.metadata_ref || '',
+      mediaid: item.mediaid || '',
+      overview: item.overview || '',
       fuzzy_match: item.fuzzy_match ?? false,
       over_edition: item.over_edition ?? false,
       filter_restype: splitMultiSelect(item.filter_restype),
@@ -170,7 +193,10 @@ async function loadOptions() {
       : visibleRes?.data || [];
     rssSites.value = visibleSites
       .filter((s: any) => (s.permissions || []).includes('rss'))
-      .map((s: any) => ({ label: s.name, value: s.name }));
+      .map((s: any) => ({
+        label: s.source === 'custom_rss' ? `${s.name}（自定义 RSS）` : s.name,
+        value: s.value || s.name,
+      }));
     searchSites.value = visibleSites
       .filter((s: any) => (s.permissions || []).includes('search'))
       .map((s: any) => ({ label: s.name, value: s.name }));
@@ -245,10 +271,17 @@ function handleConfirm() {
     name: form.value.name,
     year: form.value.year,
     type: form.value.type,
-    mediaid: form.value.tmdbid,
+    mediaid:
+      form.value.mediaid ||
+      (form.value.content_profile && form.value.content_profile !== 'default'
+        ? form.value.metadata_ref
+        : form.value.tmdbid),
     tmdbid: form.value.tmdbid,
     image: form.value.image,
     keyword: form.value.keyword || undefined,
+    content_profile: form.value.content_profile || undefined,
+    provider: form.value.provider || undefined,
+    metadata_ref: form.value.metadata_ref || undefined,
     fuzzy_match: form.value.fuzzy_match,
     over_edition: form.value.over_edition,
     filter_restype: joinMultiSelect(form.value.filter_restype),
@@ -319,7 +352,10 @@ function handleConfirm() {
               </NFormItem>
             </div>
             <NFormItem label="媒体类型">
-              <NRadioGroup v-model:value="form.type" :disabled="isEdit">
+              <NTag v-if="isCustomProfile" type="info" :bordered="false">
+                {{ profileLabel }}
+              </NTag>
+              <NRadioGroup v-else v-model:value="form.type" :disabled="isEdit">
                 <NRadioButton value="movie">电影</NRadioButton>
                 <NRadioButton value="tv">电视剧</NRadioButton>
                 <NRadioButton value="anime">动漫</NRadioButton>

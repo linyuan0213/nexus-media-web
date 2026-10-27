@@ -1,126 +1,101 @@
 <script lang="ts" setup>
+import type {
+  MediaServerInstance,
+  MediaServerSchema,
+} from './components/types';
+
 import { computed, onMounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import {
-  NButton,
-  NCard,
-  NForm,
-  NFormItem,
-  NInput,
-  NModal,
-  NSpace,
-  NSpin,
-  NSwitch,
-  NTooltip,
-  useMessage,
-} from 'naive-ui';
+import { NButton, NModal, NSpin, useMessage } from 'naive-ui';
 
 import {
+  deleteMediaServerApi,
   getMediaServersConfigApi,
-  saveMediaServerConfigApi,
-  testMediaServerApi,
-} from '#/api';
+  setDefaultMediaServerApi,
+} from '#/api/modules/system';
 import PageHeader from '#/components/page/PageHeader.vue';
 
-interface MediaServerConf {
-  name: string;
-  icon_url?: string;
-  config?: Record<string, any>;
-}
-
-function mediaserverIcon(type: string): string {
-  return `/static/img/mediaserver/${type}.png`;
-}
+import MediaServerCard from './components/MediaServerCard.vue';
+import MediaServerEditModal from './components/MediaServerEditModal.vue';
 
 const message = useMessage();
-const servers = ref<Record<string, MediaServerConf>>({});
-const serverConfigs = ref<Record<string, any>>({});
 const loading = ref(false);
-const testLoading = ref<Record<string, boolean>>({});
-const editModalShow = ref(false);
-const editingType = ref('');
-const editingConfig = ref<Record<string, any>>({});
+const schemas = ref<Record<string, MediaServerSchema>>({});
+const instances = ref<MediaServerInstance[]>([]);
+const editVisible = ref(false);
+const currentInstance = ref<MediaServerInstance | null>(null);
+const deleteVisible = ref(false);
+const deleteTarget = ref<MediaServerInstance | null>(null);
+const deleting = ref(false);
 
-const serverList = computed(() =>
-  Object.entries(servers.value).map(([type, conf]) => ({ type, ...conf })),
+const sortedInstances = computed(() =>
+  [...instances.value].sort(
+    (a, b) => b.is_default - a.is_default || a.name.localeCompare(b.name),
+  ),
 );
 
 async function fetchData() {
   loading.value = true;
   try {
-    const res: any = await getMediaServersConfigApi();
-    const data = res.data ?? res;
-    if (data.mediaserver_conf) {
-      servers.value = data.mediaserver_conf;
-    }
-    if (data.servers) {
-      for (const [name, srv] of Object.entries(
-        data.servers as Record<string, any>,
-      )) {
-        serverConfigs.value[name] = {
-          ...srv.config,
-          enabled: srv.enabled,
-          is_default: srv.is_default,
-        };
-      }
-    }
-  } catch {
-    message.error('获取媒体服务器配置失败');
+    const response: any = await getMediaServersConfigApi();
+    const data = response.data ?? response;
+    schemas.value = data.mediaserver_conf || {};
+    instances.value = Object.entries(data.servers || {}).map(
+      ([key, value]: [string, any]) => ({
+        id: value.id,
+        name: value.name || key,
+        type: value.type || key,
+        enabled: value.enabled,
+        is_default: value.is_default,
+        config: value.config || {},
+      }),
+    );
+  } catch (error: any) {
+    message.error(error?.response?.data?.detail || '获取媒体服务器配置失败');
   } finally {
     loading.value = false;
   }
 }
 
-function openModal(type: string) {
-  editingType.value = type;
-  editingConfig.value = {};
-  const cfg = serverConfigs.value[type] || {};
-  const conf = servers.value[type];
-  if (conf?.config) {
-    Object.entries(conf.config).forEach(([key, field]: [string, any]) => {
-      editingConfig.value[field.id] =
-        cfg[key] ?? (field.type === 'switch' ? 0 : '');
-    });
-  }
-  editModalShow.value = true;
+function openCreate() {
+  currentInstance.value = null;
+  editVisible.value = true;
 }
 
-async function handleSave() {
-  const data: Record<string, any> = {
-    type: editingType.value,
-    test: false,
-  };
-  for (const [key, value] of Object.entries(editingConfig.value)) {
-    data[key] = value;
-  }
+function openEdit(instance: MediaServerInstance) {
+  currentInstance.value = instance;
+  editVisible.value = true;
+}
+
+async function setDefault(instance: MediaServerInstance) {
+  if (!instance.id || instance.is_default) return;
+  await setDefaultMediaServerApi(instance.id);
+  message.success(`${instance.name} 已设为默认媒体服务器`);
+  await fetchData();
+}
+
+function confirmDelete(instance: MediaServerInstance) {
+  deleteTarget.value = instance;
+  deleteVisible.value = true;
+}
+
+async function handleDelete() {
+  if (!deleteTarget.value?.id) return;
+  deleting.value = true;
   try {
-    await saveMediaServerConfigApi(data);
-    editModalShow.value = false;
-    message.success('保存成功');
+    await deleteMediaServerApi(deleteTarget.value.id);
+    message.success('媒体服务器实例已删除');
+    deleteVisible.value = false;
+    deleteTarget.value = null;
     await fetchData();
   } catch (error: any) {
-    message.error(error?.message || '保存失败');
-  }
-}
-
-async function handleTest() {
-  testLoading.value[editingType.value] = true;
-  try {
-    const data: Record<string, any> = {
-      type: editingType.value,
-      test: true,
-    };
-    for (const [key, value] of Object.entries(editingConfig.value)) {
-      data[key] = value;
-    }
-    await testMediaServerApi(data);
-    message.success('测试成功');
-  } catch (error: any) {
-    message.error(error?.message || '测试失败');
+    message.error(
+      error?.response?.data?.detail || error?.message || '删除失败',
+    );
   } finally {
-    testLoading.value[editingType.value] = false;
+    deleting.value = false;
   }
 }
 
@@ -128,111 +103,118 @@ onMounted(fetchData);
 </script>
 
 <template>
-  <div class="p-4">
-    <PageHeader title="媒体服务器" />
+  <div class="mediaserver-page">
+    <PageHeader
+      title="媒体服务器设置"
+      subtitle="管理媒体服务器配置及媒体库同步目标"
+    >
+      <template #actions>
+        <NButton type="primary" @click="openCreate">
+          <template #icon>
+            <IconifyIcon icon="lucide:plus" class="size-4" />
+          </template>
+          新增媒体服务器
+        </NButton>
+      </template>
+    </PageHeader>
 
     <NSpin :show="loading">
-      <div class="grid-normal-card">
-        <NCard
-          v-for="item in serverList"
-          :key="item.type"
-          size="small"
-          class="cursor-pointer hover:shadow-lg transition-all"
-          @click="openModal(item.type)"
-        >
-          <div class="text-center">
-            <div
-              class="relative w-16 h-16 mx-auto rounded-full mb-3 overflow-hidden"
-            >
-              <img
-                :src="item.icon_url || mediaserverIcon(item.type)"
-                class="absolute inset-0 z-10 w-full h-full object-contain"
-                @error="($event.target as HTMLElement).style.display = 'none'"
-              />
-              <div
-                class="w-full h-full flex items-center justify-center bg-muted"
-              >
-                <IconifyIcon
-                  icon="lucide:server"
-                  class="size-6 text-muted-foreground"
-                />
-              </div>
-            </div>
-            <div class="font-medium">{{ item.name }}</div>
-            <div class="text-sm text-gray-400 mt-1">
-              <span
-                v-if="serverConfigs[item.type]?.enabled"
-                class="inline-flex items-center gap-1"
-              >
-                <span class="w-2 h-2 rounded-full bg-green-500"></span>
-                已启用
-              </span>
-              <span
-                v-if="serverConfigs[item.type]?.is_default"
-                class="inline-flex items-center gap-1 ml-2"
-              >
-                <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-                默认
-              </span>
-            </div>
-          </div>
-        </NCard>
+      <div v-if="sortedInstances.length" class="instance-grid">
+        <MediaServerCard
+          v-for="instance in sortedInstances"
+          :key="instance.id"
+          :instance="instance"
+          @edit="openEdit(instance)"
+          @set-default="setDefault(instance)"
+          @delete="confirmDelete(instance)"
+        />
+      </div>
+      <div v-else-if="!loading" class="empty-state">
+        <div class="empty-icon">
+          <IconifyIcon icon="lucide:server-off" class="size-8" />
+        </div>
+        <p>暂无媒体服务器配置</p>
+        <NButton type="primary" @click="openCreate">
+          <template #icon>
+            <IconifyIcon icon="lucide:plus" class="size-4" />
+          </template>
+          新增媒体服务器
+        </NButton>
       </div>
     </NSpin>
 
-    <!-- 编辑模态框 -->
+    <MediaServerEditModal
+      v-model:show="editVisible"
+      :instance="currentInstance"
+      :schemas="schemas"
+      @saved="fetchData"
+    />
+
     <NModal
-      v-model:show="editModalShow"
-      :title="servers[editingType]?.name || '媒体服务器'"
-      preset="card"
-      :style="{ width: '600px', maxWidth: '92vw' }"
+      v-model:show="deleteVisible"
+      preset="dialog"
+      type="warning"
+      title="删除媒体服务器"
+      positive-text="删除"
+      negative-text="取消"
+      :loading="deleting"
+      @positive-click="handleDelete"
     >
-      <NForm label-placement="left" :label-width="140">
-        <div v-for="(field, key) in servers[editingType]?.config" :key="key">
-          <NFormItem>
-            <template #label>
-              <span class="inline-flex items-center">
-                {{ field.title }}
-                <NTooltip v-if="field.tooltip" trigger="hover">
-                  <template #trigger>
-                    <IconifyIcon
-                      icon="lucide:help-circle"
-                      class="ml-1 size-4 cursor-help"
-                      style="color: hsl(var(--muted-foreground))"
-                    />
-                  </template>
-                  <div style="max-width: 320px; white-space: pre-wrap">
-                    {{ field.tooltip }}
-                  </div>
-                </NTooltip>
-              </span>
-            </template>
-            <NSwitch
-              v-if="field.type === 'switch'"
-              v-model:value="editingConfig[field.id]"
-              :checked-value="1"
-              :unchecked-value="0"
-            />
-            <NInput
-              v-else
-              v-model:value="editingConfig[field.id]"
-              :placeholder="field.placeholder"
-              :type="field.type === 'password' ? 'password' : 'text'"
-            />
-          </NFormItem>
-        </div>
-      </NForm>
-      <template #footer>
-        <div class="flex justify-between items-center">
-          <NButton :loading="testLoading[editingType]" @click="handleTest">
-            测试
-          </NButton>
-          <NSpace>
-            <NButton @click="editModalShow = false">取消</NButton>
-            <NButton type="primary" @click="handleSave">保存</NButton>
-          </NSpace>
-        </div>
-      </template>
+      确定删除“{{ deleteTarget?.name }}”吗？此操作不会影响其他实例。
     </NModal>
   </div>
 </template>
+
+<style scoped>
+.mediaserver-page {
+  padding: 20px;
+  background: hsl(var(--background));
+}
+
+.instance-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+}
+
+.empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted));
+  border-radius: 50%;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 14px;
+  color: hsl(var(--muted-foreground));
+}
+
+@media (min-width: 640px) {
+  .instance-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .instance-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+</style>

@@ -263,6 +263,17 @@ export async function getMessageClientDefaultTemplatesApi() {
   );
 }
 
+/** 获取插件内容画像消息模板 */
+export async function getMessageClientProfileTemplatesApi() {
+  return requestClient.get<{
+    profiles: Array<{
+      key: string;
+      label: string;
+      templates: Record<string, { text: string; title: string }>;
+    }>;
+  }>('/system/message_clients/templates/profiles');
+}
+
 /** 更新消息客户端 */
 export async function updateMessageClientApi(data: {
   cid?: number;
@@ -351,6 +362,7 @@ export async function getMediaServersConfigApi() {
         id: number;
         is_default: number;
         name: string;
+        type?: string;
       }
     >;
   }>('/system/mediaservers');
@@ -359,6 +371,16 @@ export async function getMediaServersConfigApi() {
 /** 保存媒体服务器配置 */
 export async function saveMediaServerConfigApi(data: Record<string, any>) {
   return requestClient.post('/system/mediaservers/config', { data });
+}
+
+/** 删除媒体服务器实例 */
+export async function deleteMediaServerApi(id: number) {
+  return requestClient.post('/system/mediaservers/delete', { id });
+}
+
+/** 设置默认媒体服务器实例 */
+export async function setDefaultMediaServerApi(id: number) {
+  return requestClient.post('/system/mediaservers/default', { id });
 }
 
 /** 测试媒体服务器连接 */

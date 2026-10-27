@@ -13,10 +13,26 @@ const fallbackImage = '/static/img/no-image.png';
  */
 export function getImgUrl(src?: null | string): string {
   if (!src) return fallbackImage;
-  if (src.startsWith('/img/')) return src;
+  // 旧版 nginx 会把 /img?url=... 301 到 127.0.0.1:8080，海报会空白。
+  // 如果代理 URL 里是 TMDB 图片，直接改成最终 /img/tmdb/... 路由。
+  if (src.startsWith('/img?url=')) {
+    try {
+      const inner = decodeURIComponent(src.slice('/img?url='.length));
+      const proxiedTmdb = inner.match(
+        /https?:\/\/image\.tmdb\.org\/t\/p\/(\w+)(\/.+)/,
+      );
+      if (proxiedTmdb) return `/img/tmdb/${proxiedTmdb[1]}${proxiedTmdb[2]}`;
+    } catch {
+      // 保留原 URL，交给代理处理
+    }
+  }
+  if (src.startsWith('/img/') || src.startsWith('/img?')) return src;
   const tmdbMatch = src.match(/https?:\/\/image\.tmdb\.org\/t\/p\/(\w+)(\/.+)/);
   if (tmdbMatch) return `/img/tmdb/${tmdbMatch[1]}${tmdbMatch[2]}`;
-  return `/img?url=${encodeURIComponent(src)}`;
+  if (src.includes('doubanio.com') || src.includes('douban.com'))
+    return `/img/douban/${encodeURIComponent(src)}`;
+  if (src.includes('lain.bgm.tv')) return `/img/bgm/${encodeURIComponent(src)}`;
+  return `/img/library/${encodeURIComponent(src)}`;
 }
 
 /**

@@ -40,6 +40,101 @@ export namespace MediaApi {
     tmdbid?: number;
     params?: Record<string, any>;
   }
+  export interface MediaServerOption {
+    id: number;
+    name: string;
+    type: string;
+    is_default: boolean;
+  }
+
+  export interface LibrarySection {
+    server: MediaServerOption;
+    server_id: number;
+    server_name: string;
+    server_success: boolean;
+    sync_state: string;
+    media_counts: Record<string, number | string>;
+    librarys: Record<string, any>[];
+    resumes: Record<string, any>[];
+    latests: Record<string, any>[];
+    activitys: Record<string, any>[];
+  }
+
+  export interface LibraryHome {
+    server_success: boolean;
+    servers: MediaServerOption[];
+    sections: LibrarySection[];
+    media_counts: Record<string, number | string>;
+    user_count: number;
+    library_spaces: Record<string, any>;
+    librarys: Record<string, any>[];
+    resumes: Record<string, any>[];
+    latests: Record<string, any>[];
+    activitys: Record<string, any>[];
+  }
+
+  export interface LibraryRoute {
+    id?: number;
+    content_profile: string;
+    target_path?: null | string;
+    server_id: number;
+    server_name?: string;
+    library_id?: null | string;
+    enabled: boolean;
+    note?: string;
+  }
+}
+
+/** 获取启用的媒体服务器实例 */
+export async function getLibraryServersApi() {
+  return requestClient.post<MediaApi.MediaServerOption[]>(
+    '/media/library/servers',
+    {},
+  );
+}
+
+/** 获取指定实例的媒体库列表 */
+export async function getMediaLibrariesApi(serverId?: number) {
+  return requestClient.post<Record<string, any>[]>('/media/library/libraries', {
+    server_id: serverId,
+  });
+}
+
+/** 同步指定实例的媒体库 */
+export async function syncMediaLibrariesApi(params: {
+  server_id: number;
+  librarys: string[];
+}) {
+  return requestClient.post('/media/sync/start', params);
+}
+
+/** 通知指定实例扫描媒体库 */
+export async function refreshMediaLibraryApi(serverId: number) {
+  return requestClient.post('/media/library/refresh', {
+    server_id: serverId,
+  });
+}
+
+/** 获取内容画像媒体库路由 */
+export async function getLibraryRoutesApi() {
+  return requestClient.post<MediaApi.LibraryRoute[]>(
+    '/media/library/routes',
+    {},
+  );
+}
+
+/** 保存内容画像媒体库路由 */
+export async function saveLibraryRouteApi(data: MediaApi.LibraryRoute) {
+  const updating = Boolean(data.id);
+  return requestClient.post<MediaApi.LibraryRoute>(
+    updating ? '/media/library/routes/update' : '/media/library/routes/save',
+    data,
+  );
+}
+
+/** 删除内容画像媒体库路由 */
+export async function deleteLibraryRouteApi(id: number) {
+  return requestClient.post('/media/library/routes/delete', { id });
 }
 
 /** 搜索媒体 */
@@ -53,6 +148,26 @@ export async function searchMediaApi(params: MediaApi.SearchParams) {
   );
 }
 
+/** 按内容画像搜索元数据（插件 provider） */
+export async function searchMetadataApi(params: {
+  content_profile: string;
+  limit?: number;
+  provider?: string;
+  query: string;
+}) {
+  return requestClient.post<Record<string, any>[]>(
+    '/media/metadata/search',
+    params,
+  );
+}
+
+/** 获取可搜索的元数据来源（动态） */
+export async function getMetadataProvidersApi() {
+  return requestClient.get<Record<string, any>[]>(
+    '/media/providers?include_health=false',
+  );
+}
+
 /** 获取媒体详情 */
 export async function getMediaDetailApi(tmdbid: number | string, type: string) {
   return requestClient.post<MediaApi.MediaDetail>('/media/detail', {
@@ -61,11 +176,27 @@ export async function getMediaDetailApi(tmdbid: number | string, type: string) {
   });
 }
 
+export async function getMediaDetailByRefApi(
+  provider: string,
+  externalId: string,
+  mediaType?: string,
+  contentProfile?: string,
+  contentId?: string,
+) {
+  return requestClient.post<Record<string, any>>('/media/detail_by_ref', {
+    provider,
+    external_id: externalId,
+    media_type: mediaType,
+    content_profile: contentProfile || undefined,
+    content_id: contentId || undefined,
+  });
+}
+
 /** 获取媒体库首页数据（libraries/resumes/latests/stats） */
-export async function getLibraryHomeApi() {
-  return requestClient.post<Record<string, any>>(
+export async function getLibraryHomeApi(serverId?: number) {
+  return requestClient.post<MediaApi.LibraryHome>(
     '/media/library/home',
-    {},
+    { server_id: serverId },
     { timeout: 120_000 },
   );
 }
@@ -683,4 +814,83 @@ export async function previewNameFormatApi(data: {
     segments: Record<string, string>;
     validate: NameFormatValidateResult;
   }>('/media/name_format/preview', data);
+}
+
+export namespace DiscoveryApi {
+  export interface Feed {
+    key: string;
+    title: string;
+    kind: string;
+    icon?: string;
+    facets: string[];
+    page_size: number;
+  }
+
+  export interface Source {
+    provider: string;
+    name: string;
+    visibility: 'private' | 'public';
+    feeds: Feed[];
+  }
+
+  export interface ItemRef {
+    provider: string;
+    external_id: string;
+    media_type?: string;
+    scope?: string;
+  }
+
+  export interface Item {
+    provider: string;
+    ref: ItemRef;
+    content_profile: string;
+    title: string;
+    original_title?: string;
+    year?: string;
+    poster?: string;
+    backdrop?: string;
+    rating: Record<string, number>;
+    tags: string[];
+    anchor_ref?: ItemRef;
+    actions: string[];
+    extra?: Record<string, any>;
+  }
+
+  export interface Page {
+    items: Item[];
+    page: number;
+    has_more: boolean;
+    facets?: Record<string, Array<{ label?: string; value: string }>>;
+    error?: null | string;
+    retryable?: boolean;
+  }
+}
+
+/** 获取探索页来源与 feed */
+export async function getDiscoveryProvidersApi() {
+  return requestClient.get<DiscoveryApi.Source[]>('/media/discovery/providers');
+}
+
+/** 获取探索 feed 内容 */
+export async function getDiscoveryItemsApi(params: {
+  provider: string;
+  feed: string;
+  page?: number;
+  filters?: Record<string, any>;
+}) {
+  return requestClient.post<DiscoveryApi.Page>('/media/discovery/items', {
+    page: 1,
+    filters: {},
+    ...params,
+  });
+}
+
+/** 按 provider ref 获取元数据详情（用于缺失海报兜底） */
+export async function lookupMetadataApi(data: {
+  allow_missing?: boolean;
+  external_id: string;
+  provider: string;
+  scope?: string;
+}) {
+  return requestClient.get<any>('/media/lookup', { params: data });
 }

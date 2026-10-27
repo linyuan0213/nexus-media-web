@@ -24,6 +24,19 @@ export namespace SubscriptionApi {
     image?: string;
     year?: string;
     tmdbid?: string;
+    identity_id?: string;
+    anchor_provider?: string;
+    anchor_external_id?: string;
+    provider?: string;
+    metadata_ref?: string;
+    mediaid?: string;
+    keyword?: string;
+    overview?: string;
+    poster?: string;
+    content_profile?: string;
+    metadata_policy?: string;
+    naming_profile?: string;
+    source_label?: string;
     state?: string;
     season?: string;
     total?: number;
@@ -78,6 +91,11 @@ export async function downloadSubscriptionCalendarIcsApi() {
   );
 }
 
+/** 获取订阅日历事件（含非 TMDB 来源分集播出日期） */
+export async function getSubscriptionCalendarEventsApi() {
+  return requestClient.post<any[]>('/subscription/calendar/ical', {});
+}
+
 /** 获取订阅日历 Webcal URL */
 export async function getSubscriptionCalendarWebcalUrlApi() {
   return requestClient.get<{ data: { token: string } }>(
@@ -85,19 +103,42 @@ export async function getSubscriptionCalendarWebcalUrlApi() {
   );
 }
 
-/** 获取电影订阅（superadmin 可传 userId 过滤指定用户） */
-export async function getMovieSubscriptionApi(userId?: number) {
+/** 获取订阅总数（全部内容画像） */
+export async function getSubscriptionCountApi() {
+  return requestClient.post<{
+    movie: number;
+    new_today: number;
+    profiles?: Record<string, number>;
+    total: number;
+    tv: number;
+  }>('/subscription/count', {});
+}
+
+/** 获取电影订阅（superadmin 可传 userId；可按内容画像过滤） */
+export async function getMovieSubscriptionApi(
+  userId?: number,
+  contentProfile?: string,
+) {
   return requestClient.post<SubscriptionApi.Subscription[]>(
     '/subscription/movie/list',
-    userId ? { user_id: userId } : {},
+    {
+      ...(userId ? { user_id: userId } : {}),
+      ...(contentProfile ? { content_profile: contentProfile } : {}),
+    },
   );
 }
 
-/** 获取剧集订阅（superadmin 可传 userId 过滤指定用户） */
-export async function getTvSubscriptionApi(userId?: number) {
+/** 获取剧集订阅（superadmin 可传 userId；可按内容画像过滤） */
+export async function getTvSubscriptionApi(
+  userId?: number,
+  contentProfile?: string,
+) {
   return requestClient.post<SubscriptionApi.Subscription[]>(
     '/subscription/tv/list',
-    userId ? { user_id: userId } : {},
+    {
+      ...(userId ? { user_id: userId } : {}),
+      ...(contentProfile ? { content_profile: contentProfile } : {}),
+    },
   );
 }
 
@@ -120,17 +161,25 @@ export async function deleteSubscriptionApi(id: number) {
 }
 
 /** 获取默认订阅设置 */
-export async function getDefaultSubscriptionSettingApi(mtype: string) {
-  return requestClient.post('/subscription/default_setting', { mtype });
+export async function getDefaultSubscriptionSettingApi(
+  mtype: string,
+  contentProfile?: string,
+) {
+  return requestClient.post('/subscription/default_setting', {
+    mtype,
+    ...(contentProfile ? { content_profile: contentProfile } : {}),
+  });
 }
 
 /** 保存默认订阅设置 */
 export async function saveDefaultSubscriptionSettingApi(
   mtype: string,
   data: Record<string, any>,
+  contentProfile?: string,
 ) {
   return requestClient.post('/subscription/default_setting/save', {
     mtype,
+    ...(contentProfile ? { content_profile: contentProfile } : {}),
     ...data,
   });
 }
@@ -139,10 +188,12 @@ export async function saveDefaultSubscriptionSettingApi(
 export async function refreshSubscriptionApi(
   mtype: string,
   rssid?: number | string,
+  contentProfile?: string,
 ) {
   return requestClient.post('/subscription/refresh', {
     type: mtype,
     rssid: toRssId(rssid),
+    ...(contentProfile ? { content_profile: contentProfile } : {}),
   });
 }
 
@@ -150,18 +201,23 @@ export async function refreshSubscriptionApi(
 export async function getSubscriptionDetailApi(
   rssid: number | string,
   rsstype: string,
+  contentProfile?: string,
 ) {
   return requestClient.post('/subscription/detail', {
     rssid: toRssId(rssid),
     rsstype,
+    ...(contentProfile ? { content_profile: contentProfile } : {}),
   });
 }
 
 /** 获取订阅历史 */
-export async function getSubscriptionHistoryApi(type?: 'movie' | 'tv') {
+export async function getSubscriptionHistoryApi(
+  type?: 'movie' | 'tv',
+  contentProfile?: string,
+) {
   return requestClient.post<SubscriptionApi.SubscriptionHistory[]>(
     '/subscription/history',
-    { type },
+    { type, content_profile: contentProfile },
   );
 }
 
@@ -169,22 +225,17 @@ export async function getSubscriptionHistoryApi(type?: 'movie' | 'tv') {
 export async function redoSubscriptionHistoryApi(
   rssid: number | string,
   type: 'movie' | 'tv',
+  contentProfile?: string,
 ) {
   return requestClient.post('/subscription/history/redo', {
     rssid: toRssId(rssid),
     type,
+    ...(contentProfile ? { content_profile: contentProfile } : {}),
   });
 }
 
 /** 添加订阅（从发现页触发） */
-export async function addSubscriptionMediaApi(data: {
-  mediaid?: string;
-  name: string;
-  page?: string;
-  season?: string;
-  type: string;
-  year?: string;
-}) {
+export async function addSubscriptionMediaApi(data: Record<string, any>) {
   return requestClient.post('/subscription/add', data);
 }
 
@@ -209,6 +260,7 @@ export async function removeSubscriptionApi(data: {
   tmdbid?: number | string;
   type: string;
   year?: string;
+  content_profile?: string;
 }) {
   return requestClient.post('/subscription/remove', {
     ...data,
@@ -268,4 +320,79 @@ export async function getTvSubscriptionItemsApi() {
   return requestClient.post<
     Array<{ id: string; name?: string; rssid: string; season?: string }>
   >('/subscription/tv/items');
+}
+
+export interface CustomRssSource {
+  id: number;
+  ref: string;
+  name: string;
+  url: string;
+  domain: string;
+  enabled: boolean;
+  proxy: boolean;
+  cookie?: null | string;
+  headers?: null | string;
+  last_fetch_at?: null | string;
+  last_success_at?: null | string;
+  last_error?: null | string;
+  item_count: number;
+  health: 'disabled' | 'error' | 'ok';
+  created_at?: null | string;
+  updated_at?: null | string;
+}
+
+export interface CustomRssSourcePayload {
+  id?: number;
+  name?: string;
+  url?: string;
+  enabled?: boolean;
+  proxy?: boolean;
+  cookie?: string;
+  headers?: string;
+}
+
+export interface CustomRssFeedItem {
+  title: string;
+  enclosure: string;
+  link: string;
+  size: number;
+  description: string;
+  pubdate: number | string;
+  category: string;
+  guid: string;
+}
+
+export interface CustomRssTestResult {
+  feed_type: string;
+  item_count: number;
+  download_count: number;
+  missing_download_count: number;
+  elapsed_ms: number;
+  items: CustomRssFeedItem[];
+}
+
+export async function getCustomRssSourcesApi() {
+  return requestClient.get<CustomRssSource[]>('/site/rss-sources');
+}
+
+export async function createCustomRssSourceApi(data: CustomRssSourcePayload) {
+  return requestClient.post<CustomRssSource>('/site/rss-sources', data);
+}
+
+export async function updateCustomRssSourceApi(
+  id: number,
+  data: CustomRssSourcePayload,
+) {
+  return requestClient.put<CustomRssSource>(`/site/rss-sources/${id}`, data);
+}
+
+export async function deleteCustomRssSourceApi(id: number) {
+  return requestClient.delete<boolean>(`/site/rss-sources/${id}`);
+}
+
+export async function testCustomRssSourceApi(data: CustomRssSourcePayload) {
+  return requestClient.post<CustomRssTestResult>(
+    '/site/rss-sources/test',
+    data,
+  );
 }

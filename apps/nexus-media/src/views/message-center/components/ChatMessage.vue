@@ -6,11 +6,12 @@ import { computed, ref, watch } from 'vue';
 import { IconifyIcon } from '@vben/icons';
 
 import MarkdownIt from 'markdown-it';
-import { NModal, NSpin, useMessage } from 'naive-ui';
+import { NButton, NModal, NSpin, NTooltip, useMessage } from 'naive-ui';
 
 import { readAgentDoc } from '#/api/modules/agent';
 
 const props = defineProps<{
+  attachments?: AgentApi.ChatAttachment[];
   content: string;
   image?: string;
   items?: AgentApi.ListItem[];
@@ -20,10 +21,28 @@ const props = defineProps<{
   time?: string;
   toolEvents?: AgentApi.ChatEvent[];
   url?: string;
+  usage?: number;
 }>();
 
+const emit = defineEmits<{ retry: [] }>();
+
+function formatUsage(tokens?: number) {
+  if (!tokens) return '';
+  return tokens >= 1000
+    ? `${(tokens / 1000).toFixed(1)}k tokens`
+    : `${tokens} tokens`;
+}
 const message = useMessage();
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true });
+
+async function copyContent() {
+  try {
+    await navigator.clipboard.writeText(props.content);
+    message.success('已复制回答');
+  } catch {
+    message.error('复制失败');
+  }
+}
 
 // 表格外层套横向滚动容器：移动端宽表格不撑破气泡/视口
 md.renderer.rules.table_open = () => '<div class="agent-md-table-wrap"><table>';
@@ -39,6 +58,12 @@ const isSystem = computed(() => props.role === 'system');
 
 // 思考过程：可折叠面板，把 tool_call/tool_result 配成步骤列表
 const thinkingOpen = ref(false);
+const thinkingPinned = ref(false);
+
+function toggleThinking() {
+  thinkingOpen.value = !thinkingOpen.value;
+  thinkingPinned.value = true;
+}
 
 interface ToolStep {
   call: AgentApi.ChatEvent;
@@ -76,38 +101,94 @@ function stepStatus(s: ToolStep): 'confirm' | 'error' | 'pending' | 'success' {
   return 'pending';
 }
 
-function stepIcon(s: ToolStep): string {
-  switch (stepStatus(s)) {
-    case 'confirm': {
-      return 'lucide:shield-alert';
-    }
-    case 'error': {
-      return 'lucide:x';
-    }
-    case 'success': {
-      return 'lucide:check';
-    }
-    default: {
-      return 'lucide:loader-2';
-    }
-  }
+const expandedTools = ref<number[]>([]);
+
+function hasToolDetail(step: ToolStep) {
+  return Boolean(
+    step.call.parameters && Object.keys(step.call.parameters).length > 0,
+  );
 }
 
-function stepColor(s: ToolStep): string {
-  switch (stepStatus(s)) {
-    case 'confirm': {
-      return 'hsl(var(--warning))';
-    }
-    case 'error': {
-      return 'hsl(var(--destructive))';
-    }
-    case 'success': {
-      return 'hsl(var(--success))';
-    }
-    default: {
-      return 'hsl(var(--primary))';
-    }
-  }
+function toggleToolDetail(index: number) {
+  expandedTools.value = expandedTools.value.includes(index)
+    ? expandedTools.value.filter((item) => item !== index)
+    : [...expandedTools.value, index];
+}
+
+const _TOOL_META: Record<string, { icon: string; label: string }> = {
+  browser_fetch: { icon: 'lucide:globe', label: '获取网页' },
+  web_fetch: { icon: 'lucide:globe', label: '获取网页' },
+  web_search: { icon: 'lucide:search', label: '搜索网页' },
+  media_search: { icon: 'lucide:search', label: '搜索影视资源' },
+  media_detail: { icon: 'lucide:film', label: '查询影视详情' },
+  knowledge_search: { icon: 'lucide:book-open', label: '检索知识库' },
+  kb_search: { icon: 'lucide:book-open', label: '检索知识库' },
+  python_exec: { icon: 'lucide:terminal', label: '运行 Python 代码' },
+  run_python: { icon: 'lucide:terminal', label: '运行 Python 代码' },
+  download_add: { icon: 'lucide:download', label: '添加下载' },
+  download_list: { icon: 'lucide:list', label: '查看下载任务' },
+  download_action: { icon: 'lucide:download', label: '操作下载任务' },
+  subscribe_create: { icon: 'lucide:heart', label: '创建订阅' },
+  subscribe_list: { icon: 'lucide:list', label: '查看订阅' },
+  site_status: { icon: 'lucide:server', label: '查询站点状态' },
+  system_status: { icon: 'lucide:activity', label: '检查系统状态' },
+  stats_summary: { icon: 'lucide:chart-column', label: '汇总运行统计' },
+  logs_query: { icon: 'lucide:scroll-text', label: '查询系统日志' },
+  config_get: { icon: 'lucide:settings-2', label: '读取系统配置' },
+  config_set: { icon: 'lucide:settings-2', label: '修改系统配置' },
+  config_apply_manifest: { icon: 'lucide:file-cog', label: '应用配置清单' },
+  plugin_list: { icon: 'lucide:puzzle', label: '查看插件列表' },
+  plugin_run: { icon: 'lucide:play', label: '运行插件任务' },
+  brush_status: { icon: 'lucide:refresh-cw', label: '查询刷流任务' },
+  scheduler_list: { icon: 'lucide:calendar-clock', label: '查看计划任务' },
+  scheduler_run: { icon: 'lucide:play', label: '运行计划任务' },
+};
+
+function toolTitle(step: ToolStep) {
+  const tool = step.call.tool || '';
+  return _TOOL_META[tool]?.label || tool.replaceAll('_', ' ');
+}
+
+function toolIcon(step: ToolStep) {
+  const tool = step.call.tool || '';
+  return (
+    _TOOL_META[tool]?.icon ||
+    (stepStatus(step) === 'pending' ? 'lucide:loader-2' : 'lucide:wrench')
+  );
+}
+
+function toolSubtitle(step: ToolStep) {
+  const status = stepStatus(step);
+  if (status === 'pending') return '执行中…';
+  if (status === 'confirm') return '等待确认';
+  if (status === 'error') return step.result?.result_summary || '执行失败';
+  return step.result?.result_summary || '已完成';
+}
+
+const toolSummary = computed(() => {
+  const labels = [...new Set(toolSteps.value.map(toolTitle))];
+  return labels.slice(0, 2).join('、') + (labels.length > 2 ? ' 等' : '');
+});
+
+function stepDuration(step: ToolStep) {
+  if (!step.call.ts || !step.result?.ts) return '';
+  const duration = Math.max(0, (step.result.ts - step.call.ts) * 1000);
+  return duration >= 1000
+    ? `${(duration / 1000).toFixed(1)}s`
+    : `${Math.round(duration)}ms`;
+}
+
+function toolDetail(step: ToolStep) {
+  return JSON.stringify(
+    {
+      arguments: step.call.parameters || {},
+      success: step.result?.success,
+      duration: stepDuration(step) || undefined,
+      result: step.result?.result_summary || undefined,
+    },
+    null,
+    2,
+  );
 }
 
 // 工具步骤一出现即自动展开，让思考过程立即可见（用户可随时折叠）
@@ -120,6 +201,16 @@ watch(
   () => props.reasoning,
   (r) => {
     if (r) thinkingOpen.value = true;
+  },
+);
+
+// 回答完成后自动收起过程区，让最终回答成为视觉主体；用户手动展开后保持
+watch(
+  () => props.streaming,
+  (streaming, previous) => {
+    if (previous && !streaming && !thinkingPinned.value) {
+      thinkingOpen.value = false;
+    }
   },
 );
 
@@ -293,6 +384,30 @@ function onContentClick(event: MouseEvent) {
         color: 'hsl(var(--primary-foreground))',
       }"
     >
+      <div v-if="attachments?.length" class="user-attachments">
+        <template
+          v-for="(file, index) in attachments"
+          :key="`${file.name}-${index}`"
+        >
+          <img
+            v-if="file.image_data"
+            :src="`data:${file.media_type || 'image/png'};base64,${file.image_data}`"
+            :alt="file.name"
+            class="user-attachment-image"
+          />
+          <div v-else class="user-attachment-file">
+            <IconifyIcon icon="lucide:file-text" class="size-4 shrink-0" />
+            <span class="truncate">{{ file.name }}</span>
+            <span v-if="file.size" class="shrink-0 opacity-70">
+              {{
+                file.size > 1048576
+                  ? `${(file.size / 1048576).toFixed(1)} MB`
+                  : `${Math.ceil(file.size / 1024)} KB`
+              }}
+            </span>
+          </div>
+        </template>
+      </div>
       <div class="whitespace-pre-wrap break-words">{{ content }}</div>
     </div>
 
@@ -312,88 +427,95 @@ function onContentClick(event: MouseEvent) {
       </div>
       <div class="min-w-0 flex-1">
         <!-- 思考过程（可折叠） -->
-        <div v-if="toolSteps.length > 0 || reasoning" class="mb-1.5">
+        <div v-if="toolSteps.length > 0 || reasoning" class="thinking-shell">
           <button
-            class="flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition-opacity hover:opacity-80"
-            :style="{
-              borderColor: 'hsl(var(--border))',
-              color: 'hsl(var(--muted-foreground))',
-              background: 'hsl(var(--muted) / 0.4)',
-            }"
+            class="thinking-trigger"
+            :class="{ 'is-open': thinkingOpen }"
             :aria-expanded="thinkingOpen"
             aria-controls="thinking-panel"
-            @click="thinkingOpen = !thinkingOpen"
+            @click="toggleThinking"
           >
             <IconifyIcon
               :icon="streaming ? 'lucide:loader-2' : 'lucide:brain'"
-              class="size-3.5 shrink-0"
+              class="thinking-trigger-icon"
               :class="{ 'animate-spin': streaming }"
-              :style="{ color: 'hsl(var(--primary))' }"
             />
-            <span class="shrink-0">思考过程</span>
-            <span v-if="toolSteps.length > 0" class="shrink-0"
-              >· {{ toolSteps.length }} 步</span
+            <span>{{
+              toolSteps.length ? `使用 ${toolSteps.length} 个工具` : '思考过程'
+            }}</span>
+            <span v-if="toolSummary" class="thinking-task"
+              >，{{ toolSummary }}</span
             >
-            <span
-              v-else-if="streaming"
-              class="flex shrink-0 items-center gap-1"
-            >
-              <span
-                class="inline-block size-1.5 animate-pulse rounded-full"
-                :style="{ background: 'hsl(var(--primary))' }"
-              ></span>
-            </span>
+            <span v-else-if="streaming" class="thinking-live-dot"></span>
             <IconifyIcon
               icon="lucide:chevron-down"
-              class="ml-0.5 size-3 shrink-0 transition-transform"
+              class="thinking-chevron"
               :class="{ 'rotate-180': thinkingOpen }"
             />
           </button>
-          <div
-            v-if="thinkingOpen"
-            id="thinking-panel"
-            class="mt-1.5 space-y-1 rounded-md border px-2 py-1.5"
-            :style="{
-              borderColor: 'hsl(var(--border))',
-              background: 'hsl(var(--muted) / 0.25)',
-            }"
-          >
-            <div
-              v-if="reasoning"
-              class="whitespace-pre-wrap break-words text-xs leading-relaxed"
-              :style="{ color: 'hsl(var(--muted-foreground))' }"
-            >
-              {{ reasoning }}
+
+          <div v-if="thinkingOpen" id="thinking-panel" class="thinking-panel">
+            <div v-if="reasoning" class="thinking-reasoning">
+              <div class="thinking-caption">
+                <IconifyIcon icon="lucide:sparkles" class="size-3" />
+                分析
+              </div>
+              <div class="thinking-reasoning-copy">{{ reasoning }}</div>
             </div>
-            <div
-              v-for="(s, i) in toolSteps"
-              :key="i"
-              class="flex min-w-0 items-center gap-1.5 text-xs"
-              :style="{ color: 'hsl(var(--muted-foreground))' }"
-            >
-              <IconifyIcon
-                :icon="stepIcon(s)"
-                class="size-3.5 shrink-0"
-                :class="{ 'animate-spin': stepStatus(s) === 'pending' }"
-                :style="{ color: stepColor(s) }"
-              />
-              <span class="truncate">{{ s.call.tool }}</span>
-              <span
-                v-if="s.result?.need_confirm"
-                class="ml-auto shrink-0"
-                :style="{ color: 'hsl(var(--warning))' }"
-              >
-                待确认
-              </span>
-              <span
-                v-else-if="s.result && !s.result.success"
-                class="ml-auto shrink-0"
-                :style="{ color: 'hsl(var(--destructive))' }"
-              >
-                失败
-              </span>
+
+            <div v-if="toolSteps.length > 0" class="thinking-tool-section">
+              <div class="thinking-tool-list">
+                <div
+                  v-for="(s, i) in toolSteps"
+                  :key="i"
+                  class="thinking-tool-item"
+                >
+                  <button
+                    class="thinking-tool-step"
+                    :class="`is-${stepStatus(s)}`"
+                    type="button"
+                    @click="toggleToolDetail(i)"
+                  >
+                    <span class="thinking-tool-status">
+                      <IconifyIcon
+                        :icon="toolIcon(s)"
+                        class="size-3.5"
+                        :class="{ 'animate-spin': stepStatus(s) === 'pending' }"
+                      />
+                    </span>
+                    <span class="thinking-tool-main">
+                      <span class="thinking-tool-title">{{
+                        toolTitle(s)
+                      }}</span>
+                      <span class="thinking-tool-subtitle">{{
+                        toolSubtitle(s)
+                      }}</span>
+                    </span>
+                    <span v-if="stepDuration(s)" class="thinking-tool-duration">
+                      {{ stepDuration(s) }}
+                    </span>
+                    <IconifyIcon
+                      v-if="hasToolDetail(s)"
+                      icon="lucide:chevron-down"
+                      class="thinking-tool-chevron"
+                      :class="{ 'rotate-180': expandedTools.includes(i) }"
+                    />
+                  </button>
+                  <pre
+                    v-if="expandedTools.includes(i)"
+                    class="thinking-tool-detail"
+                    >{{ toolDetail(s) }}</pre>
+                </div>
+              </div>
             </div>
           </div>
+        </div>
+        <div
+          v-if="rendered && (reasoning || toolSteps.length > 0)"
+          class="answer-caption"
+        >
+          <IconifyIcon icon="lucide:message-circle" class="size-3" />
+          回答
         </div>
         <div
           v-if="rendered || (streaming && toolSteps.length === 0)"
@@ -429,6 +551,50 @@ function onContentClick(event: MouseEvent) {
             class="ml-1 inline-block size-2 animate-pulse rounded-full"
             :style="{ background: 'hsl(var(--primary))' }"
           ></span>
+        </div>
+        <div v-if="!streaming && rendered && !isUser" class="message-actions">
+          <NTooltip v-if="usage" placement="top">
+            <template #trigger>
+              <span class="message-usage">
+                <IconifyIcon icon="lucide:activity" class="size-3" />
+                {{ formatUsage(usage) }} tokens
+              </span>
+            </template>
+            本轮 Token 用量
+          </NTooltip>
+          <span v-if="usage" class="action-divider"></span>
+          <NTooltip placement="top">
+            <template #trigger>
+              <NButton
+                size="tiny"
+                quaternary
+                circle
+                aria-label="复制回答"
+                @click="copyContent"
+              >
+                <template #icon>
+                  <IconifyIcon icon="lucide:copy" class="size-3.5" />
+                </template>
+              </NButton>
+            </template>
+            复制回答
+          </NTooltip>
+          <NTooltip placement="top">
+            <template #trigger>
+              <NButton
+                size="tiny"
+                quaternary
+                circle
+                aria-label="重新发送"
+                @click="emit('retry')"
+              >
+                <template #icon>
+                  <IconifyIcon icon="lucide:rotate-cw" class="size-3.5" />
+                </template>
+              </NButton>
+            </template>
+            重新发送
+          </NTooltip>
         </div>
       </div>
     </div>
@@ -517,5 +683,346 @@ function onContentClick(event: MouseEvent) {
 .agent-md ol {
   padding-left: 18px;
   margin: 4px 0;
+}
+
+/* 思考与工具调用：低对比度摘要 + 主题色状态 */
+.thinking-shell {
+  max-width: 780px;
+  margin-bottom: 8px;
+}
+
+.thinking-trigger {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tblr-primary);
+  cursor: pointer;
+  background: var(--tblr-primary-light);
+  border: 1px solid hsl(var(--primary) / 18%);
+  border-radius: 999px;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.thinking-trigger:hover,
+.thinking-trigger.is-open {
+  background: hsl(var(--primary) / 13%);
+  border-color: hsl(var(--primary) / 28%);
+}
+
+.thinking-trigger-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.thinking-task {
+  max-width: 380px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 400;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+}
+
+.thinking-live-dot {
+  width: 5px;
+  height: 5px;
+  background: var(--tblr-primary);
+  border-radius: 50%;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.thinking-chevron {
+  width: 13px;
+  height: 13px;
+  margin-left: 1px;
+  transition: transform 0.18s ease;
+}
+
+.thinking-panel {
+  padding: 9px 11px;
+  margin-top: 5px;
+  background: hsl(var(--muted) / 45%);
+  border: 1px solid hsl(var(--border) / 80%);
+  border-left: 2px solid hsl(var(--primary) / 38%);
+  border-radius: 8px;
+}
+
+.thinking-reasoning {
+  padding-bottom: 9px;
+}
+
+.thinking-reasoning + .thinking-tool-section {
+  padding-top: 9px;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.thinking-caption {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  margin-bottom: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  letter-spacing: 0.04em;
+}
+
+.thinking-count-badge {
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted) / 60%);
+  border-radius: 999px;
+}
+
+.thinking-reasoning-copy {
+  font-size: 12px;
+  line-height: 1.65;
+  color: hsl(var(--foreground) / 72%);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.thinking-tool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.thinking-tool-item {
+  position: relative;
+  min-width: 0;
+}
+
+.thinking-tool-item:not(:last-child)::before {
+  position: absolute;
+  top: 28px;
+  bottom: -4px;
+  left: 16px;
+  content: '';
+  border-left: 1px dashed hsl(var(--border));
+}
+
+.thinking-tool-step {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 5px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+}
+
+.thinking-tool-step:hover {
+  background: hsl(var(--muted) / 35%);
+}
+
+.thinking-tool-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.thinking-tool-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  font-weight: 500;
+  color: hsl(var(--card-foreground));
+  white-space: nowrap;
+}
+
+.thinking-tool-subtitle {
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 10px;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+}
+
+.thinking-tool-chevron {
+  flex-shrink: 0;
+  width: 11px;
+  height: 11px;
+  color: hsl(var(--muted-foreground));
+  transition: transform 0.16s ease;
+}
+
+.thinking-tool-detail {
+  padding: 6px 8px;
+  margin: 2px 4px 5px 38px;
+  overflow-x: auto;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+  white-space: pre-wrap;
+  background: hsl(var(--card) / 70%);
+  border-radius: 5px;
+}
+
+.thinking-tool-status {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--tblr-primary);
+  background: var(--tblr-primary-light);
+  border: 1px solid hsl(var(--border));
+  border-radius: 50%;
+}
+
+.thinking-tool-step.is-error .thinking-tool-status {
+  color: hsl(var(--destructive));
+  background: hsl(var(--destructive) / 10%);
+}
+
+.thinking-tool-step.is-confirm .thinking-tool-status {
+  color: hsl(var(--warning));
+  background: hsl(var(--warning) / 10%);
+}
+
+.thinking-tool-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  color: hsl(var(--card-foreground));
+  white-space: nowrap;
+  background: transparent;
+}
+
+.thinking-tool-duration {
+  flex-shrink: 0;
+  font-size: 9px;
+  color: hsl(var(--muted-foreground));
+}
+
+.thinking-tool-note {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: 10px;
+}
+
+.thinking-tool-note.is-warning {
+  color: hsl(var(--warning));
+}
+
+.thinking-tool-note.is-error {
+  color: hsl(var(--destructive));
+}
+
+.user-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.user-attachment-image {
+  width: 180px;
+  max-width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.user-attachment-file {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  max-width: 260px;
+  padding: 5px 8px;
+  font-size: 11px;
+  background: hsl(var(--primary-foreground) / 14%);
+  border-radius: 6px;
+}
+
+.answer-caption {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  margin: 2px 0 5px 2px;
+  font-size: 10px;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  letter-spacing: 0.04em;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+.message-actions {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+  margin-top: 7px;
+  opacity: 0.58;
+  transition: opacity 0.16s ease;
+}
+
+.message-actions:hover {
+  opacity: 1;
+}
+
+.message-usage {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 2px 7px;
+  font-size: 10px;
+  color: hsl(var(--muted-foreground));
+  cursor: default;
+  background: hsl(var(--muted) / 38%);
+  border-radius: 999px;
+}
+
+.action-divider {
+  width: 1px;
+  height: 12px;
+  margin: 0 3px;
+  background: hsl(var(--border));
+}
+
+.message-actions :deep(.n-button) {
+  color: hsl(var(--muted-foreground));
+}
+
+.message-actions :deep(.n-button:hover) {
+  color: var(--tblr-primary);
+  background: var(--tblr-primary-light);
+}
+
+@media (max-width: 640px) {
+  .message-actions {
+    opacity: 1;
+  }
 }
 </style>

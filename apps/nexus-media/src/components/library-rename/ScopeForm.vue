@@ -23,7 +23,7 @@ import {
   NTag,
 } from 'naive-ui';
 
-import { getLibraryPathsApi } from '#/api/modules/media';
+import { getLibraryPathsApi, getLibraryServersApi } from '#/api/modules/media';
 import PathPickerModal from '#/components/media/PathPickerModal.vue';
 
 const props = defineProps<{
@@ -66,6 +66,7 @@ const categoryModeOptions = [
 ];
 
 const libraryOptions = ref<{ label: string; value: string }[]>([]);
+const serverOptions = ref([{ label: '默认实例', value: '' }]);
 const librariesLoading = ref(false);
 const pathPickerShow = ref(false);
 
@@ -85,7 +86,25 @@ async function loadLibraries() {
   }
 }
 
-onMounted(loadLibraries);
+onMounted(() => {
+  void loadLibraries();
+  void loadServers();
+});
+
+async function loadServers() {
+  try {
+    const servers = await getLibraryServersApi();
+    serverOptions.value = [
+      { label: '默认实例', value: '' },
+      ...servers.map((server) => ({
+        label: `${server.name}（${server.type}）`,
+        value: String(server.id),
+      })),
+    ];
+  } catch {
+    serverOptions.value = [{ label: '默认实例', value: '' }];
+  }
+}
 
 function addRoot() {
   pathPickerShow.value = true;
@@ -149,6 +168,17 @@ function removeRoot(path: string) {
               {{ option.label }}
             </NCheckbox>
           </NCheckboxGroup>
+        </NFormItem>
+
+        <NFormItem v-if="scope.use_mediaserver_metadata" label="媒体服务器">
+          <NSelect
+            :value="scope.server_id ? String(scope.server_id) : ''"
+            :options="serverOptions"
+            @update:value="scope.server_id = $event ? Number($event) : null"
+          />
+          <div class="form-hint">
+            选择用于读取元数据的实例，重命名后的刷新也使用该实例。
+          </div>
         </NFormItem>
 
         <NCollapse class="rename-advanced">

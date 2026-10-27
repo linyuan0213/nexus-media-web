@@ -17,6 +17,7 @@ import {
 } from 'naive-ui';
 
 import { getDownloadersSimpleApi } from '#/api/modules/download';
+import { getLibraryServersApi } from '#/api/modules/media';
 import {
   getPluginConfigApi,
   savePluginConfigApi,
@@ -38,6 +39,7 @@ const config = ref<Record<string, any>>({});
 const fields = ref<any[]>([]);
 const siteOptions = ref<{ label: string; value: string }[]>([]);
 const downloaderOptions = ref<{ label: string; value: string }[]>([]);
+const mediaServerOptions = ref<{ label: string; value: string }[]>([]);
 
 const visible = computed({
   get: () => props.show,
@@ -48,10 +50,11 @@ async function loadConfig() {
   if (!props.plugin?.id) return;
   loading.value = true;
   try {
-    const [res, sitesRes, dlRes] = await Promise.all([
+    const [res, sitesRes, dlRes, mediaServersRes] = await Promise.all([
       getPluginConfigApi(props.plugin.id),
       getSitesApi({ basic: true, source: 'builtin' }),
       getDownloadersSimpleApi().catch(() => []),
+      getLibraryServersApi().catch(() => []),
     ]);
     config.value = res?.config || {};
     fields.value = res?.fields || [];
@@ -66,6 +69,12 @@ async function loadConfig() {
       label: d.name,
       value: String(d.id),
     }));
+    mediaServerOptions.value = ((mediaServersRes as any) || []).map(
+      (server: any) => ({
+        label: `${server.name}（${server.type}）`,
+        value: String(server.id),
+      }),
+    );
     // multi_select 字段兼容旧数据（逗号分隔的字符串转数组）
     for (const field of fields.value) {
       if (field.type === 'multi_select') {
@@ -109,6 +118,13 @@ function resolveOptions(field: any) {
   }
   if (field.source === 'downloaders') {
     return downloaderOptions.value;
+  }
+  if (field.source === 'media_servers') {
+    if (field.type === 'multi_select') return mediaServerOptions.value;
+    return [
+      { label: '默认实例 / 按目录或画像路由', value: '' },
+      ...mediaServerOptions.value,
+    ];
   }
   return field.options || [];
 }

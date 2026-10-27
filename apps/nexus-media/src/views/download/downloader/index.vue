@@ -32,6 +32,7 @@ import {
 import DownloaderPathPickerModal from '#/components/media/DownloaderPathPickerModal.vue';
 import PathPickerModal from '#/components/media/PathPickerModal.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
+import { getContentProfileOptions } from '#/plugin-framework';
 
 interface DownloaderItem {
   id: string;
@@ -77,6 +78,14 @@ const editDrawerShow = ref(false);
 const editingDownloader = ref<Partial<DownloaderItem>>({});
 const editingType = ref('qbittorrent');
 const editingConfig = ref<Record<string, any>>({});
+const dirTypeOptions = computed(() => [
+  { label: '全部', value: '' },
+  { label: '电影', value: '电影' },
+  { label: '电视剧', value: '电视剧' },
+  { label: '动漫', value: '动漫' },
+  ...getContentProfileOptions(),
+]);
+
 const editingDirs = ref<any[]>([
   { type: '', category: '', save_path: '', container_path: '', label: '' },
 ]);
@@ -838,14 +847,10 @@ onMounted(fetchData);
               <div class="mb-2 flex flex-wrap items-center gap-2">
                 <NSelect
                   v-model:value="dir.type"
-                  style="width: 80px; min-width: 80px"
+                  style="width: 100px; min-width: 100px"
                   size="small"
-                  :options="[
-                    { label: '全部', value: '' },
-                    { label: '电影', value: '电影' },
-                    { label: '电视剧', value: '电视剧' },
-                    { label: '动漫', value: '动漫' },
-                  ]"
+                  :consistent-menu-width="false"
+                  :options="dirTypeOptions"
                 />
                 <NInput
                   v-model:value="dir.category"

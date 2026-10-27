@@ -8,6 +8,7 @@ import { useAccessStore, useUserStore } from '@vben/stores';
 import {
   NButton,
   NCard,
+  NCheckbox,
   NEmpty,
   NPopconfirm,
   NSpin,
@@ -25,8 +26,10 @@ import {
 } from '#/api/modules/plugin_framework';
 import PageHeader from '#/components/page/PageHeader.vue';
 import {
+  forcePluginFrontendRefresh,
   loadAllPluginFrontends,
   resetPluginLoadedFlag,
+  unloadPluginFrontend,
 } from '#/plugin-framework/loader';
 import { generateAccess } from '#/router/access';
 import { accessRoutes } from '#/router/routes';
@@ -66,6 +69,7 @@ const activePlugin = ref<any>(null);
 const configShow = ref(false);
 const logShow = ref(false);
 const logPluginId = ref('');
+const purgePluginData = ref(false);
 
 const isRemoteIcon = (icon?: string): boolean =>
   !!icon && (icon.startsWith('http') || icon.startsWith('/'));
@@ -129,6 +133,11 @@ async function handleToggle(plugin: any) {
       await enablePluginApi(plugin.id);
       notification.success(`${plugin.name} 已启用`);
     }
+    if (!plugin.enabled) {
+      forcePluginFrontendRefresh(plugin.id, plugin.version);
+    } else {
+      unloadPluginFrontend(plugin.id);
+    }
     await fetchPlugins();
     await refreshSidebarMenus();
   } catch (error: any) {
@@ -138,8 +147,10 @@ async function handleToggle(plugin: any) {
 
 async function handleUninstall(plugin: any) {
   try {
-    await uninstallPluginApi(plugin.id);
+    await uninstallPluginApi(plugin.id, purgePluginData.value);
+    purgePluginData.value = false;
     notification.success(`${plugin.name} 已卸载`);
+    unloadPluginFrontend(plugin.id);
     await fetchPlugins();
     await refreshSidebarMenus();
   } catch (error: any) {
@@ -159,6 +170,10 @@ async function handleRun(plugin: any) {
 async function handleReload(plugin: any) {
   try {
     await reloadPluginApi(plugin.id);
+    unloadPluginFrontend(plugin.id);
+    forcePluginFrontendRefresh(plugin.id, plugin.version);
+    await fetchPlugins();
+    await refreshSidebarMenus();
     notification.success(`${plugin.name} 已重载`);
   } catch (error: any) {
     notification.error('重载失败', { description: error?.message || '' });
@@ -360,12 +375,23 @@ onMounted(fetchPlugins);
                     <IconifyIcon icon="lucide:trash-2" class="h-3.5 w-3.5" />
                   </NButton>
                 </template>
-                {{
-                  plugin.is_builtin
-                    ? '内置插件卸载后可在插件市场重新安装，确认卸载'
-                    : '确认卸载'
-                }}
-                {{ plugin.name }}？
+                <div class="flex flex-col gap-2">
+                  <span>
+                    {{
+                      plugin.is_builtin
+                        ? '内置插件卸载后可在插件市场重新安装，确认卸载'
+                        : '确认卸载'
+                    }}
+                    {{ plugin.name }}？
+                  </span>
+                  <NCheckbox
+                    v-if="!plugin.is_builtin"
+                    v-model:checked="purgePluginData"
+                    size="small"
+                  >
+                    同时删除插件数据（Cookie/Token/缓存/日志）
+                  </NCheckbox>
+                </div>
               </NPopconfirm>
             </div>
           </div>
@@ -482,12 +508,23 @@ onMounted(fetchPlugins);
                   <IconifyIcon icon="lucide:trash-2" class="h-3.5 w-3.5" />
                 </NButton>
               </template>
-              {{
-                plugin.is_builtin
-                  ? '内置插件卸载后可在插件市场重新安装，确认卸载'
-                  : '确认卸载'
-              }}
-              {{ plugin.name }}？
+              <div class="flex flex-col gap-2">
+                <span>
+                  {{
+                    plugin.is_builtin
+                      ? '内置插件卸载后可在插件市场重新安装，确认卸载'
+                      : '确认卸载'
+                  }}
+                  {{ plugin.name }}？
+                </span>
+                <NCheckbox
+                  v-if="!plugin.is_builtin"
+                  v-model:checked="purgePluginData"
+                  size="small"
+                >
+                  同时删除插件数据（Cookie/Token/缓存/日志）
+                </NCheckbox>
+              </div>
             </NPopconfirm>
           </div>
         </div>
