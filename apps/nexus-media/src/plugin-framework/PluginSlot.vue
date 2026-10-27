@@ -12,6 +12,7 @@ import { NCard, NEmpty } from 'naive-ui';
 import { getSlotComponents } from '#/plugin-framework/loader';
 
 const props = defineProps<{
+  bare?: boolean;
   showEmpty?: boolean;
   target: string;
   title?: string;
@@ -33,33 +34,42 @@ function getIconColor(color?: string) {
 </script>
 
 <template>
-  <div v-if="components.length > 0" class="plugin-slot">
-    <div class="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-      <NCard
+  <template v-if="components.length > 0">
+    <template v-if="bare">
+      <component
+        :is="item.component"
         v-for="item in components"
         :key="item.pluginId"
-        size="small"
-        class="plugin-slot-card"
-      >
-        <template #header>
-          <div class="plugin-slot-header">
-            <div
-              class="plugin-slot-icon"
-              :style="{
-                backgroundColor: getIconBg(item.color),
-                color: getIconColor(item.color),
-              }"
-            >
-              <IconifyIcon :icon="item.icon" class="h-4 w-4" />
+      />
+    </template>
+    <div v-else class="plugin-slot">
+      <div class="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <NCard
+          v-for="item in components"
+          :key="item.pluginId"
+          size="small"
+          class="plugin-slot-card"
+        >
+          <template #header>
+            <div class="plugin-slot-header">
+              <div
+                class="plugin-slot-icon"
+                :style="{
+                  backgroundColor: getIconBg(item.color),
+                  color: getIconColor(item.color),
+                }"
+              >
+                <IconifyIcon :icon="item.icon" class="h-4 w-4" />
+              </div>
+              <span class="plugin-slot-name">{{ item.name }}</span>
+              <span class="plugin-slot-badge">插件</span>
             </div>
-            <span class="plugin-slot-name">{{ item.name }}</span>
-            <span class="plugin-slot-badge">插件</span>
-          </div>
-        </template>
-        <component :is="item.component" />
-      </NCard>
+          </template>
+          <component :is="item.component" />
+        </NCard>
+      </div>
     </div>
-  </div>
+  </template>
   <NEmpty v-else-if="showEmpty" size="small" description="暂无插件内容" />
 </template>
 

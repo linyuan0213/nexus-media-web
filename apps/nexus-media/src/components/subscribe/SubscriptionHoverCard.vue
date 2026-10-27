@@ -25,12 +25,17 @@ import { IconifyIcon } from '@vben/icons';
 
 import { NTag } from 'naive-ui';
 
+import {
+  getContentProfileImageUrl,
+  getContentProfilePosterPosition,
+} from '#/plugin-framework/loader';
 import { getImgUrl } from '#/utils/image';
 import { formatPix, formatRestype } from '#/utils/subscribe';
 
 interface Props {
   item: Record<string, any>;
   type: 'anime' | 'movie' | 'tv';
+  typeLabel?: string;
   filterRuleMap?: Record<string, string>;
   downloadSettingMap?: Record<string, string>;
 }
@@ -38,6 +43,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   filterRuleMap: () => ({}),
   downloadSettingMap: () => ({}),
+  typeLabel: '',
 });
 
 const emit = defineEmits<{
@@ -72,8 +78,18 @@ const stateLabel = computed(
   () => stateLabelMap[props.item.state || ''] || props.item.state || '未知',
 );
 
-const typeLabel = computed(() =>
-  props.type === 'movie' ? '电影' : props.type === 'anime' ? '动漫' : '剧集',
+const typeLabel = computed(() => {
+  if (props.typeLabel) return props.typeLabel;
+  return props.type === 'movie'
+    ? '电影'
+    : props.type === 'anime'
+      ? '动漫'
+      : '剧集';
+});
+
+const posterPosition = computed(
+  () =>
+    getContentProfilePosterPosition(props.item.content_profile) || '50% 50%',
 );
 
 const voteText = computed(() => {
@@ -99,6 +115,35 @@ const ownerInitial = computed(() =>
   ownerName.value ? ownerName.value.slice(0, 1).toUpperCase() : '',
 );
 
+const sourceText = computed(() => {
+  const declared = String(props.item.source_label || '').trim();
+  if (declared) return declared;
+  let provider = String(
+    props.item.provider || props.item.anchor_provider || '',
+  ).trim();
+  const metadataRef = String(
+    props.item.metadata_ref || props.item.mediaid || '',
+  ).trim();
+  if (!provider || provider === 'content_id') {
+    const refProvider = metadataRef.split(':')[0]?.trim();
+    if (refProvider && refProvider !== 'content_id') {
+      provider = refProvider;
+    } else {
+      const profile = String(props.item.content_profile || '').trim();
+      if (profile && profile !== 'default') provider = 'content_id';
+      else if (metadataRef.startsWith('DB:')) provider = 'douban';
+      else if (metadataRef.startsWith('BG:')) provider = 'bangumi';
+      else if (props.item.tmdbid) provider = 'tmdb';
+    }
+  }
+  if (!provider) return '未知';
+  if (provider === 'content_id') return '插件';
+  if (provider === 'tmdb') return 'TMDB';
+  if (provider === 'douban') return '豆瓣';
+  if (provider === 'bangumi') return 'Bangumi';
+  return provider.toUpperCase();
+});
+
 const captionTitle = computed(() => {
   let text = props.item.name || '';
   if (props.type !== 'movie' && seasonLabel.value) {
@@ -114,17 +159,23 @@ const showProgress = computed(
   () => props.type !== 'movie' && props.item.total && props.item.total > 0,
 );
 
+const downloadedCount = computed(() => {
+  const total = Number(props.item.total) || 0;
+  const current = Number(props.item.current_ep) || 0;
+  if (current > 0) return Math.max(0, Math.min(total, current - 1));
+  const lack = Number(props.item.lack) || 0;
+  return Math.max(0, total - lack);
+});
+
 const progressPercent = computed(() => {
   if (!showProgress.value) return 0;
-  const total = props.item.total || 0;
-  const lack = props.item.lack || 0;
-  return Math.round(((total - lack) / total) * 100);
+  const total = Number(props.item.total) || 0;
+  return total > 0 ? Math.round((downloadedCount.value / total) * 100) : 0;
 });
 
 const progressText = computed(() => {
-  const total = props.item.total || 0;
-  const lack = props.item.lack || 0;
-  return `${total - lack} / ${total}`;
+  const total = Number(props.item.total) || 0;
+  return `${downloadedCount.value} / ${total}`;
 });
 
 const overviewText = computed(() => {
@@ -180,7 +231,6 @@ const hasFilterInfo = computed(
     !!props.item.filter_include ||
     !!props.item.filter_exclude ||
     !!downloadLabel.value ||
-    !!keyword.value ||
     freeOnly.value,
 );
 
@@ -291,8 +341,16 @@ onMounted(ensureOutsideListener);
     <!-- 海报（桌面点击进详情 / 移动端点击展开） -->
     <div class="shc-poster" @click="onPosterClick">
       <img
-        :src="getImgUrl(item.image || item.poster)"
+        :src="
+          getImgUrl(
+            getContentProfileImageUrl(
+              item.content_profile,
+              item.image || item.poster,
+            ),
+          )
+        "
         class="shc-poster-img"
+        :style="{ objectPosition: posterPosition }"
         alt=""
         @error="onImgError"
       />
@@ -314,6 +372,7 @@ onMounted(ensureOutsideListener);
 
       <!-- 默认态：底部渐变标题（展开时隐藏） -->
       <div class="shc-poster-caption">
+        <div class="shc-poster-source">{{ sourceText }}</div>
         <div class="shc-poster-title" :title="captionTitle">
           {{ captionTitle }}
         </div>
@@ -348,6 +407,8 @@ onMounted(ensureOutsideListener);
           <span v-if="item.year">{{ item.year }}</span>
           <span class="shc-dot">·</span>
           <span>{{ typeLabel }}</span>
+          <span class="shc-dot">·</span>
+          <span>{{ sourceText }}</span>
           <template v-if="seasonLabel">
             <span class="shc-dot">·</span>
             <span>{{ seasonLabel }}</span>
@@ -368,9 +429,14 @@ onMounted(ensureOutsideListener);
         <!-- 简介 -->
         <p v-if="overviewText" class="shc-overview">{{ overviewText }}</p>
 
-        <!-- 过滤设置 -->
-        <div v-if="hasFilterInfo" class="shc-section">
-          <div class="shc-section-label">过滤设置</div>
+        <!-- 关键词 / 过滤设置 -->
+        <div v-if="keyword" class="shc-setting-row">
+          <span class="shc-setting-label">关键词</span>
+          <span class="shc-setting-value" :title="keyword">{{ keyword }}</span>
+        </div>
+
+        <div v-if="hasFilterInfo" class="shc-setting-row">
+          <span class="shc-setting-label">过滤设置</span>
           <div class="shc-tags">
             <NTag v-if="ruleLabel" size="tiny" class="tag-rule">
               {{ ruleLabel }}
@@ -417,21 +483,13 @@ onMounted(ensureOutsideListener);
             <NTag v-if="downloadLabel" size="tiny" class="tag-download">
               {{ downloadLabel }}
             </NTag>
-            <NTag
-              v-if="keyword"
-              size="tiny"
-              class="tag-keyword"
-              :title="keyword"
-            >
-              关键词: {{ keyword }}
-            </NTag>
           </div>
         </div>
 
         <!-- 站点：显示名称，过多可折叠 -->
         <div v-if="hasSites" class="shc-section">
-          <div v-if="rssSites.length > 0" class="shc-site-row">
-            <span class="shc-site-label">订阅站点</span>
+          <div v-if="rssSites.length > 0" class="shc-setting-row">
+            <span class="shc-setting-label">订阅站点</span>
             <div class="shc-site-tags">
               <NTag
                 v-for="s in rssVisible"
@@ -452,8 +510,8 @@ onMounted(ensureOutsideListener);
               </NTag>
             </div>
           </div>
-          <div v-if="searchSites.length > 0" class="shc-site-row">
-            <span class="shc-site-label">搜索站点</span>
+          <div v-if="searchSites.length > 0" class="shc-setting-row">
+            <span class="shc-setting-label">搜索站点</span>
             <div class="shc-site-tags">
               <NTag
                 v-for="s in searchVisible"
@@ -644,6 +702,15 @@ onMounted(ensureOutsideListener);
   color: hsl(0deg 0% 100%);
   background: linear-gradient(transparent, hsl(0deg 0% 0% / 82%));
   transition: opacity 0.2s ease-out;
+}
+
+.shc-poster-source {
+  margin-bottom: 2px;
+  font-size: 10px;
+  line-height: 1.2;
+  color: hsl(var(--primary-foreground) / 72%);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .shc-poster-title {
@@ -977,12 +1044,29 @@ onMounted(ensureOutsideListener);
   border-radius: 9999px;
 }
 
-:deep(.tag-keyword) {
-  --n-color: hsl(var(--muted) / 40%) !important;
-  --n-text-color: hsl(var(--muted-foreground)) !important;
-  --n-border: 1px solid hsl(var(--border)) !important;
+.shc-setting-row {
+  display: grid;
+  grid-template-columns: 3.9rem minmax(0, 1fr);
+  gap: 0.45rem;
+  align-items: start;
+  margin-top: 0.35rem;
+}
 
-  border-radius: 9999px;
+.shc-setting-label {
+  padding-top: 1px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  color: hsl(var(--foreground) / 45%);
+}
+
+.shc-setting-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  line-height: 18px;
+  color: hsl(var(--card-foreground) / 78%);
+  white-space: nowrap;
 }
 
 :deep(.tag-rss-site) {

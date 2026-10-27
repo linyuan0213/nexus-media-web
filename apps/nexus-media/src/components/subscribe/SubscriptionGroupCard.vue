@@ -22,6 +22,10 @@ import { computed, onMounted } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
+import {
+  getContentProfileImageUrl,
+  getContentProfilePosterPosition,
+} from '#/plugin-framework/loader';
 import { getImgUrl } from '#/utils/image';
 import { formatPix, formatRestype } from '#/utils/subscribe';
 
@@ -34,6 +38,7 @@ interface Props {
   vote?: number | string;
   items: Record<string, any>[];
   type: 'anime' | 'movie' | 'tv';
+  typeLabel?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -41,6 +46,7 @@ const props = withDefaults(defineProps<Props>(), {
   season: '',
   image: '',
   vote: '',
+  typeLabel: '',
 });
 
 const emit = defineEmits<{
@@ -87,6 +93,52 @@ const captionTitle = computed(() => {
 });
 
 const subscriberCount = computed(() => props.items.length);
+const posterPosition = computed(
+  () =>
+    getContentProfilePosterPosition(props.items[0]?.content_profile) ||
+    '50% 50%',
+);
+
+const sourceText = computed(() => {
+  const labels = new Set<string>();
+  for (const item of props.items) {
+    const declared = String(item.source_label || '').trim();
+    if (declared) {
+      labels.add(declared);
+      continue;
+    }
+    let provider = String(item.provider || item.anchor_provider || '').trim();
+    const metadataRef = String(item.metadata_ref || item.mediaid || '').trim();
+    if (!provider || provider === 'content_id') {
+      const refProvider = metadataRef.split(':')[0]?.trim();
+      if (refProvider && refProvider !== 'content_id') {
+        provider = refProvider;
+      } else {
+        const profile = String(item.content_profile || '').trim();
+        if (profile && profile !== 'default') provider = 'content_id';
+        else if (metadataRef.startsWith('DB:')) provider = 'douban';
+        else if (metadataRef.startsWith('BG:')) provider = 'bangumi';
+        else if (item.tmdbid) provider = 'tmdb';
+      }
+    }
+    if (!provider) continue;
+    if (provider === 'content_id') labels.add('插件');
+    else if (provider === 'tmdb') labels.add('TMDB');
+    else if (provider === 'douban') labels.add('豆瓣');
+    else if (provider === 'bangumi') labels.add('Bangumi');
+    else labels.add(provider.toUpperCase());
+  }
+  return [...labels].join(' / ') || '未知';
+});
+
+const typeText = computed(() => {
+  if (props.typeLabel) return props.typeLabel;
+  return props.type === 'movie'
+    ? '电影'
+    : props.type === 'anime'
+      ? '动漫'
+      : '剧集';
+});
 
 function usernameOf(item: Record<string, any>): string {
   return item.username || (item.user_id ? `用户#${item.user_id}` : '系统');
@@ -133,10 +185,15 @@ function itemProgress(item: Record<string, any>) {
   if (props.type === 'movie') return null;
   const total = Number(item.total) || 0;
   if (!total) return null;
+  const current = Number(item.current_ep) || 0;
   const lack = Number(item.lack) || 0;
+  const downloaded =
+    current > 0
+      ? Math.max(0, Math.min(total, current - 1))
+      : Math.max(0, total - lack);
   return {
-    percent: Math.round(((total - lack) / total) * 100),
-    text: `${total - lack}/${total}`,
+    percent: Math.round((downloaded / total) * 100),
+    text: `${downloaded}/${total}`,
   };
 }
 
@@ -207,8 +264,13 @@ onMounted(ensureOutsideListener);
     <!-- 海报 -->
     <div class="sgc-poster" @click="onPosterClick">
       <img
-        :src="getImgUrl(image)"
+        :src="
+          getImgUrl(
+            getContentProfileImageUrl(props.items[0]?.content_profile, image),
+          )
+        "
         class="sgc-poster-img"
+        :style="{ objectPosition: posterPosition }"
         alt=""
         @error="onImgError"
       />
@@ -230,6 +292,7 @@ onMounted(ensureOutsideListener);
 
       <!-- 底部渐变：标题 + 订阅者头像 -->
       <div class="sgc-poster-caption">
+        <div v-if="sourceText" class="sgc-poster-source">{{ sourceText }}</div>
         <div class="sgc-poster-title" :title="captionTitle">
           {{ captionTitle }}
         </div>
@@ -260,9 +323,11 @@ onMounted(ensureOutsideListener);
         <div class="sgc-meta">
           <span v-if="year">{{ year }}</span>
           <span class="sgc-dot-sep">·</span>
-          <span>{{
-            type === 'movie' ? '电影' : type === 'anime' ? '动漫' : '剧集'
-          }}</span>
+          <span>{{ typeText }}</span>
+          <template v-if="sourceText">
+            <span class="sgc-dot-sep">·</span>
+            <span>{{ sourceText }}</span>
+          </template>
           <template v-if="seasonLabel">
             <span class="sgc-dot-sep">·</span>
             <span>{{ seasonLabel }}</span>
@@ -447,6 +512,15 @@ onMounted(ensureOutsideListener);
   color: hsl(0deg 0% 100%);
   background: linear-gradient(transparent, hsl(0deg 0% 0% / 82%));
   transition: opacity 0.2s ease-out;
+}
+
+.sgc-poster-source {
+  margin-bottom: 2px;
+  font-size: 10px;
+  line-height: 1.2;
+  color: hsl(var(--primary-foreground) / 72%);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .sgc-poster-title {

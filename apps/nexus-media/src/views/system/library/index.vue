@@ -32,6 +32,7 @@ import {
 import { getStorageBackendsApi } from '#/api/modules/storage';
 import PathPickerModal from '#/components/media/PathPickerModal.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
+import { PluginSlot } from '#/plugin-framework';
 
 interface SectionDef {
   key: string;
@@ -512,6 +513,7 @@ onMounted(() => {
             </NEmpty>
           </div>
         </NCard>
+        <PluginSlot target="library.settings.sections" bare />
       </div>
     </NSpin>
 

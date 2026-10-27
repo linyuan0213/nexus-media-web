@@ -14,31 +14,31 @@ const items = [
     key: 'Movie',
     label: '电影',
     icon: 'lucide:film',
-    color: 'hsl(210, 80%, 55%)',
+    color: 'hsl(var(--primary))',
   },
   {
     key: 'Series',
     label: '电视剧',
     icon: 'lucide:tv',
-    color: 'hsl(155, 65%, 40%)',
+    color: 'hsl(var(--success))',
   },
   {
     key: 'Episodes',
     label: '剧集',
     icon: 'lucide:play-circle',
-    color: 'hsl(280, 70%, 55%)',
+    color: 'hsl(var(--warning))',
   },
   {
     key: 'Music',
     label: '音乐',
     icon: 'lucide:music',
-    color: 'hsl(24, 95%, 55%)',
+    color: 'hsl(var(--primary))',
   },
   {
     key: 'User',
     label: '用户',
     icon: 'lucide:users',
-    color: 'hsl(200, 90%, 55%)',
+    color: 'hsl(var(--muted-foreground))',
   },
 ];
 

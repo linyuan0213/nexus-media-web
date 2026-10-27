@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { onMounted, ref } from 'vue';
+import { useRoute } from 'vue-router';
 
 import { NSpin, NTabPane, NTabs, useMessage } from 'naive-ui';
 
@@ -28,7 +29,8 @@ const loading = ref(false);
 const saving = ref<null | string>(null);
 const loadingModels = ref(false);
 const modelOptions = ref<string[]>([]);
-const activeTab = ref('system');
+const route = useRoute();
+const activeTab = ref(String(route.query.tab || 'system'));
 
 const config = ref<Record<string, any>>({});
 
@@ -209,11 +211,12 @@ async function fetchModels() {
   const provider = currentProviderName();
   const apiUrl = config.value[`agent.providers.${provider}.api_url`] || '';
   const apiKey = config.value[`agent.providers.${provider}.api_key`] || '';
-  if (!apiUrl || !apiKey) {
+  if (!apiUrl || (provider !== 'ollama' && !apiKey)) {
     message.warning('请先填写 API URL 和 API Key');
     return;
   }
   loadingModels.value = true;
+  modelOptions.value = [];
   try {
     const res = await listAgentModelsApi({
       provider_name: provider,

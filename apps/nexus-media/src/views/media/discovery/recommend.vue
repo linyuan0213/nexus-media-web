@@ -18,6 +18,7 @@ interface RecommendItem {
   overview?: string;
   fav?: string;
   media_type?: string;
+  content_profile?: string;
   tmdbid?: string;
   rssid?: string;
   genres?: string[];
@@ -155,6 +156,7 @@ watch(
           :poster="item.image"
           :type="item.type"
           :media-type="item.media_type"
+          :content-profile="item.content_profile"
           :vote="item.vote"
           :year="item.year"
           :overview="item.overview"

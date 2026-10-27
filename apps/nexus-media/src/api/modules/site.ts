@@ -339,6 +339,13 @@ export async function batchUpdateIndexerSiteConfigApi(
 /** 获取当前用户可见站点（带用途粒度 permissions: search/rss） */
 export async function getVisibleSitesApi() {
   return requestClient.get<
-    { name: string; source: string; builtin: boolean; permissions: string[] }[]
+    {
+      name: string;
+      source: string;
+      builtin: boolean;
+      permissions: string[];
+      value?: string;
+      health?: string;
+    }[]
   >('/site/sites/visible');
 }

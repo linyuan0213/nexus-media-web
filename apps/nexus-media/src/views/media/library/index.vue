@@ -1,190 +1,228 @@
 <script lang="ts" setup>
+import type { MediaApi } from '#/api/modules/media';
+
 import { computed, onMounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { NButton, NSpin, useMessage } from 'naive-ui';
+import { NAlert, NButton, NEmpty, NSelect, NSpin, useMessage } from 'naive-ui';
 
-import { getLibraryHomeApi } from '#/api';
+import { getLibraryHomeApi, refreshMediaLibraryApi } from '#/api/modules/media';
 import PageHeader from '#/components/page/PageHeader.vue';
 
-import ActivityList from './components/ActivityList.vue';
-import LibraryCard from './components/LibraryCard.vue';
-import MediaPosterCard from './components/MediaPosterCard.vue';
-import ServerStatusLine from './components/ServerStatusLine.vue';
-import StatSummary from './components/StatSummary.vue';
+import LibraryRouteModal from './components/LibraryRouteModal.vue';
+import LibraryServerSection from './components/LibraryServerSection.vue';
 import StorageUsage from './components/StorageUsage.vue';
+import SyncLibrariesModal from './components/SyncLibrariesModal.vue';
 
 const message = useMessage();
-
-const loading = ref(true);
-const serverSuccess = ref(false);
-const mediaCounts = ref<Record<string, number | string>>({});
+const loading = ref(false);
+const refreshing = ref(false);
+const servers = ref<MediaApi.MediaServerOption[]>([]);
+const sections = ref<MediaApi.LibrarySection[]>([]);
 const librarySpaces = ref<Record<string, any>>({});
-const libraries = ref<any[]>([]);
-const resumes = ref<any[]>([]);
-const latests = ref<any[]>([]);
-const activitys = ref<any[]>([]);
+const selectedServer = ref<'all' | number>('all');
+const scanningId = ref<null | number>(null);
+const syncVisible = ref(false);
+const routeVisible = ref(false);
+const syncServerId = ref<null | number>(null);
+let requestSequence = 0;
 
-const hasLibraries = computed(() => libraries.value.length > 0);
-const hasResumes = computed(() => resumes.value.length > 0);
-const hasLatests = computed(() => latests.value.length > 0);
+const serverOptions = computed(() => [
+  { label: `全部服务器（${servers.value.length}）`, value: 'all' as const },
+  ...servers.value.map((server) => ({
+    label: `${server.name}（${server.type}）`,
+    value: server.id,
+  })),
+]);
+const visibleSections = computed(() =>
+  selectedServer.value === 'all'
+    ? sections.value
+    : sections.value.filter(
+        (section) => section.server_id === selectedServer.value,
+      ),
+);
+const onlineCount = computed(
+  () => sections.value.filter((section) => section.server_success).length,
+);
 
-function typeLabel(type?: string) {
-  const map: Record<string, string> = {
-    movie: '电影',
-    tv: '电视剧',
-    series: '电视剧',
-    anime: '动漫',
-    music: '音乐',
-  };
-  return map[(type || '').toLowerCase()] || type || '';
+async function fetchData(showRefresh = false) {
+  const sequence = ++requestSequence;
+  if (showRefresh) refreshing.value = true;
+  else loading.value = true;
+  try {
+    const serverId =
+      selectedServer.value === 'all' ? undefined : selectedServer.value;
+    const data = await getLibraryHomeApi(serverId);
+    if (sequence !== requestSequence) return;
+    servers.value = data.servers || [];
+    sections.value = data.sections || [];
+    librarySpaces.value = data.library_spaces || {};
+  } catch (error: any) {
+    if (sequence === requestSequence)
+      message.error(error?.response?.data?.detail || '媒体库加载失败');
+  } finally {
+    if (sequence === requestSequence) {
+      loading.value = false;
+      refreshing.value = false;
+    }
+  }
 }
 
-async function fetchData() {
-  loading.value = true;
+function selectServer(value: 'all' | number) {
+  selectedServer.value = value;
+  void fetchData();
+}
+
+async function scanLibrary(section: MediaApi.LibrarySection) {
+  scanningId.value = section.server_id;
   try {
-    const res = await getLibraryHomeApi();
-    const data = (res as any)?.data || res;
-    if (data) {
-      serverSuccess.value = data.server_success !== false;
-      mediaCounts.value = data.media_counts || {};
-      librarySpaces.value = data.library_spaces || {};
-      libraries.value = data.librarys || [];
-      resumes.value = data.resumes || [];
-      latests.value = data.latests || [];
-      activitys.value = data.activitys || [];
-    }
+    await refreshMediaLibraryApi(section.server_id);
+    message.success(`${section.server_name} 的媒体库扫描已提交`);
   } catch (error: any) {
-    serverSuccess.value = false;
-    message.error(error?.message || '获取媒体库数据失败');
+    message.error(error?.response?.data?.detail || '媒体库扫描提交失败');
   } finally {
-    loading.value = false;
+    scanningId.value = null;
   }
+}
+
+function openSync(section?: MediaApi.LibrarySection) {
+  syncServerId.value =
+    section?.server_id ||
+    (selectedServer.value === 'all' ? null : selectedServer.value);
+  syncVisible.value = true;
 }
 
 onMounted(fetchData);
 </script>
 
 <template>
-  <div class="p-4 lg:p-6">
-    <PageHeader title="我的媒体库">
+  <div class="library-page">
+    <PageHeader
+      title="我的媒体库"
+      :subtitle="`${onlineCount} / ${sections.length} 个实例连接正常`"
+    >
       <template #actions>
-        <NButton @click="fetchData">
-          <template #icon>
-            <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
-          </template>
-          刷新
-        </NButton>
+        <div class="page-actions">
+          <NSelect
+            :value="selectedServer"
+            :options="serverOptions"
+            class="server-select"
+            @update:value="selectServer"
+          />
+          <NButton secondary @click="routeVisible = true">
+            <template #icon><IconifyIcon icon="lucide:route" /></template>
+            目录路由
+          </NButton>
+          <NButton secondary @click="openSync()">
+            <template #icon><IconifyIcon icon="lucide:folder-sync" /></template>
+            同步媒体库
+          </NButton>
+          <NButton
+            type="primary"
+            :loading="refreshing"
+            @click="fetchData(true)"
+          >
+            <template #icon><IconifyIcon icon="lucide:refresh-cw" /></template>
+            刷新数据
+          </NButton>
+        </div>
       </template>
     </PageHeader>
 
+    <NAlert
+      v-if="servers.length === 0 && !loading"
+      type="info"
+      :bordered="false"
+    >
+      尚未配置启用的媒体服务器，请先前往“服务设置 → 媒体服务器”添加实例。
+    </NAlert>
+
     <NSpin :show="loading">
-      <template #default>
-        <!-- 服务器状态 -->
-        <ServerStatusLine class="mb-6" :connected="serverSuccess" />
-
-        <!-- 统计摘要 -->
-        <StatSummary class="mb-8" :counts="mediaCounts" />
-
-        <!-- 媒体库列表 -->
-        <section v-if="hasLibraries" class="mb-8">
-          <div class="mb-4 flex items-center gap-2">
-            <IconifyIcon
-              icon="lucide:library"
-              class="size-5"
-              style="color: hsl(var(--primary))"
-            />
-            <h2
-              class="text-lg font-semibold"
-              style="color: hsl(var(--card-foreground))"
-            >
-              媒体库
-            </h2>
-          </div>
-          <div
-            class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-          >
-            <LibraryCard
-              v-for="lib in libraries"
-              :key="lib.id"
-              :name="lib.name"
-              :image="lib.image"
-              :image-list="lib.image_list"
-              :href="lib.link"
-            />
-          </div>
-        </section>
-
-        <!-- 正在观看 -->
-        <section v-if="hasResumes" class="mb-8">
-          <div class="mb-4 flex items-center gap-2">
-            <IconifyIcon
-              icon="lucide:play-circle"
-              class="size-5"
-              style="color: hsl(var(--primary))"
-            />
-            <h2
-              class="text-lg font-semibold"
-              style="color: hsl(var(--card-foreground))"
-            >
-              正在观看
-            </h2>
-          </div>
-          <div class="flex gap-4 overflow-x-auto pb-3">
-            <MediaPosterCard
-              v-for="item in resumes"
-              :key="item.id"
-              :title="item.name"
-              :image="item.image"
-              :type="item.type"
-              :type-label="typeLabel(item.type)"
-              :percent="item.percent"
-              :href="item.link"
-            />
-          </div>
-        </section>
-
-        <!-- 最近入库 -->
-        <section v-if="hasLatests" class="mb-8">
-          <div class="mb-4 flex items-center gap-2">
-            <IconifyIcon
-              icon="lucide:sparkles"
-              class="size-5"
-              style="color: hsl(var(--primary))"
-            />
-            <h2
-              class="text-lg font-semibold"
-              style="color: hsl(var(--card-foreground))"
-            >
-              最近入库
-            </h2>
-          </div>
-          <div class="flex gap-4 overflow-x-auto pb-3">
-            <MediaPosterCard
-              v-for="item in latests"
-              :key="item.id"
-              :title="item.name"
-              :image="item.image"
-              :type="item.type"
-              :type-label="typeLabel(item.type)"
-              :href="item.link"
-            />
-          </div>
-        </section>
-
-        <!-- 底部：存储 + 动态 -->
-        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <StorageUsage
-            style="height: 100%"
-            :free-space="librarySpaces.FreeSpace"
-            :total-space="librarySpaces.TotalSpace"
-            :used-space="librarySpaces.UsedSpace"
-            :used-percent="librarySpaces.UsedPercent"
-          />
-          <ActivityList class="lg:col-span-2" :items="activitys" />
-        </div>
-      </template>
+      <div v-if="visibleSections.length" class="server-sections">
+        <LibraryServerSection
+          v-for="section in visibleSections"
+          :key="section.server_id"
+          :section="section"
+          :scanning="scanningId === section.server_id"
+          @scan="scanLibrary(section)"
+          @sync="openSync(section)"
+        />
+      </div>
+      <NEmpty
+        v-else-if="!loading && servers.length > 0"
+        description="当前实例暂无媒体库数据"
+        class="py-16"
+      />
     </NSpin>
+
+    <StorageUsage
+      v-if="Object.keys(librarySpaces).length"
+      class="storage-card"
+      :free-space="librarySpaces.FreeSpace"
+      :used-space="librarySpaces.UsedSpace"
+      :total-space="librarySpaces.TotalSpace"
+      :used-percent="librarySpaces.UsedPercent"
+    />
+
+    <SyncLibrariesModal
+      v-model:show="syncVisible"
+      :servers="servers"
+      :sections="sections"
+      :initial-server-id="syncServerId"
+    />
+    <LibraryRouteModal v-model:show="routeVisible" :servers="servers" />
   </div>
 </template>
+
+<style scoped>
+.library-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 16px;
+}
+
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.server-select {
+  width: 240px;
+}
+
+.server-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.storage-card {
+  max-width: 100%;
+}
+
+@media (max-width: 900px) {
+  .page-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .library-page {
+    padding: 12px;
+  }
+
+  .page-actions,
+  .server-select {
+    width: 100%;
+  }
+
+  .page-actions :deep(.n-button) {
+    flex: 1;
+  }
+}
+</style>

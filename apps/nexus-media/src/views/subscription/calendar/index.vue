@@ -11,13 +11,15 @@ import {
   NTag,
 } from 'naive-ui';
 
-import { getMovieCalendarApi, getTvCalendarApi } from '#/api/modules/media';
 import {
   downloadSubscriptionCalendarIcsApi,
-  getMovieSubscriptionItemsApi,
+  getSubscriptionCalendarEventsApi,
   getSubscriptionCalendarWebcalUrlApi,
-  getTvSubscriptionItemsApi,
 } from '#/api/modules/subscription';
+import {
+  getContentProfileImageUrl,
+  getContentProfilePosterPosition,
+} from '#/plugin-framework/loader';
 import { getImgUrl } from '#/utils/image';
 import { useAppNotification } from '#/utils/notify';
 
@@ -27,13 +29,40 @@ interface CalendarEvent {
   start: string;
   type: string;
   poster: string;
+  content_profile: string;
+  source_label: string;
+  date_source_label: string;
   vote_average: number | string;
   year: string;
   rssid: string;
 }
 
 const loading = ref(false);
+const CALENDAR_CACHE_KEY = 'nexus.calendar.events.v1';
 const allEvents = ref<CalendarEvent[]>([]);
+
+function readCachedCalendarEvents(): CalendarEvent[] {
+  try {
+    const raw = localStorage.getItem(CALENDAR_CACHE_KEY);
+    if (!raw) return [];
+    const data = JSON.parse(raw);
+    if (Date.now() - Number(data?.savedAt || 0) > 86_400_000) return [];
+    return Array.isArray(data?.events) ? data.events : [];
+  } catch {
+    return [];
+  }
+}
+
+function cacheCalendarEvents(events: CalendarEvent[]) {
+  try {
+    localStorage.setItem(
+      CALENDAR_CACHE_KEY,
+      JSON.stringify({ savedAt: Date.now(), events }),
+    );
+  } catch {
+    // 本地缓存失败不影响主流程
+  }
+}
 const calendarValue = ref(Date.now());
 const calendarKey = ref(0);
 const detailModalShow = ref(false);
@@ -69,6 +98,22 @@ const eventsByDate = computed(() => {
 function getDayEvents(year: number, month: number, date: number) {
   const key = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
   return eventsByDate.value.get(key) || [];
+}
+
+function eventPosterUrl(event: CalendarEvent): string {
+  return getImgUrl(
+    getContentProfileImageUrl(event.content_profile, event.poster),
+  );
+}
+
+function eventPosterPosition(event: CalendarEvent): string {
+  return getContentProfilePosterPosition(event.content_profile) || 'center';
+}
+
+function eventTypeLabel(type: string): string {
+  if (type === 'movie') return '电影';
+  if (type === 'anime') return '动漫';
+  return '电视剧';
 }
 
 function handleEventClick(event: CalendarEvent) {
@@ -160,83 +205,36 @@ function clearCalendarLinks() {
 }
 
 async function loadCalendarEvents() {
-  loading.value = true;
+  // 先用本地缓存立即渲染，避免后端冷缓存时页面长时间空白。
+  if (allEvents.value.length === 0) {
+    allEvents.value = readCachedCalendarEvents();
+  }
+  loading.value = allEvents.value.length === 0;
   try {
-    const [movieItemsRes, tvItemsRes] = await Promise.all([
-      getMovieSubscriptionItemsApi(),
-      getTvSubscriptionItemsApi(),
-    ]);
-    const movieItems = (movieItemsRes || []) as Array<{
-      id: string;
-      rssid: string;
-    }>;
-    const tvItems = (tvItemsRes || []) as Array<{
-      id: string;
-      name?: string;
-      rssid: string;
-      season?: string;
-    }>;
-
-    const eventPromises: Promise<CalendarEvent[]>[] = [];
-
-    for (const item of movieItems) {
-      eventPromises.push(
-        getMovieCalendarApi({
-          id: String(item.id),
-          rssid: String(item.rssid),
-        })
-          .then((d: any) => {
-            if (!d) return [];
-            return [
-              {
-                id: String(d.id || ''),
-                title: d.title || '',
-                start: d.start,
-                type: d.type || '',
-                poster: d.poster || '',
-                vote_average: d.vote_average ?? '',
-                year: d.year || '',
-                rssid: String(d.rssid || ''),
-              },
-            ];
-          })
-          .catch(() => []),
-      );
-    }
-
-    for (const item of tvItems) {
-      eventPromises.push(
-        getTvCalendarApi({
-          id: String(item.id),
-          rssid: String(item.rssid),
-          season: String(item.season || '1'),
-          name: String(item.name || ''),
-        })
-          .then((events: any[]) => {
-            if (!Array.isArray(events)) return [];
-            return events.map((evt: any) => ({
-              id: String(evt.id || ''),
-              title: evt.title || '',
-              start: evt.start,
-              type: evt.type || '',
-              poster: evt.poster || '',
-              vote_average: evt.vote_average ?? '',
-              year: evt.year || '',
-              rssid: String(evt.rssid || ''),
-            }));
-          })
-          .catch(() => []),
-      );
-    }
-
-    const results = await Promise.all(eventPromises);
-    const events: CalendarEvent[] = [];
-    for (const arr of results) {
-      for (const evt of arr) {
-        if (evt.start) events.push(evt);
-      }
-    }
+    // 后端统一聚合 TMDB 与非 TMDB（Bangumi/豆瓣）分集播出日期。
+    const res: any = await getSubscriptionCalendarEventsApi();
+    const list = Array.isArray(res) ? res : res?.data || [];
+    const events = list
+      .filter((evt: any) => evt?.start)
+      .map((evt: any) => ({
+        id: String(evt.id || ''),
+        title: evt.title || '',
+        start: evt.start,
+        type: evt.type || '',
+        poster: evt.poster || '',
+        content_profile: evt.content_profile || 'default',
+        source_label: evt.source_label || '',
+        date_source_label: evt.date_source_label || '',
+        vote_average: evt.vote_average ?? '',
+        year: evt.year || '',
+        rssid: String(evt.rssid || ''),
+      }));
     allEvents.value = events;
+    if (events.length > 0) cacheCalendarEvents(events);
+  } catch (error: any) {
+    notification.error('加载订阅日历失败', {
+      description: error?.message || '',
+    });
   } finally {
     loading.value = false;
   }
@@ -299,7 +297,8 @@ onUnmounted(() => {
                     <div
                       class="event-poster"
                       :style="{
-                        backgroundImage: `url(${getImgUrl(event.poster)})`,
+                        backgroundImage: `url(${eventPosterUrl(event)})`,
+                        backgroundPosition: eventPosterPosition(event),
                       }"
                     ></div>
                     <div class="event-info">
@@ -311,7 +310,24 @@ onUnmounted(() => {
                         {{ event.title }}
                       </div>
                       <div class="event-meta">
-                        {{ event.type === 'movie' ? '电影' : '电视剧' }}
+                        <span
+                          v-if="event.source_label"
+                          class="event-source"
+                          :title="`订阅源：${event.source_label}`"
+                        >
+                          {{ event.source_label }}
+                        </span>
+                        <span>{{ eventTypeLabel(event.type) }}</span>
+                        <span
+                          v-if="
+                            event.date_source_label &&
+                            event.date_source_label !== event.source_label
+                          "
+                          class="event-date-source"
+                          :title="`日期来源：${event.date_source_label}`"
+                        >
+                          日期 {{ event.date_source_label }}
+                        </span>
                         <span
                           v-if="
                             event.vote_average !== '' &&
@@ -350,7 +366,8 @@ onUnmounted(() => {
           <div
             class="detail-poster"
             :style="{
-              backgroundImage: `url(${getImgUrl(selectedEvent.poster)})`,
+              backgroundImage: `url(${eventPosterUrl(selectedEvent)})`,
+              backgroundPosition: eventPosterPosition(selectedEvent),
             }"
           ></div>
         </div>
@@ -361,7 +378,19 @@ onUnmounted(() => {
               size="small"
               :type="selectedEvent.type === 'movie' ? 'success' : 'primary'"
             >
-              {{ selectedEvent.type === 'movie' ? '电影' : '电视剧' }}
+              {{ eventTypeLabel(selectedEvent.type) }}
+            </NTag>
+            <NTag v-if="selectedEvent.source_label" size="small" type="info">
+              订阅源：{{ selectedEvent.source_label }}
+            </NTag>
+            <NTag
+              v-if="
+                selectedEvent.date_source_label &&
+                selectedEvent.date_source_label !== selectedEvent.source_label
+              "
+              size="small"
+            >
+              日期源：{{ selectedEvent.date_source_label }}
             </NTag>
             <NTag v-if="selectedEvent.year" size="small">
               {{ selectedEvent.year }}
@@ -376,7 +405,9 @@ onUnmounted(() => {
               评分: {{ selectedEvent.vote_average }}
             </NTag>
           </NSpace>
-          <div class="detail-date">上映日期: {{ selectedEvent.start }}</div>
+          <div class="detail-date">
+            播出/上映日期: {{ selectedEvent.start }}
+          </div>
         </div>
       </div>
     </NModal>
@@ -524,11 +555,25 @@ onUnmounted(() => {
 }
 
 .event-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 4px;
+  align-items: center;
   overflow: hidden;
-  text-overflow: ellipsis;
   font-size: 11px;
   color: var(--n-text-color-3);
-  white-space: nowrap;
+}
+
+.event-source {
+  padding: 0 4px;
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 12%);
+  border-radius: 3px;
+}
+
+.event-date-source {
+  color: var(--n-text-color-3);
+  opacity: 0.85;
 }
 
 .more-events {

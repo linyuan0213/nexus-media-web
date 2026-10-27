@@ -39,6 +39,12 @@ const languages = [
   { label: 'English', value: 'en' },
 ];
 
+const metadataPolicies = [
+  { label: 'TMDB 优先', value: 'tmdb_primary' },
+  { label: '豆瓣优先', value: 'douban_primary' },
+  { label: 'Bangumi 优先', value: 'bangumi_primary' },
+];
+
 const downloadOrders = [
   { label: '默认', value: '' },
   { label: '站点优先', value: 'site' },
@@ -87,6 +93,8 @@ const rmtModes = [
           <NFormItem label="TMDB API Key">
             <NInput
               :value="config['app.rmt_tmdbkey']"
+              type="password"
+              show-password-on="click"
               placeholder="必填"
               @update:value="(v) => emit('updateConfig', 'app.rmt_tmdbkey', v)"
             />
@@ -121,6 +129,20 @@ const rmtModes = [
                 (v) => emit('updateConfig', 'media.tmdb_language', v)
               "
             />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="1">
+          <NFormItem label="默认元数据策略">
+            <NSelect
+              :value="config['media.metadata_default_policy']"
+              :options="metadataPolicies"
+              @update:value="
+                (v) => emit('updateConfig', 'media.metadata_default_policy', v)
+              "
+            />
+            <template #feedback>
+              未显式指定策略时使用；订阅自身策略优先
+            </template>
           </NFormItem>
         </NGridItem>
         <NGridItem span="1">

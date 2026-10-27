@@ -12,14 +12,22 @@ import { previewNameFormatApi } from '#/api';
 // ============ Props / Emits ============
 
 interface Props {
+  extension?: string;
   modelValue: string;
   mediaType?: 'movie' | 'tv';
+  presets?: Array<{ format: string; name: string }>;
+  samples?: Record<string, string>;
   saving?: boolean;
+  variables?: FormatVariable[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  extension: '',
   mediaType: 'tv',
+  presets: () => [],
+  samples: () => ({}),
   saving: false,
+  variables: () => [],
 });
 
 const emit = defineEmits<{
@@ -108,7 +116,11 @@ const MOVIE_SAMPLE: Record<string, string> = {
 };
 
 const samples = computed(() =>
-  props.mediaType === 'movie' ? MOVIE_SAMPLE : TV_SAMPLE,
+  Object.keys(props.samples).length > 0
+    ? props.samples
+    : props.mediaType === 'movie'
+      ? MOVIE_SAMPLE
+      : TV_SAMPLE,
 );
 
 // ============ 字段目录（精选集合） ============
@@ -136,12 +148,29 @@ const PRESETS: Array<{ format: string; name: string }> = [
 // ============ 字段目录（精选集合，非全量） ============
 
 const variables = computed<FormatVariable[]>(() =>
-  CURATED.filter((v) => {
-    if (props.mediaType !== 'movie') return true;
-    return !['episode', 'episode_title', 'season', 'season_episode'].includes(
-      v.key,
-    );
-  }),
+  props.variables.length > 0
+    ? props.variables.filter((v) => {
+        if (props.mediaType !== 'movie') return true;
+        return ![
+          'episode',
+          'episode_title',
+          'season',
+          'season_episode',
+        ].includes(v.key);
+      })
+    : CURATED.filter((v) => {
+        if (props.mediaType !== 'movie') return true;
+        return ![
+          'episode',
+          'episode_title',
+          'season',
+          'season_episode',
+        ].includes(v.key);
+      }),
+);
+
+const presetItems = computed(() =>
+  props.presets.length > 0 ? props.presets : PRESETS,
 );
 
 // ============ 芯片解析 / 序列化 ============
@@ -351,7 +380,7 @@ onMounted(() => refreshPreview());
       <div class="label">预设模板</div>
       <div class="presets">
         <button
-          v-for="p in PRESETS"
+          v-for="p in presetItems"
           :key="p.name"
           class="preset-btn"
           @click="loadPreset(p.format)"
@@ -444,7 +473,7 @@ onMounted(() => refreshPreview());
       <div class="label">实时预览</div>
       <div class="preview-box">
         <template v-if="previewPath">
-          {{ previewPath }}
+          {{ previewPath }}{{ extension }}
         </template>
         <span v-else class="ph">等待构建…</span>
       </div>

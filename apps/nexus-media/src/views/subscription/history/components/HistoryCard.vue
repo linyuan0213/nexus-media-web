@@ -40,6 +40,7 @@ function getTmdbUrl() {
     <div class="history-card-inner">
       <div class="history-card-poster">
         <a
+          v-if="item.tmdbid"
           :href="getTmdbUrl()"
           target="_blank"
           rel="noopener noreferrer"
@@ -52,6 +53,13 @@ function getTmdbUrl() {
             @error="handleImageError"
           />
         </a>
+        <img
+          v-else
+          :src="getImgUrl(item.image)"
+          class="history-card-img"
+          :alt="item.title"
+          @error="handleImageError"
+        />
       </div>
 
       <div class="history-card-info">

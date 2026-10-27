@@ -35,9 +35,11 @@ export async function installPluginApi(file: File) {
   });
 }
 
-/** 卸载插件 */
-export async function uninstallPluginApi(pluginId: string) {
-  return requestClient.delete(`/plugin-framework/plugins/${pluginId}`);
+/** 卸载插件；默认删除插件私有数据和日志，传 false 可保留普通配置 */
+export async function uninstallPluginApi(pluginId: string, purgeData = false) {
+  return requestClient.delete(
+    `/plugin-framework/plugins/${pluginId}?purge_data=${purgeData}`,
+  );
 }
 
 /** 启用插件 */

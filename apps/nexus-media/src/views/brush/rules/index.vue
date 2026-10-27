@@ -586,7 +586,7 @@ function buildRuleSummary(rule: BrushApi.BrushRule) {
       text: `磁盘${formatRange(remove.freespace, 'GB')}`,
     });
   if (remove.freestatus)
-    removeItems.push({ icon: 'lucide:zap', text: 'Free到期删' });
+    removeItems.push({ icon: 'lucide:zap', text: 'Free到期后允许删' });
   if (remove.alive_time)
     removeItems.push({
       icon: 'lucide:calendar-clock',
@@ -602,7 +602,7 @@ function buildRuleSummary(rule: BrushApi.BrushRule) {
 
   const stopItems: Array<{ icon: string; text: string }> = [];
   if (stop.stopfree)
-    stopItems.push({ icon: 'lucide:pause-circle', text: 'Free到期停' });
+    stopItems.push({ icon: 'lucide:pause-circle', text: '未完成Free到期停' });
   if (stop.ratio)
     stopItems.push({
       icon: 'lucide:divide',
@@ -1329,8 +1329,8 @@ onMounted(() => {
                   :is="
                     () =>
                       labelWithHelp(
-                        'Free到期',
-                        '开启后Free到期后会自动删除种子',
+                        'Free 到期限制',
+                        '仅作为删种前置条件：Free 到期且其他删种条件命中时才删除，不会单独删种。',
                       )
                   "
                 />
@@ -1352,8 +1352,8 @@ onMounted(() => {
                   :is="
                     () =>
                       labelWithHelp(
-                        'Free到期',
-                        '开启后free到期后会自动暂停种子',
+                        '未完成下载 Free 到期暂停',
+                        '仅对下载进度小于 100% 的种子生效；已完成种子不会仅因 Free 到期而暂停，其他停种规则继续生效。',
                       )
                   "
                 />

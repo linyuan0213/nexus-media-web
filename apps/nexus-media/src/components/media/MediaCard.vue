@@ -2,7 +2,7 @@
 import type { SubscribeConfirmItem } from '#/components/subscribe/SubscribeConfirmModal.vue';
 import type { SubscribeEditItem } from '#/components/subscribe/SubscribeEditModal.vue';
 
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
@@ -18,6 +18,12 @@ import {
 } from '#/api/modules/subscription';
 import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.vue';
 import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
+import {
+  getContentProfileImageUrl,
+  getContentProfileLabel,
+  getContentProfilePosterPosition,
+} from '#/plugin-framework';
+import { getImgUrl } from '#/utils/image';
 import { useAppNotification } from '#/utils/notify';
 
 interface Props {
@@ -35,6 +41,11 @@ interface Props {
   genres?: string[];
   countries?: string[];
   languages?: string[];
+  anchorProvider?: string;
+  anchorExternalId?: string;
+  contentProfile?: string;
+  metadataRef?: string;
+  detailLink?: string;
 }
 
 const props = defineProps<Props>();
@@ -54,7 +65,28 @@ const unsubscribing = ref(false);
 const _fav = ref(props.fav || '0');
 const _rssid = ref(props.rssid || '');
 
+// 探索页订阅状态是异步加载的，props 更新后必须同步到卡片内部状态。
+watch(
+  () => props.fav,
+  (value) => {
+    _fav.value = value || '0';
+  },
+);
+watch(
+  () => props.rssid,
+  (value) => {
+    _rssid.value = value || '';
+  },
+);
+
 const typeLabel = computed(() => {
+  // 自定义画像优先使用插件标签；插件前端未就绪时也不回落成“电影”
+  if (props.contentProfile && props.contentProfile !== 'default') {
+    return (
+      getContentProfileLabel(props.contentProfile) ||
+      props.contentProfile.toUpperCase()
+    );
+  }
   const t = props.mediaType || props.type || '';
   if (t === 'movie' || t === '电影') return '电影';
   if (t === 'anime' || t === '动漫') return '动漫';
@@ -62,6 +94,49 @@ const typeLabel = computed(() => {
   return '';
 });
 
+const posterUrl = computed(() =>
+  getImgUrl(getContentProfileImageUrl(props.contentProfile, props.poster)),
+);
+const posterEl = ref<HTMLImageElement | null>(null);
+const posterSrc = ref('');
+let posterObserver: IntersectionObserver | null = null;
+
+function revealPoster() {
+  posterSrc.value = posterUrl.value;
+}
+
+onMounted(() => {
+  // 卡片先渲染榜单数据，封面等接近可视区后再请求，避免首屏被图片下载占满。
+  const el = posterEl.value;
+  if (!el || typeof IntersectionObserver === 'undefined') {
+    revealPoster();
+    return;
+  }
+  posterObserver = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        posterObserver?.disconnect();
+        posterObserver = null;
+        revealPoster();
+      }
+    },
+    { rootMargin: '240px 0px' },
+  );
+  posterObserver.observe(el);
+});
+
+watch(posterUrl, (url) => {
+  if (posterSrc.value || !posterObserver) posterSrc.value = url;
+});
+
+onUnmounted(() => {
+  posterObserver?.disconnect();
+  posterObserver = null;
+});
+
+const posterPosition = computed(
+  () => getContentProfilePosterPosition(props.contentProfile) || '50% 50%',
+);
 const subscribed = computed(() => _fav.value === '1');
 const inLibrary = computed(() => _fav.value === '2');
 const isTvType = computed(() => {
@@ -70,6 +145,19 @@ const isTvType = computed(() => {
 });
 
 const mediaId = computed(() => String(props.tmdbId || props.id));
+const subscribeMediaId = computed(() => {
+  const provider = props.anchorProvider;
+  const externalId = props.anchorExternalId || String(props.id);
+  if (!provider) return String(props.tmdbId || props.id);
+  if (provider === 'douban') return `DB:${externalId}`;
+  if (provider === 'bangumi') return `BG:${externalId}`;
+  if (provider === 'content_id') {
+    // 内容编号是身份锚点；订阅来源仍取实际 provider。
+    const sourceProvider = String(props.metadataRef || '').split(':')[0];
+    return `${sourceProvider || 'content_id'}:${externalId}`;
+  }
+  return `${provider}:${externalId}`;
+});
 
 const metaTags = computed(() => {
   const tags = [
@@ -81,9 +169,29 @@ const metaTags = computed(() => {
 });
 
 function goDetail() {
+  if (props.detailLink) {
+    router.push(props.detailLink);
+    return;
+  }
   const t = props.mediaType || props.type || 'movie';
   const typeParam =
     t === '电影' ? 'movie' : t === '剧集' ? 'tv' : t.toLowerCase();
+  if (
+    props.anchorProvider &&
+    props.anchorProvider !== 'tmdb' &&
+    props.anchorProvider !== 'content_id' &&
+    props.anchorExternalId
+  ) {
+    router.push({
+      name: 'MediaDetail',
+      query: {
+        provider: props.anchorProvider,
+        ref: props.anchorExternalId,
+        type: typeParam,
+      },
+    });
+    return;
+  }
   router.push({
     name: 'MediaDetail',
     query: { id: mediaId.value, type: typeParam },
@@ -104,12 +212,18 @@ function handleSubscribe(e: Event) {
   }
   subscribeItem.value = {
     id: mediaId.value,
+    mediaid: subscribeMediaId.value,
+    anchor_provider: props.anchorProvider,
+    anchor_external_id: props.anchorExternalId,
     tmdbid: mediaId.value,
     title: props.title,
     year: props.year || '',
     type: isTvType.value ? 'tv' : 'movie',
-    image: props.poster,
+    image: posterUrl.value,
     overview: props.overview,
+    content_profile: props.contentProfile,
+    metadata_ref: props.metadataRef,
+    provider: props.anchorProvider,
   };
   subscribeShow.value = true;
 }
@@ -131,6 +245,7 @@ async function confirmUnsubscribe() {
 async function handleConfirmSubscribe(payload: {
   add: number[];
   autoMode: boolean;
+  policy?: string;
   remove: number[];
   selected: number[];
 }) {
@@ -145,8 +260,14 @@ async function handleConfirmSubscribe(payload: {
           name: it.title,
           year: it.year || '',
           type: 'tv',
-          mediaid: String(it.id),
+          mediaid: it.mediaid || String(it.id),
           season: String(season),
+          metadata_policy:
+            payload.policy === 'auto' ? undefined : payload.policy,
+          metadata_ref: it.metadata_ref,
+          provider: it.provider,
+          content_profile: it.content_profile,
+          image: it.image || props.poster || posterUrl.value,
         });
       }
       for (const season of remove) {
@@ -156,6 +277,7 @@ async function handleConfirmSubscribe(payload: {
           type: 'tv',
           tmdbid: String(it.tmdbid || it.id),
           season: String(season),
+          content_profile: it.content_profile,
         });
       }
       _fav.value = selected.length > 0 ? '1' : '0';
@@ -171,7 +293,12 @@ async function handleConfirmSubscribe(payload: {
         name: it.title,
         year: it.year || '',
         type: typeParam,
-        mediaid: String(it.id),
+        mediaid: it.mediaid || String(it.id),
+        metadata_ref: it.metadata_ref,
+        provider: it.provider,
+        content_profile: it.content_profile,
+        metadata_policy: payload.policy === 'auto' ? undefined : payload.policy,
+        image: it.image || props.poster || posterUrl.value,
       });
       _fav.value = '1';
       if (res?.rssid) _rssid.value = String(res.rssid);
@@ -192,7 +319,10 @@ async function handleEditSubscribe() {
   const mtype = it.type === 'movie' ? 'movie' : 'tv';
   let defaults: any = {};
   try {
-    const res: any = await getDefaultSubscriptionSettingApi(mtype);
+    const res: any = await getDefaultSubscriptionSettingApi(
+      mtype,
+      it.content_profile,
+    );
     defaults = res?.data || res || {};
   } catch {
     // ignore
@@ -203,6 +333,9 @@ async function handleEditSubscribe() {
     type: mtype,
     tmdbid: String(it.tmdbid || it.id || ''),
     image: it.image,
+    content_profile: it.content_profile,
+    metadata_ref: it.metadata_ref,
+    mediaid: it.mediaid,
     season: '',
     fuzzy_match: false,
     over_edition: !!(
@@ -233,7 +366,11 @@ async function handleEditSubscribe() {
 
 async function handleConfirmEdit(data: Record<string, any>) {
   try {
-    const res: any = await addSubscriptionApi(data);
+    const isCustom =
+      !!data.content_profile && data.content_profile !== 'default';
+    const res: any = isCustom
+      ? await addSubscriptionMediaApi(data)
+      : await addSubscriptionApi(data);
     _fav.value = '1';
     if (res?.rssid) _rssid.value = String(res.rssid);
     notification.success('订阅成功', {
@@ -260,9 +397,13 @@ function onImgError(e: Event) {
   >
     <div class="aspect-[2/3]" style="background: hsl(var(--muted))">
       <img
-        :src="poster || '/static/img/no-image.png'"
+        ref="posterEl"
+        :src="posterSrc || undefined"
         class="w-full h-full object-cover"
+        :style="{ objectPosition: posterPosition }"
         alt=""
+        loading="lazy"
+        decoding="async"
         @error="onImgError"
       />
     </div>
