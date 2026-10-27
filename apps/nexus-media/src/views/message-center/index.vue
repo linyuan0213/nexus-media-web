@@ -446,8 +446,8 @@ function scrollToBottom() {
 
 /** 滚动到第一条未读消息（置顶显示）；无未读返回 false */
 function scrollToFirstUnread(retries = 10): boolean {
-  const idx = messages.value.findIndex((m) => isUnread(m));
-  const target = idx >= 0 ? messages.value[idx] : undefined;
+  const idx = visibleMessages.value.findIndex((m) => isUnread(m));
+  const target = idx >= 0 ? visibleMessages.value[idx] : undefined;
   if (!target) return false;
   autoScrolling = true;
   const finish = () => {
@@ -479,6 +479,16 @@ function scrollToFirstUnread(retries = 10): boolean {
     requestAnimationFrame(() => tryScroll(0));
   });
   return true;
+}
+
+async function switchTab(tab: 'chat' | 'notifications') {
+  if (activeTab.value === tab) return;
+  activeTab.value = tab;
+  await nextTick();
+  measureListHeight();
+  if (!scrollToFirstUnread()) {
+    scrollToBottom();
+  }
 }
 
 function pushMessage(msg: Omit<Message, 'id'>): Message {
@@ -1192,14 +1202,14 @@ function onVisibilityChange() {
         <button
           type="button"
           :class="{ active: activeTab === 'chat' }"
-          @click="activeTab = 'chat'"
+          @click="switchTab('chat')"
         >
           AI 对话
         </button>
         <button
           type="button"
           :class="{ active: activeTab === 'notifications' }"
-          @click="activeTab = 'notifications'"
+          @click="switchTab('notifications')"
         >
           系统通知
         </button>
