@@ -25,11 +25,7 @@ import { IconifyIcon } from '@vben/icons';
 
 import { NTag } from 'naive-ui';
 
-import {
-  getContentProfileImageUrl,
-  getContentProfilePosterPosition,
-} from '#/plugin-framework/loader';
-import { getImgUrl } from '#/utils/image';
+import MediaPoster from '#/components/media/MediaPoster.vue';
 import { formatPix, formatRestype } from '#/utils/subscribe';
 
 interface Props {
@@ -86,11 +82,6 @@ const typeLabel = computed(() => {
       ? '动漫'
       : '剧集';
 });
-
-const posterPosition = computed(
-  () =>
-    getContentProfilePosterPosition(props.item.content_profile) || '50% 50%',
-);
 
 const voteText = computed(() => {
   const v = props.item.vote;
@@ -272,10 +263,6 @@ const searchOverflow = computed(() =>
   sitesExpanded.value ? 0 : Math.max(0, searchSites.value.length - MAX_SITES),
 );
 
-function onImgError(e: Event) {
-  (e.target as HTMLImageElement).src = '/static/img/no-image.png';
-}
-
 // 当前卡片是否在移动端被激活（与 activeItem 引用相等）
 const isPopup = computed(() => activeItem.value === props.item);
 
@@ -340,19 +327,11 @@ onMounted(ensureOutsideListener);
 
     <!-- 海报（桌面点击进详情 / 移动端点击展开） -->
     <div class="shc-poster" @click="onPosterClick">
-      <img
-        :src="
-          getImgUrl(
-            getContentProfileImageUrl(
-              item.content_profile,
-              item.image || item.poster,
-            ),
-          )
-        "
+      <MediaPoster
+        :src="item.image || item.poster"
+        :content-profile="item.content_profile"
         class="shc-poster-img"
-        :style="{ objectPosition: posterPosition }"
         alt=""
-        @error="onImgError"
       />
 
       <!-- 状态角标 -->

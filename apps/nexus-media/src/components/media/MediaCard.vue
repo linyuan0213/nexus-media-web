@@ -2,7 +2,7 @@
 import type { SubscribeConfirmItem } from '#/components/subscribe/SubscribeConfirmModal.vue';
 import type { SubscribeEditItem } from '#/components/subscribe/SubscribeEditModal.vue';
 
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
@@ -16,14 +16,10 @@ import {
   getDefaultSubscriptionSettingApi,
   removeSubscriptionApi,
 } from '#/api/modules/subscription';
+import MediaPoster from '#/components/media/MediaPoster.vue';
 import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.vue';
 import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
-import {
-  getContentProfileImageUrl,
-  getContentProfileLabel,
-  getContentProfilePosterPosition,
-} from '#/plugin-framework';
-import { getImgUrl } from '#/utils/image';
+import { getContentProfileLabel } from '#/plugin-framework';
 import { useAppNotification } from '#/utils/notify';
 
 interface Props {
@@ -94,49 +90,6 @@ const typeLabel = computed(() => {
   return '';
 });
 
-const posterUrl = computed(() =>
-  getImgUrl(getContentProfileImageUrl(props.contentProfile, props.poster)),
-);
-const posterEl = ref<HTMLImageElement | null>(null);
-const posterSrc = ref('');
-let posterObserver: IntersectionObserver | null = null;
-
-function revealPoster() {
-  posterSrc.value = posterUrl.value;
-}
-
-onMounted(() => {
-  // 卡片先渲染榜单数据，封面等接近可视区后再请求，避免首屏被图片下载占满。
-  const el = posterEl.value;
-  if (!el || typeof IntersectionObserver === 'undefined') {
-    revealPoster();
-    return;
-  }
-  posterObserver = new IntersectionObserver(
-    (entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        posterObserver?.disconnect();
-        posterObserver = null;
-        revealPoster();
-      }
-    },
-    { rootMargin: '240px 0px' },
-  );
-  posterObserver.observe(el);
-});
-
-watch(posterUrl, (url) => {
-  if (posterSrc.value || !posterObserver) posterSrc.value = url;
-});
-
-onUnmounted(() => {
-  posterObserver?.disconnect();
-  posterObserver = null;
-});
-
-const posterPosition = computed(
-  () => getContentProfilePosterPosition(props.contentProfile) || '50% 50%',
-);
 const subscribed = computed(() => _fav.value === '1');
 const inLibrary = computed(() => _fav.value === '2');
 const isTvType = computed(() => {
@@ -205,6 +158,7 @@ function handleSearch(e: Event) {
 
 function handleSubscribe(e: Event) {
   e.stopPropagation();
+  if (inLibrary.value) return;
   // 电影已订阅 → 取消订阅；电视剧已订阅 → 仍打开季选择框以追加其他季
   if (subscribed.value && !isTvType.value && _rssid.value) {
     unsubscribing.value = true;
@@ -219,7 +173,7 @@ function handleSubscribe(e: Event) {
     title: props.title,
     year: props.year || '',
     type: isTvType.value ? 'tv' : 'movie',
-    image: posterUrl.value,
+    image: props.poster,
     overview: props.overview,
     content_profile: props.contentProfile,
     metadata_ref: props.metadataRef,
@@ -267,7 +221,7 @@ async function handleConfirmSubscribe(payload: {
           metadata_ref: it.metadata_ref,
           provider: it.provider,
           content_profile: it.content_profile,
-          image: it.image || props.poster || posterUrl.value,
+          image: it.image || props.poster,
         });
       }
       for (const season of remove) {
@@ -298,7 +252,7 @@ async function handleConfirmSubscribe(payload: {
         provider: it.provider,
         content_profile: it.content_profile,
         metadata_policy: payload.policy === 'auto' ? undefined : payload.policy,
-        image: it.image || props.poster || posterUrl.value,
+        image: it.image || props.poster,
       });
       _fav.value = '1';
       if (res?.rssid) _rssid.value = String(res.rssid);
@@ -382,10 +336,6 @@ async function handleConfirmEdit(data: Record<string, any>) {
     subscribeEditShow.value = false;
   }
 }
-
-function onImgError(e: Event) {
-  (e.target as HTMLImageElement).src = '/static/img/no-image.png';
-}
 </script>
 
 <template>
@@ -396,15 +346,11 @@ function onImgError(e: Event) {
     @mouseleave="hovered = false"
   >
     <div class="aspect-[2/3]" style="background: hsl(var(--muted))">
-      <img
-        ref="posterEl"
-        :src="posterSrc || undefined"
-        class="w-full h-full object-cover"
-        :style="{ objectPosition: posterPosition }"
+      <MediaPoster
+        :src="poster"
+        :content-profile="contentProfile"
+        class="w-full h-full"
         alt=""
-        loading="lazy"
-        decoding="async"
-        @error="onImgError"
       />
     </div>
 
@@ -510,7 +456,7 @@ function onImgError(e: Event) {
         搜索资源
       </NButton>
       <NButton
-        v-if="!subscribed"
+        v-if="!subscribed && !inLibrary"
         size="small"
         ghost
         round
@@ -521,7 +467,7 @@ function onImgError(e: Event) {
         订阅
       </NButton>
       <NButton
-        v-else
+        v-else-if="subscribed"
         size="small"
         type="error"
         ghost

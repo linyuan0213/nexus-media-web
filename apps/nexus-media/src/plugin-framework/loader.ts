@@ -112,8 +112,10 @@ const host = {
   SubscriptionListPage,
   getImgUrl,
   getContentProfileImageUrl,
+  getContentProfileMessageImageUrl,
   getContentProfilePosterPosition,
   registerContentProfileImageTransformer,
+  registerContentProfileMessageImageTransformer,
   setContentProfileSearchSources,
   useRoute,
   dialog,
@@ -186,6 +188,12 @@ const contentProfileImageTransformers = new Map<
   (url: string) => string
 >();
 
+/** 消息/历史图片专用变换，与内容卡片变换分离，避免各场景开关互相影响 */
+const contentProfileMessageImageTransformers = new Map<
+  string,
+  (url: string) => string
+>();
+
 export function setContentProfileSearchSources(
   profile: string,
   sources: Array<{ label: string; value: string }>,
@@ -221,6 +229,30 @@ export function getContentProfileImageUrl(
   if (!url) return '';
   const transformer = profile
     ? contentProfileImageTransformers.get(profile)
+    : undefined;
+  if (!transformer) return url;
+  try {
+    return transformer(url) || url;
+  } catch {
+    return url;
+  }
+}
+
+export function registerContentProfileMessageImageTransformer(
+  profile: string,
+  transformer: (url: string) => string,
+): void {
+  if (!profile || typeof transformer !== 'function') return;
+  contentProfileMessageImageTransformers.set(profile, transformer);
+}
+
+export function getContentProfileMessageImageUrl(
+  profile: null | string | undefined,
+  url: null | string | undefined,
+): string {
+  if (!url) return '';
+  const transformer = profile
+    ? contentProfileMessageImageTransformers.get(profile)
     : undefined;
   if (!transformer) return url;
   try {

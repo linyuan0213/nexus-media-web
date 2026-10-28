@@ -3,7 +3,7 @@ import { IconifyIcon } from '@vben/icons';
 
 import { NButton, NButtonGroup, NTooltip } from 'naive-ui';
 
-import { getImgUrl, handleImageError } from '#/utils/image';
+import MediaPoster from '#/components/media/MediaPoster.vue';
 
 interface HistoryItem {
   id: number | string;
@@ -12,6 +12,7 @@ interface HistoryItem {
   season: string;
   tmdbid: string;
   image: string;
+  content_profile?: string;
   total: number;
   start: number;
   desc: string;
@@ -46,19 +47,19 @@ function getTmdbUrl() {
           rel="noopener noreferrer"
           class="history-card-link"
         >
-          <img
-            :src="getImgUrl(item.image)"
+          <MediaPoster
+            :src="item.image"
+            :content-profile="item.content_profile"
             class="history-card-img"
             :alt="item.title"
-            @error="handleImageError"
           />
         </a>
-        <img
+        <MediaPoster
           v-else
-          :src="getImgUrl(item.image)"
+          :src="item.image"
+          :content-profile="item.content_profile"
           class="history-card-img"
           :alt="item.title"
-          @error="handleImageError"
         />
       </div>
 

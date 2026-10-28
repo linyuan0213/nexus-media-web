@@ -42,6 +42,7 @@ import {
   removeSubscriptionApi,
 } from '#/api/modules/subscription';
 import EmptyState from '#/components/empty/EmptyState.vue';
+import MediaPoster from '#/components/media/MediaPoster.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.vue';
 import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
@@ -52,11 +53,9 @@ import {
   getContentProfileDetailPath,
   getContentProfileLabel,
   getContentProfileOverviewFallback,
-  getContentProfilePosterPosition,
   getContentProfileSearchSources,
   getContentProfileSourceOptions,
 } from '#/plugin-framework';
-import { getImgUrl } from '#/utils/image';
 import { useAppNotification } from '#/utils/notify';
 import { useResourceHelpers } from '#/views/site/resources/composables/useResourceHelpers';
 
@@ -1753,20 +1752,11 @@ async function confirmDownload() {
             @click="handleMediaCardClick(media)"
           >
             <div style="aspect-ratio: 2/3; background: hsl(var(--muted))">
-              <img
-                :src="getImgUrl(media.image || media.poster)"
-                class="w-full h-full object-cover"
-                :style="{
-                  objectPosition:
-                    getContentProfilePosterPosition(media.content_profile) ||
-                    '50% 50%',
-                }"
+              <MediaPoster
+                :src="media.image || media.poster"
+                :content-profile="media.content_profile"
+                class="w-full h-full"
                 alt=""
-                @error="
-                  (e: any) => {
-                    e.target.src = '/static/img/no-image.png';
-                  }
-                "
               />
             </div>
             <span
@@ -1928,19 +1918,11 @@ async function confirmDownload() {
                 class="result-poster"
                 @click="openResultDetail(item)"
               >
-                <img
-                  :src="getImgUrl(item.poster)"
-                  :style="{
-                    objectPosition:
-                      getContentProfilePosterPosition(item.content_profile) ||
-                      '50% 50%',
-                  }"
+                <MediaPoster
+                  :src="item.poster"
+                  :content-profile="item.content_profile"
+                  class="result-poster-img"
                   alt=""
-                  @error="
-                    (e: any) => {
-                      e.target.src = '/static/img/no-image.png';
-                    }
-                  "
                 />
                 <div
                   v-if="item.type_key || item.content_profile"

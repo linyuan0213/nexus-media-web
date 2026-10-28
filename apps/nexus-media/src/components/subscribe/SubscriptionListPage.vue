@@ -39,6 +39,7 @@ import {
   updateSubscriptionApi,
 } from '#/api/modules/subscription';
 import EmptyState from '#/components/empty/EmptyState.vue';
+import MediaPoster from '#/components/media/MediaPoster.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 import SubscribeDefaultSettingModal from '#/components/subscribe/SubscribeDefaultSettingModal.vue';
 import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
@@ -904,10 +905,11 @@ onUnmounted(() => {
               class="flex w-full items-center gap-3 rounded-lg border p-2 text-left hover:bg-accent"
               @click="selectAddMedia(media)"
             >
-              <img
+              <MediaPoster
                 v-if="searchImage(media)"
                 :src="searchImage(media)"
-                class="h-16 w-11 rounded object-cover"
+                :content-profile="media.content_profile"
+                class="h-16 w-11 rounded"
                 alt=""
               />
               <div class="min-w-0 flex-1">

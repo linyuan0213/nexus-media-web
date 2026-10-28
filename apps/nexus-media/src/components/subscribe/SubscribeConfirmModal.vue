@@ -17,8 +17,8 @@ import {
 import { getTvSeasonListApi } from '#/api/modules/media';
 import { getVisibleSitesApi } from '#/api/modules/site';
 import { getSubscribedSeasonsApi } from '#/api/modules/subscription';
+import MediaPoster from '#/components/media/MediaPoster.vue';
 import { getContentProfileLabel } from '#/plugin-framework';
-import { getImgUrl } from '#/utils/image';
 
 export interface SubscribeConfirmItem {
   id: string;
@@ -228,9 +228,10 @@ function toggleSeason(num: number) {
 
       <!-- 基本信息 -->
       <div class="flex gap-3">
-        <img
-          :src="getImgUrl(item.image)"
-          class="rounded-lg object-cover flex-shrink-0"
+        <MediaPoster
+          :src="item.image"
+          :content-profile="item.content_profile"
+          class="rounded-lg flex-shrink-0"
           style="width: 80px; aspect-ratio: 2/3"
           alt=""
         />

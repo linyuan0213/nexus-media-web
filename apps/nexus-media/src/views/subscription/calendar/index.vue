@@ -17,10 +17,9 @@ import {
   getSubscriptionCalendarWebcalUrlApi,
 } from '#/api/modules/subscription';
 import {
-  getContentProfileImageUrl,
-  getContentProfilePosterPosition,
-} from '#/plugin-framework/loader';
-import { getImgUrl } from '#/utils/image';
+  resolveMediaPoster,
+  resolveMediaPosterPosition,
+} from '#/utils/media-poster';
 import { useAppNotification } from '#/utils/notify';
 
 interface CalendarEvent {
@@ -101,13 +100,11 @@ function getDayEvents(year: number, month: number, date: number) {
 }
 
 function eventPosterUrl(event: CalendarEvent): string {
-  return getImgUrl(
-    getContentProfileImageUrl(event.content_profile, event.poster),
-  );
+  return resolveMediaPoster(event.poster, event.content_profile);
 }
 
 function eventPosterPosition(event: CalendarEvent): string {
-  return getContentProfilePosterPosition(event.content_profile) || 'center';
+  return resolveMediaPosterPosition(event.content_profile, 'center');
 }
 
 function eventTypeLabel(type: string): string {

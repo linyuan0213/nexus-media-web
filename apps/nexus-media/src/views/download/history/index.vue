@@ -20,8 +20,8 @@ import {
   getDownloadHistoryApi,
 } from '#/api';
 import EmptyState from '#/components/empty/EmptyState.vue';
+import MediaPoster from '#/components/media/MediaPoster.vue';
 import { useDownloadStore } from '#/store';
-import { getImgUrl } from '#/utils/image';
 
 const downloadStore = useDownloadStore();
 const message = useMessage();
@@ -209,9 +209,10 @@ onMounted(() => fetchData(1));
           >
             <div class="flex gap-3">
               <div class="history-poster-wrapper">
-                <img
+                <MediaPoster
                   v-if="item.image"
-                  :src="getImgUrl(item.image)"
+                  :src="item.image"
+                  :content-profile="item.content_profile"
                   class="history-poster rounded"
                   alt=""
                 />
@@ -300,9 +301,10 @@ onMounted(() => fetchData(1));
             :key="`${item.id}-${item.date}`"
             class="history-list-item"
           >
-            <img
+            <MediaPoster
               v-if="item.image"
-              :src="`/img?url=${item.image}`"
+              :src="item.image"
+              :content-profile="item.content_profile"
               class="history-list-poster rounded"
               alt=""
             />

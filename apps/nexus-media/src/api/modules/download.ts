@@ -92,6 +92,7 @@ export namespace DownloadApi {
   export interface DownloadHistoryItem {
     id: string;
     history_id?: number;
+    content_profile?: string;
     title: string;
     type: 'MOV' | 'TV';
     media_type: string;

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import MediaPoster from '#/components/media/MediaPoster.vue';
+
 interface Props {
   id: string;
   name: string;
@@ -7,6 +9,7 @@ interface Props {
   size?: string;
   status: string;
   image?: string;
+  contentProfile?: string;
   noprogress?: boolean;
 }
 
@@ -17,25 +20,18 @@ defineEmits<{
   (e: 'stop', id: string): void;
   (e: 'delete', id: string): void;
 }>();
-
-const fallbackImage = '/static/img/no-image.png';
-
-function handleImageError(e: Event) {
-  const img = e.target as HTMLImageElement;
-  img.src = fallbackImage;
-}
 </script>
 
 <template>
   <div class="torrent-card tbl-card p-3">
     <div class="flex items-center gap-3">
       <div v-if="image" class="flex-shrink-0">
-        <img
+        <MediaPoster
           :src="image"
+          :content-profile="contentProfile"
           class="rounded"
-          style="width: 80px; height: 100px; object-fit: cover"
+          style="width: 80px; height: 100px"
           alt=""
-          @error="handleImageError"
         />
       </div>
       <div class="flex-grow min-w-0">

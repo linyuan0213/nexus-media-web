@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { IconifyIcon } from '@vben/icons';
 
-import { getImgUrl } from '#/utils/image';
+import MediaPoster from '#/components/media/MediaPoster.vue';
 
 interface Props {
   title: string;
@@ -14,23 +14,6 @@ defineProps<Props>();
 const emit = defineEmits<{
   click: [item: any];
 }>();
-
-function replaceLocalhost(url?: any) {
-  if (!url) return '';
-  const s = String(url);
-  return s.replace(
-    /^(https?:\/\/)(127\.0\.0\.1|localhost)(:\d+)?/,
-    window.location.origin,
-  );
-}
-
-function imageUrl(url?: any) {
-  if (!url) return '';
-  const s = String(url);
-  if (s.startsWith('/img/') || s.startsWith('/img?')) return s;
-  if (/^https?:\/\//.test(s)) return getImgUrl(s);
-  return replaceLocalhost(s);
-}
 </script>
 
 <template>
@@ -63,11 +46,11 @@ function imageUrl(url?: any) {
         @click="emit('click', item)"
       >
         <div class="relative aspect-[2/3] overflow-hidden">
-          <img
-            :src="imageUrl(item.image || item.poster)"
-            class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          <MediaPoster
+            :src="item.image || item.poster"
+            :content-profile="item.content_profile"
+            class="h-full w-full transition-transform duration-500 group-hover:scale-105"
             alt=""
-            @error="($event.target as HTMLImageElement).style.display = 'none'"
           />
           <div
             v-if="!item.image && !item.poster"

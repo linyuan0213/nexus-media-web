@@ -35,6 +35,7 @@ import {
   resumeTaskApi,
 } from '#/api';
 import EmptyState from '#/components/empty/EmptyState.vue';
+import MediaPoster from '#/components/media/MediaPoster.vue';
 import { useDownloadEventStream } from '#/composables/useDownloadEventStream';
 import { useDownloadStore } from '#/store';
 
@@ -100,14 +101,6 @@ function getDownloaderStyle(clientId: string) {
       dot: 'hsl(var(--muted-foreground))',
     }
   );
-}
-
-function proxyImage(url: string): string {
-  if (!url) return '';
-  const m = url.match(/\/t\/p\/(\w+)(\/.+)/);
-  return m?.[1] && m?.[2]
-    ? `/img/tmdb/${m[1]}/${m[2].slice(1)}`
-    : `/img?url=${encodeURIComponent(url)}`;
 }
 
 function downloaderMetaStyle(torrent: any) {
@@ -603,9 +596,10 @@ onUnmounted(() => {
                   @click.stop
                   @change="toggleSelect(torrent.id)"
                 />
-                <img
+                <MediaPoster
                   v-if="torrent.image"
-                  :src="proxyImage(torrent.image)"
+                  :src="torrent.image"
+                  :content-profile="torrent.content_profile"
                   class="torrent-poster rounded"
                   alt=""
                 />
@@ -725,9 +719,10 @@ onUnmounted(() => {
               @click.stop
               @change="toggleSelect(torrent.id)"
             />
-            <img
+            <MediaPoster
               v-if="torrent.image"
-              :src="`/img?url=${torrent.image}`"
+              :src="torrent.image"
+              :content-profile="torrent.content_profile"
               class="torrent-list-poster rounded"
               alt=""
             />

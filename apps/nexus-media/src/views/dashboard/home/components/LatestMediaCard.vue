@@ -3,12 +3,15 @@ import { IconifyIcon } from '@vben/icons';
 
 import { NEmpty } from 'naive-ui';
 
+import MediaPoster from '#/components/media/MediaPoster.vue';
+
 interface LatestItem {
   id: number | string;
   image?: string;
   link?: string;
   name: string;
   type?: string;
+  content_profile?: string;
 }
 
 interface Props {
@@ -34,13 +37,12 @@ function openLink(link?: string) {
       @keydown.enter="openLink(item.link)"
     >
       <div class="latest-poster">
-        <img
+        <MediaPoster
           v-if="item.image"
           :src="item.image"
+          :content-profile="item.content_profile"
           :alt="item.name"
-          class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          loading="lazy"
-          @error="($event.target as HTMLImageElement).style.display = 'none'"
+          class="h-full w-full transition-transform duration-300 group-hover:scale-105"
         />
         <div
           v-else

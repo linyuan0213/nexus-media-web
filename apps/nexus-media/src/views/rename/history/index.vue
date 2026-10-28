@@ -36,9 +36,9 @@ import {
   SYNC_MODES,
 } from '#/api/modules/sync';
 import EmptyState from '#/components/empty/EmptyState.vue';
+import MediaPoster from '#/components/media/MediaPoster.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 import { useMediaStore } from '#/store';
-import { getImgUrl } from '#/utils/image';
 import { useAppNotification } from '#/utils/notify';
 
 const mediaStore = useMediaStore();
@@ -611,12 +611,12 @@ onMounted(() => {
               <div
                 class="history-poster flex flex-shrink-0 items-center justify-center rounded"
               >
-                <img
+                <MediaPoster
                   v-if="item.image && !isPosterFailed(item.ID)"
-                  :src="getImgUrl(item.image)"
+                  :src="item.image"
+                  :content-profile="item.CONTENT_PROFILE"
                   class="history-poster-img rounded"
                   alt=""
-                  loading="lazy"
                   @error="markPosterFailed(item.ID)"
                 />
                 <div
@@ -963,14 +963,12 @@ onMounted(() => {
               @click="selectTmdbMedia(media)"
             >
               <div class="flex gap-3">
-                <img
+                <MediaPoster
                   v-if="media.image || media.poster"
-                  :src="getImgUrl(media.image || media.poster)"
+                  :src="media.image || media.poster"
+                  :content-profile="media.content_profile"
                   class="tmdb-poster rounded"
                   alt=""
-                  @error="
-                    (e: any) => (e.target.src = '/static/img/no-image.png')
-                  "
                 />
                 <div
                   v-else

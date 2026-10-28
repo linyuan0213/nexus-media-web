@@ -22,11 +22,7 @@ import { computed, onMounted } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import {
-  getContentProfileImageUrl,
-  getContentProfilePosterPosition,
-} from '#/plugin-framework/loader';
-import { getImgUrl } from '#/utils/image';
+import MediaPoster from '#/components/media/MediaPoster.vue';
 import { formatPix, formatRestype } from '#/utils/subscribe';
 
 interface Props {
@@ -93,11 +89,6 @@ const captionTitle = computed(() => {
 });
 
 const subscriberCount = computed(() => props.items.length);
-const posterPosition = computed(
-  () =>
-    getContentProfilePosterPosition(props.items[0]?.content_profile) ||
-    '50% 50%',
-);
 
 const sourceText = computed(() => {
   const labels = new Set<string>();
@@ -206,10 +197,6 @@ function itemQuality(item: Record<string, any>) {
   return tags;
 }
 
-function onImgError(e: Event) {
-  (e.target as HTMLImageElement).src = '/static/img/no-image.png';
-}
-
 // 移动端点击激活（与 hover 面板共用 DOM）
 const isPopup = computed(() => activeGroup.value === props.groupKey);
 
@@ -263,16 +250,11 @@ onMounted(ensureOutsideListener);
 
     <!-- 海报 -->
     <div class="sgc-poster" @click="onPosterClick">
-      <img
-        :src="
-          getImgUrl(
-            getContentProfileImageUrl(props.items[0]?.content_profile, image),
-          )
-        "
+      <MediaPoster
+        :src="image"
+        :content-profile="props.items[0]?.content_profile"
         class="sgc-poster-img"
-        :style="{ objectPosition: posterPosition }"
         alt=""
-        @error="onImgError"
       />
 
       <!-- 聚合状态角标 -->

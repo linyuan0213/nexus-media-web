@@ -6,10 +6,9 @@ import { IconifyIcon } from '@vben/icons';
 import { NModal, NSpin } from 'naive-ui';
 
 import {
-  getContentProfileImageUrl,
-  getContentProfilePosterPosition,
-} from '#/plugin-framework/loader';
-import { getImgUrl } from '#/utils/image';
+  resolveMediaPoster,
+  resolveMediaPosterPosition,
+} from '#/utils/media-poster';
 
 interface IdentifyMatch {
   provider: string;
@@ -104,16 +103,15 @@ watch(
   },
 );
 
-const bestPosterPosition = computed(() => {
-  const profile = bestMatch.value?.content_profile;
-  return getContentProfilePosterPosition(profile) || '50% 50%';
-});
+const bestPosterPosition = computed(() =>
+  resolveMediaPosterPosition(bestMatch.value?.content_profile),
+);
 
 const bestPoster = computed(() => {
   const match = bestMatch.value;
   const poster = match?.poster || props.result.image || '';
   if (!poster) return '';
-  return getImgUrl(getContentProfileImageUrl(match?.content_profile, poster));
+  return resolveMediaPoster(poster, match?.content_profile);
 });
 
 function matchTypeLabel(match: IdentifyMatch): string {

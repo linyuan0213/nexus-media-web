@@ -78,8 +78,9 @@ export function useFileNavigation() {
       const items = byBackend.get(id)!;
       const style = getBackendTagStyle(id)!;
       const sections: BackendGroup['sections'] = [];
-      const libs = items.filter((i) =>
-        ['anime', 'movie', 'tv'].includes(i.type),
+      // 插件可注册任意内容画像的媒体库根目录，核心不写死 anime/movie/tv。
+      const libs = items.filter(
+        (i) => i.type !== 'sync' && i.type !== 'sync_dest',
       );
       if (libs.length > 0)
         sections.push({ label: '媒体库', type: 'lib', items: libs });

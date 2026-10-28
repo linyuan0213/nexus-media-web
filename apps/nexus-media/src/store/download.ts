@@ -29,6 +29,7 @@ export interface DownloadHistoryItem {
   enclosure?: string;
   season_episode?: string;
   history_id?: number;
+  content_profile?: string;
   date: string;
   site: string;
 }

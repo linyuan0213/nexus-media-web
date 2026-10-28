@@ -23,7 +23,7 @@ import {
 import { searchMediaApi } from '#/api/modules/media';
 import { getStorageBackendsApi } from '#/api/modules/storage';
 import { SYNC_MODES } from '#/api/modules/sync';
-import { getImgUrl } from '#/utils/image';
+import MediaPoster from '#/components/media/MediaPoster.vue';
 
 import PathPickerModal from './PathPickerModal.vue';
 
@@ -408,14 +408,12 @@ function selectTmdbMedia(media: any) {
               @click="selectTmdbMedia(media)"
             >
               <div class="flex gap-3">
-                <img
+                <MediaPoster
                   v-if="media.image || media.poster"
-                  :src="getImgUrl(media.image || media.poster)"
+                  :src="media.image || media.poster"
+                  :content-profile="media.content_profile"
                   class="tmdb-poster rounded"
                   alt=""
-                  @error="
-                    (e: any) => (e.target.src = '/static/img/no-image.png')
-                  "
                 />
                 <div
                   v-else

@@ -5,7 +5,10 @@ import { IconifyIcon } from '@vben/icons';
 
 import { NButton, NTag } from 'naive-ui';
 
-import { getImgUrl } from '#/utils/image';
+import {
+  resolveMediaPoster,
+  resolveMediaPosterPosition,
+} from '#/utils/media-poster';
 
 interface Props {
   detail: Record<string, any>;
@@ -35,7 +38,15 @@ const emit = defineEmits<{
 const isTv = computed(() => props.detail.type !== 'movie');
 
 const posterSrc = computed(() =>
-  imageUrl(props.detail.image || props.detail.poster),
+  imageUrl(
+    props.detail.image || props.detail.poster,
+    props.detail.content_profile,
+  ),
+);
+const resolvedPosterPosition = computed(
+  () =>
+    props.posterPosition ||
+    resolveMediaPosterPosition(props.detail.content_profile),
 );
 const posterStatus = ref<'error' | 'loaded' | 'loading'>('loading');
 
@@ -109,12 +120,19 @@ function replaceLocalhost(url?: any) {
   );
 }
 
-function imageUrl(url?: any) {
+function imageUrl(url?: any, contentProfile?: string) {
   if (!url) return '';
   const s = String(url);
-  if (s.startsWith('/img?')) return getImgUrl(s);
-  if (s.startsWith('/img/')) return s;
-  if (/^https?:\/\//.test(s)) return getImgUrl(s);
+  if (/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/.test(s)) {
+    return replaceLocalhost(s);
+  }
+  if (
+    s.startsWith('/img/') ||
+    s.startsWith('/img?') ||
+    /^https?:\/\//.test(s)
+  ) {
+    return resolveMediaPoster(s, contentProfile);
+  }
   return replaceLocalhost(s);
 }
 </script>
@@ -129,7 +147,7 @@ function imageUrl(url?: any) {
       v-if="detail.background || detail.backdrop"
       class="absolute inset-0 bg-cover bg-center opacity-20"
       :style="{
-        backgroundImage: `url(${imageUrl(detail.background || detail.backdrop)})`,
+        backgroundImage: `url(${imageUrl(detail.background || detail.backdrop, detail.content_profile)})`,
       }"
     ></div>
     <div
@@ -158,7 +176,7 @@ function imageUrl(url?: any) {
             class="h-full w-full object-cover transition-opacity duration-300"
             :style="{
               opacity: posterStatus === 'loaded' ? 1 : 0,
-              objectPosition: posterPosition || '50% 50%',
+              objectPosition: resolvedPosterPosition,
             }"
             decoding="async"
             fetchpriority="high"
