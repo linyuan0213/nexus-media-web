@@ -79,6 +79,7 @@ export namespace MediaApi {
     target_path?: null | string;
     server_id: number;
     server_name?: string;
+    backend_id?: string;
     library_id?: null | string;
     enabled: boolean;
     note?: string;
@@ -416,6 +417,7 @@ export interface TransferHistoryItem {
   SEEDS_SEASON?: number;
   SEEDS_EPISODE?: number;
   SEEDS_END_EPISODE?: number;
+  CONTENT_PROFILE?: string;
 }
 
 export interface TransferHistoryPageResult {

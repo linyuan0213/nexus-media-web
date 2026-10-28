@@ -480,10 +480,12 @@ function subscriptionFor(
   if (byName) return byName;
   // 不同元数据源标题可能只差空格/冒号（如“龙珠超：比鲁斯” vs “龙珠超 比鲁斯”）。
   const normalized = normalizeMediaTitle(item.title);
-  return (
+  const byTitle =
     index.get(`title:${normalized}:${item.year || ''}`) ||
-    index.get(`title:${normalized}`)
-  );
+    index.get(`title:${normalized}`);
+  if (byTitle) return byTitle;
+  if (item.extra?.in_library) return { fav: '2', rssid: '' };
+  return undefined;
 }
 
 function itemId(item: DiscoveryApi.Item) {
@@ -995,7 +997,9 @@ onUnmounted(() => {
 }
 
 .source-list {
+  flex: 1;
   align-items: center;
+  min-width: 0;
 }
 
 .source-tab {
@@ -1147,14 +1151,23 @@ onUnmounted(() => {
 
 @media (max-width: 640px) {
   .discovery-filter {
+    max-width: 100%;
     padding: 0 0.75rem;
+    overflow: hidden;
   }
 
   .filter-row {
     flex-direction: column;
     gap: 0.35rem;
     align-items: flex-start;
+    min-width: 0;
     padding: 0.55rem 0;
+  }
+
+  .filter-scroll {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .filter-label {

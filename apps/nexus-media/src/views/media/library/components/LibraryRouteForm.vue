@@ -19,6 +19,7 @@ import {
 } from 'naive-ui';
 
 import { getMediaLibrariesApi, saveLibraryRouteApi } from '#/api/modules/media';
+import { getStorageBackendsApi } from '#/api/modules/storage';
 import PathPickerModal from '#/components/media/PathPickerModal.vue';
 import { getContentProfileOptions } from '#/plugin-framework';
 
@@ -38,10 +39,14 @@ const pathPickerVisible = ref(false);
 const libraryLoading = ref(false);
 const libraryError = ref('');
 const libraryOptions = ref<{ label: string; value: string }[]>([]);
+const backendOptions = ref<{ label: string; value: string }[]>([
+  { label: '本地', value: 'local' },
+]);
 let librarySequence = 0;
 const form = reactive({
   content_profile: '',
   target_path: '',
+  backend_id: 'local',
   server_id: null as null | number,
   library_id: '',
   enabled: true,
@@ -96,6 +101,7 @@ watch(
 function resetForm() {
   form.content_profile = props.route?.content_profile || '';
   form.target_path = props.route?.target_path || '';
+  form.backend_id = props.route?.backend_id || 'local';
   form.server_id =
     props.route?.server_id ||
     props.servers.find((server) => server.is_default)?.id ||
@@ -105,6 +111,22 @@ function resetForm() {
   form.enabled = props.route?.enabled ?? true;
   form.note = props.route?.note || '';
   void loadLibraries();
+  void loadBackends();
+}
+
+async function loadBackends() {
+  try {
+    const result = await getStorageBackendsApi();
+    backendOptions.value = [
+      { label: '本地', value: 'local' },
+      ...(result.items || []).map((item) => ({
+        label: item.name,
+        value: String(item.id),
+      })),
+    ];
+  } catch {
+    backendOptions.value = [{ label: '本地', value: 'local' }];
+  }
 }
 
 async function handleServerChange(serverId: number) {
@@ -171,6 +193,7 @@ async function save() {
       id: props.route?.id,
       content_profile: form.content_profile,
       target_path: form.target_path.trim(),
+      backend_id: form.backend_id,
       server_id: form.server_id,
       library_id: form.library_id || null,
       enabled: form.enabled,
@@ -218,6 +241,12 @@ async function save() {
           </NInputGroup>
           <template #feedback>
             可浏览本地或存储后端目录，也可以手动输入。
+          </template>
+        </NFormItem>
+        <NFormItem label="文件管理存储后端" label-placement="top">
+          <NSelect v-model:value="form.backend_id" :options="backendOptions" />
+          <template #feedback>
+            远程实例未本地挂载时，选择对应的存储后端用于文件管理浏览。
           </template>
         </NFormItem>
         <NFormItem label="内容画像（可选，默认不限）" label-placement="top">
