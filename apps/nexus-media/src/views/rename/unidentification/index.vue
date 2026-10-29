@@ -41,6 +41,22 @@ const total = ref(0);
 const totalPage = ref(1);
 
 const unknownList = computed(() => mediaStore.unknownList);
+const viewMode = ref<'card' | 'list'>(
+  (localStorage.getItem('nexus.unknown.view') as 'card' | 'list') || 'card',
+);
+
+function setViewMode(mode: 'card' | 'list') {
+  viewMode.value = mode;
+  localStorage.setItem('nexus.unknown.view', mode);
+}
+
+function fileName(item: any): string {
+  const path = String(item?.path || '').replace(/\\/g, '/');
+  const base = path.split('/').filter(Boolean).pop() || '';
+  const name = String(item?.name || '');
+  if (name && name !== path) return name;
+  return base || name || '-';
+}
 
 // 批量选择
 const selectedIds = ref<number[]>([]);
@@ -347,10 +363,34 @@ onMounted(() => fetchData(1));
             >
               全选本页
             </NCheckbox>
+            <div class="view-switch">
+              <NButton
+                size="tiny"
+                :type="viewMode === 'card' ? 'primary' : 'default'"
+                quaternary
+                aria-label="卡片视图"
+                @click="setViewMode('card')"
+              >
+                <template #icon>
+                  <IconifyIcon icon="lucide:layout-grid" class="size-4" />
+                </template>
+              </NButton>
+              <NButton
+                size="tiny"
+                :type="viewMode === 'list' ? 'primary' : 'default'"
+                quaternary
+                aria-label="列表视图"
+                @click="setViewMode('list')"
+              >
+                <template #icon>
+                  <IconifyIcon icon="lucide:list" class="size-4" />
+                </template>
+              </NButton>
+            </div>
           </NSpace>
         </div>
 
-        <div class="unknown-grid">
+        <div v-if="viewMode === 'card'" class="unknown-grid">
           <NCard
             v-for="item in unknownList"
             :key="item.id"
@@ -367,13 +407,13 @@ onMounted(() => fetchData(1));
                   class="text-xs font-bold"
                   style="color: hsl(var(--warning))"
                 >
-                  {{ getFileExt(item.name) }}
+                  {{ getFileExt(fileName(item)) }}
                 </span>
               </div>
               <div class="min-w-0 flex-1">
                 <div class="flex items-start justify-between gap-2">
-                  <div class="unknown-name truncate" :title="item.name">
-                    {{ item.name || '-' }}
+                  <div class="unknown-name" :title="fileName(item)">
+                    {{ fileName(item) }}
                   </div>
                   <NCheckbox
                     :checked="selectedIds.includes(item.id)"
@@ -422,6 +462,58 @@ onMounted(() => fetchData(1));
               </div>
             </div>
           </NCard>
+        </div>
+
+        <div v-else class="unknown-list">
+          <div class="unknown-list-head">
+            <span class="col-check"></span>
+            <span>文件名 / 路径</span>
+            <span>状态</span>
+            <span>操作</span>
+          </div>
+          <div
+            v-for="item in unknownList"
+            :key="item.id"
+            class="unknown-list-row"
+          >
+            <div class="col-check">
+              <NCheckbox
+                :checked="selectedIds.includes(item.id)"
+                @update:checked="() => toggleSelect(item.id)"
+              />
+            </div>
+            <div class="unknown-file">
+              <div class="unknown-file-name" :title="fileName(item)">
+                {{ fileName(item) }}
+              </div>
+              <div class="unknown-file-path" :title="item.path">
+                <IconifyIcon icon="lucide:folder" class="size-3" />
+                <span>{{ item.path }}</span>
+              </div>
+              <div v-if="item.to" class="unknown-file-dest" :title="item.to">
+                <IconifyIcon icon="lucide:arrow-right-to-line" class="size-3" />
+                <span>{{ item.to }}</span>
+              </div>
+            </div>
+            <div class="unknown-list-meta">
+              <span class="unknown-tag">未识别</span>
+              <span class="unknown-mode">{{
+                getModeLabel(item.rmt_mode || item.sync_mode)
+              }}</span>
+            </div>
+            <div class="unknown-list-actions">
+              <NDropdown
+                :options="getItemOptions()"
+                @select="(key: string) => handleItemAction(key, item)"
+              >
+                <NButton size="tiny" text @click.stop>
+                  <template #icon>
+                    <IconifyIcon icon="lucide:more-vertical" class="size-4" />
+                  </template>
+                </NButton>
+              </NDropdown>
+            </div>
+          </div>
         </div>
 
         <div class="mt-4 flex justify-end">
@@ -502,6 +594,7 @@ onMounted(() => fetchData(1));
   font-weight: 600;
   line-height: 1.4;
   color: hsl(var(--card-foreground));
+  overflow-wrap: anywhere;
 }
 
 .unknown-path {
@@ -545,6 +638,86 @@ onMounted(() => fetchData(1));
   border-radius: 0.25rem;
 }
 
+.view-switch {
+  display: inline-flex;
+  gap: 0.125rem;
+  align-items: center;
+  padding: 0.125rem;
+  background: hsl(var(--muted));
+  border-radius: 0.375rem;
+}
+
+.unknown-list {
+  overflow: hidden;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+}
+
+.unknown-list-head,
+.unknown-list-row {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) 8rem 3rem;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.65rem 0.85rem;
+}
+
+.unknown-list-head {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted) / 40%);
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.unknown-list-row {
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.unknown-list-row:last-child {
+  border-bottom: 0;
+}
+
+.unknown-list-row:hover {
+  background: hsl(var(--accent));
+}
+
+.unknown-file {
+  min-width: 0;
+}
+
+.unknown-file-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--card-foreground));
+  overflow-wrap: anywhere;
+}
+
+.unknown-file-path,
+.unknown-file-dest {
+  display: flex;
+  gap: 0.25rem;
+  align-items: flex-start;
+  margin-top: 0.2rem;
+  font-family: monospace;
+  font-size: 0.72rem;
+  color: hsl(var(--muted-foreground));
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
+.unknown-list-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.unknown-list-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .unknown-footer {
   display: flex;
   align-items: center;
@@ -555,6 +728,25 @@ onMounted(() => fetchData(1));
 }
 
 @media (max-width: 640px) {
+  .unknown-list-head {
+    display: none;
+  }
+
+  .unknown-list-row {
+    grid-template-columns: 2rem minmax(0, 1fr) 2.5rem;
+    align-items: start;
+    padding: 0.75rem;
+  }
+
+  .unknown-list-meta {
+    grid-column: 2;
+  }
+
+  .unknown-list-actions {
+    grid-row: 1;
+    grid-column: 3;
+  }
+
   .unknown-grid {
     grid-template-columns: 1fr;
   }

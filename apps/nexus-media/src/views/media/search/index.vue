@@ -641,18 +641,27 @@ const baseTypeOptions = computed(() => [
   ...metadataProviders.value,
 ]);
 const pluginSourceOptions = computed(() => getContentProfileSourceOptions());
+const typeOptions = computed(() => {
+  // 同一 provider 可能同时来自后端 provider 列表和插件画像；保留有 profile 的项。
+  const merged = new Map<
+    string,
+    { label: string; profile: string; value: string }
+  >();
+  for (const item of [...baseTypeOptions.value, ...pluginSourceOptions.value]) {
+    const previous = merged.get(item.value);
+    if (!previous || (!previous.profile && item.profile)) {
+      merged.set(item.value, item);
+    }
+  }
+  return [...merged.values()];
+});
 const sourceProfileMap = computed(() =>
   Object.fromEntries(
-    [...baseTypeOptions.value, ...pluginSourceOptions.value].map((item) => [
-      item.value,
-      item.profile,
-    ]),
+    typeOptions.value
+      .filter((item) => item.profile)
+      .map((item) => [item.value, item.profile]),
   ),
 );
-const typeOptions = computed(() => [
-  ...baseTypeOptions.value,
-  ...pluginSourceOptions.value,
-]);
 
 async function loadMetadataProviders() {
   try {
@@ -661,12 +670,13 @@ async function loadMetadataProviders() {
     metadataProviders.value = list
       .filter(
         (item: any) =>
-          item?.visibility === 'public' &&
           Array.isArray(item?.capabilities) &&
           item.capabilities.includes('search'),
       )
       .map((item: any) => ({
         label: String(item.name || item.provider),
+        // private/adult provider 也必须在选择后使用自己的 content_profile，
+        // 不能因为 visibility=private 被丢弃而回退到 TMDB 搜索。
         profile: String(item.content_profiles?.[0] || ''),
         value: String(item.provider),
       }));
@@ -747,19 +757,37 @@ function handleSourceTypeChange(value: string) {
   if (keyword.value.trim()) handleSearch();
 }
 
+/** 解析当前来源对应的内容画像；不能用 provider 名回退成媒体搜索。 */
+function resolveSearchTarget() {
+  const profilePinned = Boolean(
+    contentProfileKey.value && profileSources.value.length > 0,
+  );
+  const activeProvider = String(
+    (profilePinned ? metadataSource.value : searchtype.value) || '',
+  );
+  const selectedOption = typeOptions.value.find(
+    (item) => item.value === activeProvider,
+  );
+  const sourceProfile =
+    (profilePinned ? contentProfileKey.value : '') ||
+    selectedOption?.profile ||
+    sourceProfileMap.value[activeProvider] ||
+    '';
+  return { activeProvider, sourceProfile };
+}
+
 async function handleSearch() {
   if (!keyword.value.trim()) return;
   displayMode.value = 'media';
   mediaResults.value = [];
   loading.value = true;
   try {
-    const sourceProfile =
-      contentProfileKey.value || sourceProfileMap.value[searchtype.value] || '';
+    const { activeProvider, sourceProfile } = resolveSearchTarget();
     if (sourceProfile) {
       const res: any = await searchMetadataApi({
         content_profile: sourceProfile,
         limit: 24,
-        provider: metadataSource.value || searchtype.value || undefined,
+        provider: activeProvider || undefined,
         query: keyword.value,
       });
       const list = Array.isArray(res) ? res : res?.data || [];
@@ -768,9 +796,17 @@ async function handleSearch() {
       );
       return;
     }
+    // 只有 TMDB/豆瓣这类媒体搜索来源才允许走 /media/search；
+    // metadata provider 缺少画像时必须报错，不能把 provider 当 searchtype。
+    if (activeProvider && !['douban', 'tmdb'].includes(activeProvider)) {
+      notification.error('搜索来源配置缺失', {
+        description: `未找到 ${activeProvider} 的 content_profile，请重新加载插件后重试`,
+      });
+      return;
+    }
     const res: any = await searchMediaApi({
       keyword: keyword.value,
-      searchtype: searchtype.value as '' | 'douban' | 'tmdb',
+      searchtype: activeProvider as '' | 'douban' | 'tmdb',
     });
     // requestClient 在 code===0 时自动解包返回 data，所以 res 直接是数组
     mediaResults.value = Array.isArray(res) ? res : res?.data || [];
@@ -980,10 +1016,18 @@ async function handleAdvancedSearch() {
   }
 }
 
-function withRoutePoster(item: any) {
-  const profile = String(
-    item.content_profile || route.query.content_profile || '',
+function activeSearchProfile(item?: any): string {
+  return String(
+    item?.content_profile ||
+      route.query.content_profile ||
+      contentProfileKey.value ||
+      sourceProfileMap.value[searchtype.value] ||
+      '',
   ).trim();
+}
+
+function withRoutePoster(item: any) {
+  const profile = activeSearchProfile(item);
   const raw = String(route.query.poster || '').trim();
   if (!raw) return { ...item, content_profile: profile };
   const poster = raw.startsWith('/img')
@@ -1018,6 +1062,34 @@ function withRoutePoster(item: any) {
 }
 
 const overviewTitleCache = new Map<string, string>();
+
+/** 成人站点结果没有 POSTER，用当前画像 provider 补一张元数据海报 */
+async function enrichResultPoster(items: any[]) {
+  if (items.length === 0 || items.some((item) => item.poster)) return;
+  const profile = activeSearchProfile(items[0]);
+  if (!profile || profile === 'default') return;
+  const provider = String(
+    route.query.metadata_source || metadataSource.value || '',
+  ).trim();
+  try {
+    const res: any = await searchMetadataApi({
+      content_profile: profile,
+      limit: 1,
+      provider: provider || undefined,
+      query: keyword.value,
+    });
+    const hit = (Array.isArray(res) ? res : res?.data || [])[0];
+    const poster = String(hit?.poster || '').trim();
+    if (!poster) return;
+    for (const item of items) {
+      item.poster = item.poster || poster;
+      item.image = item.image || poster;
+      item.backdrop = item.backdrop || poster;
+    }
+  } catch {
+    // 海报补充失败不影响资源列表
+  }
+}
 
 async function fillResultOverviews(items: any[]) {
   const groups = new Map<
@@ -1138,6 +1210,7 @@ async function loadSearchResults() {
           };
         })
         .map(withRoutePoster);
+      await enrichResultPoster(results.value);
       void fillResultOverviews(results.value);
       // 卡片搜索是按条目搜索：只保留卡片对应年份，避免 studio 搜索带出其他年份
       const targetYear = String(route.query.year || '').trim();
