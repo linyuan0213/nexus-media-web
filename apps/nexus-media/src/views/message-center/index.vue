@@ -9,7 +9,9 @@ import {
   onMounted,
   reactive,
   ref,
+  watch,
 } from 'vue';
+import { useRoute } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
 
@@ -84,6 +86,7 @@ interface Message {
 }
 
 const message = useMessage();
+const route = useRoute();
 const messages = ref<Message[]>([]);
 const input = ref('');
 const sending = ref(false);
@@ -1045,6 +1048,75 @@ function onStorageSync(e: StorageEvent) {
   }
 }
 
+const MESSAGE_FOCUS_DURATION = 2400;
+let messageFocusTimer: null | number = null;
+let messageFocusTarget: HTMLElement | null = null;
+
+function clearMessageFocus() {
+  if (messageFocusTimer) {
+    clearTimeout(messageFocusTimer);
+    messageFocusTimer = null;
+  }
+  messageFocusTarget?.classList.remove('message-focus');
+  messageFocusTarget = null;
+}
+
+function highlightMessage(el: HTMLElement) {
+  clearMessageFocus();
+  messageFocusTarget = el;
+  // 重新触发动画：同一元素再次定位时先移除再强制回流
+  el.classList.remove('message-focus');
+  void el.offsetWidth;
+  el.classList.add('message-focus');
+  messageFocusTimer = window.setTimeout(() => {
+    el.classList.remove('message-focus');
+    if (messageFocusTarget === el) messageFocusTarget = null;
+    messageFocusTimer = null;
+  }, MESSAGE_FOCUS_DURATION);
+}
+
+function scrollToMessage(backendId: number, retries = 12): boolean {
+  const target = messages.value.find((m) => m.backendId === backendId);
+  if (!target) return false;
+  const list = listRef.value;
+  const tryScroll = (attempt: number) => {
+    const el = msgElements.get(target.id);
+    if (el && list) {
+      const top =
+        el.getBoundingClientRect().top -
+        list.getBoundingClientRect().top +
+        list.scrollTop;
+      list.scrollTop = Math.max(0, top - 8);
+      highlightMessage(el);
+      return true;
+    }
+    if (attempt < retries) {
+      window.setTimeout(() => tryScroll(attempt + 1), 120);
+    }
+    return false;
+  };
+  return tryScroll(0);
+}
+
+async function focusMessageFromRoute(): Promise<boolean> {
+  const backendId = Number(route.query.messageId || route.query.notify || 0);
+  if (!backendId) return false;
+  await switchTab('notifications');
+  await nextTick();
+  window.setTimeout(() => {
+    if (!scrollToMessage(backendId)) scrollToFirstUnread();
+  }, 200);
+  return true;
+}
+
+// 已在消息中心时再次点击铃铛通知，只更新 query 不会重新挂载，需要监听 query 变化定位
+watch(
+  () => route.query.messageId,
+  (value) => {
+    if (value) void focusMessageFromRoute();
+  },
+);
+
 onMounted(async () => {
   streamCursor = loadStreamCursor();
   window.addEventListener('storage', onStorageSync);
@@ -1071,15 +1143,16 @@ onMounted(async () => {
   await createSession();
   await restoreTimeline();
   measureListHeight();
-  // 打开时定位到第一条未读；全部已读时才滚到最新消息（底部）
+  const focusedFromRoute = await focusMessageFromRoute();
+  // 打开时定位到第一条未读；指定消息时不要覆盖定位。
   nextTick(() => {
-    if (!scrollToFirstUnread()) {
+    if (!focusedFromRoute && !scrollToFirstUnread()) {
       scrollToBottom();
     }
   });
   // 内容渲染稳定后再补一次（图片/富文本异步渲染会改变高度）
   window.setTimeout(() => {
-    if (!scrollToFirstUnread()) {
+    if (!focusedFromRoute && !scrollToFirstUnread()) {
       scrollToBottom();
     }
   }, 300);
@@ -1097,6 +1170,7 @@ onBeforeUnmount(() => {
   chatAbort.value?.abort();
   streamAbort.value?.abort();
   if (streamReconnectTimer) clearTimeout(streamReconnectTimer);
+  clearMessageFocus();
   ioObserver?.disconnect();
   flushPendingRead();
   clearReadTimers();
@@ -1753,6 +1827,101 @@ function onVisibilityChange() {
 .message-block {
   contain-intrinsic-size: auto 120px;
   content-visibility: auto;
+}
+
+.message-focus {
+  position: relative;
+  z-index: 1;
+}
+
+.message-focus::before,
+.message-focus::after {
+  position: absolute;
+  pointer-events: none;
+  content: '';
+}
+
+/* 柔和底色光晕，比整圈 outline 更克制 */
+.message-focus::before {
+  inset: -8px -12px;
+  background: linear-gradient(
+    90deg,
+    hsl(var(--primary) / 12%),
+    hsl(var(--primary) / 4%) 42%,
+    transparent 78%
+  );
+  border-radius: 14px;
+  box-shadow:
+    inset 0 0 0 1px hsl(var(--primary) / 14%),
+    0 12px 30px -14px hsl(var(--primary) / 35%);
+  animation: message-focus-glow 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* 左侧强调线，提示定位落点 */
+.message-focus::after {
+  top: 10px;
+  bottom: 10px;
+  left: -12px;
+  width: 3px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    hsl(var(--primary) / 90%) 18%,
+    hsl(var(--primary) / 90%) 82%,
+    transparent
+  );
+  border-radius: 999px;
+  animation: message-focus-bar 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes message-focus-glow {
+  0% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.996);
+  }
+
+  12% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  72% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes message-focus-bar {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.35);
+  }
+
+  14% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+
+  72% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-focus::before,
+  .message-focus::after {
+    opacity: 1;
+    animation: none;
+  }
 }
 
 @media (max-width: 768px) {

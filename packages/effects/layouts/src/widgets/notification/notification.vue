@@ -49,7 +49,7 @@ withDefaults(
 const emit = defineEmits<{
   clear: [];
   makeAll: [];
-  onClick: [NotificationItem];
+  click: [NotificationItem];
   read: [NotificationItem];
   remove: [NotificationItem];
   updateBadgeEnabled: [value: boolean];
@@ -144,7 +144,7 @@ const handleClear = () => {
           <template v-for="item in notifications" :key="item.id ?? item.title">
             <li
               class="relative flex w-full cursor-pointer items-start gap-5 border-t border-border p-3 hover:bg-accent"
-              @click="emit('onClick', item)"
+              @click="emit('click', item)"
             >
               <slot name="content" :item="item">
                 <span

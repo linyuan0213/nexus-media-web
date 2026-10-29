@@ -67,8 +67,13 @@ function saveNotifiedIds() {
 }
 
 /** 跳转消息中心（OS 通知点击回调） */
-function openMessageCenter() {
-  router.push({ path: '/message-center' });
+function openMessageCenter(messageId?: number | string) {
+  router.push({
+    path: '/message-center',
+    query: messageId
+      ? { tab: 'notifications', messageId: String(messageId) }
+      : { tab: 'notifications' },
+  });
 }
 
 /** 开启/关闭系统通知（合并：页面 OS 通知 + Web Push 手机/后台推送） */
@@ -82,7 +87,7 @@ async function onToggleOsEnabled(v: boolean) {
     if (v) {
       // 把存量未读全部记入已推送去重集：开启系统通知不重推旧消息，只推之后新到的
       for (const item of notifications.value) {
-        const id = item.id ?? item.query?.notify;
+        const id = item.id ?? item.query?.messageId;
         if (id != null) notifiedIds.add(Number(id));
       }
       saveNotifiedIds();
@@ -134,8 +139,7 @@ async function loadNotifications() {
           m.content || '',
           () => {
             markMessageRead([Number(id)]).catch(() => {});
-            openMessageCenter();
-            dispatchScrollFirstUnread();
+            openMessageCenter(id);
             void loadNotifications();
           },
           () => {
@@ -155,7 +159,7 @@ async function loadNotifications() {
       message: m.content || '',
       title: m.title || '通知',
       link: '/message-center',
-      query: m.id ? { notify: String(m.id) } : undefined,
+      query: m.id ? { messageId: String(m.id) } : undefined,
     }));
     setUnreadCount(res?.unread ?? 0);
   } catch {
@@ -301,7 +305,9 @@ function handleNoticeClick(item: NotificationItem) {
   if (item.id != null) markRead(item.id);
   if (item.link) {
     router.push({ path: item.link, query: item.query });
+    return;
   }
+  if (item.id != null) openMessageCenter(item.id);
 }
 
 /** 查看所有消息 → 跳转消息中心（顺带惰性请求通知权限） */
