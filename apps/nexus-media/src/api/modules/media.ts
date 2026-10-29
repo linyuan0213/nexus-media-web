@@ -410,7 +410,11 @@ export interface TransferHistoryItem {
   DEST_PATH: string;
   DEST_FILENAME: string;
   DST_BACKEND?: string;
+  POSTER?: null | string;
   image?: string;
+  IDENTITY_ID?: null | string;
+  ANCHOR_PROVIDER?: null | string;
+  ANCHOR_EXTERNAL_ID?: null | string;
   DATE: string;
   SYNC_MODE?: string;
   RMT_MODE?: string;
@@ -418,6 +422,30 @@ export interface TransferHistoryItem {
   SEEDS_EPISODE?: number;
   SEEDS_END_EPISODE?: number;
   CONTENT_PROFILE?: string;
+  SOURCE_STATE?: HistoryFileState;
+  SOURCE_DELETED_AT?: null | string;
+  DEST_STATE?: HistoryFileState;
+  DEST_DELETED_AT?: null | string;
+  FILES_CHECKED_AT?: null | string;
+  CAPABILITIES?: HistoryCapabilities;
+}
+
+export type HistoryFileState = 'deleted' | 'missing' | 'present' | 'unknown';
+
+export interface HistoryCapabilities {
+  delete_library: boolean;
+  delete_record: boolean;
+  delete_source: boolean;
+  manual_identify: boolean;
+  reidentify: boolean;
+}
+
+export interface HistoryActionResult {
+  id: number;
+  message?: string;
+  state?: HistoryFileState;
+  status: 'deleted' | 'failed' | 'skipped';
+  target?: 'library' | 'source' | null;
 }
 
 export interface TransferHistoryPageResult {
@@ -515,6 +543,7 @@ export async function getTransferHistoryApi(params: {
   keyword?: string;
   page?: number;
   pagenum?: number;
+  type?: string;
 }) {
   return requestClient.post<TransferHistoryPageResult>(
     '/media/transfer/history',
@@ -527,6 +556,34 @@ export async function getTransferStatisticsApi(days?: number) {
   return requestClient.post<TransferStatisticsResult>(
     '/media/transfer/statistics',
     { days },
+  );
+}
+
+/** 删除识别记录（不删除任何文件） */
+export async function deleteHistoryRecordsApi(ids: number[]) {
+  return requestClient.post<{
+    deleted: number;
+    results: HistoryActionResult[];
+    total: number;
+  }>('/media/history/records/delete', { ids });
+}
+
+/** 删除识别记录关联文件（记录保留） */
+export async function deleteHistoryFilesApi(
+  ids: number[],
+  targets: Array<'library' | 'source'>,
+) {
+  return requestClient.post<{ results: HistoryActionResult[] }>(
+    '/media/history/files/delete',
+    { ids, targets },
+  );
+}
+
+/** 检测识别记录关联文件状态 */
+export async function checkHistoryFilesApi(ids: number[]) {
+  return requestClient.post<{ results: HistoryActionResult[] }>(
+    '/media/history/files/check',
+    { ids },
   );
 }
 

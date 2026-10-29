@@ -1,126 +1,145 @@
 <script lang="ts" setup>
-import { computed, h, onMounted, ref } from 'vue';
+import type { FileTarget, HistoryItem } from './types';
+
+import { computed, onMounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import {
-  NButton,
-  NCard,
-  NCheckbox,
-  NDivider,
-  NDropdown,
-  NForm,
-  NFormItem,
-  NInput,
-  NInputNumber,
-  NModal,
-  NPagination,
-  NRadioButton,
-  NRadioGroup,
-  NSelect,
-  NSpace,
-  NSpin,
-  NTooltip,
-} from 'naive-ui';
+import { useMediaQuery } from '@vueuse/core';
+import { NButton, NInput, NPagination } from 'naive-ui';
 
 import {
+  checkHistoryFilesApi,
   clearTransferHistoryApi,
+  deleteHistoryFilesApi,
+  deleteHistoryRecordsApi,
   getTransferHistoryApi,
   getTransferStatisticsApi,
-  searchMediaApi,
 } from '#/api/modules/media';
-import {
-  deleteTransferHistoryApi,
-  manualTransferApi,
-  reIdentifyTransferHistoryApi,
-  SYNC_MODES,
-} from '#/api/modules/sync';
-import EmptyState from '#/components/empty/EmptyState.vue';
-import MediaPoster from '#/components/media/MediaPoster.vue';
+import { reIdentifyTransferHistoryApi } from '#/api/modules/sync';
 import PageHeader from '#/components/page/PageHeader.vue';
 import { useMediaStore } from '#/store';
 import { useAppNotification } from '#/utils/notify';
+
+import DeleteConfirmDialog from './components/DeleteConfirmDialog.vue';
+import HistoryDetail from './components/HistoryDetail.vue';
+import HistoryList from './components/HistoryList.vue';
+import ManualIdentifyModal from './components/ManualIdentifyModal.vue';
+import { joinPath } from './types';
+
+type TypeFilter = '' | 'anime' | 'movie' | 'tv';
+
+interface DeleteDialogState {
+  confirmText: string;
+  description: string;
+  ids: number[];
+  kind: 'clear' | 'files' | 'record';
+  paths: string[];
+  target?: FileTarget;
+  title: string;
+}
 
 const mediaStore = useMediaStore();
 const notification = useAppNotification();
 
 const loading = ref(false);
+const actionBusy = ref(false);
 const keyword = ref('');
+const typeFilter = ref<TypeFilter>('');
 const currentPage = ref(1);
-const pageSize = ref(30);
+const pageSize = ref(20);
 const total = ref(0);
 const totalPage = ref(1);
-const clearModalShow = ref(false);
-const deleteModalShow = ref(false);
-const posterFailed = ref<number[]>([]);
-const deletePayload = ref<null | {
-  flag: string;
-  label: string;
-  logids: number[];
-}>(null);
+const selectedId = ref<null | number>(null);
+const isMobile = useMediaQuery('(max-width: 768px)');
+const mobileDetailOpen = ref(false);
 const selectedIds = ref<number[]>([]);
+const manualShow = ref(false);
+const manualItem = ref<HistoryItem | null>(null);
+const deleteDialog = ref<DeleteDialogState | null>(null);
 
-// manual identify modal
-const manualModalShow = ref(false);
-const manualLoading = ref(false);
-const manualForm = ref({
-  logid: 0,
-  path: '',
-  syncmod: 'copy',
-  type: 'movie',
-  tmdb: undefined as number | undefined,
-  season: undefined as number | undefined,
-  min_filesize: undefined as number | undefined,
-  episode_format: '',
-  episode_details: '',
-  episode_part: '',
-  episode_offset: '',
+const items = computed(() => mediaStore.transferHistory);
+const selectedRecord = computed(
+  () => items.value.find((item) => item.ID === selectedId.value) || null,
+);
+const statisticTotals = computed(() => {
+  const stats = mediaStore.transferStatistics;
+  if (!stats) return { anime: 0, movie: 0, tv: 0 };
+  return {
+    movie: stats.movie_nums.reduce((sum, value) => sum + value, 0),
+    tv: stats.tv_nums.reduce((sum, value) => sum + value, 0),
+    anime: stats.anime_nums.reduce((sum, value) => sum + value, 0),
+  };
 });
 
-// tmdb search modal
-const tmdbSearchShow = ref(false);
-const tmdbSearchKeyword = ref('');
-const tmdbSearchLoading = ref(false);
-const tmdbSearchResults = ref<any[]>([]);
-
-const historyList = computed(() => mediaStore.transferHistory);
-const statistics = computed(() => mediaStore.transferStatistics);
-
-const allSelected = computed(() => {
-  if (historyList.value.length === 0) return false;
-  return historyList.value.every((item) => selectedIds.value.includes(item.ID));
+const allTotal = computed(() => {
+  const sum =
+    statisticTotals.value.movie +
+    statisticTotals.value.tv +
+    statisticTotals.value.anime;
+  return sum || total.value;
 });
 
-const someSelected = computed(() => {
-  return (
-    selectedIds.value.length > 0 &&
-    selectedIds.value.length < historyList.value.length
-  );
+const typeOptions: Array<{ label: string; value: TypeFilter }> = [
+  { label: '全部', value: '' },
+  { label: '电影', value: 'movie' },
+  { label: '电视剧', value: 'tv' },
+  { label: '动漫', value: 'anime' },
+];
+
+const selectedCountText = computed(() => `已选 ${selectedIds.value.length} 条`);
+const deletePaths = computed(() => {
+  const state = deleteDialog.value;
+  const record = selectedRecord.value;
+  if (!state || state.kind !== 'files' || !record) return [];
+  if (state.target === 'source') {
+    return [joinPath(record.SOURCE_PATH, record.SOURCE_FILENAME)].filter(
+      Boolean,
+    );
+  }
+  return [joinPath(record.DEST_PATH, record.DEST_FILENAME)].filter(Boolean);
+});
+const deleteDescription = computed(() => {
+  const state = deleteDialog.value;
+  if (!state) return '';
+  if (state.kind === 'record') {
+    return '将移除选中的识别记录，并同步移除对应黑名单。此操作不会删除任何源文件或媒体库文件，且不可恢复。';
+  }
+  if (state.kind === 'clear') {
+    return '将清空所有识别记录与对应黑名单。此操作不会删除任何源文件或媒体库文件，且不可恢复。';
+  }
+  return '文件将被永久删除，识别记录会保留并标记该文件已删除。此操作不可恢复。';
 });
 
-const statTotals = computed(() => {
-  const s = statistics.value;
-  if (!s) return { movie: 0, tv: 0, anime: 0 };
-  const movie = s.movie_nums.reduce((a, b) => a + b, 0);
-  const tv = s.tv_nums.reduce((a, b) => a + b, 0);
-  const anime = s.anime_nums.reduce((a, b) => a + b, 0);
-  return { movie, tv, anime };
-});
-
-async function fetchData(page = 1) {
+async function fetchData(page = 1, keepSelection = false) {
   loading.value = true;
   currentPage.value = page;
-  selectedIds.value = [];
+  if (!keepSelection) {
+    selectedIds.value = [];
+    if (isMobile.value) mobileDetailOpen.value = false;
+  }
   try {
-    const res = await getTransferHistoryApi({
-      keyword: keyword.value || undefined,
+    const response = await getTransferHistoryApi({
+      keyword: keyword.value.trim() || undefined,
       page,
       pagenum: pageSize.value,
+      type: typeFilter.value || undefined,
     });
-    if (res) {
-      total.value = res.total || 0;
-      totalPage.value = res.totalPage || 1;
-      mediaStore.setTransferHistory(res.result || []);
+    total.value = response?.total || 0;
+    totalPage.value = response?.totalPage || 1;
+    mediaStore.setTransferHistory(response?.result || []);
+
+    if (items.value.length === 0 && page > 1) {
+      loading.value = false;
+      await fetchData(page - 1);
+      return;
+    }
+
+    if (keepSelection && selectedId.value) {
+      const exists = items.value.some((item) => item.ID === selectedId.value);
+      if (!exists) selectedId.value = items.value[0]?.ID ?? null;
+    } else {
+      selectedId.value = items.value[0]?.ID ?? null;
     }
   } finally {
     loading.value = false;
@@ -129,10 +148,10 @@ async function fetchData(page = 1) {
 
 async function fetchStatistics() {
   try {
-    const res = await getTransferStatisticsApi(0);
-    mediaStore.setTransferStatistics(res || null);
+    const response = await getTransferStatisticsApi(0);
+    mediaStore.setTransferStatistics(response || null);
   } catch {
-    // ignore
+    // 统计失败不影响主列表
   }
 }
 
@@ -140,1136 +159,627 @@ function handleSearch() {
   fetchData(1);
 }
 
+function setTypeFilter(value: TypeFilter) {
+  if (typeFilter.value === value) return;
+  typeFilter.value = value;
+  fetchData(1);
+}
+
 function handlePageChange(page: number) {
   fetchData(page);
 }
 
-function handleClear() {
-  clearModalShow.value = true;
+function handleSelect(item: HistoryItem) {
+  selectedId.value = item.ID;
+  if (isMobile.value) mobileDetailOpen.value = true;
 }
 
-async function confirmClear() {
-  try {
-    await clearTransferHistoryApi();
-    notification.success('所有识别记录已清空');
-    await fetchData(1);
-    await fetchStatistics();
-  } catch (error: any) {
-    notification.error('清空失败', { description: error?.message || '' });
-  } finally {
-    clearModalShow.value = false;
-  }
-}
-
-// batch selection
 function toggleSelectAll() {
-  selectedIds.value = allSelected.value
-    ? []
-    : historyList.value.map((item) => item.ID);
+  const ids = items.value.map((item) => item.ID);
+  const allSelected =
+    ids.length > 0 && ids.every((id) => selectedIds.value.includes(id));
+  selectedIds.value = allSelected ? [] : ids;
 }
 
 function toggleSelect(id: number) {
-  const idx = selectedIds.value.indexOf(id);
-  if (idx === -1) {
-    selectedIds.value.push(id);
-  } else {
-    selectedIds.value.splice(idx, 1);
+  const index = selectedIds.value.indexOf(id);
+  if (index === -1) selectedIds.value.push(id);
+  else selectedIds.value.splice(index, 1);
+}
+
+async function handleReidentify(item: HistoryItem) {
+  actionBusy.value = true;
+  try {
+    await reIdentifyTransferHistoryApi({ ids: [item.ID] });
+    notification.success('重新识别任务已提交');
+    await fetchData(currentPage.value, true);
+    await fetchStatistics();
+  } catch (error: any) {
+    notification.error('提交失败', { description: error?.message || '' });
+  } finally {
+    actionBusy.value = false;
   }
 }
 
-// single operations
-function getItemOptions(_item: any) {
-  return [
-    {
-      label: '重新识别',
-      key: 'reidentify',
-      icon: () => h(IconifyIcon, { icon: 'lucide:activity', class: 'size-4' }),
-    },
-    {
-      label: '手动识别',
-      key: 'manual',
-      icon: () => h(IconifyIcon, { icon: 'lucide:pencil', class: 'size-4' }),
-    },
-    { type: 'divider', key: 'd1' },
-    {
-      label: '删除记录',
-      key: 'del_log',
-      icon: () => h(IconifyIcon, { icon: 'lucide:eraser', class: 'size-4' }),
-    },
-    {
-      label: '删除源文件',
-      key: 'del_source',
-      icon: () => h(IconifyIcon, { icon: 'lucide:file-x', class: 'size-4' }),
-      props: { style: 'color: hsl(var(--destructive))' },
-    },
-    {
-      label: '删除媒体库文件',
-      key: 'del_dest',
-      icon: () => h(IconifyIcon, { icon: 'lucide:library', class: 'size-4' }),
-      props: { style: 'color: hsl(var(--destructive))' },
-    },
-    {
-      label: '删除源及媒体库文件',
-      key: 'del_all',
-      icon: () => h(IconifyIcon, { icon: 'lucide:trash-2', class: 'size-4' }),
-      props: { style: 'color: hsl(var(--destructive))' },
-    },
-  ];
+function handleManual(item: HistoryItem) {
+  manualItem.value = item;
+  manualShow.value = true;
 }
 
-function getBulkOptions() {
-  return [
-    {
-      label: '删除记录',
-      key: 'del_log',
-      icon: () => h(IconifyIcon, { icon: 'lucide:eraser', class: 'size-4' }),
-    },
-    {
-      label: '删除源文件',
-      key: 'del_source',
-      icon: () => h(IconifyIcon, { icon: 'lucide:file-x', class: 'size-4' }),
-      props: { style: 'color: hsl(var(--destructive))' },
-    },
-    {
-      label: '删除媒体库文件',
-      key: 'del_dest',
-      icon: () => h(IconifyIcon, { icon: 'lucide:library', class: 'size-4' }),
-      props: { style: 'color: hsl(var(--destructive))' },
-    },
-    {
-      label: '删除源及媒体库文件',
-      key: 'del_all',
-      icon: () => h(IconifyIcon, { icon: 'lucide:trash-2', class: 'size-4' }),
-      props: { style: 'color: hsl(var(--destructive))' },
-    },
-  ];
+async function handleManualSuccess() {
+  await fetchData(currentPage.value, true);
+  await fetchStatistics();
 }
 
-function handleItemAction(key: string, item: any) {
-  if (key === 'reidentify') {
-    doReIdentify([item.ID]);
-  } else if (key === 'manual') {
-    openManualModal(item);
-  } else if (key.startsWith('del_')) {
-    const labels: Record<string, string> = {
-      del_log: '删除记录',
-      del_source: '删除源文件',
-      del_dest: '删除媒体库文件',
-      del_all: '删除源及媒体库文件',
-    };
-    deletePayload.value = {
-      logids: [item.ID],
-      flag: key === 'del_log' ? '' : key,
-      label: labels[key] ?? '',
-    };
-    deleteModalShow.value = true;
-  }
+function openDeleteRecord(item: HistoryItem) {
+  deleteDialog.value = {
+    kind: 'record',
+    ids: [item.ID],
+    paths: [],
+    title: '移除识别记录',
+    description: '',
+    confirmText: '移除记录',
+  };
 }
 
-function handleBulkAction(key: string) {
+function openBulkDeleteRecords() {
   if (selectedIds.value.length === 0) {
     notification.warning('请先选择记录');
     return;
   }
-  const labels: Record<string, string> = {
-    del_log: '删除记录',
-    del_source: '删除源文件',
-    del_dest: '删除媒体库文件',
-    del_all: '删除源及媒体库文件',
+  deleteDialog.value = {
+    kind: 'record',
+    ids: [...selectedIds.value],
+    paths: [],
+    title: `移除 ${selectedIds.value.length} 条识别记录`,
+    description: '',
+    confirmText: '移除记录',
   };
-  deletePayload.value = {
-    logids: [...selectedIds.value],
-    flag: key === 'del_log' ? '' : key,
-    label: labels[key] ?? '',
-  };
-  deleteModalShow.value = true;
 }
 
-async function doReIdentify(ids: number[]) {
-  try {
-    await reIdentifyTransferHistoryApi({ ids });
-    notification.success('重新识别任务已提交');
-    await fetchData(currentPage.value);
-    await fetchStatistics();
-  } catch (error: any) {
-    notification.error('提交失败', { description: error?.message || '' });
-  }
+function openDeleteFile(item: HistoryItem, target: FileTarget) {
+  selectedId.value = item.ID;
+  deleteDialog.value = {
+    kind: 'files',
+    ids: [item.ID],
+    target,
+    paths: [],
+    title: target === 'source' ? '删除源文件' : '删除媒体库文件',
+    description: '',
+    confirmText: target === 'source' ? '删除源文件' : '删除媒体库文件',
+  };
+}
+
+function openClear() {
+  deleteDialog.value = {
+    kind: 'clear',
+    ids: [],
+    paths: [],
+    title: '清空识别记录',
+    description: '',
+    confirmText: '清空记录',
+  };
 }
 
 async function confirmDelete() {
-  if (!deletePayload.value) return;
+  const state = deleteDialog.value;
+  if (!state) return;
+  actionBusy.value = true;
   try {
-    const payload: any = { logids: deletePayload.value.logids };
-    if (deletePayload.value.flag) {
-      payload.flag = deletePayload.value.flag;
+    if (state.kind === 'record') {
+      const result = await deleteHistoryRecordsApi(state.ids);
+      const deleted = result?.deleted ?? state.ids.length;
+      notification.success(`已移除 ${deleted} 条识别记录`);
+      selectedIds.value = selectedIds.value.filter(
+        (id) => !state.ids.includes(id),
+      );
+      await fetchData(currentPage.value, true);
+      if (isMobile.value) mobileDetailOpen.value = false;
+    } else if (state.kind === 'clear') {
+      await clearTransferHistoryApi();
+      notification.success('所有识别记录已清空');
+      await fetchData(1);
+      if (isMobile.value) mobileDetailOpen.value = false;
+    } else if (state.target && state.ids[0]) {
+      const result = await deleteHistoryFilesApi(state.ids, [state.target]);
+      const failed = (result?.results || []).filter(
+        (item) => item.status === 'failed',
+      );
+      if (failed.length > 0) {
+        notification.warning('部分文件删除失败', {
+          description: failed.map((item) => item.message).join('；'),
+        });
+      } else {
+        notification.success(state.title + '成功');
+      }
+      await fetchData(currentPage.value, true);
     }
-    await deleteTransferHistoryApi(payload);
-    notification.success(`${deletePayload.value.label} 成功`);
-    selectedIds.value = selectedIds.value.filter(
-      (id) => !deletePayload.value!.logids.includes(id),
-    );
-    await fetchData(currentPage.value);
     await fetchStatistics();
   } catch (error: any) {
-    notification.error('删除失败', { description: error?.message || '' });
+    notification.error('操作失败', { description: error?.message || '' });
   } finally {
-    deleteModalShow.value = false;
-    deletePayload.value = null;
+    actionBusy.value = false;
+    deleteDialog.value = null;
   }
 }
 
-// manual identify modal
-function openManualModal(item: any) {
-  manualForm.value = {
-    logid: item.ID,
-    path: item.SOURCE_PATH ? `${item.SOURCE_PATH}/${item.SOURCE_FILENAME}` : '',
-    syncmod: item.SYNC_MODE || 'copy',
-    type:
-      item.TYPE === 'movie' ? 'movie' : item.TYPE === 'anime' ? 'anime' : 'tv',
-    tmdb: item.TMDBID || undefined,
-    season: undefined,
-    min_filesize: undefined,
-    episode_format: '',
-    episode_details: '',
-    episode_part: '',
-    episode_offset: '',
-  };
-  manualModalShow.value = true;
-}
-
-function openTmdbSearch() {
-  tmdbSearchShow.value = true;
-  tmdbSearchKeyword.value = manualForm.value.tmdb
-    ? ''
-    : manualForm.value.path
-      ? manualForm.value.path
-          .split('/')
-          .pop()
-          ?.replace(/\.\w+$/, '') || ''
-      : '';
-  tmdbSearchResults.value = [];
-}
-
-async function handleTmdbSearch() {
-  if (!tmdbSearchKeyword.value.trim()) return;
-  tmdbSearchLoading.value = true;
+async function handleCheckFiles(item: HistoryItem) {
+  actionBusy.value = true;
   try {
-    const res: any = await searchMediaApi({
-      keyword: tmdbSearchKeyword.value,
-      searchtype: 'tmdb',
-    });
-    const raw = Array.isArray(res) ? res : res?.data || [];
-    tmdbSearchResults.value = raw;
+    await checkHistoryFilesApi([item.ID]);
+    notification.success('文件状态已更新');
+    await fetchData(currentPage.value, true);
   } catch (error: any) {
-    notification.error('搜索失败', { description: error?.message || '' });
+    notification.error('检测失败', { description: error?.message || '' });
   } finally {
-    tmdbSearchLoading.value = false;
+    actionBusy.value = false;
   }
 }
 
-function selectTmdbMedia(media: any) {
-  manualForm.value.tmdb = media.id || media.tmdb_id || undefined;
-  tmdbSearchShow.value = false;
-  tmdbSearchResults.value = [];
-}
-
-async function submitManual() {
-  manualLoading.value = true;
-  try {
-    await manualTransferApi({
-      logid: manualForm.value.logid,
-      syncmod: manualForm.value.syncmod,
-      tmdb: manualForm.value.tmdb,
-      type: manualForm.value.type,
-      season: manualForm.value.season,
-      min_filesize: manualForm.value.min_filesize,
-      episode_format: manualForm.value.episode_format || undefined,
-      episode_details: manualForm.value.episode_details || undefined,
-      episode_part: manualForm.value.episode_part || undefined,
-      episode_offset: manualForm.value.episode_offset || undefined,
-    });
-    notification.success('手动识别成功');
-    manualModalShow.value = false;
-    await fetchData(currentPage.value);
-    await fetchStatistics();
-  } catch (error: any) {
-    notification.error('手动识别失败', { description: error?.message || '' });
-  } finally {
-    manualLoading.value = false;
-  }
-}
-
-function formatDate(dateStr: string) {
-  if (!dateStr) return '-';
-  try {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return dateStr;
-  }
-}
-
-function getTypeIcon(type: string = '') {
-  if (type === 'movie') return 'lucide:film';
-  if (type === 'anime') return 'lucide:sparkles';
-  return 'lucide:tv';
-}
-
-function getTypeColor(type: string = '') {
-  if (type === 'movie') return 'var(--primary)';
-  if (type === 'anime') return 'var(--warning)';
-  return 'var(--success)';
-}
-
-function getTypeLabel(type: string) {
-  const map: Record<string, string> = {
-    电影: '电影',
-    电视剧: '电视剧',
-    动漫: '动漫',
-    movie: '电影',
-    tv: '电视剧',
-    anime: '动漫',
-  };
-  return map[type] || type || '-';
-}
-
-function getModeLabel(row: any) {
-  const modeMap: Record<string, string> = {
-    copy: '复制',
-    link: '硬链接',
-    softlink: '软链接',
-    move: '移动',
-    rclone: 'Rclone移动',
-    rclonecopy: 'Rclone复制',
-    minio: 'Minio移动',
-    miniocopy: 'Minio复制',
-  };
-  const raw = row.RMT_MODE || row.MODE || '';
-  return modeMap[raw] || raw || '-';
-}
-
-function joinPath(dir: string, file: string) {
-  const parts = [dir, file].filter(Boolean);
-  return parts.join('/').replace(/\/+/g, '/');
-}
-
-function isPosterFailed(id: number) {
-  return posterFailed.value.includes(id);
-}
-
-function markPosterFailed(id: number) {
-  if (!posterFailed.value.includes(id)) {
-    posterFailed.value = [...posterFailed.value, id];
-  }
-}
-
-onMounted(() => {
-  fetchData(1);
-  fetchStatistics();
+onMounted(async () => {
+  await Promise.all([fetchData(1), fetchStatistics()]);
 });
 </script>
 
 <template>
-  <div class="p-4">
-    <PageHeader title="识别历史" subtitle="查看媒体文件识别与转移记录">
-      <template #actions>
-        <NSpace>
-          <NInput
-            v-model:value="keyword"
-            placeholder="搜索标题..."
-            style="width: 200px"
-            clearable
-            @keyup.enter="handleSearch"
-          />
-          <NButton @click="handleSearch">
-            <template #icon>
-              <IconifyIcon icon="lucide:search" class="size-4" />
-            </template>
-            搜索
-          </NButton>
-          <NButton @click="fetchData(currentPage)">
-            <template #icon>
-              <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
-            </template>
-            刷新
-          </NButton>
-          <NDropdown
-            :options="getBulkOptions()"
-            :disabled="selectedIds.length === 0"
-            @select="(key: string) => handleBulkAction(key)"
-          >
-            <NButton type="error" ghost :disabled="selectedIds.length === 0">
-              <template #icon>
-                <IconifyIcon icon="lucide:trash-2" class="size-4" />
-              </template>
-              批量删除
-              <IconifyIcon icon="lucide:chevron-down" class="size-3 ml-1" />
-            </NButton>
-          </NDropdown>
-          <NButton type="error" ghost @click="handleClear">
-            <template #icon>
-              <IconifyIcon icon="lucide:eraser" class="size-4" />
-            </template>
-            清空记录
-          </NButton>
-        </NSpace>
-      </template>
-    </PageHeader>
-
-    <!-- 统计卡片 -->
-    <div class="stats-grid mt-4">
-      <NCard size="small" :bordered="false" class="stat-card">
-        <div class="flex items-center gap-3">
-          <div
-            class="stat-icon-wrapper"
-            style="background-color: hsl(var(--primary) / 10%)"
-          >
-            <IconifyIcon
-              icon="lucide:film"
-              class="size-5"
-              style="color: hsl(var(--primary))"
+  <div
+    class="history-page"
+    :class="{ 'is-mobile-detail': isMobile && mobileDetailOpen }"
+  >
+    <template v-if="!isMobile || !mobileDetailOpen">
+      <PageHeader
+        title="识别历史"
+        subtitle="查看媒体文件的识别、转移与文件状态"
+      >
+        <template #actions>
+          <div class="head-actions">
+            <NInput
+              v-model:value="keyword"
+              class="search-input"
+              placeholder="搜索标题或源文件名..."
+              clearable
+              @keyup.enter="handleSearch"
             />
+            <NButton aria-label="搜索" @click="handleSearch">
+              <template #icon>
+                <IconifyIcon icon="lucide:search" class="size-4" />
+              </template>
+              <span class="hide-sm">搜索</span>
+            </NButton>
+            <NButton aria-label="刷新" @click="fetchData(currentPage, true)">
+              <template #icon>
+                <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
+              </template>
+              <span class="hide-sm">刷新</span>
+            </NButton>
+            <NButton
+              type="error"
+              ghost
+              aria-label="清空记录"
+              @click="openClear"
+            >
+              <template #icon>
+                <IconifyIcon icon="lucide:eraser" class="size-4" />
+              </template>
+              清空记录
+            </NButton>
           </div>
+        </template>
+      </PageHeader>
+
+      <section class="stats" aria-label="识别统计">
+        <div class="stat">
+          <span class="stat-icon tone-primary">
+            <IconifyIcon icon="lucide:layers" class="size-5" />
+          </span>
+          <div>
+            <div class="stat-label">全部记录</div>
+            <div class="stat-value">{{ allTotal.toLocaleString() }}</div>
+          </div>
+        </div>
+        <div class="stat">
+          <span class="stat-icon tone-success">
+            <IconifyIcon icon="lucide:film" class="size-5" />
+          </span>
           <div>
             <div class="stat-label">电影</div>
-            <div class="stat-value">{{ statTotals.movie }}</div>
+            <div class="stat-value">
+              {{ statisticTotals.movie.toLocaleString() }}
+            </div>
           </div>
         </div>
-      </NCard>
-      <NCard size="small" :bordered="false" class="stat-card">
-        <div class="flex items-center gap-3">
-          <div
-            class="stat-icon-wrapper"
-            style="background-color: hsl(var(--success) / 10%)"
-          >
-            <IconifyIcon
-              icon="lucide:tv"
-              class="size-5"
-              style="color: hsl(var(--success))"
-            />
-          </div>
+        <div class="stat">
+          <span class="stat-icon tone-warning">
+            <IconifyIcon icon="lucide:tv" class="size-5" />
+          </span>
           <div>
             <div class="stat-label">电视剧</div>
-            <div class="stat-value">{{ statTotals.tv }}</div>
+            <div class="stat-value">
+              {{ statisticTotals.tv.toLocaleString() }}
+            </div>
           </div>
         </div>
-      </NCard>
-      <NCard size="small" :bordered="false" class="stat-card">
-        <div class="flex items-center gap-3">
-          <div
-            class="stat-icon-wrapper"
-            style="background-color: hsl(var(--warning) / 10%)"
-          >
-            <IconifyIcon
-              icon="lucide:sparkles"
-              class="size-5"
-              style="color: hsl(var(--warning))"
-            />
-          </div>
+        <div class="stat">
+          <span class="stat-icon tone-info">
+            <IconifyIcon icon="lucide:sparkles" class="size-5" />
+          </span>
           <div>
             <div class="stat-label">动漫</div>
-            <div class="stat-value">{{ statTotals.anime }}</div>
-          </div>
-        </div>
-      </NCard>
-    </div>
-
-    <NSpin :show="loading" class="mt-4">
-      <div v-if="historyList.length > 0">
-        <div class="flex items-center justify-between mb-3">
-          <div class="text-sm" style="color: hsl(var(--muted-foreground))">
-            共 {{ total }} 条记录
-            <span v-if="selectedIds.length > 0" class="ml-2">
-              已选 {{ selectedIds.length }} 条
-            </span>
-          </div>
-          <NCheckbox
-            :checked="allSelected"
-            :indeterminate="someSelected"
-            @update:checked="toggleSelectAll"
-          >
-            全选本页
-          </NCheckbox>
-        </div>
-
-        <div class="history-grid">
-          <NCard
-            v-for="item in historyList"
-            :key="item.ID"
-            size="small"
-            :bordered="false"
-            class="history-card"
-          >
-            <div class="flex gap-3">
-              <!-- 海报：成功仅显示海报；无图/加载失败显示类型图标 -->
-              <div
-                class="history-poster flex flex-shrink-0 items-center justify-center rounded"
-              >
-                <MediaPoster
-                  v-if="item.image && !isPosterFailed(item.ID)"
-                  :src="item.image"
-                  :content-profile="item.CONTENT_PROFILE"
-                  class="history-poster-img rounded"
-                  alt=""
-                  @error="markPosterFailed(item.ID)"
-                />
-                <div
-                  v-else
-                  class="history-poster-fallback flex items-center justify-center rounded"
-                  :style="{
-                    backgroundColor: `hsl(${getTypeColor(item.TYPE)} / 0.12)`,
-                  }"
-                >
-                  <IconifyIcon
-                    :icon="getTypeIcon(item.TYPE)"
-                    class="size-5"
-                    :style="{ color: `hsl(${getTypeColor(item.TYPE)})` }"
-                  />
-                </div>
-              </div>
-              <div class="min-w-0 flex-1">
-                <div class="flex items-start justify-between gap-2">
-                  <NTooltip :disabled="(item.TITLE || '').length < 24">
-                    <template #trigger>
-                      <div class="history-title truncate">
-                        {{ item.TITLE || '-' }}
-                        <span v-if="item.YEAR" class="history-year"
-                          >({{ item.YEAR }})</span
-                        >
-                      </div>
-                    </template>
-                    {{ item.TITLE }}
-                  </NTooltip>
-                  <NCheckbox
-                    :checked="selectedIds.includes(item.ID)"
-                    @update:checked="() => toggleSelect(item.ID)"
-                  />
-                </div>
-                <div class="history-meta">
-                  <span class="history-tag">{{ getTypeLabel(item.TYPE) }}</span>
-                  <span v-if="item.SEASON_EPISODE" class="history-tag">
-                    {{ item.SEASON_EPISODE }}
-                  </span>
-                  <span
-                    v-if="
-                      item.SEEDS_SEASON &&
-                      item.SEEDS_EPISODE &&
-                      !item.SEASON_EPISODE.includes(
-                        `S${String(item.SEEDS_SEASON)}`,
-                      )
-                    "
-                    class="history-tag history-tag-seeds"
-                    :title="`种子原始: S${item.SEEDS_SEASON}E${item.SEEDS_EPISODE}${item.SEEDS_END_EPISODE ? `-E${item.SEEDS_END_EPISODE}` : ''}`"
-                  >
-                    原始S{{ item.SEEDS_SEASON }}E{{ item.SEEDS_EPISODE }}
-                  </span>
-                  <span class="history-mode">{{ getModeLabel(item) }}</span>
-                </div>
-
-                <!-- 源/目的：后端徽标 + 完整路径（超长截断，悬停全文） -->
-                <div
-                  v-if="item.SOURCE_PATH || item.SOURCE_FILENAME"
-                  class="path-row"
-                >
-                  <IconifyIcon
-                    icon="lucide:arrow-right-from-line"
-                    class="size-3 path-icon path-icon-source"
-                  />
-                  <NTooltip>
-                    <template #trigger>
-                      <span class="path-label">
-                        <span v-if="item.SOURCE" class="path-backend">{{
-                          item.SOURCE
-                        }}</span>
-                        <span class="path-text">{{
-                          joinPath(item.SOURCE_PATH, item.SOURCE_FILENAME)
-                        }}</span>
-                      </span>
-                    </template>
-                    <span>{{ item.SOURCE || '源' }}</span>
-                    <br />
-                    {{ joinPath(item.SOURCE_PATH, item.SOURCE_FILENAME) }}
-                  </NTooltip>
-                </div>
-                <div
-                  v-if="item.DEST_PATH || item.DEST_FILENAME"
-                  class="path-row"
-                >
-                  <IconifyIcon
-                    icon="lucide:arrow-right-to-line"
-                    class="size-3 path-icon path-icon-dest"
-                  />
-                  <NTooltip>
-                    <template #trigger>
-                      <span class="path-label">
-                        <span class="path-backend">{{
-                          item.DST_BACKEND || 'local'
-                        }}</span>
-                        <span class="path-text">{{
-                          joinPath(item.DEST_PATH, item.DEST_FILENAME)
-                        }}</span>
-                      </span>
-                    </template>
-                    <span>{{ item.DST_BACKEND || '目的' }}</span>
-                    <br />
-                    {{ joinPath(item.DEST_PATH, item.DEST_FILENAME) }}
-                  </NTooltip>
-                </div>
-
-                <div class="history-footer">
-                  <span class="history-date">{{ formatDate(item.DATE) }}</span>
-                  <NDropdown
-                    :options="getItemOptions(item)"
-                    @select="(key: string) => handleItemAction(key, item)"
-                  >
-                    <NButton size="tiny" text @click.stop>
-                      <template #icon>
-                        <IconifyIcon
-                          icon="lucide:more-vertical"
-                          class="size-4"
-                        />
-                      </template>
-                    </NButton>
-                  </NDropdown>
-                </div>
-              </div>
+            <div class="stat-value">
+              {{ statisticTotals.anime.toLocaleString() }}
             </div>
-          </NCard>
+          </div>
+        </div>
+      </section>
+
+      <section class="toolbar">
+        <div class="type-filter" role="tablist" aria-label="媒体类型">
+          <button
+            v-for="option in typeOptions"
+            :key="option.value"
+            type="button"
+            role="tab"
+            :aria-selected="typeFilter === option.value"
+            :class="{ 'is-active': typeFilter === option.value }"
+            @click="setTypeFilter(option.value)"
+          >
+            {{ option.label }}
+          </button>
         </div>
 
-        <div class="mt-4 flex justify-end">
+        <div v-if="selectedIds.length > 0" class="bulk-bar">
+          <span>{{ selectedCountText }}</span>
+          <NButton
+            size="tiny"
+            quaternary
+            type="error"
+            @click="openBulkDeleteRecords"
+          >
+            <template #icon>
+              <IconifyIcon icon="lucide:eraser" class="size-3.5" />
+            </template>
+            删除记录
+          </NButton>
+        </div>
+
+        <span v-else class="toolbar-meta">
+          共 {{ total.toLocaleString() }} 条 · 第 {{ currentPage }} /
+          {{ totalPage }} 页
+        </span>
+      </section>
+    </template>
+
+    <div
+      class="history-layout"
+      :class="{ 'is-mobile-detail': isMobile && mobileDetailOpen }"
+    >
+      <div v-show="!isMobile || !mobileDetailOpen" class="list-column">
+        <HistoryList
+          :items="items"
+          :selected-id="selectedId"
+          :selected-ids="selectedIds"
+          @select="handleSelect"
+          @toggle-all="toggleSelectAll"
+          @toggle-select="toggleSelect"
+        />
+        <div class="pager">
           <NPagination
-            v-model:page="currentPage"
-            :page-size="pageSize"
+            :page="currentPage"
             :page-count="totalPage"
+            :page-size="pageSize"
+            :item-count="total"
+            size="small"
             @update:page="handlePageChange"
           />
         </div>
       </div>
 
-      <EmptyState v-else title="暂无识别历史" subtitle="还没有媒体文件识别记录">
-        <template #icon>
-          <IconifyIcon
-            icon="lucide:clock"
-            class="size-16"
-            style="color: hsl(var(--muted-foreground))"
-          />
-        </template>
-      </EmptyState>
-    </NSpin>
+      <HistoryDetail
+        v-show="!isMobile || mobileDetailOpen"
+        :item="selectedRecord"
+        :loading="loading"
+        :busy="actionBusy"
+        :mobile="isMobile"
+        @close="mobileDetailOpen = false"
+        @check-files="selectedRecord && handleCheckFiles(selectedRecord)"
+        @delete-file="selectedRecord && openDeleteFile(selectedRecord, $event)"
+        @delete-record="selectedRecord && openDeleteRecord(selectedRecord)"
+        @manual="selectedRecord && handleManual(selectedRecord)"
+        @reidentify="selectedRecord && handleReidentify(selectedRecord)"
+      />
+    </div>
 
-    <!-- 清空确认 -->
-    <NModal
-      v-model:show="clearModalShow"
-      title="确认清空记录"
-      preset="dialog"
-      type="warning"
-      positive-text="确认"
-      negative-text="取消"
-      @positive-click="confirmClear"
-    >
-      <p>确定要清空所有识别历史记录吗？此操作不可恢复。</p>
-    </NModal>
+    <DeleteConfirmDialog
+      :show="Boolean(deleteDialog)"
+      :title="deleteDialog?.title || ''"
+      :description="deleteDialog?.description || deleteDescription"
+      :paths="deleteDialog?.kind === 'files' ? deletePaths : []"
+      :confirm-text="deleteDialog?.confirmText || '确认'"
+      :loading="actionBusy"
+      @update:show="(value) => !value && (deleteDialog = null)"
+      @confirm="confirmDelete"
+    />
 
-    <!-- 删除确认 -->
-    <NModal
-      v-model:show="deleteModalShow"
-      title="确认删除"
-      preset="dialog"
-      type="error"
-      positive-text="确认"
-      negative-text="取消"
-      @positive-click="confirmDelete"
-    >
-      <p v-if="deletePayload">
-        确定要执行 <strong>{{ deletePayload.label }}</strong> 吗？
-        <br />
-        共 {{ deletePayload.logids.length }} 条记录，此操作不可恢复。
-      </p>
-    </NModal>
-
-    <!-- 手动识别 -->
-    <NModal
-      v-model:show="manualModalShow"
-      title="手动识别"
-      preset="card"
-      style="width: 560px; max-width: 92vw"
-      :bordered="false"
-      segmented
-    >
-      <NForm label-placement="left" label-width="80">
-        <NFormItem label="路径">
-          <NInput v-model:value="manualForm.path" readonly size="small" />
-        </NFormItem>
-
-        <div class="grid grid-cols-2 gap-3">
-          <NFormItem label="转移方式">
-            <NSelect
-              v-model:value="manualForm.syncmod"
-              :options="SYNC_MODES"
-              size="small"
-            />
-          </NFormItem>
-          <NFormItem label="类型">
-            <NRadioGroup v-model:value="manualForm.type" size="small">
-              <NRadioButton value="movie">电影</NRadioButton>
-              <NRadioButton value="tv">电视剧</NRadioButton>
-              <NRadioButton value="anime">动漫</NRadioButton>
-            </NRadioGroup>
-          </NFormItem>
-        </div>
-
-        <NFormItem label="TMDB ID">
-          <NSpace align="center" :wrap="false" style="width: 100%">
-            <NInputNumber
-              v-model:value="manualForm.tmdb"
-              placeholder="留空自动识别"
-              :min="0"
-              :show-button="false"
-              clearable
-              size="small"
-              style="flex: 1"
-            />
-            <NButton size="small" @click="openTmdbSearch">
-              <template #icon>
-                <IconifyIcon icon="lucide:search" class="size-4" />
-              </template>
-              查询
-            </NButton>
-          </NSpace>
-        </NFormItem>
-
-        <div class="grid grid-cols-2 gap-3">
-          <NFormItem label="季">
-            <NInputNumber
-              v-model:value="manualForm.season"
-              placeholder="如 1"
-              :min="1"
-              :show-button="false"
-              clearable
-              size="small"
-            />
-          </NFormItem>
-          <NFormItem label="最小大小">
-            <NInputNumber
-              v-model:value="manualForm.min_filesize"
-              placeholder="MB"
-              :min="0"
-              :show-button="false"
-              clearable
-              size="small"
-            />
-          </NFormItem>
-        </div>
-
-        <NDivider style="margin: 0.5rem 0" />
-
-        <div class="grid grid-cols-2 gap-3">
-          <NFormItem label="指定集数">
-            <NInput
-              v-model:value="manualForm.episode_format"
-              placeholder="如 1,2,3"
-              size="small"
-            />
-          </NFormItem>
-          <NFormItem label="指定 Part">
-            <NInput
-              v-model:value="manualForm.episode_part"
-              placeholder="如 Part1"
-              size="small"
-            />
-          </NFormItem>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <NFormItem label="定位集数">
-            <NInput
-              v-model:value="manualForm.episode_details"
-              placeholder="如 E01"
-              size="small"
-            />
-          </NFormItem>
-          <NFormItem label="集数偏移">
-            <NInput
-              v-model:value="manualForm.episode_offset"
-              placeholder="如 -10"
-              size="small"
-            />
-          </NFormItem>
-        </div>
-      </NForm>
-
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <NButton size="small" @click="manualModalShow = false">取消</NButton>
-          <NButton
-            type="primary"
-            size="small"
-            :loading="manualLoading"
-            @click="submitManual"
-          >
-            转移
-          </NButton>
-        </div>
-      </template>
-    </NModal>
-
-    <!-- TMDB 查询弹窗 -->
-    <NModal
-      v-model:show="tmdbSearchShow"
-      title="查询 TMDB ID"
-      preset="card"
-      style="width: 560px; max-width: 92vw"
-      :bordered="false"
-      segmented
-    >
-      <NSpace vertical>
-        <NSpace align="center">
-          <NInput
-            v-model:value="tmdbSearchKeyword"
-            placeholder="输入名称查询"
-            size="small"
-            style="width: 320px"
-            @keyup.enter="handleTmdbSearch"
-          />
-          <NButton
-            type="primary"
-            size="small"
-            :loading="tmdbSearchLoading"
-            @click="handleTmdbSearch"
-          >
-            <template #icon>
-              <IconifyIcon icon="lucide:search" class="size-4" />
-            </template>
-            搜索
-          </NButton>
-        </NSpace>
-
-        <NSpin :show="tmdbSearchLoading">
-          <div v-if="tmdbSearchResults.length > 0" class="tmdb-result-grid">
-            <NCard
-              v-for="media in tmdbSearchResults"
-              :key="media.id"
-              size="small"
-              :bordered="false"
-              class="tmdb-result-card"
-              hoverable
-              @click="selectTmdbMedia(media)"
-            >
-              <div class="flex gap-3">
-                <MediaPoster
-                  v-if="media.image || media.poster"
-                  :src="media.image || media.poster"
-                  :content-profile="media.content_profile"
-                  class="tmdb-poster rounded"
-                  alt=""
-                />
-                <div
-                  v-else
-                  class="tmdb-poster-placeholder flex items-center justify-center rounded"
-                >
-                  <IconifyIcon
-                    icon="lucide:image"
-                    class="size-6"
-                    style="color: hsl(var(--muted-foreground))"
-                  />
-                </div>
-                <div class="min-w-0 flex-1">
-                  <div class="tmdb-title truncate">
-                    {{ media.title }}
-                    <span v-if="media.year" class="tmdb-year"
-                      >({{ media.year }})</span
-                    >
-                  </div>
-                  <div v-if="media.overview" class="tmdb-overview line-clamp-3">
-                    {{ media.overview }}
-                  </div>
-                </div>
-              </div>
-            </NCard>
-          </div>
-          <EmptyState
-            v-else-if="!tmdbSearchLoading && tmdbSearchKeyword"
-            title="未找到相关媒体"
-            subtitle="请尝试其他关键词"
-          />
-        </NSpin>
-      </NSpace>
-    </NModal>
+    <ManualIdentifyModal
+      v-model:show="manualShow"
+      :item="manualItem"
+      @success="handleManualSuccess"
+    />
   </div>
 </template>
 
 <style scoped>
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
+.history-page {
+  padding: 16px;
 }
 
-.stat-card {
-  background-color: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
-  transition: box-shadow 0.2s;
-}
-
-.stat-card:hover {
-  box-shadow: 0 2px 12px hsl(var(--foreground) / 8%);
-}
-
-.stat-icon-wrapper {
+.head-actions {
   display: flex;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 8px;
   align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 0.5rem;
+}
+
+.search-input {
+  width: 230px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.stat {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  padding: 12px 14px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+}
+
+.stat-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+}
+
+.tone-primary {
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 9%);
+}
+
+.tone-success {
+  color: hsl(var(--success));
+  background: hsl(var(--success) / 10%);
+}
+
+.tone-warning {
+  color: hsl(var(--warning));
+  background: hsl(var(--warning) / 10%);
+}
+
+.tone-info {
+  color: hsl(var(--info, var(--primary)));
+  background: hsl(var(--info, var(--primary)) / 10%);
 }
 
 .stat-label {
-  margin-bottom: 0.125rem;
-  font-size: 0.75rem;
+  margin-bottom: 2px;
+  font-size: 0.7rem;
   color: hsl(var(--muted-foreground));
 }
 
 .stat-value {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: hsl(var(--card-foreground));
+  font-size: 1.16rem;
+  font-weight: 650;
+  line-height: 1.1;
 }
 
-.history-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(430px, 1fr));
-  gap: 0.75rem;
-}
-
-.history-card {
-  background-color: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
-  transition:
-    box-shadow 0.2s,
-    border-color 0.2s;
-}
-
-.history-card:hover {
-  border-color: hsl(var(--primary) / 25%);
-  box-shadow: 0 4px 16px hsl(var(--foreground) / 10%);
-}
-
-.history-poster {
-  position: relative;
-  width: 76px;
-  height: 108px;
-  overflow: hidden;
-}
-
-.history-poster-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  background-color: hsl(var(--muted));
-}
-
-.history-poster-fallback {
-  width: 100%;
-  height: 100%;
-}
-
-.history-title {
-  font-size: 0.95rem;
-  font-weight: 600;
-  line-height: 1.4;
-  color: hsl(var(--card-foreground));
-}
-
-.history-year {
-  font-size: 0.85rem;
-  font-weight: 400;
-  color: hsl(var(--muted-foreground));
-}
-
-.history-meta {
+.toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
+  gap: 10px;
   align-items: center;
-  margin-bottom: 0.375rem;
+  padding: 9px 11px;
+  margin-bottom: 12px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
 }
 
-.history-tag {
-  padding: 0.125rem 0.5rem;
-  font-size: 0.7rem;
-  font-weight: 500;
-  color: hsl(var(--primary));
-  background-color: hsl(var(--primary) / 10%);
-  border-radius: 0.25rem;
+.type-filter {
+  display: inline-flex;
+  padding: 2px;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 7px;
 }
 
-.history-tag-seeds {
-  font-style: italic;
+.type-filter button {
+  height: 27px;
+  padding: 0 11px;
+  font-size: 0.74rem;
   color: hsl(var(--muted-foreground));
-  cursor: help;
-  background-color: hsl(var(--muted));
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
 }
 
-.history-mode {
-  padding: 0.125rem 0.5rem;
-  font-size: 0.7rem;
-  color: hsl(var(--muted-foreground));
-  background-color: hsl(var(--muted));
-  border-radius: 0.25rem;
+.type-filter button:hover {
+  color: hsl(var(--foreground));
 }
 
-.path-backend {
-  flex-shrink: 0;
-  padding: 0 0.35rem;
-  margin-right: 0.35rem;
-  font-family: inherit;
-  font-size: 0.7rem;
-  font-weight: 500;
-  color: hsl(var(--muted-foreground));
-  background-color: hsl(var(--muted));
-  border-radius: 0.25rem;
+.type-filter button.is-active {
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  background: hsl(var(--card));
+  box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
 }
 
-.path-label {
+.bulk-bar {
   display: flex;
-  flex: 1;
+  gap: 10px;
   align-items: center;
-  min-width: 0;
+  padding: 2px 8px;
+  font-size: 0.73rem;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted));
+  border-radius: 6px;
 }
 
-.path-row {
-  display: flex;
-  gap: 0.3rem;
-  align-items: center;
-  min-width: 0;
-  margin-bottom: 0.125rem;
-  font-family: monospace;
-  font-size: 0.75rem;
+.toolbar-meta {
+  margin-left: auto;
+  font-size: 0.73rem;
   color: hsl(var(--muted-foreground));
 }
 
-.path-icon {
-  flex-shrink: 0;
-  opacity: 0.7;
+.history-layout {
+  display: grid;
+  grid-template-columns: minmax(330px, 390px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
 }
 
-.path-icon-source {
-  color: hsl(var(--destructive));
-}
-
-.path-icon-dest {
-  color: hsl(var(--success));
-}
-
-.path-text {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.history-path {
-  margin-bottom: 0.125rem;
-  font-family: monospace;
-  font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
-}
-
-.history-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 0.375rem;
-  margin-top: 0.5rem;
-  border-top: 1px solid hsl(var(--border));
-}
-
-.history-date {
-  font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
-}
-
-.tmdb-result-grid {
+.list-column {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  max-height: 50vh;
-  overflow-y: auto;
+  gap: 10px;
+  min-width: 0;
 }
 
-.tmdb-result-card {
-  cursor: pointer;
-  background-color: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
-  transition: box-shadow 0.2s;
-}
-
-.tmdb-result-card:hover {
-  box-shadow: 0 2px 8px hsl(var(--foreground) / 8%);
-}
-
-.tmdb-poster {
+.pager {
+  display: flex;
   flex-shrink: 0;
-  width: 60px;
-  height: 80px;
-  object-fit: cover;
-  background-color: hsl(var(--muted));
+  justify-content: flex-end;
+  padding: 0 2px;
 }
 
-.tmdb-poster-placeholder {
-  flex-shrink: 0;
-  width: 60px;
-  height: 80px;
-  background-color: hsl(var(--muted));
-}
-
-.tmdb-title {
-  margin-bottom: 0.25rem;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: hsl(var(--card-foreground));
-}
-
-.tmdb-year {
-  font-size: 0.8rem;
-  font-weight: 400;
-  color: hsl(var(--muted-foreground));
-}
-
-.tmdb-overview {
-  font-size: 0.75rem;
-  line-height: 1.4;
-  color: hsl(var(--muted-foreground));
-}
-
-@media (max-width: 640px) {
-  .stats-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+/* 桌面端左右两栏使用同一高度，底部严格对齐；列表和详情各自内部滚动 */
+@media (min-width: 1025px) {
+  .history-layout {
+    --pane-height: max(560px, calc(100vh - 340px));
   }
 
-  .history-grid {
+  .list-column {
+    height: var(--pane-height);
+  }
+
+  .list-column :deep(.history-list) {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .list-column :deep(.list-scroll) {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
+
+  .history-layout :deep(.history-detail) {
+    height: var(--pane-height);
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .history-layout :deep(.detail-tabs) {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    background: hsl(var(--card));
+  }
+}
+
+@media (max-width: 1024px) {
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .history-layout {
     grid-template-columns: 1fr;
   }
 
-  .history-poster {
-    width: 60px;
-    height: 86px;
+  .search-input {
+    width: 180px;
+  }
+}
+
+@media (max-width: 640px) {
+  .history-page {
+    padding: 10px;
   }
 
-  .tmdb-poster,
-  .tmdb-poster-placeholder {
-    width: 48px;
-    height: 64px;
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .stat {
+    gap: 8px;
+    padding: 9px 10px;
+  }
+
+  .stat-icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .stat-value {
+    font-size: 1rem;
+  }
+
+  .head-actions {
+    gap: 6px;
+    width: 100%;
+  }
+
+  .search-input {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .hide-sm {
+    display: none;
+  }
+
+  .type-filter {
+    width: 100%;
+  }
+
+  .type-filter button {
+    flex: 1;
+    padding: 0 4px;
+  }
+
+  .bulk-bar {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .toolbar-meta {
+    width: 100%;
+    margin-left: 0;
+    text-align: right;
+  }
+
+  .pager {
+    justify-content: center;
+  }
+
+  .history-page.is-mobile-detail {
+    padding: 0;
+  }
+
+  .history-page.is-mobile-detail .history-layout {
+    gap: 0;
   }
 }
 </style>

@@ -94,12 +94,15 @@ export async function reIdentifyTransferHistoryApi(data: {
 
 /** 手动识别/转移 */
 export async function manualTransferApi(data: {
+  content_profile?: string;
   episode_details?: string;
+  external_id?: string;
   episode_format?: string;
   episode_offset?: string;
   episode_part?: string;
   logid?: number;
   min_filesize?: number;
+  provider?: string;
   season?: number;
   syncmod?: string;
   tmdb?: number;
@@ -111,14 +114,17 @@ export async function manualTransferApi(data: {
 
 /** 自定义识别/转移（指定输入路径） */
 export async function manualTransferUdfApi(data: {
+  content_profile?: string;
   dst_backend_id?: string;
   episode_details?: string;
   episode_format?: string;
   episode_offset?: string;
   episode_part?: string;
+  external_id?: string;
   inpath: string;
   min_filesize?: number;
   outpath?: string;
+  provider?: string;
   season?: number;
   src_backend_id?: string;
   syncmod?: string;
