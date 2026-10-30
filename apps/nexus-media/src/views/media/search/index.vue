@@ -932,6 +932,14 @@ function openResultDetail(item: SearchResult) {
   }
 }
 
+function handleMediaCardSubscribe(media: MediaItem) {
+  if (media.content_profile && media.content_profile !== 'default') {
+    handleResultSubscribe(media as unknown as SearchResult);
+    return;
+  }
+  handleMediaSubscribe(media);
+}
+
 async function handleResultSubscribe(item: SearchResult) {
   if (!item.content_profile || item.content_profile === 'default') {
     return;
@@ -1885,10 +1893,40 @@ async function confirmDownload() {
               </NButton>
               <NButton
                 v-if="
-                  (!media.content_profile ||
-                    media.content_profile === 'default') &&
+                  media.content_profile &&
+                  media.content_profile !== 'default' &&
                   media.fav !== '1'
                 "
+                size="small"
+                round
+                style="color: #fff; border-color: #fff"
+                ghost
+                @click.stop="handleMediaCardSubscribe(media)"
+              >
+                <template #icon>
+                  <IconifyIcon icon="lucide:heart" />
+                </template>
+                订阅
+              </NButton>
+              <NButton
+                v-else-if="
+                  media.content_profile &&
+                  media.content_profile !== 'default' &&
+                  media.fav === '1'
+                "
+                size="small"
+                type="error"
+                ghost
+                round
+                @click.stop="handleMediaSubscribedClick(media)"
+              >
+                <template #icon>
+                  <IconifyIcon icon="lucide:heart" style="fill: currentcolor" />
+                </template>
+                已订阅
+              </NButton>
+              <NButton
+                v-else-if="media.fav !== '1'"
                 size="small"
                 round
                 style="color: #fff; border-color: #fff"
@@ -1901,9 +1939,7 @@ async function confirmDownload() {
                 订阅
               </NButton>
               <NButton
-                v-else-if="
-                  !media.content_profile || media.content_profile === 'default'
-                "
+                v-else
                 size="small"
                 type="error"
                 ghost
