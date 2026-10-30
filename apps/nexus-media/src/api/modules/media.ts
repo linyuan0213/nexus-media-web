@@ -790,7 +790,19 @@ export async function getMediaLibraryConfigApi() {
     tv_path: string[];
     unknown_backend: string[];
     unknown_path: string[];
+    movie_layout: 'category' | 'flat';
+    tv_layout: 'category' | 'flat';
+    anime_layout: 'category' | 'flat';
   }>('/media/library/path');
+}
+
+/** 更新媒体库目录结构 */
+export async function updateMediaLibraryLayoutApi(payload: {
+  movie_layout: 'category' | 'flat';
+  tv_layout: 'category' | 'flat';
+  anime_layout: 'category' | 'flat';
+}) {
+  return requestClient.post('/media/library/layout', payload);
 }
 
 /** 添加媒体库路径 */
