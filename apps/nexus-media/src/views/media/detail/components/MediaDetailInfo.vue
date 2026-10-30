@@ -9,6 +9,7 @@ import CastList from './CastList.vue';
 import FactPanel from './FactPanel.vue';
 
 interface ActorProfile {
+  aliases?: string[];
   image_url?: string;
   name: string;
 }
@@ -133,13 +134,23 @@ const overviewStyle = computed(() =>
                 style="color: hsl(var(--muted-foreground))"
               />
             </div>
-            <span
-              class="truncate text-sm"
-              style="color: hsl(var(--card-foreground))"
-              :title="actor.name"
-            >
-              {{ actor.name }}
-            </span>
+            <div class="min-w-0">
+              <div
+                class="truncate text-sm"
+                style="color: hsl(var(--card-foreground))"
+                :title="actor.name"
+              >
+                {{ actor.name }}
+              </div>
+              <div
+                v-if="actor.aliases && actor.aliases.length > 0"
+                class="truncate text-[11px]"
+                style="color: hsl(var(--muted-foreground))"
+                :title="actor.aliases.join(' / ')"
+              >
+                别名：{{ actor.aliases.join(' / ') }}
+              </div>
+            </div>
           </div>
         </div>
       </div>

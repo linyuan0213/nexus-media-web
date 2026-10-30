@@ -399,7 +399,11 @@ watch(
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-4">
           <div class="space-y-6 lg:col-span-3">
             <CastList
-              v-if="detail.crews && detail.crews.length > 0"
+              v-if="
+                (detail.actor_profiles && detail.actor_profiles.length > 0) ||
+                (detail.crews && detail.crews.length > 0)
+              "
+              :actors="detail.actor_profiles"
               :crews="detail.crews"
             />
 

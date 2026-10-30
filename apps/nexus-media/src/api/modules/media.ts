@@ -30,6 +30,11 @@ export namespace MediaApi {
       cast: Array<{ character?: string; name: string; profile_path?: string }>;
       crew: Array<{ job?: string; name: string }>;
     };
+    actor_profiles?: Array<{
+      aliases?: string[];
+      image_url?: string;
+      name: string;
+    }>;
   }
 
   export interface RecommendParams {
