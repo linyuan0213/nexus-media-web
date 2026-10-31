@@ -737,18 +737,37 @@ export async function clearTmdbBlacklistApi() {
 
 // ---------- 分类配置 ----------
 
+export interface CategoryRule {
+  field: string;
+  operator: string;
+  value: string | string[];
+  source?: null | string;
+}
+
 export interface CategoryConfigItem {
   id?: number;
   media_type: string;
   name: string;
   sort_order: number;
   is_default: boolean;
-  rules: Record<string, string>;
+  rules: CategoryRule[] | Record<string, string>;
 }
 
 /** 获取分类配置 */
 export async function getCategoryConfigApi() {
   return requestClient.post<CategoryConfigItem[]>('/media/category/config', {});
+}
+
+/** 获取分类映射词表 */
+export async function getCategoryTaxonomyApi() {
+  return requestClient.get<{
+    genres: Record<string, any>;
+    languages: Record<string, any>;
+    countries: Record<string, any>;
+    fields: Array<{ key: string; label: string; type: string }>;
+    operators: string[];
+    sources: string[];
+  }>('/media/category/taxonomy');
 }
 
 /** 更新分类配置 */

@@ -20,7 +20,9 @@ import {
 
 import {
   type CategoryConfigItem,
+  type CategoryRule,
   getCategoryConfigApi,
+  getCategoryTaxonomyApi,
   updateCategoryConfigApi,
 } from '#/api/modules/media';
 import PageHeader from '#/components/page/PageHeader.vue';
@@ -44,223 +46,90 @@ const FIELD_OPTIONS = [
   { label: '制片国家', value: 'production_countries' },
 ];
 
-const VALUE_OPTIONS: Record<string, { label: string; value: string }[]> = {
-  genre_ids: [
-    { label: '动画', value: '16' },
-    { label: '动作', value: '28' },
-    { label: '冒险', value: '12' },
-    { label: '喜剧', value: '35' },
-    { label: '犯罪', value: '80' },
-    { label: '纪录片', value: '99' },
-    { label: '剧情', value: '18' },
-    { label: '家庭', value: '10751' },
-    { label: '奇幻', value: '14' },
-    { label: '历史', value: '36' },
-    { label: '恐怖', value: '27' },
-    { label: '音乐', value: '10402' },
-    { label: '悬疑', value: '9648' },
-    { label: '爱情', value: '10749' },
-    { label: '科幻', value: '878' },
-    { label: '电视电影', value: '10770' },
-    { label: '惊悚', value: '53' },
-    { label: '战争', value: '10752' },
-    { label: '西部', value: '37' },
-    { label: '儿童', value: '10762' },
-    { label: '真人秀', value: '10764' },
-    { label: '脱口秀', value: '10767' },
-  ],
-  original_language: [
-    { label: '中文', value: 'zh' },
-    { label: '粤语', value: 'cn' },
-    { label: '英语', value: 'en' },
-    { label: '日语', value: 'ja' },
-    { label: '韩语 / 朝鲜语', value: 'ko' },
-    { label: '法语', value: 'fr' },
-    { label: '德语', value: 'de' },
-    { label: '西班牙语', value: 'es' },
-    { label: '意大利语', value: 'it' },
-    { label: '俄语', value: 'ru' },
-    { label: '葡萄牙语', value: 'pt' },
-    { label: '阿拉伯语', value: 'ar' },
-    { label: '印地语', value: 'hi' },
-    { label: '泰语', value: 'th' },
-    { label: '越南语', value: 'vi' },
-    { label: '藏语', value: 'bo' },
-    { label: '壮语', value: 'za' },
-    { label: '南非语', value: 'af' },
-    { label: '阿塞拜疆语', value: 'az' },
-    { label: '比利时语', value: 'be' },
-    { label: '保加利亚语', value: 'bg' },
-    { label: '加泰隆语', value: 'ca' },
-    { label: '捷克语', value: 'cs' },
-    { label: '威尔士语', value: 'cy' },
-    { label: '丹麦语', value: 'da' },
-    { label: '第维埃语', value: 'dv' },
-    { label: '希腊语', value: 'el' },
-    { label: '世界语', value: 'eo' },
-    { label: '爱沙尼亚语', value: 'et' },
-    { label: '巴士克语', value: 'eu' },
-    { label: '法斯语', value: 'fa' },
-    { label: '芬兰语', value: 'fi' },
-    { label: '法罗语', value: 'fo' },
-    { label: '加里西亚语', value: 'gl' },
-    { label: '古吉拉特语', value: 'gu' },
-    { label: '希伯来语', value: 'he' },
-    { label: '克罗地亚语', value: 'hr' },
-    { label: '匈牙利语', value: 'hu' },
-    { label: '亚美尼亚语', value: 'hy' },
-    { label: '印度尼西亚语', value: 'id' },
-    { label: '冰岛语', value: 'is' },
-    { label: '格鲁吉亚语', value: 'ka' },
-    { label: '哈萨克语', value: 'kk' },
-    { label: '卡纳拉语', value: 'kn' },
-    { label: '孔卡尼语', value: 'kok' },
-    { label: '吉尔吉斯语', value: 'ky' },
-    { label: '立陶宛语', value: 'lt' },
-    { label: '拉脱维亚语', value: 'lv' },
-    { label: '毛利语', value: 'mi' },
-    { label: '马其顿语', value: 'mk' },
-    { label: '蒙古语', value: 'mn' },
-    { label: '马拉地语', value: 'mr' },
-    { label: '马来语', value: 'ms' },
-    { label: '马耳他语', value: 'mt' },
-    { label: '挪威语(伯克梅尔)', value: 'nb' },
-    { label: '荷兰语', value: 'nl' },
-    { label: '北梭托语', value: 'ns' },
-    { label: '旁遮普语', value: 'pa' },
-    { label: '波兰语', value: 'pl' },
-    { label: '克丘亚语', value: 'qu' },
-    { label: '罗马尼亚语', value: 'ro' },
-    { label: '梵文', value: 'sa' },
-    { label: '北萨摩斯语', value: 'se' },
-    { label: '斯洛伐克语', value: 'sk' },
-    { label: '斯洛文尼亚语', value: 'sl' },
-    { label: '阿尔巴尼亚语', value: 'sq' },
-    { label: '瑞典语', value: 'sv' },
-    { label: '斯瓦希里语', value: 'sw' },
-    { label: '叙利亚语', value: 'syr' },
-    { label: '泰米尔语', value: 'ta' },
-    { label: '泰卢固语', value: 'te' },
-    { label: '塔加路语', value: 'tl' },
-    { label: '茨瓦纳语', value: 'tn' },
-    { label: '土耳其语', value: 'tr' },
-    { label: '宗加语', value: 'ts' },
-    { label: '鞑靼语', value: 'tt' },
-    { label: '乌克兰语', value: 'uk' },
-    { label: '乌都语', value: 'ur' },
-    { label: '乌兹别克语', value: 'uz' },
-    { label: '班图语', value: 'xh' },
-    { label: '祖鲁语', value: 'zu' },
-  ],
-  origin_country: [
-    { label: '中国', value: 'CN' },
-    { label: '美国', value: 'US' },
-    { label: '日本', value: 'JP' },
-    { label: '韩国 / 南朝鲜', value: 'KR' },
-    { label: '朝鲜 / 北朝鲜', value: 'KP' },
-    { label: '英国(GB)', value: 'GB' },
-    { label: '英国(UK, 兼容)', value: 'UK' },
-    { label: '法国', value: 'FR' },
-    { label: '德国', value: 'DE' },
-    { label: '印度', value: 'IN' },
-    { label: '泰国', value: 'TH' },
-    { label: '俄罗斯', value: 'RU' },
-    { label: '意大利', value: 'IT' },
-    { label: '西班牙', value: 'ES' },
-    { label: '加拿大', value: 'CA' },
-    { label: '澳大利亚', value: 'AU' },
-    { label: '巴西', value: 'BR' },
-    { label: '墨西哥', value: 'MX' },
-    { label: '中国台湾', value: 'TW' },
-    { label: '中国香港', value: 'HK' },
-    { label: '阿根廷', value: 'AR' },
-    { label: '比利时', value: 'BE' },
-    { label: '瑞士', value: 'CH' },
-    { label: '智利', value: 'CL' },
-    { label: '哥伦比亚', value: 'CO' },
-    { label: '捷克', value: 'CZ' },
-    { label: '丹麦', value: 'DK' },
-    { label: '埃及', value: 'EG' },
-    { label: '希腊', value: 'GR' },
-    { label: '以色列', value: 'IL' },
-    { label: '伊拉克', value: 'IQ' },
-    { label: '伊朗', value: 'IR' },
-    { label: '缅甸', value: 'MM' },
-    { label: '澳门', value: 'MO' },
-    { label: '马来西亚', value: 'MY' },
-    { label: '荷兰', value: 'NL' },
-    { label: '挪威', value: 'NO' },
-    { label: '菲律宾', value: 'PH' },
-    { label: '巴基斯坦', value: 'PK' },
-    { label: '波兰', value: 'PL' },
-    { label: '葡萄牙', value: 'PT' },
-    { label: '沙特阿拉伯', value: 'SA' },
-    { label: '新加坡', value: 'SG' },
-    { label: '瑞典', value: 'SE' },
-    { label: '土耳其', value: 'TR' },
-    { label: '越南', value: 'VN' },
-    { label: '新西兰', value: 'NZ' },
-    { label: '老挝', value: 'LA' },
-    { label: '蒙古', value: 'MN' },
-  ],
-  production_countries: [
-    { label: '中国', value: 'CN' },
-    { label: '美国', value: 'US' },
-    { label: '日本', value: 'JP' },
-    { label: '韩国 / 南朝鲜', value: 'KR' },
-    { label: '朝鲜 / 北朝鲜', value: 'KP' },
-    { label: '英国(GB)', value: 'GB' },
-    { label: '英国(UK, 兼容)', value: 'UK' },
-    { label: '法国', value: 'FR' },
-    { label: '德国', value: 'DE' },
-    { label: '印度', value: 'IN' },
-    { label: '泰国', value: 'TH' },
-    { label: '俄罗斯', value: 'RU' },
-    { label: '意大利', value: 'IT' },
-    { label: '西班牙', value: 'ES' },
-    { label: '加拿大', value: 'CA' },
-    { label: '澳大利亚', value: 'AU' },
-    { label: '巴西', value: 'BR' },
-    { label: '墨西哥', value: 'MX' },
-    { label: '中国台湾', value: 'TW' },
-    { label: '中国香港', value: 'HK' },
-    { label: '阿根廷', value: 'AR' },
-    { label: '比利时', value: 'BE' },
-    { label: '瑞士', value: 'CH' },
-    { label: '智利', value: 'CL' },
-    { label: '哥伦比亚', value: 'CO' },
-    { label: '捷克', value: 'CZ' },
-    { label: '丹麦', value: 'DK' },
-    { label: '埃及', value: 'EG' },
-    { label: '希腊', value: 'GR' },
-    { label: '以色列', value: 'IL' },
-    { label: '伊拉克', value: 'IQ' },
-    { label: '伊朗', value: 'IR' },
-    { label: '缅甸', value: 'MM' },
-    { label: '澳门', value: 'MO' },
-    { label: '马来西亚', value: 'MY' },
-    { label: '荷兰', value: 'NL' },
-    { label: '挪威', value: 'NO' },
-    { label: '菲律宾', value: 'PH' },
-    { label: '巴基斯坦', value: 'PK' },
-    { label: '波兰', value: 'PL' },
-    { label: '葡萄牙', value: 'PT' },
-    { label: '沙特阿拉伯', value: 'SA' },
-    { label: '新加坡', value: 'SG' },
-    { label: '瑞典', value: 'SE' },
-    { label: '土耳其', value: 'TR' },
-    { label: '越南', value: 'VN' },
-    { label: '新西兰', value: 'NZ' },
-    { label: '老挝', value: 'LA' },
-    { label: '蒙古', value: 'MN' },
-  ],
-};
-
 const message = useMessage();
 const loading = ref(false);
 const saving = ref(false);
+const taxonomy = ref<any>(null);
 const items = ref<CategoryConfigItem[]>([]);
 const activeTab = ref('movie');
+
+const fieldOptions = computed(() => {
+  if (taxonomy.value?.fields?.length) {
+    return taxonomy.value.fields.map((item: any) => ({
+      label: item.label,
+      value: item.key,
+    }));
+  }
+  return FIELD_OPTIONS;
+});
+
+const operatorOptions = computed(() => {
+  const values = taxonomy.value?.operators || [
+    'eq',
+    'neq',
+    'in',
+    'not_in',
+    'contains',
+    'contains_any',
+    'startswith_any',
+    'regex',
+    'exists',
+  ];
+  return values.map((value: string) => ({ label: value, value }));
+});
+
+const sourceOptions = computed(() => {
+  const values = taxonomy.value?.sources || ['*', 'tmdb', 'douban', 'bangumi'];
+  return values.map((value: string) => ({
+    label: value === '*' ? '所有来源' : value,
+    value,
+  }));
+});
+
+function ruleList(rules: CategoryConfigItem['rules']): CategoryRule[] {
+  if (Array.isArray(rules)) return rules as CategoryRule[];
+  return Object.entries(rules || {}).map(([field, value]) => {
+    const normalizedField =
+      field === 'genres' || field === 'genre_ids'
+        ? 'genre'
+        : field === 'origin_country' || field === 'production_countries'
+          ? 'country'
+          : field;
+    const operator =
+      normalizedField === 'tag'
+        ? 'contains_any'
+        : normalizedField === 'country'
+          ? 'in'
+          : normalizedField === 'original_language'
+            ? 'in'
+            : 'contains_any';
+    return {
+      field: normalizedField,
+      operator,
+      value: String(value)
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean),
+    };
+  });
+}
+
+function valueOptions(field: string) {
+  if (!taxonomy.value) return [];
+  const source =
+    field === 'genre'
+      ? taxonomy.value.genres
+      : field === 'original_language'
+        ? taxonomy.value.languages
+        : field === 'country'
+          ? taxonomy.value.countries
+          : null;
+  if (!source) return [];
+  return Object.entries(source).map(([value, item]: [string, any]) => ({
+    label: item?.labels?.zh || item?.labels?.en || value,
+    value,
+  }));
+}
 
 const filteredItems = computed(() => {
   return items.value
@@ -271,10 +140,14 @@ const filteredItems = computed(() => {
 async function fetch() {
   loading.value = true;
   try {
-    const res = await getCategoryConfigApi();
+    const [res, tax] = await Promise.all([
+      getCategoryConfigApi(),
+      getCategoryTaxonomyApi(),
+    ]);
+    taxonomy.value = tax;
     items.value = (res || []).map((i) => ({
       ...i,
-      rules: i.rules || {},
+      rules: ruleList(i.rules),
     }));
   } catch {
     message.error('加载分类配置失败');
@@ -291,7 +164,7 @@ function addCategory() {
     name: '',
     sort_order: maxOrder + 1,
     is_default: false,
-    rules: {},
+    rules: [],
   });
 }
 
@@ -331,44 +204,63 @@ function moveDown(indexInTab: number) {
 }
 
 function addRule(item: CategoryConfigItem) {
-  const usedFields = Object.keys(item.rules);
-  const nextField =
-    FIELD_OPTIONS.find((f) => !usedFields.includes(f.value))?.value ||
-    'genre_ids';
-  item.rules = { ...item.rules, [nextField]: '' };
+  const rules = ruleList(item.rules);
+  rules.push({ field: 'genre', operator: 'contains_any', value: [] });
+  item.rules = rules;
 }
 
 function updateRuleField(
   item: CategoryConfigItem,
-  oldField: string,
-  newField: string,
+  index: number,
+  field: string,
 ) {
-  const next = { ...item.rules };
-  delete next[oldField];
-  next[newField] = '';
-  item.rules = next;
+  const rules = ruleList(item.rules);
+  const current = rules[index];
+  if (!current) return;
+  rules[index] = { ...current, field, value: [] };
+  item.rules = rules;
+}
+
+function updateRuleOperator(
+  item: CategoryConfigItem,
+  index: number,
+  operator: string,
+) {
+  const rules = ruleList(item.rules);
+  const current = rules[index];
+  if (!current) return;
+  rules[index] = { ...current, operator };
+  item.rules = rules;
 }
 
 function updateRuleValue(
   item: CategoryConfigItem,
-  field: string,
-  values: string[],
+  index: number,
+  value: string | string[],
 ) {
-  item.rules = { ...item.rules, [field]: values.join(',') };
+  const rules = ruleList(item.rules);
+  const current = rules[index];
+  if (!current) return;
+  rules[index] = { ...current, value };
+  item.rules = rules;
 }
 
-function removeRule(item: CategoryConfigItem, field: string) {
-  const next = { ...item.rules };
-  delete next[field];
-  item.rules = next;
+function updateRuleSource(
+  item: CategoryConfigItem,
+  index: number,
+  source: null | string,
+) {
+  const rules = ruleList(item.rules);
+  const current = rules[index];
+  if (!current) return;
+  rules[index] = { ...current, source: source === '*' ? null : source };
+  item.rules = rules;
 }
 
-function getRuleValues(_field: string, raw: string): string[] {
-  if (!raw) return [];
-  return raw
-    .split(',')
-    .map((v) => v.trim())
-    .filter((v) => v !== '');
+function removeRule(item: CategoryConfigItem, index: number) {
+  const rules = ruleList(item.rules);
+  rules.splice(index, 1);
+  item.rules = rules;
 }
 
 async function save() {
@@ -543,44 +435,56 @@ onMounted(fetch);
               <!-- 规则区域 -->
               <div v-else class="rule-area">
                 <div
-                  v-for="(_, field) in item.rules"
-                  :key="field"
+                  v-for="(rule, index) in ruleList(item.rules)"
+                  :key="index"
                   class="rule-line"
                 >
-                  <div class="rule-label">当</div>
-
                   <NSelect
-                    :value="field"
-                    :options="FIELD_OPTIONS"
+                    :value="rule.field"
+                    :options="fieldOptions"
                     size="small"
                     class="field-select"
                     @update:value="
-                      (v: string) => updateRuleField(item, field, v)
+                      (v: string) => updateRuleField(item, index, v)
                     "
                   />
-
-                  <div class="rule-label">为以下任意值时</div>
-
                   <NSelect
-                    :value="getRuleValues(field, item.rules[field] || '')"
-                    :options="VALUE_OPTIONS[field] || []"
+                    :value="rule.operator"
+                    :options="operatorOptions"
+                    size="small"
+                    class="operator-select"
+                    @update:value="
+                      (v: string) => updateRuleOperator(item, index, v)
+                    "
+                  />
+                  <NSelect
+                    :value="rule.value"
+                    :options="valueOptions(rule.field)"
                     size="small"
                     multiple
                     filterable
                     tag
-                    placeholder="请选择"
+                    placeholder="值"
                     class="value-select"
                     @update:value="
-                      (v: string[]) => updateRuleValue(item, field, v)
+                      (v: string[]) => updateRuleValue(item, index, v)
                     "
                   />
-
+                  <NSelect
+                    :value="rule.source || '*'"
+                    :options="sourceOptions"
+                    size="small"
+                    class="source-select"
+                    @update:value="
+                      (v: string) => updateRuleSource(item, index, v)
+                    "
+                  />
                   <NButton
                     size="tiny"
                     text
                     type="error"
                     class="remove-btn"
-                    @click="removeRule(item, field)"
+                    @click="removeRule(item, index)"
                   >
                     <template #icon>
                       <IconifyIcon icon="lucide:x" class="h-3.5 w-3.5" />
@@ -589,7 +493,6 @@ onMounted(fetch);
                 </div>
 
                 <NButton
-                  v-if="Object.keys(item.rules).length < FIELD_OPTIONS.length"
                   size="small"
                   dashed
                   class="add-rule-btn"
@@ -712,6 +615,11 @@ onMounted(fetch);
   width: 7.5rem;
 }
 
+.operator-select,
+.source-select {
+  width: 8rem;
+}
+
 .value-select {
   flex: 1;
   min-width: 14rem;
@@ -744,6 +652,8 @@ onMounted(fetch);
   }
 
   .field-select,
+  .operator-select,
+  .source-select,
   .value-select {
     width: 100%;
     max-width: none;
