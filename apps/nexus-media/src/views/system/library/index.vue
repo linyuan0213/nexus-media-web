@@ -27,7 +27,6 @@ import {
   addMediaLibraryPathApi,
   getMediaLibraryConfigApi,
   removeMediaLibraryPathApi,
-  updateMediaLibraryLayoutApi,
   updateMediaLibraryPathApi,
 } from '#/api/modules/media';
 import { getStorageBackendsApi } from '#/api/modules/storage';
@@ -84,17 +83,6 @@ const backendOptions = computed(() => [
   })),
 ]);
 const loading = ref(false);
-const savingLayout = ref(false);
-const layouts = ref({
-  movie: 'category' as 'category' | 'flat',
-  tv: 'category' as 'category' | 'flat',
-  anime: 'flat' as 'category' | 'flat',
-});
-const layoutOptions = [
-  { label: '平铺', value: 'flat' },
-  { label: '分类子目录', value: 'category' },
-];
-
 // 路径编辑弹窗
 const modal = ref({
   show: false,
@@ -286,11 +274,6 @@ async function fetch() {
       getStorageBackendsApi(),
     ]);
     backends.value = backendRes.items || [];
-    layouts.value = {
-      movie: cfg.movie_layout || 'category',
-      tv: cfg.tv_layout || 'category',
-      anime: cfg.anime_layout || 'flat',
-    };
     data.value = SECTIONS.map((s) => {
       const pathKey = `${s.key}_path` as keyof typeof cfg;
       const backendKey = `${s.key}_backend` as keyof typeof cfg;
@@ -314,22 +297,6 @@ async function fetch() {
     message.error('加载媒体库配置失败');
   } finally {
     loading.value = false;
-  }
-}
-
-async function saveLayouts() {
-  savingLayout.value = true;
-  try {
-    await updateMediaLibraryLayoutApi({
-      movie_layout: layouts.value.movie,
-      tv_layout: layouts.value.tv,
-      anime_layout: layouts.value.anime,
-    });
-    message.success('目录结构已保存');
-  } catch {
-    message.error('保存目录结构失败');
-  } finally {
-    savingLayout.value = false;
   }
 }
 
@@ -432,35 +399,6 @@ onMounted(() => {
         </NButton>
       </template>
     </PageHeader>
-
-    <NCard size="small" :bordered="false" class="mb-4">
-      <div class="flex flex-wrap items-end gap-4">
-        <div
-          v-for="item in [
-            { key: 'movie', label: '电影' },
-            { key: 'tv', label: '电视剧' },
-            { key: 'anime', label: '动漫' },
-          ]"
-          :key="item.key"
-        >
-          <div class="mb-1 text-xs section-label">{{ item.label }}结构</div>
-          <NSelect
-            v-model:value="layouts[item.key as keyof typeof layouts]"
-            :options="layoutOptions"
-            style="width: 150px"
-          />
-        </div>
-        <NButton type="primary" :loading="savingLayout" @click="saveLayouts">
-          <template #icon>
-            <IconifyIcon icon="lucide:save" class="h-3.5 w-3.5" />
-          </template>
-          保存结构
-        </NButton>
-      </div>
-      <div class="mt-2 text-xs hint-text">
-        电影、电视剧默认按分类建子目录；动漫默认平铺，可切换为分类子目录。分类为空时自动回退平铺。
-      </div>
-    </NCard>
 
     <NSpin :show="loading">
       <!-- 每个分类一个卡片 -->

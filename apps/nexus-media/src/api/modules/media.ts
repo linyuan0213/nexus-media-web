@@ -750,12 +750,25 @@ export interface CategoryConfigItem {
   name: string;
   sort_order: number;
   is_default: boolean;
+  enabled?: boolean;
   rules: CategoryRule[] | Record<string, string>;
 }
 
 /** 获取分类配置 */
 export async function getCategoryConfigApi() {
   return requestClient.post<CategoryConfigItem[]>('/media/category/config', {});
+}
+
+/** 获取分类页标签（含插件动态标签） */
+export async function getCategoryTabsApi() {
+  return requestClient.get<
+    Array<{
+      key: string;
+      label: string;
+      namespace?: string;
+      categories?: Array<{ name: string; label: string; rules: any }>;
+    }>
+  >('/media/category/tabs');
 }
 
 /** 获取分类映射词表 */
