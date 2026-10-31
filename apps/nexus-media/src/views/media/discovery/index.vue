@@ -213,10 +213,15 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-async function loadItems(reset = false) {
+async function loadItems(reset = false, force = false) {
   if (!activeProvider.value || !activeFeed.value) return;
-  if (!reset && (loading.value || loadingMore.value)) return;
-  if (!reset && !hasMore.value) return;
+  if (!reset && !force && (loading.value || loadingMore.value)) return;
+  if (!reset && !force && !hasMore.value) return;
+  if (force) {
+    // 上一次失败时已经 hasMore=false；重试必须重新允许请求，
+    // 否则 loadItems 会直接返回，页面停在“加载失败”。
+    hasMore.value = true;
+  }
 
   const seq = ++loadSeq;
   const provider = activeProvider.value;
@@ -251,7 +256,9 @@ async function loadItems(reset = false) {
               : {}),
           },
         }),
-        30000,
+        // 冷缓存时后端可能先等后台预热，再走一次浏览器挑战；与浏览器
+        // 导航预算对齐，避免后端已返回数据但前端先报“加载失败”。
+        90000,
       ),
     );
     if (seq !== loadSeq) return;
@@ -321,7 +328,7 @@ function retryLoad() {
     page.value = 1;
     loadItems(true);
   } else {
-    loadItems(false);
+    loadItems(false, true);
   }
 }
 
