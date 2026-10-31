@@ -494,7 +494,8 @@ onMounted(fetch);
           <div class="layout-segment">
             <button
               type="button"
-              class="layout-segment-item" :class="[
+              class="layout-segment-item"
+              :class="[
                 layouts[item.key as keyof typeof layouts] === 'flat'
                   ? 'is-active'
                   : '',
@@ -505,7 +506,8 @@ onMounted(fetch);
             </button>
             <button
               type="button"
-              class="layout-segment-item" :class="[
+              class="layout-segment-item"
+              :class="[
                 layouts[item.key as keyof typeof layouts] === 'category'
                   ? 'is-active'
                   : '',
@@ -525,7 +527,8 @@ onMounted(fetch);
           v-for="tab in tabs"
           :key="tab.key"
           type="button"
-          class="media-tab" :class="[activeTab === tab.key ? 'is-active' : '']"
+          class="media-tab"
+          :class="[activeTab === tab.key ? 'is-active' : '']"
           @click="activeTab = tab.key"
         >
           <IconifyIcon :icon="tab.icon" class="h-4 w-4" />
@@ -544,16 +547,15 @@ onMounted(fetch);
               v-for="item in filteredItems"
               :key="`${item.media_type}-${item.sort_order}`"
               type="button"
-              class="rail-item" :class="[selected === item ? 'is-active' : '']"
+              class="rail-item"
+              :class="[selected === item ? 'is-active' : '']"
               @click="selected = item"
             >
               <span class="rail-order">{{ item.sort_order }}</span>
               <span class="rail-name">{{ item.name || '未命名分类' }}</span>
-              <NTag v-if="item.is_default" size="tiny" round type="success"
-                >
-默认
-</NTag
-              >
+              <NTag v-if="item.is_default" size="tiny" round type="success">
+                默认
+              </NTag>
               <NTag v-if="item.enabled === false" size="tiny" round>停用</NTag>
             </button>
             <NEmpty
@@ -593,28 +595,25 @@ onMounted(fetch);
                 quaternary
                 :disabled="filteredItems[0] === selected"
                 @click="moveCategory(-1)"
-                >
-上移
-</NButton
               >
+                上移
+              </NButton>
               <NButton
                 size="tiny"
                 quaternary
                 :disabled="filteredItems.at(-1) === selected"
                 @click="moveCategory(1)"
-                >
-下移
-</NButton
               >
+                下移
+              </NButton>
               <NButton
                 size="tiny"
                 quaternary
                 type="error"
                 @click="removeCategory"
-                >
-删除
-</NButton
               >
+                删除
+              </NButton>
             </div>
           </div>
 
@@ -964,10 +963,9 @@ onMounted(fetch);
 
 .rule-grid {
   display: grid;
-  grid-template-columns: minmax(7rem, 0.8fr) minmax(7rem, 0.8fr) minmax(
-      6rem,
-      0.7fr
-    ) minmax(12rem, 1.8fr) auto;
+  grid-template-columns:
+    minmax(7rem, 0.8fr) minmax(7rem, 0.8fr) minmax(6rem, 0.7fr)
+    minmax(12rem, 1.8fr) auto;
   gap: 0.45rem;
   align-items: center;
 }
