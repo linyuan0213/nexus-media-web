@@ -1034,10 +1034,16 @@ function openResultDetail(item: SearchResult) {
   if (item.content_profile && item.content_profile !== 'default') {
     const detailPath = getContentProfileDetailPath(item.content_profile);
     if (!detailPath) return;
+    const contentProvider = String(
+      item.anchor_provider || item.provider || '',
+    ).trim();
+    const contentExternal = String(item.anchor_external_id || '').trim();
     const params = new URLSearchParams({
       id: item.title,
       profile: item.content_profile,
-      ...(item.metadata_ref ? { ref: item.metadata_ref } : {}),
+      ...(contentProvider ? { provider: contentProvider } : {}),
+      ...(contentExternal ? { ref: contentExternal } : {}),
+      ...(item.metadata_ref ? { metadata_ref: item.metadata_ref } : {}),
     });
     router.push(`${detailPath}?${params.toString()}`);
     return;
