@@ -91,7 +91,26 @@ const messages = ref<Message[]>([]);
 const input = ref('');
 const sending = ref(false);
 const agentEnabled = ref(false);
+// 用户是否在设置页启用了 Agent（与 "enabled"（配置是否完整）区分）
+// 旧版后端不返回该字段，为 undefined 时回退为原有行为
+const agentConfigured = ref<boolean | undefined>(undefined);
 const providerName = ref('');
+
+// Agent 状态三态展示：未启用 / 已启用但配置不完整 / 正常
+const agentState = computed<'disabled' | 'incomplete' | 'ready'>(() => {
+  // 旧版后端不返回 configured，保持原行为
+  if (agentConfigured.value === undefined) {
+    return agentEnabled.value ? 'ready' : 'disabled';
+  }
+  if (!agentConfigured.value) return 'disabled';
+  return agentEnabled.value ? 'ready' : 'incomplete';
+});
+
+const agentBadgeText = computed(() => {
+  if (agentState.value === 'disabled') return 'AI 未启用';
+  if (agentState.value === 'incomplete') return 'AI 已启用，Provider 未配置';
+  return providerName.value || 'AI 助手';
+});
 const modelName = ref('');
 const attachments = ref<
   { image_data?: string; media_type?: string; name: string; text: string }[]
@@ -505,12 +524,14 @@ async function fetchStatus() {
   try {
     const status = await getAgentStatus();
     agentEnabled.value = status.enabled;
+    agentConfigured.value = status.configured;
     providerName.value = status.provider;
     modelName.value = status.model;
     reasoningEffort.value = status.reasoning_effort;
     thinkingEnabled.value = status.thinking_enabled;
   } catch {
     agentEnabled.value = false;
+    agentConfigured.value = undefined;
   }
   if (agentEnabled.value) {
     try {
@@ -1206,11 +1227,11 @@ function onVisibilityChange() {
           <span class="header-title">消息中心</span>
           <span
             class="provider-badge"
-            :class="{ 'is-active': agentEnabled }"
+            :class="{ 'is-active': agentState === 'ready' }"
             :title="modeLabel"
           >
             <span class="provider-dot"></span>
-            {{ agentEnabled ? providerName || 'AI 助手' : 'AI 未启用' }}
+            {{ agentBadgeText }}
           </span>
           <span v-if="agentEnabled && kbTotal" class="meta-pill">
             知识库 {{ kbTotal }}
