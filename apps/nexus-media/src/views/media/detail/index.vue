@@ -24,9 +24,8 @@ import PageHeader from '#/components/page/PageHeader.vue';
 import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.vue';
 import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
 
-import CastList from './components/CastList.vue';
-import FactPanel from './components/FactPanel.vue';
 import HeroSection from './components/HeroSection.vue';
+import MediaDetailInfo from './components/MediaDetailInfo.vue';
 import MediaGrid from './components/MediaGrid.vue';
 import SeasonList from './components/SeasonList.vue';
 
@@ -447,14 +446,12 @@ watch(
         />
 
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-4">
-          <div class="space-y-6 lg:col-span-3">
-            <CastList
-              v-if="
-                (detail.actor_profiles && detail.actor_profiles.length > 0) ||
-                (detail.crews && detail.crews.length > 0)
-              "
-              :actors="detail.actor_profiles"
-              :crews="detail.crews"
+          <div class="space-y-6 lg:col-span-4">
+            <MediaDetailInfo
+              :detail="detail"
+              :genres="detail.genres"
+              :actor-profiles="detail.actor_profiles"
+              :actors="detail.actors"
             />
 
             <SeasonList
@@ -477,13 +474,6 @@ watch(
               icon="lucide:thumbs-up"
               :items="recommends"
               @click="goDetail"
-            />
-          </div>
-
-          <div class="lg:col-span-1">
-            <FactPanel
-              v-if="detail.fact && detail.fact.length > 0"
-              :facts="detail.fact"
             />
           </div>
         </div>
