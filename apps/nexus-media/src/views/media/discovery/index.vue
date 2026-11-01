@@ -805,9 +805,10 @@ onUnmounted(() => {
         <div v-if="supportsSort" class="filter-row filter-row--facets">
           <span class="filter-label">排序</span>
           <NSelect
-            :value="selectedSort"
+            :value="selectedSort || null"
             :options="sortOptions"
             placeholder="默认排序"
+            size="small"
             class="sort-select"
             @update:value="selectSort"
           />
@@ -1246,5 +1247,12 @@ onUnmounted(() => {
     flex: none;
     width: 100%;
   }
+}
+</style>
+
+<style scoped>
+.sort-select {
+  width: 180px;
+  min-width: 180px;
 }
 </style>
