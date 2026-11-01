@@ -749,9 +749,7 @@ async function selectAddMedia(media: any) {
   ).trim();
   const mediaRef =
     media.metadata_ref ||
-    (mediaProvider && mediaExternal
-      ? `${mediaProvider}:${mediaExternal}`
-      : '');
+    (mediaProvider && mediaExternal ? `${mediaProvider}:${mediaExternal}` : '');
   editItem.value = {
     name: media.title || '',
     year: media.year || '',

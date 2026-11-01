@@ -153,13 +153,8 @@ watch(
                 episode_count: s.episode_count,
               }))
               .filter((s: any) => s.season_number > 0)
-              .toSorted(
-                (a: any, b: any) => a.season_number - b.season_number,
-              );
-          } else if (
-            provider &&
-            props.item.anchor_external_id
-          ) {
+              .toSorted((a: any, b: any) => a.season_number - b.season_number);
+          } else if (provider && props.item.anchor_external_id) {
             const detail: any = await getMediaDetailByRefApi(
               provider,
               String(props.item.anchor_external_id),
@@ -175,9 +170,7 @@ watch(
                 episode_count: s.episode_count,
               }))
               .filter((s: any) => s.season_number > 0)
-              .toSorted(
-                (a: any, b: any) => a.season_number - b.season_number,
-              );
+              .toSorted((a: any, b: any) => a.season_number - b.season_number);
           }
         } catch {
           /* ignore */

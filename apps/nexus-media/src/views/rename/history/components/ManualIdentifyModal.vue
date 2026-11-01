@@ -364,42 +364,40 @@ async function submit() {
         </div>
 
         <NFormItem label="元数据来源">
-            <NSelect
-              :value="form.provider"
-              :loading="providersLoading"
-              :options="providerOptions"
-              placeholder="选择插件 provider"
-              @update:value="handleProviderChange"
+          <NSelect
+            :value="form.provider"
+            :loading="providersLoading"
+            :options="providerOptions"
+            placeholder="选择插件 provider"
+            @update:value="handleProviderChange"
+          />
+        </NFormItem>
+        <NFormItem label="内容编号 / 关键词">
+          <NSpace align="center" :wrap="false" style="width: 100%">
+            <NInput
+              v-model:value="form.query"
+              placeholder="输入内容编号或关键词"
+              style="flex: 1"
+              @keyup.enter="searchCustomMetadata"
             />
-          </NFormItem>
-          <NFormItem label="内容编号 / 关键词">
-            <NSpace align="center" :wrap="false" style="width: 100%">
-              <NInput
-                v-model:value="form.query"
-                placeholder="输入内容编号或关键词"
-                style="flex: 1"
-                @keyup.enter="searchCustomMetadata"
-              />
-              <NButton
-                :loading="metadataSearchLoading"
-                @click="searchCustomMetadata"
-              >
-                <template #icon>
-                  <IconifyIcon icon="lucide:search" class="size-4" />
-                </template>
-                搜索
-              </NButton>
-            </NSpace>
-          </NFormItem>
-          <NFormItem label="已选结果">
-            <span v-if="form.external_id" class="selected-result">
-              <span class="selected-provider">{{ form.provider }}</span>
-              {{ form.selectedLabel || form.external_id }}
-            </span>
-            <span v-else class="empty-result">
-              请搜索并选择插件返回的结果
-            </span>
-          </NFormItem>
+            <NButton
+              :loading="metadataSearchLoading"
+              @click="searchCustomMetadata"
+            >
+              <template #icon>
+                <IconifyIcon icon="lucide:search" class="size-4" />
+              </template>
+              搜索
+            </NButton>
+          </NSpace>
+        </NFormItem>
+        <NFormItem label="已选结果">
+          <span v-if="form.external_id" class="selected-result">
+            <span class="selected-provider">{{ form.provider }}</span>
+            {{ form.selectedLabel || form.external_id }}
+          </span>
+          <span v-else class="empty-result"> 请搜索并选择插件返回的结果 </span>
+        </NFormItem>
         <div v-if="metadataResults.length > 0" class="metadata-results">
           <button
             v-for="result in metadataResults"
