@@ -6,7 +6,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { NButton, NSpin } from 'naive-ui';
+import { NButton, NSelect, NSpin } from 'naive-ui';
 
 import {
   getDiscoveryItemsApi,
@@ -47,6 +47,9 @@ const selectedSeason = computed(
 );
 const selectedWeekday = ref('');
 const selectedGenre = ref('');
+const selectedSort = ref('');
+const sortOptions = ref<Array<{ label: string; value: string }>>([]);
+const sortOptionsFeed = ref('');
 const genreOptions = ref<Array<{ label: string; value: string }>>([]);
 const genreOptionsFeed = ref('');
 const weekdayOptions = [
@@ -119,6 +122,9 @@ const supportsWeekday = computed(() =>
 );
 const supportsGenre = computed(() =>
   (activeFeedConfig.value?.facets || []).includes('genre'),
+);
+const supportsSort = computed(() =>
+  (activeFeedConfig.value?.facets || []).includes('sort'),
 );
 const hasGenreOptions = computed(() =>
   genreOptions.value.some((item) => item.value !== '其他'),
@@ -254,6 +260,9 @@ async function loadItems(reset = false, force = false) {
             ...(supportsGenre.value && selectedGenre.value
               ? { genre: selectedGenre.value }
               : {}),
+            ...(supportsSort.value && selectedSort.value
+              ? { sort: selectedSort.value }
+              : {}),
           },
         }),
         // 冷缓存时后端可能先等后台预热，再走一次浏览器挑战；与浏览器
@@ -271,6 +280,25 @@ async function loadItems(reset = false, force = false) {
       return;
     }
     loadError.value = null;
+    if (supportsSort.value) {
+      const feedKey = `${provider}:${feed}`;
+      if (sortOptionsFeed.value !== feedKey) {
+        const facets: any[] = (result as any)?.facets?.sort || [];
+        if (facets.length) {
+          sortOptions.value = facets.map((item) => ({
+            label: String(item.label || item.value),
+            value: String(item.value),
+          }));
+          if (
+            selectedSort.value &&
+            !sortOptions.value.some((item) => item.value === selectedSort.value)
+          ) {
+            selectedSort.value = '';
+          }
+          sortOptionsFeed.value = feedKey;
+        }
+      }
+    }
     if (supportsGenre.value) {
       // 题材是 feed 级目录：只在首次加载/切换 feed 时刷新，避免翻页或筛选后被当前页结果改写。
       const feedKey = `${provider}:${feed}`;
@@ -341,6 +369,9 @@ function beginTabSwitch() {
   loading.value = true;
   selectedWeekday.value = '';
   selectedGenre.value = '';
+  selectedSort.value = '';
+  sortOptions.value = [];
+  sortOptionsFeed.value = '';
   genreOptions.value = [];
   genreOptionsFeed.value = '';
   loadError.value = null;
@@ -359,12 +390,18 @@ async function selectProvider(provider: string) {
   loadItems(true);
 }
 
+function selectSort(value: string) {
+  selectedSort.value = value;
+  loadItems(true);
+}
+
 async function selectFeed(feed: string) {
   if (feed === activeFeed.value) return;
   activeFeed.value = feed;
   // Top250 等全量榜单不应继承上一个榜单的年份筛选，否则会被过滤成空。
   selectedYear.value = '';
   selectedGenre.value = '';
+  selectedSort.value = '';
   beginTabSwitch();
   savePreference();
   await nextTick();
@@ -763,6 +800,17 @@ onUnmounted(() => {
               {{ feedsExpanded ? '收起' : '更多' }}
             </button>
           </div>
+        </div>
+
+        <div v-if="supportsSort" class="filter-row filter-row--facets">
+          <span class="filter-label">排序</span>
+          <NSelect
+            :value="selectedSort"
+            :options="sortOptions"
+            placeholder="默认排序"
+            class="sort-select"
+            @update:value="selectSort"
+          />
         </div>
 
         <template v-if="supportsYear">
