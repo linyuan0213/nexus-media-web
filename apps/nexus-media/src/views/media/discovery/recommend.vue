@@ -19,6 +19,9 @@ interface RecommendItem {
   fav?: string;
   media_type?: string;
   content_profile?: string;
+  metadata_ref?: string;
+  anchor_provider?: string;
+  anchor_external_id?: string;
   tmdbid?: string;
   rssid?: string;
   genres?: string[];
@@ -66,17 +69,31 @@ async function loadItems(page: number, append = false) {
 
 function handleSearchFromCard(item: Record<string, any>) {
   handleSearch({
-    id: item.tmdbId || item.id,
+    id: item.anchorExternalId || item.tmdbId || item.id,
     title: item.title,
     media_type: item.mediaType || item.type,
     type: item.type,
+    metadata_ref: item.metadataRef,
+    anchor_provider: item.anchorProvider,
+    anchor_external_id: item.anchorExternalId,
   } as any);
 }
 
 async function handleSearch(item: RecommendItem) {
-  router.push(
-    `/media/search?s=${encodeURIComponent(item.title)}&from=discovery&tmdbid=${encodeURIComponent(item.id || '')}`,
-  );
+  const params = new URLSearchParams({
+    s: item.title,
+    from: 'discovery',
+    tmdbid: item.tmdbid || '',
+  });
+  if (item.metadata_ref) params.set('metadata_ref', item.metadata_ref);
+  if (item.anchor_provider) {
+    params.set('metadata_source', item.anchor_provider);
+    params.set('anchor_provider', item.anchor_provider);
+  }
+  if (item.anchor_external_id) {
+    params.set('anchor_external_id', item.anchor_external_id);
+  }
+  router.push(`/media/search?${params.toString()}`);
 }
 
 // Intersection Observer for infinite scroll
@@ -157,6 +174,9 @@ watch(
           :type="item.type"
           :media-type="item.media_type"
           :content-profile="item.content_profile"
+          :metadata-ref="item.metadata_ref"
+          :anchor-provider="item.anchor_provider"
+          :anchor-external-id="item.anchor_external_id"
           :vote="item.vote"
           :year="item.year"
           :overview="item.overview"

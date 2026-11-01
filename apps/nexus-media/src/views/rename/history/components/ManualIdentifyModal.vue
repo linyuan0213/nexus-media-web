@@ -140,12 +140,6 @@ function filenameStem(path: string) {
 
 function ensureProvider() {
   const options = providerOptions.value;
-  if (!isCustomProfile.value) {
-    form.value.provider = '';
-    form.value.external_id = '';
-    form.value.selectedLabel = '';
-    return;
-  }
   const preferred = String(props.item?.ANCHOR_PROVIDER || '');
   if (options.some((option) => option.value === preferred)) {
     form.value.provider = preferred;
@@ -259,7 +253,7 @@ function selectTmdbMedia(media: any) {
 
 async function searchCustomMetadata() {
   if (!form.value.query.trim()) {
-    notification.warning('请输入番号或关键词');
+    notification.warning('请输入内容编号或关键词');
     return;
   }
   metadataSearchLoading.value = true;
@@ -301,6 +295,10 @@ async function submit() {
     notification.warning('请先搜索并选择插件识别结果');
     return;
   }
+  if (!form.value.external_id && !form.value.tmdb) {
+    notification.warning('请选择元数据搜索结果或输入 TMDB ID');
+    return;
+  }
   loading.value = true;
   try {
     const payload: Record<string, any> = {
@@ -315,7 +313,7 @@ async function submit() {
       episode_offset: form.value.episode_offset || undefined,
       content_profile: form.value.content_profile || undefined,
     };
-    if (isCustomProfile.value) {
+    if (form.value.provider && form.value.external_id) {
       payload.provider = form.value.provider;
       payload.external_id = form.value.external_id;
     } else {
@@ -365,8 +363,7 @@ async function submit() {
           内容画像与元数据由插件 provider 提供，载体类型仅用于命名和目录。
         </div>
 
-        <template v-if="isCustomProfile">
-          <NFormItem label="元数据来源">
+        <NFormItem label="元数据来源">
             <NSelect
               :value="form.provider"
               :loading="providersLoading"
@@ -375,11 +372,11 @@ async function submit() {
               @update:value="handleProviderChange"
             />
           </NFormItem>
-          <NFormItem label="番号 / 关键词">
+          <NFormItem label="内容编号 / 关键词">
             <NSpace align="center" :wrap="false" style="width: 100%">
               <NInput
                 v-model:value="form.query"
-                placeholder="输入番号或关键词"
+                placeholder="输入内容编号或关键词"
                 style="flex: 1"
                 @keyup.enter="searchCustomMetadata"
               />
@@ -403,42 +400,39 @@ async function submit() {
               请搜索并选择插件返回的结果
             </span>
           </NFormItem>
-          <div v-if="metadataResults.length > 0" class="metadata-results">
-            <button
-              v-for="result in metadataResults"
-              :key="`${result.provider}:${result.external_id}`"
-              type="button"
-              class="metadata-item"
-              @click="selectMetadataResult(result)"
-            >
-              <span class="metadata-title">
-                {{ result.title || result.external_id }}
-                <small v-if="result.year">({{ result.year }})</small>
-              </span>
-              <span class="metadata-ref">
-                {{ result.provider }} · {{ result.external_id }}
-              </span>
-            </button>
-          </div>
-        </template>
+        <div v-if="metadataResults.length > 0" class="metadata-results">
+          <button
+            v-for="result in metadataResults"
+            :key="`${result.provider}:${result.external_id}`"
+            type="button"
+            class="metadata-item"
+            @click="selectMetadataResult(result)"
+          >
+            <span class="metadata-title">
+              {{ result.title || result.external_id }}
+              <small v-if="result.year">({{ result.year }})</small>
+            </span>
+            <span class="metadata-ref">
+              {{ result.provider }} · {{ result.external_id }}
+            </span>
+          </button>
+        </div>
 
-        <template v-else>
-          <NFormItem label="TMDB ID">
-            <NSpace align="center" :wrap="false" style="width: 100%">
-              <NInputNumber
-                v-model:value="form.tmdb"
-                placeholder="输入 TMDB ID"
-                style="flex: 1"
-              />
-              <NButton @click="openTmdbSearch">
-                <template #icon>
-                  <IconifyIcon icon="lucide:search" class="size-4" />
-                </template>
-                搜索
-              </NButton>
-            </NSpace>
-          </NFormItem>
-        </template>
+        <NFormItem v-if="!form.provider || !form.external_id" label="TMDB ID">
+          <NSpace align="center" :wrap="false" style="width: 100%">
+            <NInputNumber
+              v-model:value="form.tmdb"
+              placeholder="或直接输入 TMDB ID"
+              style="flex: 1"
+            />
+            <NButton @click="openTmdbSearch">
+              <template #icon>
+                <IconifyIcon icon="lucide:search" class="size-4" />
+              </template>
+              搜索
+            </NButton>
+          </NSpace>
+        </NFormItem>
 
         <NFormItem v-if="form.type !== 'movie'" label="季">
           <NInputNumber

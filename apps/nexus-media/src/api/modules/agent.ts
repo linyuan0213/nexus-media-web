@@ -185,6 +185,7 @@ export function deleteAgentSession(sessionId: string) {
 /** 轻量 Agent 状态 */
 export function getAgentStatus() {
   return requestClient.get<{
+    configured?: boolean;
     conversation_enabled: boolean;
     enabled: boolean;
     long_term_memory_enabled: boolean;

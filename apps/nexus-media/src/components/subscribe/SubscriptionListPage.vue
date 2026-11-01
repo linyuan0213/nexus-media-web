@@ -401,11 +401,18 @@ async function handleCardSearch(item: any) {
   try {
     const resp: any = await webSearchApi({
       search_word: item.keyword || item.name,
-      tmdbid: item.tmdbid ? String(item.tmdbid) : undefined,
       media_type: props.mediaType === 'movie' ? 'movie' : item.type || 'tv',
+      ...(item.anchor_provider && item.anchor_external_id
+        ? {
+            anchor_provider: item.anchor_provider,
+            anchor_external_id: item.anchor_external_id,
+            content_profile: item.content_profile || effectiveProfile.value,
+          }
+        : { tmdbid: item.tmdbid ? String(item.tmdbid) : undefined }),
       filters: {
         content_profile: item.content_profile || effectiveProfile.value,
         metadata_source: item.provider || item.anchor_provider || undefined,
+        anchor_provider: item.anchor_provider || undefined,
         anchor_external_id: item.anchor_external_id || undefined,
       },
     });
@@ -476,7 +483,12 @@ async function handleEdit(item: any) {
     name: detail.name || item.name || '',
     year: detail.year || item.year || '',
     type: type === 'anime' ? 'anime' : type === 'movie' ? 'movie' : 'tv',
-    tmdbid: detail.tmdbid || item.tmdbid || '',
+    tmdbid:
+      anchorProvider && anchorProvider !== 'tmdb'
+        ? ''
+        : detail.tmdbid || item.tmdbid || '',
+    anchor_provider: anchorProvider,
+    anchor_external_id: anchorExternal,
     image: detail.image || item.image || '',
     keyword: detail.keyword || '',
     content_profile: profile,
@@ -559,7 +571,6 @@ async function confirmDelete() {
             : 'tv',
       year: String(target.year || ''),
       rssid: String(target.id),
-      tmdbid: target.tmdbid ? String(target.tmdbid) : undefined,
       content_profile: target.content_profile || effectiveProfile.value,
     });
     const deleted = Number(res?.deleted ?? res?.data?.deleted ?? 1);
@@ -678,6 +689,8 @@ async function selectAddMedia(media: any) {
       year: String(media.year || ''),
       type: 'movie',
       tmdbid: '',
+      anchor_provider: provider,
+      anchor_external_id: externalId,
       image,
       keyword: code,
       content_profile: effectiveProfile.value,
@@ -720,11 +733,34 @@ async function selectAddMedia(media: any) {
       : rawType === 'movie' || props.mediaType === 'movie'
         ? 'movie'
         : 'tv';
+  const refParts = String(media.metadata_ref || '').split(':');
+  const mediaProvider = String(
+    media.anchor_provider ||
+      media.provider ||
+      (refParts.length > 1 ? refParts[0] : '') ||
+      (media.tmdb_id ? 'tmdb' : ''),
+  ).trim();
+  const mediaExternal = String(
+    media.anchor_external_id ||
+      (refParts.length > 1 ? refParts.slice(1).join(':') : '') ||
+      (mediaProvider === 'tmdb' ? media.tmdb_id : '') ||
+      media.id ||
+      '',
+  ).trim();
+  const mediaRef =
+    media.metadata_ref ||
+    (mediaProvider && mediaExternal
+      ? `${mediaProvider}:${mediaExternal}`
+      : '');
   editItem.value = {
     name: media.title || '',
     year: media.year || '',
     type,
-    tmdbid: String(media.id || media.tmdb_id || ''),
+    tmdbid: mediaProvider === 'tmdb' ? mediaExternal : '',
+    anchor_provider: mediaProvider || undefined,
+    anchor_external_id: mediaExternal || undefined,
+    metadata_ref: mediaRef || undefined,
+    mediaid: mediaRef || mediaExternal,
     image: media.image || media.poster || '',
     keyword: '',
     content_profile: effectiveProfile.value,
@@ -892,7 +928,7 @@ onUnmounted(() => {
         <NInput
           v-model:value="addKeyword"
           :placeholder="
-            customActive ? '输入番号/关键词搜索' : '输入电影/电视剧名称搜索'
+            customActive ? '输入内容编号/关键词搜索' : '输入电影/电视剧名称搜索'
           "
           clearable
         />

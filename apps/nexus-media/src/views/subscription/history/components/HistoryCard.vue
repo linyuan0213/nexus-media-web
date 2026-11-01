@@ -11,6 +11,10 @@ interface HistoryItem {
   year: string;
   season: string;
   tmdbid: string;
+  metadata_ref?: string;
+  anchor_provider?: string;
+  anchor_external_id?: string;
+  provider_label?: string;
   image: string;
   content_profile?: string;
   total: number;
@@ -30,9 +34,18 @@ const emit = defineEmits<{
   reRss: [item: HistoryItem];
 }>();
 
-function getTmdbUrl() {
-  const type = props.item.type === 'tv' ? 'tv' : 'movie';
-  return `https://www.themoviedb.org/${type}/${props.item.tmdbid}`;
+function getDetailUrl(): string {
+  const provider = String(props.item.anchor_provider || '').toLowerCase();
+  const external = String(props.item.anchor_external_id || '');
+  if (provider === 'douban' && external)
+    return `https://movie.douban.com/subject/${external}`;
+  if (provider === 'bangumi' && external)
+    return `https://bgm.tv/subject/${external}`;
+  if (String(props.item.tmdbid || '').match(/^\d+$/)) {
+    const type = props.item.type === 'tv' ? 'tv' : 'movie';
+    return `https://www.themoviedb.org/${type}/${props.item.tmdbid}`;
+  }
+  return '';
 }
 </script>
 
@@ -41,8 +54,8 @@ function getTmdbUrl() {
     <div class="history-card-inner">
       <div class="history-card-poster">
         <a
-          v-if="item.tmdbid"
-          :href="getTmdbUrl()"
+          v-if="getDetailUrl()"
+          :href="getDetailUrl()"
           target="_blank"
           rel="noopener noreferrer"
           class="history-card-link"
@@ -68,6 +81,9 @@ function getTmdbUrl() {
           {{ item.title }}
         </div>
         <div class="history-card-meta">
+          <span v-if="item.provider_label" class="meta-item">
+            {{ item.provider_label }}
+          </span>
           <span v-if="item.year" class="meta-item">{{ item.year }}</span>
           <span v-if="item.season" class="meta-item">{{ item.season }}</span>
           <span class="meta-item finish-time">

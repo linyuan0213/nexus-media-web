@@ -40,7 +40,7 @@ const loadingMore = ref(false);
 const loadingSources = ref(true);
 const loadError = ref<null | { message: string; retryable: boolean }>(null);
 const selectedSeasonQuarter = ref(currentSeason().split('-q')[1]);
-const selectedYear = ref(String(new Date().getFullYear()));
+const selectedYear = ref('');
 const selectedSeason = computed(
   () =>
     `${selectedYear.value || new Date().getFullYear()}-q${selectedSeasonQuarter.value}`,
@@ -362,6 +362,9 @@ async function selectProvider(provider: string) {
 async function selectFeed(feed: string) {
   if (feed === activeFeed.value) return;
   activeFeed.value = feed;
+  // Top250 等全量榜单不应继承上一个榜单的年份筛选，否则会被过滤成空。
+  selectedYear.value = '';
+  selectedGenre.value = '';
   beginTabSwitch();
   savePreference();
   await nextTick();
@@ -531,18 +534,30 @@ function itemVote(item: DiscoveryApi.Item) {
 }
 
 function handleSearchFromCard(item: Record<string, any>) {
+  // 榜单真实来源（javdb/javalibrary/douban）和内部身份锚点（content_id）是两回事。
+  const sourceProvider = String(item.provider || '').trim();
+  const anchorProvider = String(item.anchorProvider || sourceProvider).trim();
+  const externalId = String(item.anchorExternalId || '').trim();
+  // 只有 content_id 这类内容编号源才用编号当关键词；豆瓣/Bangumi/TMDB
+  // 使用标题，避免把 37923549 这样的豆瓣 ID 当成搜索词。
+  const contentIdProfile =
+    anchorProvider === 'content_id' ||
+    (item.contentProfile &&
+      !['anime', 'default', 'movie', 'tv'].includes(
+        String(item.contentProfile),
+      ));
+  const searchWord = contentIdProfile && externalId ? externalId : item.title;
   router.push({
     path: '/media/search',
     query: {
-      s:
-        item.contentProfile && item.anchorExternalId
-          ? item.anchorExternalId
-          : item.title,
+      s: searchWord,
       from: item.contentProfile ? 'subscription' : 'discovery',
       tmdbid: item.tmdbId || '',
       media_type: item.mediaType || item.type || '',
-      anchor_provider: item.anchorProvider || '',
-      anchor_external_id: item.anchorExternalId || '',
+      metadata_source: sourceProvider || anchorProvider,
+      metadata_ref: item.metadataRef || '',
+      anchor_provider: anchorProvider,
+      anchor_external_id: externalId,
       content_profile: item.contentProfile || '',
       poster: item.poster || '',
       vote: item.vote || '',
@@ -552,18 +567,16 @@ function handleSearchFromCard(item: Record<string, any>) {
 }
 
 function handleCardSearch(item: DiscoveryApi.Item) {
-  const customProfile =
-    item.content_profile && item.content_profile !== 'default';
   handleSearchFromCard({
     anchorExternalId: item.anchor_ref?.external_id,
-    anchorProvider: item.anchor_ref?.provider,
+    anchorProvider: item.anchor_ref?.provider || item.ref.provider,
+    provider: item.ref.provider,
+    metadataRef: itemMetadataRef(item),
     contentProfile: item.content_profile || '',
     id: itemId(item),
     mediaType: itemType(item),
-    // 自定义画像（如 AV）用番号/内容 ID 搜索，而不是日文标题
-    title: customProfile
-      ? item.anchor_ref?.external_id || item.title
-      : item.title,
+    // 普通元数据源统一用标题；content_id 由 handleSearchFromCard 用编号。
+    title: item.title,
     tmdbId: itemTmdbId(item),
     poster: item.poster || '',
     vote: itemVote(item),
