@@ -558,9 +558,11 @@ function itemDetailLink(item: DiscoveryApi.Item) {
   const path = getContentProfileDetailPath(item.content_profile);
   if (!path) return undefined;
   const params = new URLSearchParams({
+    provider: item.ref.provider,
+    ref: item.ref.external_id,
     id: item.anchor_ref?.external_id || item.ref.external_id,
+    type: 'movie',
     profile: item.content_profile || '',
-    ref: itemMetadataRef(item),
   });
   return `${path}?${params.toString()}`;
 }
