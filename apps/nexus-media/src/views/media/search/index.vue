@@ -913,6 +913,7 @@ function handleMediaCardClick(media: MediaItem) {
         provider: anchorProvider,
         ref: anchorExternal,
         type: normalizeMediaType(media.media_type || media.type),
+        ...(media.content_profile ? { profile: media.content_profile } : {}),
       },
     });
     return;
@@ -1057,6 +1058,7 @@ function openResultDetail(item: SearchResult) {
         provider,
         ref: external,
         type: item.type_key || (item.type === 'movie' ? 'movie' : 'tv'),
+        ...(item.content_profile ? { profile: item.content_profile } : {}),
       },
     });
     return;

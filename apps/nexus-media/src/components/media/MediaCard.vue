@@ -144,6 +144,7 @@ function goDetail() {
         provider: props.anchorProvider,
         ref: props.anchorExternalId,
         type: typeParam,
+        ...(props.contentProfile ? { profile: props.contentProfile } : {}),
       },
     });
     return;
