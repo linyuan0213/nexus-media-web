@@ -905,6 +905,20 @@ function handleMediaCardClick(media: MediaItem) {
       String(media.metadata_ref || '').split(':')[1] ||
       '',
   );
+  // 插件内容画像必须先走插件注册的详情路由，不能被通用 provider 分支截走。
+  if (media.content_profile && media.content_profile !== 'default') {
+    const detailPath = getContentProfileDetailPath(media.content_profile);
+    if (!detailPath) return;
+    const params = new URLSearchParams({
+      id: String(media.id),
+      profile: media.content_profile,
+      ...(anchorProvider ? { provider: anchorProvider } : {}),
+      ...(anchorExternal ? { ref: anchorExternal } : {}),
+      ...(media.metadata_ref ? { metadata_ref: media.metadata_ref } : {}),
+    });
+    router.push(`${detailPath}?${params.toString()}`);
+    return;
+  }
   // 所有普通 provider（含 TMDB）统一走 provider+ref 详情，不再把 TMDB 当默认。
   if (anchorProvider && anchorExternal) {
     router.push({
@@ -913,20 +927,8 @@ function handleMediaCardClick(media: MediaItem) {
         provider: anchorProvider,
         ref: anchorExternal,
         type: normalizeMediaType(media.media_type || media.type),
-        ...(media.content_profile ? { profile: media.content_profile } : {}),
       },
     });
-    return;
-  }
-  if (media.content_profile && media.content_profile !== 'default') {
-    const detailPath = getContentProfileDetailPath(media.content_profile);
-    if (!detailPath) return;
-    const params = new URLSearchParams({
-      id: String(media.id),
-      profile: media.content_profile,
-      ...(media.metadata_ref ? { ref: media.metadata_ref } : {}),
-    });
-    router.push(`${detailPath}?${params.toString()}`);
     return;
   }
   const id = media.tmdb_id || media.id;
