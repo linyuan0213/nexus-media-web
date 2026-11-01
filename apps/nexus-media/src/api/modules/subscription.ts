@@ -242,13 +242,14 @@ export async function addSubscriptionMediaApi(data: Record<string, any>) {
 /** 获取电视剧某剧集已订阅的季号列表 */
 export async function getSubscribedSeasonsApi(data: {
   name?: string;
-  tmdbid?: number | string;
   year?: string;
+  anchor_provider?: string;
+  anchor_external_id?: string;
 }) {
-  return requestClient.post<{ seasons: number[] }>('/subscription/tv/seasons', {
-    ...data,
-    tmdbid: data.tmdbid ? String(data.tmdbid) : undefined,
-  });
+  return requestClient.post<{ seasons: number[] }>(
+    '/subscription/tv/seasons',
+    data,
+  );
 }
 
 /** 取消订阅 */
@@ -258,6 +259,9 @@ export async function removeSubscriptionApi(data: {
   rssid?: number | string;
   season?: number | string;
   tmdbid?: number | string;
+  anchor_provider?: string;
+  anchor_external_id?: string;
+  metadata_ref?: string;
   type: string;
   year?: string;
   content_profile?: string;

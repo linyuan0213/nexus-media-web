@@ -41,6 +41,8 @@ export interface SubscribeEditItem {
   content_profile?: string;
   provider?: string;
   metadata_ref?: string;
+  anchor_provider?: string;
+  anchor_external_id?: string;
   mediaid?: string;
   source_label?: string;
   overview?: string;
@@ -97,6 +99,8 @@ const form = ref({
   content_profile: '',
   provider: '',
   metadata_ref: '',
+  anchor_provider: '',
+  anchor_external_id: '',
   mediaid: '',
   overview: '',
   fuzzy_match: false,
@@ -143,6 +147,8 @@ watch([() => props.show, () => props.item], async ([visible, item]) => {
       content_profile: item.content_profile || '',
       provider: item.provider || '',
       metadata_ref: item.metadata_ref || '',
+      anchor_provider: item.anchor_provider || '',
+      anchor_external_id: item.anchor_external_id || '',
       mediaid: item.mediaid || '',
       overview: item.overview || '',
       fuzzy_match: item.fuzzy_match ?? false,
@@ -273,10 +279,16 @@ function handleConfirm() {
     type: form.value.type,
     mediaid:
       form.value.mediaid ||
-      (form.value.content_profile && form.value.content_profile !== 'default'
-        ? form.value.metadata_ref
+      form.value.metadata_ref ||
+      (form.value.anchor_provider && form.value.anchor_external_id
+        ? `${form.value.anchor_provider}:${form.value.anchor_external_id}`
         : form.value.tmdbid),
-    tmdbid: form.value.tmdbid,
+    tmdbid:
+      form.value.anchor_provider && form.value.anchor_provider !== 'tmdb'
+        ? undefined
+        : form.value.tmdbid,
+    anchor_provider: form.value.anchor_provider || undefined,
+    anchor_external_id: form.value.anchor_external_id || undefined,
     image: form.value.image,
     keyword: form.value.keyword || undefined,
     content_profile: form.value.content_profile || undefined,

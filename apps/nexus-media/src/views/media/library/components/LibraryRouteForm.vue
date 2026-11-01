@@ -230,7 +230,7 @@ async function save() {
           <NInputGroup>
             <NInput
               v-model:value="form.target_path"
-              placeholder="选择或输入目录，例如 /media/adult"
+              placeholder="选择或输入目录，例如 /media/library"
             />
             <NButton @click="pathPickerVisible = true">
               <template #icon>
@@ -325,7 +325,7 @@ async function save() {
     <NFormItem label="备注（可选）" label-placement="top">
       <NInput
         v-model:value="form.note"
-        placeholder="例如：成人内容入库后刷新成人媒体库"
+        placeholder="例如：媒体入库后刷新媒体库"
       />
     </NFormItem>
     <div class="form-footer">

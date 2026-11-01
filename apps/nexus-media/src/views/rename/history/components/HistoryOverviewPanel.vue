@@ -30,6 +30,15 @@ const destPath = computed(() =>
 const provider = computed(
   () => props.item.ANCHOR_PROVIDER || props.item.SOURCE || '自动识别',
 );
+const metadataRef = computed(
+  () =>
+    props.item.METADATA_REF ||
+    (props.item.ANCHOR_PROVIDER && props.item.ANCHOR_EXTERNAL_ID
+      ? `${props.item.ANCHOR_PROVIDER}:${props.item.ANCHOR_EXTERNAL_ID}`
+      : props.item.TMDBID
+        ? `tmdb:${props.item.TMDBID}`
+        : ''),
+);
 </script>
 
 <template>
@@ -44,7 +53,7 @@ const provider = computed(
         </div>
         <div class="tl-desc">
           {{ provider }} · {{ item.TITLE || item.SOURCE_FILENAME }}
-          <template v-if="item.TMDBID">· TMDB ID {{ item.TMDBID }}</template>
+          <template v-if="metadataRef">· {{ metadataRef }}</template>
         </div>
       </div>
 
@@ -115,8 +124,8 @@ const provider = computed(
         <div class="info-value">{{ item.SEASON_EPISODE }}</div>
       </div>
       <div class="info-item">
-        <div class="info-label">TMDB ID</div>
-        <div class="info-value mono">{{ item.TMDBID || '-' }}</div>
+        <div class="info-label">元数据引用</div>
+        <div class="info-value mono">{{ metadataRef || '-' }}</div>
       </div>
     </div>
 

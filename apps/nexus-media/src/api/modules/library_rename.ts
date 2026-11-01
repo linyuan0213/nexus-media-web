@@ -92,6 +92,10 @@ export namespace LibraryRenameApi {
     title?: string;
     year?: string;
     tmdbid?: number | string;
+    metadata_ref?: string;
+    anchor_provider?: string;
+    anchor_external_id?: string;
+    content_profile?: string;
     season?: number | string;
     episode?: number | string;
   }

@@ -16,7 +16,17 @@ const rows = computed(() => [
   { label: '年份', value: props.item.YEAR || '-' },
   { label: '媒体类型', value: typeLabel(props.item.TYPE) },
   { label: '季集', value: props.item.SEASON_EPISODE || '-' },
-  { label: 'TMDB ID', value: props.item.TMDBID || '-', mono: true },
+  {
+    label: '元数据引用',
+    value:
+      props.item.METADATA_REF ||
+      (props.item.ANCHOR_PROVIDER && props.item.ANCHOR_EXTERNAL_ID
+        ? `${props.item.ANCHOR_PROVIDER}:${props.item.ANCHOR_EXTERNAL_ID}`
+        : props.item.TMDBID
+          ? `tmdb:${props.item.TMDBID}`
+          : '-'),
+    mono: true,
+  },
   {
     label: '识别来源',
     value: props.item.ANCHOR_PROVIDER || props.item.SOURCE || '自动识别',

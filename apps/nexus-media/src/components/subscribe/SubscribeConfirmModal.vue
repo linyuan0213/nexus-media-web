@@ -14,7 +14,10 @@ import {
   NTag,
 } from 'naive-ui';
 
-import { getTvSeasonListApi } from '#/api/modules/media';
+import {
+  getMediaDetailByRefApi,
+  getTvSeasonListApi,
+} from '#/api/modules/media';
 import { getVisibleSitesApi } from '#/api/modules/site';
 import { getSubscribedSeasonsApi } from '#/api/modules/subscription';
 import MediaPoster from '#/components/media/MediaPoster.vue';
@@ -114,39 +117,73 @@ watch(
       seasons.value = [];
       subscribedSeasons.value = [];
       loadSiteSummary();
-      const tmdbId = props.item.tmdbid || props.item.id;
-      if (isTv.value && tmdbId) {
+      // 只有 TMDB（或缺省来源）才用 tmdbid 拉季列表；豆瓣/Bangumi/content_id
+      // 的 mediaid 不是 TMDB ID，不能拿数字 ID 去查 TMDB。
+      const provider = String(props.item.anchor_provider || '').trim();
+      const tmdbId =
+        provider && provider !== 'tmdb'
+          ? ''
+          : String(props.item.tmdbid || props.item.id || '');
+      if (isTv.value) {
         loading.value = true;
         try {
-          const [seasonRes, subRes] = await Promise.all([
-            getTvSeasonListApi(tmdbId, props.item.title),
-            getSubscribedSeasonsApi({
-              tmdbid: tmdbId,
-              name: props.item.title,
-              year: props.item.year,
-            }).catch(() => ({ seasons: [] })),
-          ]);
-          const list = Array.isArray(seasonRes)
-            ? seasonRes
-            : (seasonRes as any)?.data || [];
-          // 兼容后端两种字段格式：{num,text} 和 {season_number,name,episode_count}
-          seasons.value = list
-            .map((s: any) => ({
-              season_number: Number(s.num ?? s.season_number ?? 0),
-              name: s.text || s.name,
-              episode_count: s.episode_count,
-            }))
-            .filter((s: any) => s.season_number > 0)
-            .toSorted((a: any, b: any) => a.season_number - b.season_number);
+          const subRes = await getSubscribedSeasonsApi({
+            name: props.item.title,
+            year: props.item.year,
+            anchor_provider: props.item.anchor_provider,
+            anchor_external_id: props.item.anchor_external_id,
+          }).catch(() => ({ seasons: [] }));
           const subList = Array.isArray((subRes as any)?.seasons)
             ? (subRes as any).seasons
             : [];
           subscribedSeasons.value = subList.map(Number);
+          if (tmdbId) {
+            const seasonRes = await getTvSeasonListApi(
+              tmdbId,
+              props.item.title,
+            );
+            const list = Array.isArray(seasonRes)
+              ? seasonRes
+              : (seasonRes as any)?.data || [];
+            // 兼容后端两种字段格式：{num,text} 和 {season_number,name,episode_count}
+            seasons.value = list
+              .map((s: any) => ({
+                season_number: Number(s.num ?? s.season_number ?? 0),
+                name: s.text || s.name,
+                episode_count: s.episode_count,
+              }))
+              .filter((s: any) => s.season_number > 0)
+              .toSorted(
+                (a: any, b: any) => a.season_number - b.season_number,
+              );
+          } else if (
+            provider &&
+            props.item.anchor_external_id
+          ) {
+            const detail: any = await getMediaDetailByRefApi(
+              provider,
+              String(props.item.anchor_external_id),
+              'tv',
+              props.item.content_profile,
+              props.item.id,
+            );
+            const list = Array.isArray(detail?.seasons) ? detail.seasons : [];
+            seasons.value = list
+              .map((s: any) => ({
+                season_number: Number(s.season_number ?? s.num ?? 0),
+                name: s.name || s.text,
+                episode_count: s.episode_count,
+              }))
+              .filter((s: any) => s.season_number > 0)
+              .toSorted(
+                (a: any, b: any) => a.season_number - b.season_number,
+              );
+          }
         } catch {
           /* ignore */
         }
       }
-      // 未获取到季信息时（豆瓣无TMDB映射或接口失败），默认提供第一季
+      // 未获取到季信息时（非 TMDB 来源或接口失败），默认提供第一季
       if (isTv.value && seasons.value.length === 0) {
         seasons.value = [{ season_number: 1, name: '第一季' }];
       }
