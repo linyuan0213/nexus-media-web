@@ -98,6 +98,10 @@ const isTvType = computed(() => {
 });
 
 const mediaId = computed(() => String(props.tmdbId || props.id));
+const tmdbIdentity = computed(() => {
+  const provider = String(props.anchorProvider || '').trim();
+  return !provider || provider === 'tmdb' ? String(props.tmdbId || '') : '';
+});
 const subscribeMediaId = computed(() => {
   const provider = props.anchorProvider;
   const externalId = props.anchorExternalId || String(props.id);
@@ -131,7 +135,6 @@ function goDetail() {
     t === '电影' ? 'movie' : t === '剧集' ? 'tv' : t.toLowerCase();
   if (
     props.anchorProvider &&
-    props.anchorProvider !== 'tmdb' &&
     props.anchorProvider !== 'content_id' &&
     props.anchorExternalId
   ) {
@@ -169,7 +172,7 @@ function handleSubscribe(e: Event) {
     mediaid: subscribeMediaId.value,
     anchor_provider: props.anchorProvider,
     anchor_external_id: props.anchorExternalId,
-    tmdbid: mediaId.value,
+    tmdbid: tmdbIdentity.value,
     title: props.title,
     year: props.year || '',
     type: isTvType.value ? 'tv' : 'movie',
@@ -229,7 +232,10 @@ async function handleConfirmSubscribe(payload: {
           name: it.title,
           year: it.year || '',
           type: 'tv',
-          tmdbid: String(it.tmdbid || it.id),
+          tmdbid: it.tmdbid || undefined,
+          anchor_provider: it.anchor_provider,
+          anchor_external_id: it.anchor_external_id,
+          metadata_ref: it.metadata_ref,
           season: String(season),
           content_profile: it.content_profile,
         });
@@ -285,7 +291,7 @@ async function handleEditSubscribe() {
     name: it.title,
     year: it.year || '',
     type: mtype,
-    tmdbid: String(it.tmdbid || it.id || ''),
+    tmdbid: it.tmdbid || '',
     image: it.image,
     content_profile: it.content_profile,
     metadata_ref: it.metadata_ref,

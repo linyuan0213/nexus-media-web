@@ -40,7 +40,12 @@ const emit = defineEmits<{
     >
       <div
         v-for="item in items"
-        :key="item.id || item.tmdbid"
+        :key="
+          item.metadata_ref ||
+          (item.anchor_provider && item.anchor_external_id
+            ? `${item.anchor_provider}:${item.anchor_external_id}`
+            : item.id || item.tmdbid || item.title)
+        "
         class="group cursor-pointer overflow-hidden rounded-xl border transition-all hover:-translate-y-1 hover:shadow-lg"
         style="background: hsl(var(--card)); border-color: hsl(var(--border))"
         @click="emit('click', item)"

@@ -47,8 +47,9 @@ const detailExternalId = computed(() =>
   String(route.query.ref || route.query.external_id || ''),
 );
 const detailProfile = computed(() => String(route.query.profile || ''));
+// 所有 provider（包括 TMDB）有 provider+ref 时都走统一详情接口。
 const isExternalDetail = computed(
-  () => !!detailProvider.value && detailProvider.value !== 'tmdb',
+  () => !!detailProvider.value && !!detailExternalId.value,
 );
 const mediaId = computed(() =>
   String(
@@ -104,7 +105,7 @@ async function loadDetail() {
         loadRecommends();
       }
     } else {
-      message.error('无法查询到TMDB媒体信息');
+      message.error('无法查询到媒体信息');
       router.back();
     }
   } catch (error: any) {
@@ -160,20 +161,46 @@ async function handleSearch() {
 
   let sessionId = '';
   try {
+    const anchorProvider = String(
+      (detail.value as any).anchor_provider ||
+        (detail.value as any).provider ||
+        '',
+    );
+    const anchorExternalId = String(
+      (detail.value as any).anchor_external_id || '',
+    );
     const resp: any = await webSearchApi({
       search_word: detail.value.title,
-      tmdbid: mediaId.value,
+      ...(anchorProvider && anchorExternalId
+        ? {
+            anchor_provider: anchorProvider,
+            anchor_external_id: anchorExternalId,
+            content_profile: (detail.value as any).content_profile,
+          }
+        : { tmdbid: mediaId.value }),
       media_type: tmdbType.value,
     });
     sessionId = resp?.session_id || '';
   } catch {}
 
+  const detailProvider = String(
+    (detail.value as any).anchor_provider ||
+      (detail.value as any).provider ||
+      '',
+  );
+  const detailExternal = String((detail.value as any).anchor_external_id || '');
   router.push({
     name: 'MediaSearch',
     query: {
       s: detail.value.title || '',
       from: 'detail',
       ...(sessionId ? { session_id: sessionId } : {}),
+      ...(detailProvider ? { metadata_source: detailProvider } : {}),
+      ...(detailProvider ? { anchor_provider: detailProvider } : {}),
+      ...(detailExternal ? { anchor_external_id: detailExternal } : {}),
+      ...(detail.value.metadata_ref
+        ? { metadata_ref: detail.value.metadata_ref }
+        : {}),
     },
   });
 
@@ -188,9 +215,15 @@ const subscribeEditItem = ref<null | SubscribeEditItem>(null);
 async function handleSubscribe() {
   // 电视剧：始终打开季选择框（未订阅=订阅，已订阅=追加其他季）
   if (isTv.value) {
+    const detailAnchorProvider = String(
+      (detail.value as any).anchor_provider || detailProvider.value || '',
+    );
     subscribeConfirmItem.value = {
       id: subscribeMediaId.value,
-      tmdbid: subscribeMediaId.value,
+      tmdbid:
+        detailAnchorProvider && detailAnchorProvider !== 'tmdb'
+          ? ''
+          : String(detail.value.tmdbid || subscribeMediaId.value),
       title: detail.value.title,
       year: detail.value.year || '',
       type: 'tv',
@@ -199,6 +232,8 @@ async function handleSubscribe() {
       content_profile: (detail.value as any).content_profile,
       metadata_ref: (detail.value as any).metadata_ref,
       provider: (detail.value as any).provider,
+      anchor_provider: (detail.value as any).anchor_provider,
+      anchor_external_id: (detail.value as any).anchor_external_id,
     };
     subscribeConfirmShow.value = true;
     return;
@@ -210,7 +245,6 @@ async function handleSubscribe() {
         year: detail.value.year || '',
         type: mediaType.value,
         rssid: detail.value.rssid,
-        tmdbid: mediaId.value,
         content_profile: (detail.value as any).content_profile,
       });
       fav.value = '0';
@@ -224,6 +258,8 @@ async function handleSubscribe() {
         content_profile: (detail.value as any).content_profile,
         metadata_ref: (detail.value as any).metadata_ref,
         provider: (detail.value as any).provider,
+        anchor_provider: (detail.value as any).anchor_provider,
+        anchor_external_id: (detail.value as any).anchor_external_id,
       });
       fav.value = '1';
       message.success('已添加订阅');
@@ -252,6 +288,8 @@ async function handleConfirmSubscribe(payload: {
         content_profile: (detail.value as any).content_profile,
         metadata_ref: (detail.value as any).metadata_ref,
         provider: (detail.value as any).provider,
+        anchor_provider: (detail.value as any).anchor_provider,
+        anchor_external_id: (detail.value as any).anchor_external_id,
       });
     }
     for (const season of remove) {
@@ -259,9 +297,10 @@ async function handleConfirmSubscribe(payload: {
         name: detail.value.title,
         year: detail.value.year || '',
         type: 'tv',
-        tmdbid: subscribeMediaId.value,
         season: String(season),
         content_profile: (detail.value as any).content_profile,
+        anchor_provider: (detail.value as any).anchor_provider,
+        anchor_external_id: (detail.value as any).anchor_external_id,
       });
     }
     fav.value = selected.length > 0 ? '1' : '0';
@@ -295,10 +334,15 @@ async function handleEditSubscribe() {
     name: it.title,
     year: it.year || '',
     type: mtype,
-    tmdbid: String(it.tmdbid || it.id || ''),
+    tmdbid:
+      (it as any).anchor_provider && (it as any).anchor_provider !== 'tmdb'
+        ? ''
+        : String(it.tmdbid || ''),
     image: it.image,
     content_profile: it.content_profile,
     metadata_ref: it.metadata_ref,
+    anchor_provider: (it as any).anchor_provider,
+    anchor_external_id: (it as any).anchor_external_id,
     mediaid: it.mediaid,
     season: '',
     fuzzy_match: false,
@@ -350,14 +394,20 @@ async function handleConfirmEdit(data: Record<string, any>) {
 
 function goDetail(item: any) {
   if (!item) return;
+  const provider = String(item.anchor_provider || '').trim();
+  const external = String(item.anchor_external_id || '').trim();
+  if (provider && external) {
+    router.push({
+      name: 'MediaDetail',
+      query: { provider, ref: external, type: item.type || 'movie' },
+    });
+    return;
+  }
   const targetId = item.tmdbid || item.id;
   if (!targetId) return;
   router.push({
     name: 'MediaDetail',
-    query: {
-      type: item.type || 'movie',
-      id: targetId,
-    },
+    query: { type: item.type || 'movie', id: targetId },
   });
 }
 

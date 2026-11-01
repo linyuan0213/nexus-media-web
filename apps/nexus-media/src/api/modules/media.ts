@@ -156,7 +156,7 @@ export async function searchMediaApi(params: MediaApi.SearchParams) {
 
 /** 按内容画像搜索元数据（插件 provider） */
 export async function searchMetadataApi(params: {
-  content_profile: string;
+  content_profile?: string;
   limit?: number;
   provider?: string;
   query: string;
@@ -164,6 +164,7 @@ export async function searchMetadataApi(params: {
   return requestClient.post<Record<string, any>[]>(
     '/media/metadata/search',
     params,
+    { timeout: 150_000 },
   );
 }
 
@@ -372,6 +373,11 @@ export async function webSearchApi(params: {
   filters?: Record<string, any> | string;
   media_type?: string;
   search_word: string;
+  metadata_ref?: string;
+  anchor_provider?: string;
+  anchor_external_id?: string;
+  identity_id?: string;
+  content_profile?: string;
   tmdbid?: string;
   unident?: boolean;
 }) {
@@ -420,6 +426,8 @@ export interface TransferHistoryItem {
   IDENTITY_ID?: null | string;
   ANCHOR_PROVIDER?: null | string;
   ANCHOR_EXTERNAL_ID?: null | string;
+  METADATA_REF?: null | string;
+  PROVIDER_LABEL?: null | string;
   DATE: string;
   SYNC_MODE?: string;
   RMT_MODE?: string;
