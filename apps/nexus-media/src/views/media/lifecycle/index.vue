@@ -219,144 +219,167 @@ const statCards = computed(() => {
   ];
 });
 
-const columns = computed<DataTableColumns<LifecycleApi.Item>>(() => [
-  {
-    key: 'title',
-    title: '媒体',
-    minWidth: 260,
-    render: (row) =>
-      h('div', { class: 'lifecycle-media' }, [
-        h(
-          'div',
-          {
-            class: 'lifecycle-poster',
-            style: {
-              display: 'flex',
-              flex: '0 0 38px',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '38px',
-              height: '52px',
-              overflow: 'hidden',
-            },
-          },
-          row.poster
-            ? h(MediaPoster, {
-                src: row.poster,
-                contentProfile: row.content_profile,
-                alt: row.title || '',
-                lazy: true,
-                style: {
-                  display: 'block',
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                },
-              })
-            : h('span', (row.title || '?').slice(0, 1)),
-        ),
-        h('div', { class: 'lifecycle-media-copy' }, [
-          h('div', { class: 'lifecycle-title' }, row.title || row.identity_id),
+const columns = computed<DataTableColumns<LifecycleApi.Item>>(() => {
+  const items: DataTableColumns<LifecycleApi.Item> = [
+    {
+      key: 'title',
+      title: '媒体',
+      minWidth: 260,
+      render: (row) =>
+        h('div', { class: 'lifecycle-media' }, [
           h(
             'div',
-            { class: 'lifecycle-subtitle' },
-            `${typeLabel(row.media_type)} · ${row.year || '年份未知'}${
-              row.episode_count > 1
-                ? ` · ${row.episode_count} 集 · 完成 ${row.completed_episodes}`
-                : row.season || row.episode
-                  ? ` · S${String(row.season).padStart(2, '0')}E${String(row.episode).padStart(2, '0')}`
-                  : ''
-            }`,
+            {
+              class: 'lifecycle-poster',
+              style: {
+                display: 'flex',
+                flex: '0 0 38px',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '38px',
+                height: '52px',
+                overflow: 'hidden',
+              },
+            },
+            row.poster
+              ? h(MediaPoster, {
+                  src: row.poster,
+                  contentProfile: row.content_profile,
+                  alt: row.title || '',
+                  lazy: true,
+                  style: {
+                    display: 'block',
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                  },
+                })
+              : h('span', (row.title || '?').slice(0, 1)),
           ),
-          h('div', { class: 'lifecycle-identity' }, row.identity_id),
+          h('div', { class: 'lifecycle-media-copy' }, [
+            h(
+              'div',
+              { class: 'lifecycle-title' },
+              row.title || row.identity_id,
+            ),
+            h(
+              'div',
+              { class: 'lifecycle-subtitle' },
+              `${typeLabel(row.media_type)} · ${row.year || '年份未知'}${
+                row.episode_count > 1
+                  ? ` · ${row.episode_count} 集 · 完成 ${row.completed_episodes}`
+                  : row.season || row.episode
+                    ? ` · S${String(row.season).padStart(2, '0')}E${String(row.episode).padStart(2, '0')}`
+                    : ''
+              }`,
+            ),
+            h('div', { class: 'lifecycle-identity' }, row.identity_id),
+          ]),
         ]),
-      ]),
-  },
-  {
-    key: 'stage',
-    title: '当前阶段',
-    width: 142,
-    render: (row) =>
-      h('div', { class: 'stage-cell' }, [
+    },
+    {
+      key: 'provider',
+      title: '元数据来源',
+      width: 130,
+      render: (row) =>
+        h('div', { class: 'provider-cell' }, [
+          h('span', (row.source_provider || '未知来源').toUpperCase()),
+          h('small', row.content_profile || 'default'),
+        ]),
+    },
+    {
+      key: 'stage',
+      title: '当前阶段',
+      width: 154,
+      render: (row) => {
+        const phaseIndex = phaseIndexForStage(row.stage);
+        const phase = lifecyclePhases[phaseIndex];
+        return h('div', { class: 'stage-cell' }, [
+          h('div', { class: 'stage-line' }, [
+            h(
+              'span',
+              { class: 'stage-index' },
+              String(Math.max(1, phaseIndex + 1)).padStart(2, '0'),
+            ),
+            h(
+              'span',
+              {
+                class: 'stage-badge',
+                'data-tone': stageTagType(row.status),
+              },
+              phase?.label || stageMap.get(row.stage) || row.stage,
+            ),
+          ]),
+          h(
+            'div',
+            {
+              class: 'mini-progress',
+              'aria-label': `生命周期进度 ${itemProgress(row)}%`,
+            },
+            [h('span', { style: { width: `${itemProgress(row)}%` } })],
+          ),
+        ]);
+      },
+    },
+    {
+      key: 'status',
+      title: '入库状态',
+      width: 106,
+      render: (row) => renderStatusBadge(row.status),
+    },
+    {
+      key: 'elapsed',
+      title: '阶段耗时',
+      width: 108,
+      render: (row) =>
+        h('div', { class: 'duration-cell' }, [
+          h('span', formatDuration(row.elapsed_seconds)),
+          h('small', `最近 ${formatTime(row.last_event_at)}`),
+        ]),
+    },
+    {
+      key: 'error',
+      title: '最近错误',
+      minWidth: 180,
+      render: (row) =>
         h(
           'span',
           {
-            class: 'stage-badge',
-            'data-tone': stageTagType(row.status),
+            class: row.last_error
+              ? 'lifecycle-error error-text'
+              : 'lifecycle-muted',
+            title: row.last_error || undefined,
           },
-          stageMap.get(row.stage) || row.stage,
+          row.last_error || '—',
         ),
+    },
+    {
+      key: 'action',
+      title: '',
+      width: 52,
+      render: () =>
         h(
-          'div',
-          {
-            class: 'mini-progress',
-            'aria-label': `生命周期进度 ${itemProgress(row)}%`,
-          },
-          [h('span', { style: { width: `${itemProgress(row)}%` } })],
+          'span',
+          { class: 'lifecycle-open', 'aria-hidden': 'true' },
+          h(IconifyIcon, { icon: 'lucide:arrow-up-right', class: 'size-4' }),
         ),
-      ]),
-  },
-  {
-    key: 'status',
-    title: '状态',
-    width: 106,
-    render: (row) => renderStatusBadge(row.status),
-  },
-  {
-    key: 'provider',
-    title: '元数据来源',
-    width: 118,
-    render: (row) =>
-      h('div', { class: 'provider-cell' }, [
-        h('span', row.source_provider || '未知来源'),
-        h('small', row.content_profile || 'default'),
-      ]),
-  },
-  {
-    key: 'elapsed',
-    title: '阶段耗时',
-    width: 108,
-    render: (row) =>
-      h('div', { class: 'duration-cell' }, [
-        h('span', formatDuration(row.elapsed_seconds)),
-        h('small', `最近 ${formatTime(row.last_event_at)}`),
-      ]),
-  },
-  {
-    key: 'retry',
-    title: '重试',
-    width: 72,
-    render: (row) =>
-      h('span', { class: 'retry-value' }, `${row.retry_count}/5`),
-  },
-  {
-    key: 'error',
-    title: '最近错误',
-    minWidth: 180,
-    render: (row) =>
-      h(
-        'span',
-        {
-          class: row.last_error
-            ? 'lifecycle-error error-text'
-            : 'lifecycle-muted',
-          title: row.last_error || undefined,
-        },
-        row.last_error || '—',
-      ),
-  },
-  {
-    key: 'action',
-    title: '',
-    width: 52,
-    render: () =>
-      h(
-        'span',
-        { class: 'lifecycle-open', 'aria-hidden': 'true' },
-        h(IconifyIcon, { icon: 'lucide:arrow-up-right', class: 'size-4' }),
-      ),
-  },
-]);
+    },
+  ];
+  const order = [
+    'title',
+    'provider',
+    'stage',
+    'status',
+    'elapsed',
+    'error',
+    'action',
+  ];
+  return [...items].sort(
+    (left, right) =>
+      order.indexOf(String((left as any).key)) -
+      order.indexOf(String((right as any).key)),
+  );
+});
 
 async function fetchData() {
   loading.value = true;
@@ -1698,6 +1721,18 @@ watch(
   white-space: nowrap;
 }
 
+.stage-line {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.stage-index {
+  font-size: 0.58rem;
+  font-variant-numeric: tabular-nums;
+  color: hsl(var(--muted-foreground));
+}
+
 .stage-cell {
   display: flex;
   flex-direction: column;
@@ -2891,5 +2926,219 @@ watch(
     transition: none;
     animation: none;
   }
+}
+</style>
+
+<style>
+/* 动态 h() 单元格不继承 scoped data-v，这里单独提供样式 */
+.lifecycle-table-wrap .lifecycle-media {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.lifecycle-table-wrap .lifecycle-poster {
+  display: flex;
+  flex: 0 0 38px;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 52px;
+  overflow: hidden;
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 9%);
+  border: 1px solid hsl(var(--border) / 65%);
+  border-radius: calc(var(--radius) - 3px);
+}
+
+.lifecycle-table-wrap .lifecycle-poster img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lifecycle-table-wrap .lifecycle-media-copy {
+  min-width: 0;
+}
+
+.lifecycle-table-wrap .lifecycle-title {
+  overflow: hidden;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: hsl(var(--card-foreground));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lifecycle-table-wrap .lifecycle-subtitle,
+.lifecycle-table-wrap .lifecycle-identity {
+  margin-top: 0.18rem;
+  overflow: hidden;
+  font-size: 0.65rem;
+  color: hsl(var(--muted-foreground));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lifecycle-table-wrap .lifecycle-identity {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.58rem;
+  opacity: 0.7;
+}
+
+.lifecycle-table-wrap .stage-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  align-items: flex-start;
+}
+
+.lifecycle-table-wrap .stage-line {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.lifecycle-table-wrap .stage-index {
+  font-size: 0.58rem;
+  font-variant-numeric: tabular-nums;
+  color: hsl(var(--muted-foreground));
+}
+
+.lifecycle-table-wrap .stage-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0.15rem 0.5rem;
+  overflow: hidden;
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: hsl(var(--accent));
+  border-radius: 999px;
+}
+
+.lifecycle-table-wrap .stage-badge[data-tone='success'] {
+  color: hsl(var(--success));
+  background: hsl(var(--success) / 10%);
+}
+
+.lifecycle-table-wrap .stage-badge[data-tone='info'] {
+  color: hsl(var(--info));
+  background: hsl(var(--info) / 10%);
+}
+
+.lifecycle-table-wrap .stage-badge[data-tone='warning'] {
+  color: hsl(var(--warning));
+  background: hsl(var(--warning) / 10%);
+}
+
+.lifecycle-table-wrap .stage-badge[data-tone='error'] {
+  color: hsl(var(--destructive));
+  background: hsl(var(--destructive) / 10%);
+}
+
+.lifecycle-table-wrap .mini-progress {
+  width: 74px;
+  height: 3px;
+  overflow: hidden;
+  background: hsl(var(--accent));
+  border-radius: 999px;
+}
+
+.lifecycle-table-wrap .mini-progress span {
+  display: block;
+  height: 100%;
+  background: hsl(var(--primary));
+  border-radius: inherit;
+}
+
+.lifecycle-table-wrap .status-badge {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  min-height: 23px;
+  padding: 0.18rem 0.5rem;
+  font-size: 0.65rem;
+  white-space: nowrap;
+  border-radius: 999px;
+}
+
+.lifecycle-table-wrap .status-badge[data-status='success'] {
+  color: hsl(var(--success));
+  background: hsl(var(--success) / 10%);
+}
+
+.lifecycle-table-wrap .status-badge[data-status='info'] {
+  color: hsl(var(--info));
+  background: hsl(var(--info) / 10%);
+}
+
+.lifecycle-table-wrap .status-badge[data-status='warning'] {
+  color: hsl(var(--warning));
+  background: hsl(var(--warning) / 10%);
+}
+
+.lifecycle-table-wrap .status-badge[data-status='error'] {
+  color: hsl(var(--destructive));
+  background: hsl(var(--destructive) / 10%);
+}
+
+.lifecycle-table-wrap .status-dot {
+  width: 5px;
+  height: 5px;
+  background: currentColor;
+  border-radius: 50%;
+}
+
+.lifecycle-table-wrap .provider-cell,
+.lifecycle-table-wrap .duration-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.lifecycle-table-wrap .provider-cell span,
+.lifecycle-table-wrap .duration-cell span {
+  overflow: hidden;
+  font-size: 0.7rem;
+  color: hsl(var(--foreground));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lifecycle-table-wrap .provider-cell small,
+.lifecycle-table-wrap .duration-cell small {
+  overflow: hidden;
+  font-size: 0.58rem;
+  color: hsl(var(--muted-foreground));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lifecycle-table-wrap .lifecycle-error {
+  color: hsl(var(--destructive));
+  font-size: 0.7rem;
+}
+
+.lifecycle-table-wrap .lifecycle-muted {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.7rem;
+}
+
+.lifecycle-table-wrap .lifecycle-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: hsl(var(--muted-foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: 4px;
 }
 </style>
