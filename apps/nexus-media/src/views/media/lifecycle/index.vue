@@ -224,7 +224,8 @@ const columns = computed<DataTableColumns<LifecycleApi.Item>>(() => {
     {
       key: 'title',
       title: '媒体',
-      minWidth: 260,
+      width: 340,
+      minWidth: 280,
       render: (row) =>
         h('div', { class: 'lifecycle-media' }, [
           h(
@@ -2931,8 +2932,13 @@ watch(
 
 <style>
 /* 动态 h() 单元格不继承 scoped data-v，这里单独提供样式 */
+.lifecycle-table-wrap .n-data-table-td:first-child {
+  max-width: 340px;
+}
+
 .lifecycle-table-wrap .lifecycle-media {
   display: flex;
+  max-width: 100%;
   gap: 0.7rem;
   align-items: center;
   min-width: 0;
@@ -2960,10 +2966,13 @@ watch(
 }
 
 .lifecycle-table-wrap .lifecycle-media-copy {
+  flex: 1 1 0;
+  width: 0;
   min-width: 0;
 }
 
 .lifecycle-table-wrap .lifecycle-title {
+  max-width: 100%;
   overflow: hidden;
   font-size: 0.8rem;
   font-weight: 500;
