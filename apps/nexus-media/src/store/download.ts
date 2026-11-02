@@ -18,6 +18,7 @@ export interface DownloadTask {
 }
 
 export interface DownloadHistoryItem {
+  state?: string;
   id: string;
   title: string;
   type: 'MOV' | 'TV';

@@ -160,6 +160,12 @@ function initConfig(type: string) {
   return cfg;
 }
 
+function selectType(type: string) {
+  if (editingDownloader.value?.id) return;
+  editingType.value = type;
+  editingConfig.value = initConfig(type);
+}
+
 function handleAdd() {
   editingDownloader.value = {
     id: '',
@@ -182,9 +188,10 @@ function handleAdd() {
 function handleEdit(item: DownloaderItem) {
   editingDownloader.value = { ...item };
   editingType.value = item.type;
-  editingConfig.value = item.config
-    ? { ...item.config }
-    : initConfig(item.type);
+  editingConfig.value = {
+    ...initConfig(item.type),
+    ...(item.config || {}),
+  };
   editingDirs.value =
     item.download_dir && item.download_dir.length > 0
       ? [...item.download_dir]
@@ -611,7 +618,7 @@ onMounted(fetchData);
                   ? ''
                   : 'hover:border-primary/50 cursor-pointer'
               "
-              @click="!editingDownloader.id && (editingType = key)"
+              @click="selectType(key)"
             >
               <img
                 v-if="downloaderIcon(key)"
@@ -669,10 +676,7 @@ onMounted(fetchData);
                       style="color: hsl(var(--muted-foreground))"
                     />
                   </template>
-                  <div
-                    class="max-w-xs whitespace-normal text-xs"
-                    style="color: hsl(var(--card-foreground))"
-                  >
+                  <div class="max-w-xs whitespace-normal text-xs">
                     {{ field.tooltip }}
                   </div>
                 </NTooltip>
