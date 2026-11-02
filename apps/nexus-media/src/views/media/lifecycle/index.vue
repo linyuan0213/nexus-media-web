@@ -359,6 +359,7 @@ const columns = computed<DataTableColumns<LifecycleApi.Item>>(() => {
       key: 'error',
       title: '最近错误',
       minWidth: 180,
+      maxWidth: 260,
       render: (row) =>
         h(
           'span',
