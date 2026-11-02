@@ -202,6 +202,7 @@ function saveService() {
       'queue.transfer_workers',
       'queue.sync_workers',
       'queue.scrape_workers',
+      'queue.lifecycle_reconcile_seconds',
     ]),
   );
 }

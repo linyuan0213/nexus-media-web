@@ -164,6 +164,18 @@ const emit = defineEmits<{
             />
           </NFormItem>
         </NGridItem>
+        <NGridItem span="1">
+          <NFormItem label="生命周期对账周期(秒)">
+            <NInput
+              :value="config['queue.lifecycle_reconcile_seconds']"
+              placeholder="默认 300，0 关闭"
+              @update:value="
+                (v) =>
+                  emit('updateConfig', 'queue.lifecycle_reconcile_seconds', v)
+              "
+            />
+          </NFormItem>
+        </NGridItem>
       </NGrid>
     </NForm>
     <template #footer>
