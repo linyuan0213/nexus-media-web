@@ -1107,7 +1107,11 @@ watch(
                 <div>
                   <dt>季 / 集</dt>
                   <dd>
-                    {{ selected.season || 0 }} / {{ selected.episode || 0 }}
+                    {{
+                      selected.episode_count > 1
+                        ? `第 ${selected.season || 0} 季 · ${selected.completed_episodes}/${selected.episode_count} 集`
+                        : `${selected.season || 0} / ${selected.episode || 0}`
+                    }}
                   </dd>
                 </div>
               </dl>
