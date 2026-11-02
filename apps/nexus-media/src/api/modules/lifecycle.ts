@@ -31,7 +31,6 @@ export namespace LifecycleApi {
     in_library_episodes: number;
     subscribed_episodes?: number;
     missing?: boolean;
-    inferred?: boolean;
     elapsed_seconds: number;
   }
 

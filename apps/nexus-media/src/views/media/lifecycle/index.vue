@@ -491,7 +491,7 @@ async function openDetail(row: LifecycleApi.Item) {
 async function selectEpisode(row: LifecycleApi.Item) {
   activeEpisode.value = { season: row.season || 0, episode: row.episode || 0 };
   activeSeason.value = row.season || null;
-  if (row.missing || row.inferred) {
+  if (row.missing) {
     events.value = [];
     eventsLoading.value = false;
     return;
@@ -1189,13 +1189,9 @@ watch(
                       episode.episode === activeEpisode?.episode,
                   }"
                   :data-status="
-                    episode.missing
-                      ? 'missing'
-                      : episode.inferred
-                        ? 'inferred'
-                        : statusTone(episode.status)
+                    episode.missing ? 'missing' : statusTone(episode.status)
                   "
-                  :aria-label="`S${String(episode.season).padStart(2, '0')}E${String(episode.episode).padStart(2, '0')}，${episode.missing ? '未下载' : episode.inferred ? '已订阅' : statusMap.get(episode.status) || episode.status}`"
+                  :aria-label="`S${String(episode.season).padStart(2, '0')}E${String(episode.episode).padStart(2, '0')}，${episode.missing ? '未下载' : statusMap.get(episode.status) || episode.status}`"
                   :aria-pressed="
                     episode.season === activeEpisode?.season &&
                     episode.episode === activeEpisode?.episode
@@ -1209,9 +1205,7 @@ watch(
                     {{
                       episode.missing
                         ? '未下载'
-                        : episode.inferred
-                          ? '已订阅'
-                          : statusMap.get(episode.status) || episode.status
+                        : statusMap.get(episode.status) || episode.status
                     }}
                   </span>
                 </button>
@@ -1221,7 +1215,6 @@ watch(
                 <span data-status="running">进行中</span>
                 <span data-status="queued">排队中</span>
                 <span data-status="missing">未下载</span>
-                <span data-status="inferred">已订阅</span>
                 <span data-status="failed">异常</span>
               </div>
             </section>
@@ -2649,14 +2642,6 @@ watch(
 
 .episode-cell[data-status='missing'] .episode-status {
   color: hsl(var(--muted-foreground));
-}
-
-.episode-cell[data-status='inferred']::after {
-  background: hsl(var(--primary) / 45%);
-}
-
-.episode-cell[data-status='inferred'] .episode-status {
-  color: hsl(var(--primary));
 }
 
 .episode-cell[data-status='queued']::after {
