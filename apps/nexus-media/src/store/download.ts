@@ -30,6 +30,9 @@ export interface DownloadHistoryItem {
   enclosure?: string;
   season_episode?: string;
   history_id?: number;
+  identity_id?: string;
+  anchor_provider?: string;
+  anchor_external_id?: string;
   content_profile?: string;
   date: string;
   site: string;

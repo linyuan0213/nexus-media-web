@@ -3,7 +3,8 @@ import type { DataTableColumns } from 'naive-ui';
 
 import type { LifecycleApi } from '#/api/modules/lifecycle';
 
-import { computed, h, onMounted, ref } from 'vue';
+import { computed, h, onMounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
 
@@ -36,6 +37,7 @@ import MediaPoster from '#/components/media/MediaPoster.vue';
 defineOptions({ name: 'MediaLifecycle' });
 
 const message = useMessage();
+const route = useRoute();
 const isMobile = useMediaQuery('(max-width: 768px)');
 const drawerWidth = computed(() => (isMobile.value ? '100%' : 640));
 const rows = ref<LifecycleApi.Item[]>([]);
@@ -550,9 +552,35 @@ function onPageChange(value: number) {
   void fetchData();
 }
 
-onMounted(() => {
-  void fetchData();
+async function openIdentityFromQuery() {
+  const identity = String(route.query.identity_id || '');
+  if (!identity) return;
+  try {
+    const season = Number(route.query.season || 0);
+    const episode = Number(route.query.episode || 0);
+    let detail = await getLifecycleDetailApi(identity, { season, episode });
+    if (!detail) {
+      const list = await getLifecycleEpisodesApi(identity);
+      detail = list?.[0] || null;
+    }
+    if (detail) await openDetail(detail);
+  } catch (error: any) {
+    message.error(error?.response?.data?.detail || '生命周期详情加载失败');
+  }
+}
+
+onMounted(async () => {
+  if (route.query.keyword) keyword.value = String(route.query.keyword);
+  await fetchData();
+  await openIdentityFromQuery();
 });
+
+watch(
+  () => route.query.identity_id,
+  (identity) => {
+    if (identity) void openIdentityFromQuery();
+  },
+);
 </script>
 
 <template>

@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue';
 
+import { useRouter } from 'vue-router';
+
 import { IconifyIcon } from '@vben/icons';
 
 import {
@@ -25,6 +27,7 @@ import { useDownloadStore } from '#/store';
 
 const downloadStore = useDownloadStore();
 const message = useMessage();
+const router = useRouter();
 const loading = ref(false);
 const currentPage = ref(1);
 const pageSize = ref(30);
@@ -112,6 +115,14 @@ function formatSeasonEpisode(se?: string) {
 
 function handlePageChange(page: number) {
   fetchData(page);
+}
+
+function goLifecycle(item: any) {
+  const identity = String(item.identity_id || '');
+  router.push({
+    path: '/media/lifecycle',
+    query: identity ? { identity_id: identity } : { keyword: item.title || '' },
+  });
 }
 
 async function copyLink(url: string) {
@@ -266,6 +277,17 @@ onMounted(() => fetchData(1));
                       </template>
                       复制链接
                     </NButton>
+                    <NButton
+                      size="tiny"
+                      text
+                      title="查看媒体流转"
+                      @click="goLifecycle(item)"
+                    >
+                      <template #icon>
+                        <IconifyIcon icon="lucide:activity" class="size-3.5" />
+                      </template>
+                      流转
+                    </NButton>
                     <NPopconfirm
                       v-if="item.history_id"
                       @positive-click="handleDelete(item)"
@@ -360,6 +382,17 @@ onMounted(() => fetchData(1));
                   <IconifyIcon icon="lucide:link" class="size-3.5" />
                 </template>
                 <span class="hidden sm:inline">复制链接</span>
+              </NButton>
+              <NButton
+                size="tiny"
+                text
+                title="查看媒体流转"
+                @click="goLifecycle(item)"
+              >
+                <template #icon>
+                  <IconifyIcon icon="lucide:activity" class="size-3.5" />
+                </template>
+                <span class="hidden sm:inline">流转</span>
               </NButton>
               <NPopconfirm
                 v-if="item.history_id"
