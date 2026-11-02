@@ -22,6 +22,7 @@ import {
   NSpin,
   NTimeline,
   NTimelineItem,
+  NTooltip,
   useMessage,
 } from 'naive-ui';
 
@@ -224,8 +225,8 @@ const columns = computed<DataTableColumns<LifecycleApi.Item>>(() => {
     {
       key: 'title',
       title: '媒体',
-      width: 340,
-      minWidth: 280,
+      minWidth: 320,
+      maxWidth: 420,
       render: (row) =>
         h('div', { class: 'lifecycle-media' }, [
           h(
@@ -259,9 +260,25 @@ const columns = computed<DataTableColumns<LifecycleApi.Item>>(() => {
           ),
           h('div', { class: 'lifecycle-media-copy' }, [
             h(
-              'div',
-              { class: 'lifecycle-title' },
-              row.title || row.identity_id,
+              NTooltip,
+              { trigger: 'hover', placement: 'top-start', delay: 250 },
+              {
+                trigger: () =>
+                  h(
+                    'div',
+                    {
+                      class: 'lifecycle-title',
+                      title: row.title || row.identity_id,
+                    },
+                    row.title || row.identity_id,
+                  ),
+                default: () =>
+                  h(
+                    'div',
+                    { class: 'lifecycle-title-tooltip' },
+                    row.title || row.identity_id,
+                  ),
+              },
             ),
             h(
               'div',
@@ -2971,6 +2988,13 @@ watch(
   min-width: 0;
 }
 
+.lifecycle-title-tooltip {
+  max-width: 520px;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  white-space: normal;
+}
+
 .lifecycle-table-wrap .lifecycle-title {
   max-width: 100%;
   overflow: hidden;
@@ -3130,14 +3154,22 @@ watch(
   white-space: nowrap;
 }
 
+.lifecycle-table-wrap .lifecycle-error,
+.lifecycle-table-wrap .lifecycle-muted {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .lifecycle-table-wrap .lifecycle-error {
   color: hsl(var(--destructive));
-  font-size: 0.7rem;
 }
 
 .lifecycle-table-wrap .lifecycle-muted {
   color: hsl(var(--muted-foreground));
-  font-size: 0.7rem;
 }
 
 .lifecycle-table-wrap .lifecycle-open {
