@@ -551,13 +551,8 @@ watch(profileSources, (sources) => {
   }
 });
 
-// 持久化当前搜索关键词，用于从其他页面切回（无 query 参数）时恢复标题显示
-const SEARCH_KEYWORD_KEY = 'nexus:search:keyword';
 function setSearchKeyword(k: string) {
   keyword.value = k;
-  try {
-    if (k) sessionStorage.setItem(SEARCH_KEYWORD_KEY, k);
-  } catch {}
 }
 
 // 显示模式：empty | media(普通搜索媒体结果) | torrent(种子结果)
@@ -688,26 +683,20 @@ const downloadDirs = ref<Array<{ label: string; value: string }>>([
 const selectedDownloadSetting = ref('');
 const selectedDownloadDir = ref('');
 
-/** 从 sessionStorage 恢复进行中的搜索（页面切回时自动重连 SSE） */
-function resumeOngoingSearch(): boolean {
-  const sid = sessionStorage.getItem(SEARCH_SESSION_KEY);
-  if (!sid) return false;
-
-  // 路由有显式搜索参数 → 优先级高于 sessionStorage，不恢复旧会话
-  const s = route.query.s as string;
-  if (s) return false;
-
-  const kw = sessionStorage.getItem(SEARCH_KEYWORD_KEY);
-  if (kw) keyword.value = kw;
-
-  searchSessionId.value = sid;
-  displayMode.value = 'torrent';
-  loading.value = true;
-  startSearchProgress(sid, () => {
+/** 清空搜索页状态；从菜单进入时不恢复上次搜索 */
+function resetSearchLanding() {
+  resultPollToken += 1;
+  stopSearchProgress();
+  searchSessionId.value = '';
+  keyword.value = '';
+  mediaResults.value = [];
+  results.value = [];
+  resultCount.value = 0;
+  displayMode.value = 'empty';
+  loading.value = false;
+  try {
     sessionStorage.removeItem(SEARCH_SESSION_KEY);
-    loadSearchResults();
-  });
-  return true;
+  } catch {}
 }
 
 const metadataProviders = ref<
@@ -1439,10 +1428,13 @@ onMounted(() => {
   loadVisibleSites();
   startSSE();
   const initialS = String(route.query.s || '');
-  // 只有“回到搜索页且没有新关键词”时才恢复旧会话；新跳转必须优先。
-  if (!initialS && resumeOngoingSearch()) return;
-
   lastHandledQueryKey = routeQueryKey(route.query);
+  // 从菜单进入搜索页时不恢复上次会话，避免自动发起旧关键词搜索
+  if (!initialS) {
+    resetSearchLanding();
+    return;
+  }
+
   resultPollToken += 1;
   stopSearchProgress();
 
@@ -1533,8 +1525,6 @@ onMounted(() => {
           });
         });
     }
-  } else {
-    loadSearchResults();
   }
 });
 // 探索/详情页跳转时组件复用，onMounted 不重跑 → watch 补救
@@ -1558,7 +1548,10 @@ watch(
     const from = q.from as string;
     const tmdbId = (q.tmdbid as string) || '';
     const mediaType = (q.media_type as string) || '';
-    if (!s) return;
+    if (!s) {
+      resetSearchLanding();
+      return;
+    }
     setSearchKeyword(s);
     if (from === 'discovery' || from === 'detail' || from === 'subscription') {
       displayMode.value = 'torrent';
