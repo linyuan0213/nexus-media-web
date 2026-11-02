@@ -289,7 +289,7 @@ const columns = computed<DataTableColumns<LifecycleApi.Item>>(() => {
               { class: 'lifecycle-subtitle' },
               `${typeLabel(row.media_type)} · ${row.year || '年份未知'}${
                 row.episode_count > 1
-                  ? ` · ${row.episode_count} 集 · 完成 ${row.completed_episodes}`
+                  ? ` · ${row.episode_count} 集 · 订阅 ${row.subscribed_episodes || 0} · 入库 ${row.in_library_episodes}`
                   : row.season || row.episode
                     ? ` · S${String(row.season).padStart(2, '0')}E${String(row.episode).padStart(2, '0')}`
                     : ''
@@ -491,7 +491,7 @@ async function openDetail(row: LifecycleApi.Item) {
 async function selectEpisode(row: LifecycleApi.Item) {
   activeEpisode.value = { season: row.season || 0, episode: row.episode || 0 };
   activeSeason.value = row.season || null;
-  if (row.missing) {
+  if (row.missing || row.inferred) {
     events.value = [];
     eventsLoading.value = false;
     return;
@@ -839,8 +839,9 @@ watch(
                   {{ typeLabel(row.media_type) }} ·
                   {{ row.year || '年份未知' }}
                   <template v-if="row.episode_count > 1">
-                    · {{ row.episode_count }} 集 · 完成
-                    {{ row.completed_episodes }}
+                    · {{ row.episode_count }} 集 · 订阅
+                    {{ row.subscribed_episodes || 0 }} · 入库
+                    {{ row.in_library_episodes }}
                   </template>
                   <template v-else-if="row.season || row.episode">
                     · S{{ String(row.season).padStart(2, '0') }}E{{
@@ -1109,9 +1110,27 @@ watch(
                   <dd>
                     {{
                       selected.episode_count > 1
-                        ? `第 ${selected.season || 0} 季 · ${selected.completed_episodes}/${selected.episode_count} 集`
+                        ? `第 ${selected.season || 1} 季`
                         : `${selected.season || 0} / ${selected.episode || 0}`
                     }}
+                  </dd>
+                </div>
+                <div>
+                  <dt>总集数</dt>
+                  <dd>{{ selected.episode_count }} 集</dd>
+                </div>
+                <div>
+                  <dt>订阅完成</dt>
+                  <dd>
+                    {{ selected.subscribed_episodes || 0 }} /
+                    {{ selected.episode_count }} 集
+                  </dd>
+                </div>
+                <div>
+                  <dt>已入库</dt>
+                  <dd>
+                    {{ selected.in_library_episodes }} /
+                    {{ selected.episode_count }} 集
                   </dd>
                 </div>
               </dl>
@@ -1170,9 +1189,13 @@ watch(
                       episode.episode === activeEpisode?.episode,
                   }"
                   :data-status="
-                    episode.missing ? 'missing' : statusTone(episode.status)
+                    episode.missing
+                      ? 'missing'
+                      : episode.inferred
+                        ? 'inferred'
+                        : statusTone(episode.status)
                   "
-                  :aria-label="`S${String(episode.season).padStart(2, '0')}E${String(episode.episode).padStart(2, '0')}，${episode.missing ? '未下载' : statusMap.get(episode.status) || episode.status}`"
+                  :aria-label="`S${String(episode.season).padStart(2, '0')}E${String(episode.episode).padStart(2, '0')}，${episode.missing ? '未下载' : episode.inferred ? '已订阅' : statusMap.get(episode.status) || episode.status}`"
                   :aria-pressed="
                     episode.season === activeEpisode?.season &&
                     episode.episode === activeEpisode?.episode
@@ -1186,7 +1209,9 @@ watch(
                     {{
                       episode.missing
                         ? '未下载'
-                        : statusMap.get(episode.status) || episode.status
+                        : episode.inferred
+                          ? '已订阅'
+                          : statusMap.get(episode.status) || episode.status
                     }}
                   </span>
                 </button>
@@ -1196,6 +1221,7 @@ watch(
                 <span data-status="running">进行中</span>
                 <span data-status="queued">排队中</span>
                 <span data-status="missing">未下载</span>
+                <span data-status="inferred">已订阅</span>
                 <span data-status="failed">异常</span>
               </div>
             </section>
@@ -2617,6 +2643,14 @@ watch(
 
 .episode-cell[data-status='missing'] .episode-status {
   color: hsl(var(--muted-foreground));
+}
+
+.episode-cell[data-status='inferred']::after {
+  background: hsl(var(--primary) / 45%);
+}
+
+.episode-cell[data-status='inferred'] .episode-status {
+  color: hsl(var(--primary));
 }
 
 .episode-cell[data-status='queued']::after {
