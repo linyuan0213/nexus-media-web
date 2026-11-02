@@ -228,7 +228,18 @@ const columns = computed<DataTableColumns<LifecycleApi.Item>>(() => [
       h('div', { class: 'lifecycle-media' }, [
         h(
           'div',
-          { class: 'lifecycle-poster' },
+          {
+            class: 'lifecycle-poster',
+            style: {
+              display: 'flex',
+              flex: '0 0 38px',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '38px',
+              height: '52px',
+              overflow: 'hidden',
+            },
+          },
           row.poster
             ? h(MediaPoster, {
                 src: row.poster,
