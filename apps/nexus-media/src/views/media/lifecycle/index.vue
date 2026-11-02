@@ -235,6 +235,12 @@ const columns = computed<DataTableColumns<LifecycleApi.Item>>(() => [
                 contentProfile: row.content_profile,
                 alt: row.title || '',
                 lazy: true,
+                style: {
+                  display: 'block',
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                },
               })
             : h('span', (row.title || '?').slice(0, 1)),
         ),
@@ -755,6 +761,12 @@ watch(
                   :src="row.poster"
                   :content-profile="row.content_profile"
                   :alt="row.title || ''"
+                  style="
+                    display: block;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                  "
                 />
                 <span v-else>{{ (row.title || '?').slice(0, 1) }}</span>
               </div>
@@ -898,6 +910,12 @@ watch(
                     :src="selected.poster"
                     :content-profile="selected.content_profile"
                     :alt="selected.title || ''"
+                    style="
+                      display: block;
+                      width: 100%;
+                      height: 100%;
+                      object-fit: cover;
+                    "
                   />
                   <IconifyIcon v-else icon="lucide:film" class="size-8" />
                 </div>
@@ -1625,7 +1643,8 @@ watch(
   border-radius: calc(var(--radius) - 3px);
 }
 
-.lifecycle-poster img {
+.lifecycle-poster :deep(img) {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -2056,7 +2075,8 @@ watch(
   border-radius: calc(var(--radius) - 1px);
 }
 
-.detail-poster img {
+.detail-poster :deep(img) {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
