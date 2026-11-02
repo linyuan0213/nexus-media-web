@@ -199,6 +199,9 @@ function saveService() {
       'pt.ptrefresh_date_cron',
       'pt.search_auto',
       'pt.search_no_result_rss',
+      'queue.transfer_workers',
+      'queue.sync_workers',
+      'queue.scrape_workers',
     ]),
   );
 }

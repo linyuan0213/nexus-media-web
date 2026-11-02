@@ -131,6 +131,39 @@ const emit = defineEmits<{
             />
           </NFormItem>
         </NGridItem>
+        <NGridItem span="1">
+          <NFormItem label="转移队列并发">
+            <NInput
+              :value="config['queue.transfer_workers']"
+              placeholder="默认 2"
+              @update:value="
+                (v) => emit('updateConfig', 'queue.transfer_workers', v)
+              "
+            />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="1">
+          <NFormItem label="目录同步队列并发">
+            <NInput
+              :value="config['queue.sync_workers']"
+              placeholder="默认 2"
+              @update:value="
+                (v) => emit('updateConfig', 'queue.sync_workers', v)
+              "
+            />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="1">
+          <NFormItem label="刮削队列并发">
+            <NInput
+              :value="config['queue.scrape_workers']"
+              placeholder="默认 3"
+              @update:value="
+                (v) => emit('updateConfig', 'queue.scrape_workers', v)
+              "
+            />
+          </NFormItem>
+        </NGridItem>
       </NGrid>
     </NForm>
     <template #footer>
