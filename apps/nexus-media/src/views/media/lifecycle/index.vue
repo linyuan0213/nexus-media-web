@@ -34,6 +34,7 @@ import {
   getLifecycleStatsApi,
 } from '#/api/modules/lifecycle';
 import MediaPoster from '#/components/media/MediaPoster.vue';
+import PageHeader from '#/components/page/PageHeader.vue';
 
 defineOptions({ name: 'MediaLifecycle' });
 
@@ -60,6 +61,7 @@ const status = ref<null | string>(null);
 const mediaType = ref<null | string>(null);
 const drawerVisible = ref(false);
 const selected = ref<LifecycleApi.Item | null>(null);
+const activeEpisode = ref<null | { episode: number; season: number }>(null);
 const events = ref<LifecycleApi.Event[]>([]);
 const episodes = ref<LifecycleApi.Item[]>([]);
 const activeSeason = ref<null | number>(null);
@@ -166,7 +168,9 @@ const visibleEpisodes = computed(() =>
 );
 const completedEpisodes = computed(
   () =>
-    visibleEpisodes.value.filter((item) => item.status === 'succeeded').length,
+    visibleEpisodes.value.filter(
+      (item) => item.stage === 'in_library' && item.status === 'succeeded',
+    ).length,
 );
 const rangeStart = computed(() =>
   total.value === 0 ? 0 : (page.value - 1) * pageSize.value + 1,
@@ -190,7 +194,7 @@ const statCards = computed(() => {
       value: values.running || 0,
       tone: 'info',
       status: 'running',
-      icon: 'lucide:activity',
+      icon: 'lucide:play',
       note: '正在自动流转',
     },
     {
@@ -198,7 +202,7 @@ const statCards = computed(() => {
       value: values.queued || 0,
       tone: 'warning',
       status: 'queued',
-      icon: 'lucide:list-todo',
+      icon: 'lucide:hourglass',
       note: '等待队列调度',
     },
     {
@@ -206,7 +210,7 @@ const statCards = computed(() => {
       value: values.failed || 0,
       tone: 'danger',
       status: 'failed',
-      icon: 'lucide:circle-alert',
+      icon: 'lucide:alert-triangle',
       note: '需要检查处理',
     },
     {
@@ -214,7 +218,7 @@ const statCards = computed(() => {
       value: values.succeeded || 0,
       tone: 'success',
       status: 'succeeded',
-      icon: 'lucide:circle-check',
+      icon: 'lucide:check',
       note: '已完成入库',
     },
   ];
@@ -460,11 +464,21 @@ async function openDetail(row: LifecycleApi.Item) {
       getLifecycleEventsApi(row.identity_id, { ...params, limit: 200 }),
       getLifecycleEpisodesApi(row.identity_id),
     ]);
-    if (detail) selected.value = detail;
+    if (detail && (seriesRows?.length || 0) <= 1) selected.value = detail;
     events.value = timeline || [];
     episodes.value = seriesRows || [];
     if (activeSeason.value === null && seasonOptions.value.length > 0) {
       activeSeason.value = seasonOptions.value[0] ?? null;
+    }
+    const firstPending =
+      episodes.value.find((item) => item.missing) ||
+      episodes.value.find((item) => item.stage !== 'in_library') ||
+      episodes.value[0];
+    if (firstPending) {
+      activeEpisode.value = {
+        season: firstPending.season || 0,
+        episode: firstPending.episode || 0,
+      };
     }
   } catch (error: any) {
     message.error(error?.response?.data?.detail || '生命周期详情加载失败');
@@ -475,8 +489,13 @@ async function openDetail(row: LifecycleApi.Item) {
 }
 
 async function selectEpisode(row: LifecycleApi.Item) {
-  selected.value = row;
+  activeEpisode.value = { season: row.season || 0, episode: row.episode || 0 };
   activeSeason.value = row.season || null;
+  if (row.missing) {
+    events.value = [];
+    eventsLoading.value = false;
+    return;
+  }
   eventsLoading.value = true;
   try {
     const params = { season: row.season, episode: row.episode };
@@ -484,7 +503,7 @@ async function selectEpisode(row: LifecycleApi.Item) {
       getLifecycleDetailApi(row.identity_id, params),
       getLifecycleEventsApi(row.identity_id, { ...params, limit: 200 }),
     ]);
-    if (detail) selected.value = detail;
+    if (detail && episodes.value.length <= 1) selected.value = detail;
     events.value = timeline || [];
   } catch (error: any) {
     message.error(error?.response?.data?.detail || '生命周期详情加载失败');
@@ -495,7 +514,7 @@ async function selectEpisode(row: LifecycleApi.Item) {
 
 function selectSeason(season: number) {
   activeSeason.value = season;
-  if (selected.value?.season === season) return;
+  if (activeEpisode.value?.season === season) return;
   const firstEpisode = episodes.value.find(
     (item) => (item.season || 0) === season,
   );
@@ -615,9 +634,7 @@ async function openIdentityFromQuery() {
   const identity = String(route.query.identity_id || '');
   if (!identity) return;
   try {
-    const season = Number(route.query.season || 0);
-    const episode = Number(route.query.episode || 0);
-    let detail = await getLifecycleDetailApi(identity, { season, episode });
+    let detail = await getLifecycleDetailApi(identity);
     if (!detail) {
       const list = await getLifecycleEpisodesApi(identity);
       detail = list?.[0] || null;
@@ -644,28 +661,19 @@ watch(
 
 <template>
   <div class="lifecycle-page">
-    <header class="lifecycle-heading">
-      <div class="heading-copy">
-        <div class="heading-eyebrow">
-          <span class="eyebrow-line" aria-hidden="true"></span>
-          MEDIA OPERATIONS
-        </div>
-        <h1>媒体流转</h1>
-        <p>集中追踪识别、下载、转移与入库状态，快速定位需要介入的任务。</p>
-      </div>
-      <div class="heading-actions">
-        <span class="monitor-label">
-          <IconifyIcon icon="lucide:radar" class="size-4" />
-          生命周期监控
-        </span>
+    <PageHeader
+      title="媒体流转"
+      subtitle="集中追踪识别、下载、转移与入库状态，快速定位需要介入的任务"
+    >
+      <template #actions>
         <NButton :loading="loading" @click="fetchData">
           <template #icon>
             <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
           </template>
           刷新状态
         </NButton>
-      </div>
-    </header>
+      </template>
+    </PageHeader>
 
     <section class="lifecycle-stats" aria-label="流转状态统计">
       <button
@@ -1143,7 +1151,7 @@ watch(
               <div class="matrix-summary">
                 <span>第 {{ activeSeason || 0 }} 季 · 单集流转状态</span>
                 <strong>
-                  {{ completedEpisodes }} / {{ visibleEpisodes.length }} 已完成
+                  {{ completedEpisodes }} / {{ visibleEpisodes.length }} 已入库
                 </strong>
               </div>
               <div class="episode-grid" role="group" aria-label="单集进度">
@@ -1154,14 +1162,16 @@ watch(
                   class="episode-cell"
                   :class="{
                     active:
-                      episode.season === selected.season &&
-                      episode.episode === selected.episode,
+                      episode.season === activeEpisode?.season &&
+                      episode.episode === activeEpisode?.episode,
                   }"
-                  :data-status="statusTone(episode.status)"
-                  :aria-label="`S${String(episode.season).padStart(2, '0')}E${String(episode.episode).padStart(2, '0')}，${statusMap.get(episode.status) || episode.status}`"
+                  :data-status="
+                    episode.missing ? 'missing' : statusTone(episode.status)
+                  "
+                  :aria-label="`S${String(episode.season).padStart(2, '0')}E${String(episode.episode).padStart(2, '0')}，${episode.missing ? '未下载' : statusMap.get(episode.status) || episode.status}`"
                   :aria-pressed="
-                    episode.season === selected.season &&
-                    episode.episode === selected.episode
+                    episode.season === activeEpisode?.season &&
+                    episode.episode === activeEpisode?.episode
                   "
                   @click="selectEpisode(episode)"
                 >
@@ -1169,7 +1179,11 @@ watch(
                     E{{ String(episode.episode).padStart(2, '0') }}
                   </span>
                   <span class="episode-status">
-                    {{ statusMap.get(episode.status) || episode.status }}
+                    {{
+                      episode.missing
+                        ? '未下载'
+                        : statusMap.get(episode.status) || episode.status
+                    }}
                   </span>
                 </button>
               </div>
@@ -1177,6 +1191,7 @@ watch(
                 <span data-status="succeeded">已完成</span>
                 <span data-status="running">进行中</span>
                 <span data-status="queued">排队中</span>
+                <span data-status="missing">未下载</span>
                 <span data-status="failed">异常</span>
               </div>
             </section>
@@ -1262,6 +1277,7 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  padding: 16px;
   animation: page-reveal 0.4s ease-out both;
 }
 
@@ -1284,8 +1300,8 @@ watch(
   margin-bottom: 0.4rem;
   font-size: 0.625rem;
   font-weight: 600;
-  letter-spacing: 0.14em;
   color: hsl(var(--primary));
+  letter-spacing: 0.14em;
 }
 
 .eyebrow-line {
@@ -1299,8 +1315,8 @@ watch(
   font-size: 1.65rem;
   font-weight: 650;
   line-height: 1.3;
-  letter-spacing: -0.025em;
   color: hsl(var(--foreground));
+  letter-spacing: -0.025em;
 }
 
 .lifecycle-heading p {
@@ -1390,7 +1406,7 @@ watch(
 }
 
 .lifecycle-stat[data-tone='info'] {
-  --stat-color: hsl(var(--info));
+  --stat-color: hsl(var(--primary));
 }
 
 .lifecycle-stat[data-tone='warning'] {
@@ -1433,8 +1449,8 @@ watch(
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   line-height: 1;
-  letter-spacing: -0.04em;
   color: hsl(var(--foreground));
+  letter-spacing: -0.04em;
 }
 
 .stat-icon {
@@ -1460,8 +1476,8 @@ watch(
   gap: 0.35rem;
   align-items: center;
   justify-content: space-between;
-  margin-top: auto;
   padding-top: 0.65rem;
+  margin-top: auto;
   overflow: hidden;
   font-size: 0.65rem;
   color: hsl(var(--muted-foreground));
@@ -1589,8 +1605,8 @@ watch(
   display: flex;
   gap: 0.75rem;
   align-items: center;
-  margin-bottom: 0.75rem;
   padding: 0.8rem 1rem;
+  margin-bottom: 0.75rem;
   color: hsl(var(--destructive));
   background: hsl(var(--destructive) / 6%);
   border: 1px solid hsl(var(--destructive) / 25%);
@@ -1709,10 +1725,10 @@ watch(
 
 .lifecycle-title {
   overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 0.8rem;
   font-weight: 600;
   color: hsl(var(--foreground));
-  text-overflow: ellipsis;
   white-space: nowrap;
   transition: color 0.18s ease;
 }
@@ -1724,19 +1740,19 @@ watch(
 .lifecycle-subtitle {
   margin-top: 0.15rem;
   overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 0.65rem;
   color: hsl(var(--muted-foreground));
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .lifecycle-identity {
   margin-top: 0.15rem;
   overflow: hidden;
+  text-overflow: ellipsis;
   font-family: monospace;
   font-size: 0.58rem;
   color: hsl(var(--muted-foreground) / 75%);
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -1766,18 +1782,18 @@ watch(
   min-height: 22px;
   padding: 0.15rem 0.5rem;
   overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 0.65rem;
   font-weight: 500;
   color: hsl(var(--foreground));
-  text-overflow: ellipsis;
   white-space: nowrap;
   background: hsl(var(--accent));
   border-radius: calc(var(--radius) - 3px);
 }
 
 .stage-badge[data-tone='info'] {
-  color: hsl(var(--info));
-  background: hsl(var(--info) / 10%);
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 10%);
 }
 
 .stage-badge[data-tone='success'] {
@@ -1827,13 +1843,13 @@ watch(
 .status-dot {
   width: 5px;
   height: 5px;
-  background: currentColor;
+  background: currentcolor;
   border-radius: 50%;
 }
 
 .status-badge[data-status='running'] {
-  color: hsl(var(--info));
-  background: hsl(var(--info) / 10%);
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 10%);
 }
 
 .status-badge[data-status='queued'] {
@@ -1877,9 +1893,9 @@ watch(
 .provider-cell small,
 .duration-cell small {
   overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 0.58rem;
   color: hsl(var(--muted-foreground));
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -1895,9 +1911,9 @@ watch(
 .error-text {
   display: -webkit-box;
   overflow: hidden;
+  -webkit-line-clamp: 2;
   font-size: 0.65rem;
   line-height: 1.5;
-  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
@@ -1942,8 +1958,8 @@ watch(
 
 .lifecycle-empty {
   display: grid;
-  min-height: 260px;
   place-items: center;
+  min-height: 260px;
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
@@ -2104,8 +2120,8 @@ watch(
 .drawer-heading span {
   font-size: 0.55rem;
   font-weight: 500;
-  letter-spacing: 0.12em;
   color: hsl(var(--muted-foreground));
+  letter-spacing: 0.12em;
 }
 
 .drawer-heading strong {
@@ -2169,9 +2185,9 @@ watch(
   font-size: 1.45rem;
   font-weight: 650;
   line-height: 1.3;
+  color: hsl(var(--foreground));
   letter-spacing: -0.025em;
   overflow-wrap: anywhere;
-  color: hsl(var(--foreground));
 }
 
 .detail-meta {
@@ -2201,8 +2217,8 @@ watch(
   display: block;
   margin-bottom: 0.2rem;
   font-size: 0.55rem;
-  letter-spacing: 0.06em;
   color: hsl(var(--muted-foreground));
+  letter-spacing: 0.06em;
 }
 
 .current-stage {
@@ -2245,8 +2261,8 @@ watch(
 .stage-stepper {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  margin: 1.1rem 0 0;
   padding: 0;
+  margin: 1.1rem 0 0;
   list-style: none;
 }
 
@@ -2355,8 +2371,8 @@ watch(
 
 .detail-section-heading > span {
   font-size: 0.55rem;
-  letter-spacing: 0.06em;
   color: hsl(var(--muted-foreground));
+  letter-spacing: 0.06em;
 }
 
 .archive-grid {
@@ -2406,9 +2422,9 @@ watch(
 .archive-item code {
   display: block;
   overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 0.65rem;
   color: hsl(var(--foreground));
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -2432,16 +2448,16 @@ watch(
 .metadata-grid dd {
   margin: 0;
   font-size: 0.68rem;
-  overflow-wrap: anywhere;
   color: hsl(var(--foreground));
+  overflow-wrap: anywhere;
 }
 
 .error-banner {
   display: flex;
   gap: 0.65rem;
   align-items: flex-start;
-  margin-top: 1rem;
   padding: 0.7rem 0.8rem;
+  margin-top: 1rem;
   color: hsl(var(--destructive));
   background: hsl(var(--destructive) / 6%);
   border: 1px solid hsl(var(--destructive) / 25%);
@@ -2465,15 +2481,15 @@ watch(
   margin: 0;
   font-size: 0.65rem;
   line-height: 1.6;
-  overflow-wrap: anywhere;
   color: hsl(var(--muted-foreground));
+  overflow-wrap: anywhere;
 }
 
 .season-tabs {
   display: flex;
   gap: 0.4rem;
-  margin-bottom: 0.8rem;
   padding-bottom: 0.2rem;
+  margin-bottom: 0.8rem;
   overflow-x: auto;
 }
 
@@ -2569,9 +2585,9 @@ watch(
 .episode-status {
   max-width: 100%;
   overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 0.52rem;
   color: hsl(var(--muted-foreground));
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -2584,11 +2600,19 @@ watch(
 }
 
 .episode-cell[data-status='running']::after {
-  background: hsl(var(--info));
+  background: hsl(var(--primary));
 }
 
 .episode-cell[data-status='running'] .episode-status {
-  color: hsl(var(--info));
+  color: hsl(var(--primary));
+}
+
+.episode-cell[data-status='missing']::after {
+  background: hsl(var(--muted-foreground) / 45%);
+}
+
+.episode-cell[data-status='missing'] .episode-status {
+  color: hsl(var(--muted-foreground));
 }
 
 .episode-cell[data-status='queued']::after {
@@ -2632,7 +2656,7 @@ watch(
 }
 
 .matrix-legend span[data-status='running']::before {
-  background: hsl(var(--info));
+  background: hsl(var(--primary));
 }
 
 .matrix-legend span[data-status='queued']::before {
@@ -2644,8 +2668,8 @@ watch(
 }
 
 .episode-context {
-  margin: -0.2rem 0 1rem;
   padding: 0.5rem 0.65rem;
+  margin: -0.2rem 0 1rem;
   font-size: 0.62rem;
   color: hsl(var(--muted-foreground));
   background: hsl(var(--primary) / 5%);
@@ -2691,8 +2715,8 @@ watch(
   margin-top: 0.35rem;
   font-size: 0.65rem;
   line-height: 1.6;
-  overflow-wrap: anywhere;
   color: hsl(var(--muted-foreground));
+  overflow-wrap: anywhere;
 }
 
 .timeline-event-type {
@@ -2760,6 +2784,7 @@ watch(
 @media (max-width: 768px) {
   .lifecycle-page {
     gap: 1rem;
+    padding: 12px;
   }
 
   .lifecycle-heading {
@@ -2931,9 +2956,9 @@ watch(
   }
 
   .drawer-footer {
-    align-items: flex-start;
     flex-direction: column;
     gap: 0.15rem;
+    align-items: flex-start;
   }
 }
 
@@ -2956,10 +2981,10 @@ watch(
 
 .lifecycle-table-wrap .lifecycle-media {
   display: flex;
-  max-width: 100%;
   gap: 0.7rem;
   align-items: center;
   min-width: 0;
+  max-width: 100%;
 }
 
 .lifecycle-table-wrap .lifecycle-poster {
@@ -2999,10 +3024,10 @@ watch(
 .lifecycle-table-wrap .lifecycle-title {
   max-width: 100%;
   overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 0.8rem;
   font-weight: 500;
   color: hsl(var(--card-foreground));
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -3010,9 +3035,9 @@ watch(
 .lifecycle-table-wrap .lifecycle-identity {
   margin-top: 0.18rem;
   overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 0.65rem;
   color: hsl(var(--muted-foreground));
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -3047,10 +3072,10 @@ watch(
   min-height: 22px;
   padding: 0.15rem 0.5rem;
   overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 0.65rem;
   font-weight: 500;
   color: hsl(var(--foreground));
-  text-overflow: ellipsis;
   white-space: nowrap;
   background: hsl(var(--accent));
   border-radius: 999px;
@@ -3062,8 +3087,8 @@ watch(
 }
 
 .lifecycle-table-wrap .stage-badge[data-tone='info'] {
-  color: hsl(var(--info));
-  background: hsl(var(--info) / 10%);
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 10%);
 }
 
 .lifecycle-table-wrap .stage-badge[data-tone='warning'] {
@@ -3108,8 +3133,8 @@ watch(
 }
 
 .lifecycle-table-wrap .status-badge[data-status='info'] {
-  color: hsl(var(--info));
-  background: hsl(var(--info) / 10%);
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 10%);
 }
 
 .lifecycle-table-wrap .status-badge[data-status='warning'] {
@@ -3125,7 +3150,7 @@ watch(
 .lifecycle-table-wrap .status-dot {
   width: 5px;
   height: 5px;
-  background: currentColor;
+  background: currentcolor;
   border-radius: 50%;
 }
 
@@ -3140,18 +3165,18 @@ watch(
 .lifecycle-table-wrap .provider-cell span,
 .lifecycle-table-wrap .duration-cell span {
   overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 0.7rem;
   color: hsl(var(--foreground));
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .lifecycle-table-wrap .provider-cell small,
 .lifecycle-table-wrap .duration-cell small {
   overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 0.58rem;
   color: hsl(var(--muted-foreground));
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -3160,8 +3185,8 @@ watch(
   display: block;
   max-width: 100%;
   overflow: hidden;
-  font-size: 0.7rem;
   text-overflow: ellipsis;
+  font-size: 0.7rem;
   white-space: nowrap;
 }
 
