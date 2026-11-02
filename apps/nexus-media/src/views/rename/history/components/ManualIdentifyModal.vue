@@ -101,16 +101,21 @@ const profileOptions = computed(() => {
   return [...labels.entries()].map(([value, label]) => ({ label, value }));
 });
 
-const providerOptions = computed(() =>
-  providers.value
-    .filter((provider) =>
-      (provider.content_profiles || []).includes(form.value.content_profile),
-    )
+const providerOptions = computed(() => {
+  const profile = form.value.content_profile || 'default';
+  return providers.value
+    .filter((provider) => {
+      const profiles = provider.content_profiles || [];
+      if (['anime', 'default'].includes(profile)) {
+        return profiles.length === 0 || profiles.includes(profile);
+      }
+      return profiles.includes(profile);
+    })
     .map((provider) => ({
       label: provider.name || provider.provider,
       value: provider.provider,
-    })),
-);
+    }));
+});
 
 async function loadProviders() {
   if (providerCache) {
@@ -141,8 +146,19 @@ function filenameStem(path: string) {
 function ensureProvider() {
   const options = providerOptions.value;
   const preferred = String(props.item?.ANCHOR_PROVIDER || '');
+  const defaultProvider =
+    form.value.content_profile === 'default'
+      ? 'tmdb'
+      : form.value.content_profile === 'anime'
+        ? 'bangumi'
+        : '';
   if (options.some((option) => option.value === preferred)) {
     form.value.provider = preferred;
+  } else if (
+    defaultProvider &&
+    options.some((option) => option.value === defaultProvider)
+  ) {
+    form.value.provider = defaultProvider;
   } else if (!options.some((option) => option.value === form.value.provider)) {
     form.value.provider = options[0]?.value || '';
   }
@@ -206,10 +222,15 @@ watch(
     form.value.selectedLabel = '';
     form.value.tmdb = undefined;
     metadataResults.value = [];
-    if (!['anime', 'default'].includes(profile)) {
-      form.value.provider = providerOptions.value[0]?.value || '';
+    if (profile === 'default') {
+      form.value.provider = 'tmdb';
+    } else if (profile === 'anime') {
+      form.value.provider =
+        providerOptions.value.find((item) => item.value === 'bangumi')?.value ||
+        providerOptions.value[0]?.value ||
+        '';
     } else {
-      form.value.provider = '';
+      form.value.provider = providerOptions.value[0]?.value || '';
     }
   },
 );
@@ -252,6 +273,10 @@ function selectTmdbMedia(media: any) {
 }
 
 async function searchCustomMetadata() {
+  if (form.value.provider === 'tmdb') {
+    openTmdbSearch();
+    return;
+  }
   if (!form.value.query.trim()) {
     notification.warning('请输入内容编号或关键词');
     return;
@@ -274,11 +299,21 @@ async function searchCustomMetadata() {
   }
 }
 
+function metadataProvider(result: Record<string, any>) {
+  return String(result.provider || result.ref?.provider || '');
+}
+
+function metadataExternalId(result: Record<string, any>) {
+  return String(
+    result.external_id || result.ref?.external_id || result.id || '',
+  );
+}
+
 function selectMetadataResult(result: Record<string, any>) {
-  form.value.provider = String(result.provider || form.value.provider);
-  form.value.external_id = String(result.external_id || '');
+  form.value.provider = metadataProvider(result) || form.value.provider;
+  form.value.external_id = metadataExternalId(result);
   form.value.selectedLabel = [
-    result.title || result.external_id,
+    result.title || metadataExternalId(result),
     result.year ? `(${result.year})` : '',
   ]
     .filter(Boolean)
@@ -313,11 +348,14 @@ async function submit() {
       episode_offset: form.value.episode_offset || undefined,
       content_profile: form.value.content_profile || undefined,
     };
-    if (form.value.provider && form.value.external_id) {
+    if (form.value.provider !== 'tmdb' && form.value.external_id) {
       payload.provider = form.value.provider;
       payload.external_id = form.value.external_id;
-    } else {
+    } else if (form.value.tmdb) {
       payload.tmdb = form.value.tmdb;
+    } else {
+      payload.provider = form.value.provider || undefined;
+      payload.external_id = form.value.external_id || undefined;
     }
     await manualTransferApi(payload);
     notification.success('手动识别成功');
@@ -372,7 +410,7 @@ async function submit() {
             @update:value="handleProviderChange"
           />
         </NFormItem>
-        <NFormItem label="内容编号 / 关键词">
+        <NFormItem v-if="form.provider !== 'tmdb'" label="内容编号 / 关键词">
           <NSpace align="center" :wrap="false" style="width: 100%">
             <NInput
               v-model:value="form.query"
@@ -391,32 +429,38 @@ async function submit() {
             </NButton>
           </NSpace>
         </NFormItem>
-        <NFormItem label="已选结果">
+        <NFormItem v-if="form.provider !== 'tmdb'" label="已选结果">
           <span v-if="form.external_id" class="selected-result">
             <span class="selected-provider">{{ form.provider }}</span>
             {{ form.selectedLabel || form.external_id }}
           </span>
           <span v-else class="empty-result"> 请搜索并选择插件返回的结果 </span>
         </NFormItem>
-        <div v-if="metadataResults.length > 0" class="metadata-results">
+        <div
+          v-if="form.provider !== 'tmdb' && metadataResults.length > 0"
+          class="metadata-results"
+        >
           <button
             v-for="result in metadataResults"
-            :key="`${result.provider}:${result.external_id}`"
+            :key="`${metadataProvider(result)}:${metadataExternalId(result)}`"
             type="button"
             class="metadata-item"
             @click="selectMetadataResult(result)"
           >
             <span class="metadata-title">
-              {{ result.title || result.external_id }}
+              {{ result.title || metadataExternalId(result) }}
               <small v-if="result.year">({{ result.year }})</small>
             </span>
             <span class="metadata-ref">
-              {{ result.provider }} · {{ result.external_id }}
+              {{ metadataProvider(result) }} · {{ metadataExternalId(result) }}
             </span>
           </button>
         </div>
 
-        <NFormItem v-if="!form.provider || !form.external_id" label="TMDB ID">
+        <NFormItem
+          v-if="form.provider === 'tmdb' || !form.provider"
+          label="TMDB ID"
+        >
           <NSpace align="center" :wrap="false" style="width: 100%">
             <NInputNumber
               v-model:value="form.tmdb"

@@ -255,6 +255,10 @@ export function useFileActions(deps: ActionsDeps) {
         episode_part: data.episode_part || undefined,
         episode_offset: data.episode_offset || undefined,
         min_filesize: data.min_filesize,
+        content_profile: data.content_profile,
+        ...(data.provider && data.provider !== 'tmdb' && data.external_id
+          ? { provider: data.provider, external_id: data.external_id }
+          : {}),
         src_backend_id: data.src_backend_id || deps.getBackendId(),
         dst_backend_id: data.dst_backend_id || undefined,
       });

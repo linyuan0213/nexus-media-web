@@ -73,6 +73,7 @@ const someSelected = computed(
 const identifyShow = ref(false);
 const identifyLoading = ref(false);
 const identifyResult = ref<Record<string, any>>({});
+const identifyItem = ref<any>(null);
 
 // 转移弹窗
 const transferModalShow = ref(false);
@@ -80,6 +81,10 @@ const transferPath = ref('');
 const transferOutpath = ref('');
 const transferSyncmod = ref('link');
 const transferType = ref('MOV');
+const transferProvider = ref('');
+const transferExternalId = ref('');
+const transferContentProfile = ref('default');
+const transferSelectedLabel = ref('');
 const transferLoading = ref(false);
 
 async function fetchData(page = 1) {
@@ -173,6 +178,7 @@ async function handleIdentify(item: any) {
     notification.warning('无法获取文件名');
     return;
   }
+  identifyItem.value = item;
   identifyLoading.value = true;
   identifyShow.value = true;
   identifyResult.value = {};
@@ -188,18 +194,44 @@ async function handleIdentify(item: any) {
   }
 }
 
+function handleIdentifySelect(match: Record<string, any>) {
+  const item = identifyItem.value;
+  if (!item) return;
+  transferPath.value = item.path;
+  transferOutpath.value = item.to || '';
+  transferSyncmod.value = item.rmt_mode || item.sync_mode || 'link';
+  transferProvider.value = String(match.provider || '');
+  transferExternalId.value = String(match.external_id || '');
+  transferContentProfile.value = String(match.content_profile || 'default');
+  transferSelectedLabel.value = [
+    match.title,
+    match.year ? `(${match.year})` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const mediaType = String(match.media_type || '').toLowerCase();
+  transferType.value =
+    mediaType === 'anime' ? 'anime' : mediaType === 'tv' ? 'tv' : 'movie';
+  identifyShow.value = false;
+  transferModalShow.value = true;
+}
+
 function handleTransfer(item: any) {
   transferPath.value = item.path;
   transferOutpath.value = item.to || '';
   transferSyncmod.value = item.rmt_mode || item.sync_mode || 'link';
+  transferProvider.value = '';
+  transferExternalId.value = '';
+  transferContentProfile.value = 'default';
+  transferSelectedLabel.value = '';
   // 根据路径中的关键字推断类型
   const pathLower = item.path?.toLowerCase() || '';
   if (pathLower.includes('movie') || pathLower.includes('电影')) {
-    transferType.value = 'MOV';
+    transferType.value = 'movie';
   } else if (pathLower.includes('anime') || pathLower.includes('动漫')) {
-    transferType.value = 'ANI';
+    transferType.value = 'anime';
   } else {
-    transferType.value = 'TV';
+    transferType.value = 'tv';
   }
   transferModalShow.value = true;
 }
@@ -219,6 +251,10 @@ async function submitTransfer(data: TransferFormData) {
       episode_part: data.episode_part || undefined,
       episode_offset: data.episode_offset || undefined,
       min_filesize: data.min_filesize,
+      content_profile: data.content_profile,
+      ...(data.provider && data.provider !== 'tmdb' && data.external_id
+        ? { provider: data.provider, external_id: data.external_id }
+        : {}),
     });
     notification.success('转移任务已提交');
     transferModalShow.value = false;
@@ -546,6 +582,7 @@ onMounted(() => fetchData(1));
       v-model:show="identifyShow"
       :loading="identifyLoading"
       :result="identifyResult"
+      @select="handleIdentifySelect"
     />
 
     <!-- 转移弹窗 -->
@@ -555,6 +592,10 @@ onMounted(() => fetchData(1));
       :outpath="transferOutpath"
       :syncmod="transferSyncmod"
       :type="transferType"
+      :content-profile="transferContentProfile"
+      :provider="transferProvider"
+      :external-id="transferExternalId"
+      :selected-label="transferSelectedLabel"
       :loading="transferLoading"
       @submit="submitTransfer"
     />

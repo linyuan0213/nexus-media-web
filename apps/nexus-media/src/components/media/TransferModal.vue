@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
@@ -20,10 +20,15 @@ import {
   NSpin,
 } from 'naive-ui';
 
-import { searchMediaApi } from '#/api/modules/media';
+import {
+  getMetadataProvidersApi,
+  searchMediaApi,
+  searchMetadataApi,
+} from '#/api/modules/media';
 import { getStorageBackendsApi } from '#/api/modules/storage';
 import { SYNC_MODES } from '#/api/modules/sync';
 import MediaPoster from '#/components/media/MediaPoster.vue';
+import { getContentProfileLabel } from '#/plugin-framework';
 
 import PathPickerModal from './PathPickerModal.vue';
 
@@ -32,6 +37,11 @@ export interface TransferFormData {
   outpath: string;
   syncmod: string;
   type: string;
+  content_profile?: string;
+  provider?: string;
+  external_id?: string;
+  selectedLabel?: string;
+  query?: string;
   tmdb?: number;
   season?: number;
   episode_format?: string;
@@ -44,9 +54,13 @@ export interface TransferFormData {
 }
 
 const props = defineProps<{
+  contentProfile?: string;
+  externalId?: string;
   loading?: boolean;
   outpath?: string;
   path: string;
+  provider?: string;
+  selectedLabel?: string;
   show: boolean;
   srcBackendId?: string;
   syncmod?: string;
@@ -63,6 +77,11 @@ const form = ref<TransferFormData>({
   outpath: '',
   syncmod: 'copy',
   type: 'movie',
+  content_profile: 'default',
+  provider: 'tmdb',
+  external_id: '',
+  selectedLabel: '',
+  query: '',
   season: undefined,
   episode_format: '',
   episode_details: '',
@@ -79,6 +98,11 @@ watch(
         outpath: props.outpath || '',
         syncmod: props.syncmod || 'copy',
         type: props.type || 'movie',
+        content_profile: props.contentProfile || 'default',
+        provider: props.provider || 'tmdb',
+        external_id: props.externalId || '',
+        selectedLabel: props.selectedLabel || '',
+        query: '',
         tmdb: undefined,
         season: undefined,
         episode_format: '',
@@ -89,9 +113,156 @@ watch(
         src_backend_id: props.srcBackendId || 'local',
         dst_backend_id: 'local',
       };
+      form.value.query =
+        form.value.path
+          .split('/')
+          .pop()
+          ?.replace(/\.[^.]+$/, '') || '';
+      void loadProviders().then(ensureSource);
     }
   },
 );
+
+const providers = ref<Record<string, any>[]>([]);
+const providersLoading = ref(false);
+const metadataLoading = ref(false);
+const metadataResults = ref<Record<string, any>[]>([]);
+
+const profileOptions = computed(() => {
+  const labels = new Map<string, string>([
+    ['anime', '动漫'],
+    ['default', '默认（TMDB）'],
+  ]);
+  for (const provider of providers.value) {
+    for (const profile of provider.content_profiles || []) {
+      if (!labels.has(profile)) {
+        labels.set(profile, getContentProfileLabel(profile) || profile);
+      }
+    }
+  }
+  return [...labels.entries()].map(([value, label]) => ({ label, value }));
+});
+
+const sourceOptions = computed(() => {
+  const profile = form.value.content_profile || 'default';
+  return providers.value
+    .filter((provider) => {
+      const profiles = provider.content_profiles || [];
+      return profiles.length === 0 || profiles.includes(profile);
+    })
+    .map((provider) => ({
+      label: provider.name || provider.provider,
+      value: provider.provider,
+    }));
+});
+
+const isTmdbSource = computed(() => form.value.provider === 'tmdb');
+
+async function loadProviders() {
+  if (providers.value.length > 0) return;
+  providersLoading.value = true;
+  try {
+    const response: any = await getMetadataProvidersApi();
+    providers.value = Array.isArray(response) ? response : response?.data || [];
+  } catch {
+    providers.value = [];
+  } finally {
+    providersLoading.value = false;
+  }
+}
+
+function ensureSource() {
+  const options = sourceOptions.value;
+  if (!options.some((item) => item.value === form.value.provider)) {
+    form.value.provider =
+      options.find((item) => item.value === 'tmdb')?.value ||
+      options[0]?.value ||
+      'tmdb';
+  }
+  if (form.value.provider === 'tmdb' && form.value.external_id) {
+    form.value.tmdb = Number(form.value.external_id) || undefined;
+  }
+}
+
+watch(
+  () => form.value.content_profile,
+  (profile, previous) => {
+    if (!props.show || profile === previous) return;
+    form.value.external_id = '';
+    form.value.selectedLabel = '';
+    form.value.tmdb = undefined;
+    metadataResults.value = [];
+    if (profile === 'default') {
+      form.value.provider = 'tmdb';
+    } else if (profile === 'anime') {
+      form.value.provider =
+        sourceOptions.value.find((item) => item.value === 'bangumi')?.value ||
+        sourceOptions.value[0]?.value ||
+        'tmdb';
+    } else {
+      form.value.provider = sourceOptions.value[0]?.value || '';
+    }
+  },
+);
+
+function handleSourceChange(value: string) {
+  form.value.provider = value;
+  form.value.external_id = '';
+  form.value.selectedLabel = '';
+  form.value.tmdb = undefined;
+  metadataResults.value = [];
+}
+
+function searchMetadata() {
+  if (isTmdbSource.value) {
+    openTmdbSearch();
+    return;
+  }
+  void handleMetadataSearch();
+}
+
+async function handleMetadataSearch() {
+  if (!form.value.query?.trim()) return;
+  metadataLoading.value = true;
+  try {
+    const response: any = await searchMetadataApi({
+      content_profile: form.value.content_profile || 'default',
+      provider: form.value.provider || undefined,
+      query: form.value.query.trim(),
+      limit: 20,
+    });
+    metadataResults.value = Array.isArray(response)
+      ? response
+      : response?.data || [];
+  } catch {
+    metadataResults.value = [];
+  } finally {
+    metadataLoading.value = false;
+  }
+}
+
+function metadataProvider(result: Record<string, any>) {
+  return String(result.provider || result.ref?.provider || '');
+}
+
+function metadataExternalId(result: Record<string, any>) {
+  return String(
+    result.external_id || result.ref?.external_id || result.id || '',
+  );
+}
+
+function selectMetadataResult(result: Record<string, any>) {
+  form.value.provider = metadataProvider(result) || form.value.provider;
+  form.value.external_id = metadataExternalId(result);
+  form.value.selectedLabel = [
+    result.title || metadataExternalId(result),
+    result.year ? `(${result.year})` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  if (result.media_type) form.value.type = String(result.media_type);
+  metadataResults.value = [];
+}
 
 function handleClose() {
   emit('update:show', false);
@@ -276,25 +447,90 @@ function selectTmdbMedia(media: any) {
             </NRadioGroup>
           </NFormItem>
         </div>
-        <NFormItem label="TMDB ID">
-          <NSpace align="center" :wrap="false" style="width: 100%">
-            <NInputNumber
-              v-model:value="form.tmdb"
-              placeholder="自动识别"
-              :min="0"
-              :show-button="false"
-              clearable
-              size="small"
-              style="flex: 1"
-            />
-            <NButton size="small" @click="openTmdbSearch">
-              <template #icon>
-                <IconifyIcon icon="lucide:search" class="size-4" />
-              </template>
-              搜索
-            </NButton>
-          </NSpace>
+        <NFormItem label="内容画像">
+          <NSelect
+            v-model:value="form.content_profile"
+            :loading="providersLoading"
+            :options="profileOptions"
+            size="small"
+          />
         </NFormItem>
+        <NFormItem label="元数据来源">
+          <NSelect
+            :value="form.provider"
+            :loading="providersLoading"
+            :options="sourceOptions"
+            placeholder="默认 TMDB"
+            size="small"
+            @update:value="handleSourceChange"
+          />
+        </NFormItem>
+        <template v-if="isTmdbSource">
+          <NFormItem label="TMDB ID">
+            <NSpace align="center" :wrap="false" style="width: 100%">
+              <NInputNumber
+                v-model:value="form.tmdb"
+                placeholder="自动识别"
+                :min="0"
+                :show-button="false"
+                clearable
+                size="small"
+                style="flex: 1"
+              />
+              <NButton size="small" @click="openTmdbSearch">
+                <template #icon>
+                  <IconifyIcon icon="lucide:search" class="size-4" />
+                </template>
+                搜索
+              </NButton>
+            </NSpace>
+          </NFormItem>
+        </template>
+        <template v-else>
+          <NFormItem label="内容编号 / 关键词">
+            <NSpace align="center" :wrap="false" style="width: 100%">
+              <NInput
+                v-model:value="form.query"
+                placeholder="输入编号或关键词"
+                size="small"
+                style="flex: 1"
+                @keyup.enter="searchMetadata"
+              />
+              <NButton
+                size="small"
+                :loading="metadataLoading"
+                @click="searchMetadata"
+              >
+                搜索
+              </NButton>
+            </NSpace>
+          </NFormItem>
+          <NFormItem label="已选结果">
+            <span v-if="form.external_id" class="selected-result">
+              <span class="selected-provider">{{ form.provider }}</span>
+              {{ form.selectedLabel || form.external_id }}
+            </span>
+            <span v-else class="empty-result">请搜索并选择元数据结果</span>
+          </NFormItem>
+          <div v-if="metadataResults.length > 0" class="metadata-results">
+            <button
+              v-for="result in metadataResults"
+              :key="`${metadataProvider(result)}:${metadataExternalId(result)}`"
+              type="button"
+              class="metadata-item"
+              @click="selectMetadataResult(result)"
+            >
+              <span class="metadata-title">
+                {{ result.title || metadataExternalId(result) }}
+                <small v-if="result.year">({{ result.year }})</small>
+              </span>
+              <span class="metadata-ref">
+                {{ metadataProvider(result) }} ·
+                {{ metadataExternalId(result) }}
+              </span>
+            </button>
+          </div>
+        </template>
         <template v-if="form.type !== 'movie'">
           <NDivider style="margin: 0.5rem 0">季集设置</NDivider>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -514,6 +750,62 @@ function selectTmdbMedia(media: any) {
 .tmdb-overview {
   font-size: 0.75rem;
   line-height: 1.4;
+  color: hsl(var(--muted-foreground));
+}
+.selected-result {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  font-size: 0.8125rem;
+}
+
+.selected-provider {
+  padding: 0.05rem 0.4rem;
+  font-size: 0.6875rem;
+  color: hsl(var(--accent-foreground));
+  background: hsl(var(--accent));
+  border-radius: 9999px;
+}
+
+.empty-result {
+  font-size: 0.8125rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.metadata-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 12rem;
+  overflow-y: auto;
+  margin-bottom: 0.75rem;
+}
+
+.metadata-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+  cursor: pointer;
+  background: hsl(var(--accent));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.45rem;
+}
+
+.metadata-item:hover {
+  border-color: hsl(var(--primary) / 50%);
+}
+
+.metadata-title {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+}
+
+.metadata-ref {
+  font-size: 0.6875rem;
   color: hsl(var(--muted-foreground));
 }
 </style>
