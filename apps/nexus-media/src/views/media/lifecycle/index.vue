@@ -1234,8 +1234,14 @@ watch(
               <div v-if="isSeries" class="episode-context">
                 正在查看
                 <strong>
-                  S{{ String(selected.season).padStart(2, '0') }}E{{
-                    String(selected.episode).padStart(2, '0')
+                  S{{
+                    String(
+                      activeEpisode?.season ?? selected.season ?? 0,
+                    ).padStart(2, '0')
+                  }}E{{
+                    String(
+                      activeEpisode?.episode ?? selected.episode ?? 0,
+                    ).padStart(2, '0')
                   }}
                 </strong>
                 的独立流转轨迹
