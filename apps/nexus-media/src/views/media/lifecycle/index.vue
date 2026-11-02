@@ -401,7 +401,68 @@ onMounted(() => {
       <NButton type="primary" size="small" @click="handleSearch">查询</NButton>
     </div>
 
-    <div class="lifecycle-table-wrap">
+    <div v-if="isMobile" class="lifecycle-mobile-list">
+      <NSpin :show="loading">
+        <button
+          v-for="row in rows"
+          :key="`${row.identity_id}:${row.season}:${row.episode}`"
+          type="button"
+          class="lifecycle-mobile-card"
+          @click="openDetail(row)"
+        >
+          <div class="mobile-card-head">
+            <div class="lifecycle-poster mobile-poster">
+              <img v-if="row.poster" :src="row.poster" :alt="row.title || ''" />
+              <span v-else>{{ (row.title || '?').slice(0, 1) }}</span>
+            </div>
+            <div class="mobile-card-copy">
+              <div class="lifecycle-title">
+                {{ row.title || row.identity_id }}
+              </div>
+              <div class="lifecycle-subtitle">
+                {{ typeLabel(row.media_type) }} · {{ row.year || '年份未知' }}
+                <template v-if="row.season || row.episode">
+                  · S{{ String(row.season).padStart(2, '0') }}E{{
+                    String(row.episode).padStart(2, '0')
+                  }}
+                </template>
+              </div>
+              <div class="mobile-card-tags">
+                <NTag
+                  size="tiny"
+                  :bordered="false"
+                  :type="stageTagType(row.status)"
+                >
+                  {{ stageMap.get(row.stage) || row.stage }}
+                </NTag>
+                <NTag
+                  size="tiny"
+                  :bordered="false"
+                  :type="statusTagType(row.status)"
+                >
+                  {{ statusMap.get(row.status) || row.status }}
+                </NTag>
+              </div>
+            </div>
+            <IconifyIcon
+              icon="lucide:chevron-right"
+              class="size-4 opacity-40"
+            />
+          </div>
+          <div class="mobile-card-foot">
+            <span>{{ row.source_provider || '未知来源' }}</span>
+            <span>{{ formatDuration(row.elapsed_seconds) }}</span>
+            <span>重试 {{ row.retry_count }}/5</span>
+          </div>
+          <div v-if="row.last_error" class="mobile-card-error">
+            {{ row.last_error }}
+          </div>
+        </button>
+      </NSpin>
+      <NEmpty v-if="!loading && rows.length === 0" description="暂无流转记录" />
+    </div>
+
+    <div v-else class="lifecycle-table-wrap">
       <NDataTable
         :columns="columns"
         :data="rows"
@@ -828,6 +889,74 @@ onMounted(() => {
 .timeline-message {
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
+}
+
+.lifecycle-mobile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-height: 240px;
+}
+
+.lifecycle-mobile-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.65rem;
+  text-align: left;
+  cursor: pointer;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+
+.lifecycle-mobile-card:active {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary) / 6%);
+}
+
+.mobile-card-head {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+}
+
+.mobile-poster {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 52px;
+}
+
+.mobile-card-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.mobile-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+}
+
+.mobile-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.7rem;
+  padding-top: 0.4rem;
+  font-size: 0.7rem;
+  color: hsl(var(--muted-foreground));
+  border-top: 1px solid hsl(var(--border));
+}
+
+.mobile-card-error {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.7rem;
+  color: hsl(var(--destructive));
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 @media (max-width: 900px) {
