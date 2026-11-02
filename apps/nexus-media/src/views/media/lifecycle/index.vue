@@ -16,7 +16,9 @@ import {
   NDrawerContent,
   NEmpty,
   NInput,
+  NModal,
   NPagination,
+  NPopconfirm,
   NSelect,
   NSkeleton,
   NSpin,
@@ -27,12 +29,16 @@ import {
 } from 'naive-ui';
 
 import {
+  cancelLifecycleApi,
   getLifecycleDetailApi,
   getLifecycleEpisodesApi,
   getLifecycleEventsApi,
   getLifecycleListApi,
   getLifecycleStatsApi,
+  identifyLifecycleApi,
+  retryLifecycleApi,
 } from '#/api/modules/lifecycle';
+import { searchMetadataApi } from '#/api/modules/media';
 import MediaPoster from '#/components/media/MediaPoster.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 
@@ -53,6 +59,12 @@ const loading = ref(false);
 const loadError = ref('');
 const detailLoading = ref(false);
 const eventsLoading = ref(false);
+const actionLoading = ref(false);
+const identifyVisible = ref(false);
+const identifyLoading = ref(false);
+const identifyKeyword = ref('');
+const identifyResults = ref<any[]>([]);
+const identifyChoice = ref<any | null>(null);
 const page = ref(1);
 const pageSize = ref(20);
 const keyword = ref('');
@@ -154,6 +166,70 @@ const currentPhaseIndex = computed(() =>
 const stageProgress = computed(() =>
   selected.value ? itemProgress(selected.value) : 0,
 );
+const actionConfig = computed(() => {
+  const stage = selected.value?.stage || '';
+  if (stage === 'identified') {
+    return {
+      primary: '重新识别',
+      primaryMode: 'identify',
+      danger: '',
+      identify: '手动识别',
+    };
+  }
+  if (['searching', 'subscribed'].includes(stage)) {
+    return {
+      primary: '重新搜索',
+      primaryMode: 'retry',
+      danger: '取消订阅',
+      identify: '手动识别',
+    };
+  }
+  if (['download_queued', 'downloaded', 'downloading'].includes(stage)) {
+    return {
+      primary: '重试下载',
+      primaryMode: 'retry',
+      danger: '取消下载',
+      identify: '手动识别',
+    };
+  }
+  if (['transfer_queued', 'transferred', 'transferring'].includes(stage)) {
+    return {
+      primary: '重试转移',
+      primaryMode: 'retry',
+      danger: '取消转移',
+      identify: '手动识别',
+    };
+  }
+  if (['scrape_queued', 'scraped', 'scraping'].includes(stage)) {
+    return {
+      primary: '重新刮削',
+      primaryMode: 'retry',
+      danger: '取消刮削',
+      identify: '手动识别',
+    };
+  }
+  if (stage === 'in_library') {
+    return {
+      primary: '重新刮削',
+      primaryMode: 'retry',
+      danger: '',
+      identify: '修改识别',
+    };
+  }
+  return {
+    primary: '重新执行',
+    primaryMode: 'retry',
+    danger: '取消任务',
+    identify: '手动识别',
+  };
+});
+const actionSeason = computed(
+  () => activeEpisode.value?.season ?? selected.value?.season ?? 0,
+);
+const actionEpisode = computed(
+  () => activeEpisode.value?.episode ?? selected.value?.episode ?? 0,
+);
+
 const seasonOptions = computed(() =>
   [...new Set(episodes.value.map((item) => item.season || 0))].sort(
     (left, right) => left - right,
@@ -625,6 +701,127 @@ function formatTime(value: null | string) {
   return new Date(value).toLocaleString('zh-CN', { hour12: false });
 }
 
+async function refreshDetail() {
+  if (!selected.value) return;
+  const identity = selected.value.identity_id;
+  const previous = activeEpisode.value;
+  const detail = await getLifecycleDetailApi(identity);
+  if (detail) selected.value = detail;
+  episodes.value = await getLifecycleEpisodesApi(identity);
+  const season = previous?.season ?? selected.value?.season ?? 0;
+  const episode = previous?.episode ?? selected.value?.episode ?? 0;
+  activeEpisode.value = { season, episode };
+  events.value = await getLifecycleEventsApi(identity, { season, episode });
+}
+
+async function runPrimaryAction() {
+  if (!selected.value) return;
+  if (actionConfig.value.primaryMode === 'identify') {
+    openIdentify();
+    return;
+  }
+  actionLoading.value = true;
+  try {
+    await retryLifecycleApi(selected.value.identity_id, {
+      season: actionSeason.value,
+      episode: actionEpisode.value,
+    });
+    message.success('已重新提交任务');
+    await fetchData();
+    await refreshDetail();
+  } catch (error: any) {
+    message.error(
+      error?.response?.data?.detail || error?.message || '重试失败',
+    );
+  } finally {
+    actionLoading.value = false;
+  }
+}
+
+async function runCancelAction() {
+  if (!selected.value) return;
+  actionLoading.value = true;
+  try {
+    await cancelLifecycleApi(selected.value.identity_id, {
+      season: actionSeason.value,
+      episode: actionEpisode.value,
+    });
+    message.success('已取消任务');
+    await fetchData();
+    await refreshDetail();
+  } catch (error: any) {
+    message.error(
+      error?.response?.data?.detail || error?.message || '取消失败',
+    );
+  } finally {
+    actionLoading.value = false;
+  }
+}
+
+function openIdentify() {
+  if (!selected.value) return;
+  identifyVisible.value = true;
+  identifyKeyword.value = selected.value.title || '';
+  identifyResults.value = [];
+  identifyChoice.value = null;
+  void searchIdentify();
+}
+
+async function searchIdentify() {
+  const query = identifyKeyword.value.trim();
+  if (!query) return;
+  identifyLoading.value = true;
+  try {
+    const result: any = await searchMetadataApi({
+      query,
+      limit: 12,
+      content_profile: selected.value?.content_profile || undefined,
+    });
+    const list = Array.isArray(result) ? result : result?.data || [];
+    identifyResults.value = list.map((item: any) => {
+      const ref = item.ref || {};
+      return {
+        provider: String(ref.provider || item.provider || ''),
+        externalId: String(ref.external_id || item.external_id || ''),
+        title: String(item.title || item.name || ''),
+        year: String(item.year || ''),
+        poster: String(item.poster || item.image || ''),
+      };
+    });
+  } catch (error: any) {
+    message.error(error?.message || '元数据搜索失败');
+  } finally {
+    identifyLoading.value = false;
+  }
+}
+
+async function submitIdentify() {
+  if (!selected.value || !identifyChoice.value) return;
+  const choice = identifyChoice.value;
+  actionLoading.value = true;
+  try {
+    await identifyLifecycleApi(selected.value.identity_id, {
+      provider: choice.provider,
+      external_id: choice.externalId,
+      title: choice.title,
+      year: choice.year,
+      poster: choice.poster,
+      season: 0,
+      episode: 0,
+    });
+    identifyVisible.value = false;
+    message.success(`已识别为 ${choice.provider}:${choice.externalId}`);
+    await fetchData();
+    await refreshDetail();
+  } catch (error: any) {
+    message.error(
+      error?.response?.data?.detail || error?.message || '手动识别失败',
+    );
+  } finally {
+    actionLoading.value = false;
+  }
+}
+
 function onPageChange(value: number) {
   page.value = value;
   void fetchData();
@@ -1049,6 +1246,35 @@ watch(
                   <span class="step-label">{{ phase.label }}</span>
                 </li>
               </ol>
+
+              <div class="detail-actions">
+                <NButton
+                  v-if="selected.status !== 'cancelled'"
+                  type="primary"
+                  :loading="actionLoading"
+                  @click="runPrimaryAction"
+                >
+                  {{ actionConfig.primary }}
+                </NButton>
+                <NPopconfirm
+                  v-if="
+                    actionConfig.danger &&
+                    selected.status !== 'cancelled' &&
+                    selected.status !== 'succeeded'
+                  "
+                  @positive-click="runCancelAction"
+                >
+                  <template #trigger>
+                    <NButton type="error" secondary :loading="actionLoading">
+                      {{ actionConfig.danger }}
+                    </NButton>
+                  </template>
+                  确认取消该任务？取消后不会继续自动流转。
+                </NPopconfirm>
+                <NButton @click="openIdentify">
+                  {{ actionConfig.identify }}
+                </NButton>
+              </div>
             </section>
 
             <section class="detail-section" aria-labelledby="archive-title">
@@ -1296,10 +1522,118 @@ watch(
         </template>
       </NDrawerContent>
     </NDrawer>
+
+    <NModal
+      v-model:show="identifyVisible"
+      preset="card"
+      title="手动识别"
+      class="identify-modal"
+      :style="{ width: 'min(580px, 94vw)' }"
+    >
+      <div class="identify-search">
+        <NInput
+          v-model:value="identifyKeyword"
+          placeholder="输入标题或番号"
+          @keyup.enter="searchIdentify"
+        />
+        <NButton :loading="identifyLoading" @click="searchIdentify">
+          搜索
+        </NButton>
+      </div>
+      <NSpin :show="identifyLoading">
+        <div class="identify-results">
+          <button
+            v-for="item in identifyResults"
+            :key="`${item.provider}:${item.externalId}`"
+            type="button"
+            class="identify-result"
+            :class="{ active: identifyChoice === item }"
+            @click="identifyChoice = item"
+          >
+            <span class="identify-result-title">{{ item.title }}</span>
+            <span class="identify-result-meta">
+              {{ item.provider }}:{{ item.externalId }} ·
+              {{ item.year || '年份未知' }}
+            </span>
+          </button>
+          <NEmpty
+            v-if="!identifyLoading && identifyResults.length === 0"
+            description="没有找到元数据候选"
+          />
+        </div>
+      </NSpin>
+      <template #footer>
+        <div class="identify-footer">
+          <NButton @click="identifyVisible = false">取消</NButton>
+          <NButton
+            type="primary"
+            :disabled="!identifyChoice"
+            :loading="actionLoading"
+            @click="submitIdentify"
+          >
+            确认识别
+          </NButton>
+        </div>
+      </template>
+    </NModal>
   </div>
 </template>
 
 <style scoped>
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.identify-search {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.identify-results {
+  display: grid;
+  gap: 0.4rem;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.identify-result {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  cursor: pointer;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) - 2px);
+}
+
+.identify-result:hover,
+.identify-result.active {
+  background: hsl(var(--primary) / 6%);
+  border-color: hsl(var(--primary));
+}
+
+.identify-result-title {
+  font-size: 0.8rem;
+  color: hsl(var(--foreground));
+}
+
+.identify-result-meta {
+  font-size: 0.7rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.identify-footer {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
 .lifecycle-page {
   --stat-color: hsl(var(--primary));
 

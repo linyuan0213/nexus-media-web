@@ -100,3 +100,48 @@ export async function getLifecycleEventsApi(
     { params },
   );
 }
+
+export async function retryLifecycleApi(
+  identityId: string,
+  params: { episode?: number; season?: number } = {},
+) {
+  return requestClient.post<{
+    action: string;
+    queue?: string;
+    task_id?: string;
+  }>(`/media/lifecycle/${encodeURIComponent(identityId)}/retry`, undefined, {
+    params,
+  });
+}
+
+export async function cancelLifecycleApi(
+  identityId: string,
+  params: { episode?: number; season?: number } = {},
+) {
+  return requestClient.post<{
+    action: string;
+    queue?: string;
+    queue_cancelled: boolean;
+    task_id?: string;
+  }>(`/media/lifecycle/${encodeURIComponent(identityId)}/cancel`, undefined, {
+    params,
+  });
+}
+
+export async function identifyLifecycleApi(
+  identityId: string,
+  data: {
+    episode?: number;
+    external_id: string;
+    poster?: string;
+    provider: string;
+    season?: number;
+    title?: string;
+    year?: string;
+  },
+) {
+  return requestClient.post<{ action: string; updated: number }>(
+    `/media/lifecycle/${encodeURIComponent(identityId)}/identify`,
+    data,
+  );
+}
