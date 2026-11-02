@@ -1681,6 +1681,12 @@ watch(
   background: hsl(var(--accent) / 55%);
 }
 
+.lifecycle-table-wrap :deep(.n-data-table-th),
+.lifecycle-table-wrap :deep(.n-data-table-td) {
+  border-right: 0 !important;
+  border-left: 0 !important;
+}
+
 .lifecycle-table-wrap :deep(.n-data-table-td) {
   height: 76px;
   padding: 0.7rem 0.8rem;
