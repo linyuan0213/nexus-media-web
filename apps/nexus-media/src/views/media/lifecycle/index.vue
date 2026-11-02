@@ -242,9 +242,11 @@ const columns = computed<DataTableColumns<LifecycleApi.Item>>(() => [
             'div',
             { class: 'lifecycle-subtitle' },
             `${typeLabel(row.media_type)} · ${row.year || '年份未知'}${
-              row.season || row.episode
-                ? ` · S${String(row.season).padStart(2, '0')}E${String(row.episode).padStart(2, '0')}`
-                : ''
+              row.episode_count > 1
+                ? ` · ${row.episode_count} 集 · 完成 ${row.completed_episodes}`
+                : row.season || row.episode
+                  ? ` · S${String(row.season).padStart(2, '0')}E${String(row.episode).padStart(2, '0')}`
+                  : ''
             }`,
           ),
           h('div', { class: 'lifecycle-identity' }, row.identity_id),
@@ -735,7 +737,11 @@ onMounted(() => {
                 <div class="lifecycle-subtitle">
                   {{ typeLabel(row.media_type) }} ·
                   {{ row.year || '年份未知' }}
-                  <template v-if="row.season || row.episode">
+                  <template v-if="row.episode_count > 1">
+                    · {{ row.episode_count }} 集 · 完成
+                    {{ row.completed_episodes }}
+                  </template>
+                  <template v-else-if="row.season || row.episode">
                     · S{{ String(row.season).padStart(2, '0') }}E{{
                       String(row.episode).padStart(2, '0')
                     }}

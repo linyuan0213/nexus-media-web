@@ -26,6 +26,9 @@ export namespace LifecycleApi {
     next_retry_at?: null | string;
     retry_count: number;
     last_error?: null | string;
+    episode_count: number;
+    completed_episodes: number;
+    in_library_episodes: number;
     elapsed_seconds: number;
   }
 
