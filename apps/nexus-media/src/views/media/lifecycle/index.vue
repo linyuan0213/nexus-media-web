@@ -36,6 +36,8 @@ import {
   getLifecycleListApi,
   getLifecycleStatsApi,
   identifyLifecycleApi,
+  pauseLifecycleApi,
+  resumeLifecycleApi,
   retryLifecycleApi,
 } from '#/api/modules/lifecycle';
 import { searchMetadataApi } from '#/api/modules/media';
@@ -101,6 +103,7 @@ const statusOptions = [
   { label: '重试中', value: 'retrying' },
   { label: '阻塞', value: 'blocked' },
   { label: '已取消', value: 'cancelled' },
+  { label: '已暂停', value: 'paused' },
   { label: '死信', value: 'dead' },
 ];
 const mediaTypeOptions = [
@@ -168,46 +171,119 @@ const stageProgress = computed(() =>
 );
 const actionConfig = computed(() => {
   const stage = selected.value?.stage || '';
+  const status = selected.value?.status || '';
+  const failed = ['blocked', 'dead', 'failed'].includes(status);
+  const active = ['queued', 'retrying', 'running'].includes(status);
+  const paused = status === 'paused';
+  const isDownload = ['download_queued', 'downloaded', 'downloading'].includes(
+    stage,
+  );
+  const isTransfer = [
+    'transfer_queued',
+    'transferred',
+    'transferring',
+  ].includes(stage);
+  const isScrape = ['scrape_queued', 'scraped', 'scraping'].includes(stage);
+
+  if (isDownload) {
+    if (paused) {
+      return {
+        primary: '继续下载',
+        primaryMode: 'resume',
+        danger: '取消下载',
+        identify: '',
+      };
+    }
+    if (failed) {
+      return {
+        primary: '重试下载',
+        primaryMode: 'retry',
+        danger: '取消下载',
+        identify: '',
+      };
+    }
+    if (active) {
+      return {
+        primary: stage === 'download_queued' ? '' : '暂停下载',
+        primaryMode: 'pause',
+        danger: '取消下载',
+        identify: '',
+      };
+    }
+    return { primary: '', primaryMode: '', danger: '', identify: '' };
+  }
+
   if (stage === 'identified') {
-    return {
-      primary: '重新识别',
-      primaryMode: 'identify',
-      danger: '',
-      identify: '手动识别',
-    };
+    if (failed) {
+      return {
+        primary: '重新识别',
+        primaryMode: 'identify',
+        danger: '',
+        identify: '手动识别',
+      };
+    }
+    return { primary: '', primaryMode: '', danger: '', identify: '修改识别' };
   }
+
   if (['searching', 'subscribed'].includes(stage)) {
+    if (failed) {
+      return {
+        primary: '重新搜索',
+        primaryMode: 'retry',
+        danger: '取消订阅',
+        identify: '',
+      };
+    }
     return {
-      primary: '重新搜索',
-      primaryMode: 'retry',
-      danger: '取消订阅',
-      identify: '手动识别',
+      primary: '',
+      primaryMode: '',
+      danger: active ? '取消订阅' : '',
+      identify: '',
     };
   }
-  if (['download_queued', 'downloaded', 'downloading'].includes(stage)) {
+
+  if (isTransfer) {
+    if (failed) {
+      return {
+        primary: '重试转移',
+        primaryMode: 'retry',
+        danger: '取消转移',
+        identify: '',
+      };
+    }
     return {
-      primary: '重试下载',
-      primaryMode: 'retry',
-      danger: '取消下载',
-      identify: '手动识别',
+      primary: '',
+      primaryMode: '',
+      danger: active ? '取消转移' : '',
+      identify: '',
     };
   }
-  if (['transfer_queued', 'transferred', 'transferring'].includes(stage)) {
+
+  if (isScrape) {
+    if (failed) {
+      return {
+        primary: '重新刮削',
+        primaryMode: 'retry',
+        danger: '取消刮削',
+        identify: '修改识别',
+      };
+    }
+    if (stage === 'scraped') {
+      return {
+        primary: '重新刮削',
+        primaryMode: 'retry',
+        danger: '',
+        identify: '修改识别',
+      };
+    }
     return {
-      primary: '重试转移',
-      primaryMode: 'retry',
-      danger: '取消转移',
-      identify: '手动识别',
+      primary: '',
+      primaryMode: '',
+      danger: active ? '取消刮削' : '',
+      identify: '',
     };
   }
-  if (['scrape_queued', 'scraped', 'scraping'].includes(stage)) {
-    return {
-      primary: '重新刮削',
-      primaryMode: 'retry',
-      danger: '取消刮削',
-      identify: '手动识别',
-    };
-  }
+
   if (stage === 'in_library') {
     return {
       primary: '重新刮削',
@@ -216,12 +292,8 @@ const actionConfig = computed(() => {
       identify: '修改识别',
     };
   }
-  return {
-    primary: '重新执行',
-    primaryMode: 'retry',
-    danger: '取消任务',
-    identify: '手动识别',
-  };
+
+  return { primary: '', primaryMode: '', danger: '', identify: '' };
 });
 const actionSeason = computed(
   () => activeEpisode.value?.season ?? selected.value?.season ?? 0,
@@ -643,6 +715,7 @@ function statusTone(value: string) {
   if (value === 'queued' || value === 'retrying') return 'queued';
   if (value === 'running') return 'running';
   if (value === 'blocked') return 'blocked';
+  if (value === 'paused') return 'blocked';
   return 'default';
 }
 
@@ -716,17 +789,27 @@ async function refreshDetail() {
 
 async function runPrimaryAction() {
   if (!selected.value) return;
-  if (actionConfig.value.primaryMode === 'identify') {
+  const mode = actionConfig.value.primaryMode;
+  if (mode === 'identify') {
     openIdentify();
     return;
   }
   actionLoading.value = true;
   try {
-    await retryLifecycleApi(selected.value.identity_id, {
+    const params = {
       season: actionSeason.value,
       episode: actionEpisode.value,
-    });
-    message.success('已重新提交任务');
+    };
+    if (mode === 'pause') {
+      await pauseLifecycleApi(selected.value.identity_id, params);
+      message.success('下载已暂停');
+    } else if (mode === 'resume') {
+      await resumeLifecycleApi(selected.value.identity_id, params);
+      message.success('下载已继续');
+    } else {
+      await retryLifecycleApi(selected.value.identity_id, params);
+      message.success('已重新提交任务');
+    }
     await fetchData();
     await refreshDetail();
   } catch (error: any) {
@@ -1249,7 +1332,7 @@ watch(
 
               <div class="detail-actions">
                 <NButton
-                  v-if="selected.status !== 'cancelled'"
+                  v-if="actionConfig.primary && selected.status !== 'cancelled'"
                   type="primary"
                   :loading="actionLoading"
                   @click="runPrimaryAction"
@@ -1271,7 +1354,7 @@ watch(
                   </template>
                   确认取消该任务？取消后不会继续自动流转。
                 </NPopconfirm>
-                <NButton @click="openIdentify">
+                <NButton v-if="actionConfig.identify" @click="openIdentify">
                   {{ actionConfig.identify }}
                 </NButton>
               </div>

@@ -145,3 +145,25 @@ export async function identifyLifecycleApi(
     data,
   );
 }
+
+export async function pauseLifecycleApi(
+  identityId: string,
+  params: { episode?: number; season?: number } = {},
+) {
+  return requestClient.post<{ action: string; download_id: string }>(
+    `/media/lifecycle/${encodeURIComponent(identityId)}/pause`,
+    undefined,
+    { params },
+  );
+}
+
+export async function resumeLifecycleApi(
+  identityId: string,
+  params: { episode?: number; season?: number } = {},
+) {
+  return requestClient.post<{ action: string; download_id: string }>(
+    `/media/lifecycle/${encodeURIComponent(identityId)}/resume`,
+    undefined,
+    { params },
+  );
+}
