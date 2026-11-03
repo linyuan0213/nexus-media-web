@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { SiteItem } from '../types';
+import type { SiteId, SiteItem } from '../types';
 
 import { computed, ref, watch } from 'vue';
 
@@ -19,7 +19,7 @@ import { testSiteBatchApi } from '#/api/modules/site';
 type RowStatus = 'fail' | 'pending' | 'success' | 'testing';
 
 interface TestRow {
-  id: number;
+  id: SiteId;
   msg: string;
   name: string;
   status: RowStatus;
@@ -38,7 +38,7 @@ const emit = defineEmits<{
 }>();
 
 const phase = ref<'run' | 'select'>('select');
-const selectedIds = ref<Set<number>>(new Set());
+const selectedIds = ref<Set<SiteId>>(new Set());
 const rows = ref<TestRow[]>([]);
 const running = ref(false);
 
@@ -84,7 +84,7 @@ watch(
   },
 );
 
-function toggleSite(id: number) {
+function toggleSite(id: SiteId) {
   const next = new Set(selectedIds.value);
   if (next.has(id)) next.delete(id);
   else next.add(id);

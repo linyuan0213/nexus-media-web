@@ -2,8 +2,10 @@ import { ref } from 'vue';
 
 import { defineStore } from 'pinia';
 
+export type SiteId = number | string;
+
 export interface SiteItem {
-  id: number;
+  id: SiteId;
   name: string;
   url: string;
   status: number;

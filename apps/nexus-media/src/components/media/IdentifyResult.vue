@@ -581,6 +581,13 @@ function matchTypeLabel(match: IdentifyMatch): string {
   background-color: hsl(var(--primary) / 15%);
 }
 
+.identify-tag-title,
+.identify-tag-en {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 .identify-tag-title {
   color: hsl(var(--warning));
   background-color: hsl(var(--warning) / 15%);

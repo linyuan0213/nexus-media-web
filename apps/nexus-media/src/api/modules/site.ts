@@ -6,7 +6,7 @@ import { requestClient } from '#/api/request';
 
 export namespace SiteApi {
   export interface SiteItem {
-    id: number;
+    id: number | string;
     name: string;
     display_name?: string;
     url?: string;
@@ -185,12 +185,12 @@ export async function saveSiteApi(data: Record<string, any>) {
 }
 
 /** 删除站点 */
-export async function deleteSiteApi(id: number) {
+export async function deleteSiteApi(id: number | string) {
   return requestClient.post('/site/sites/delete', { id: String(id) });
 }
 
 /** 测试站点连通性 */
-export async function testSiteApi(id: number) {
+export async function testSiteApi(id: number | string) {
   return requestClient.post(
     '/site/sites/test',
     { id: String(id) },

@@ -1,5 +1,5 @@
 export interface SiteForm {
-  id?: number;
+  id?: number | string;
   name: string;
   pri: string;
   signurl: string;
@@ -28,8 +28,10 @@ export interface SiteForm {
   search_enabled: boolean;
 }
 
+export type SiteId = number | string;
+
 export interface SiteItem {
-  id: number;
+  id: SiteId;
   name: string;
   display_name?: string;
   source_label?: string;
