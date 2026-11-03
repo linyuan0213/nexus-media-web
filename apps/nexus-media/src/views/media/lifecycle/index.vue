@@ -116,7 +116,12 @@ const lifecyclePhases = [
   {
     label: '识别',
     icon: 'lucide:scan-search',
-    stages: ['identified', 'subscribed', 'searching'],
+    stages: ['identified'],
+  },
+  {
+    label: '订阅',
+    icon: 'lucide:bookmark-check',
+    stages: ['subscribed', 'searching'],
   },
   {
     label: '下载',
@@ -2805,7 +2810,7 @@ watch(
 
 .stage-stepper {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   padding: 0;
   margin: 1.1rem 0 0;
   list-style: none;
