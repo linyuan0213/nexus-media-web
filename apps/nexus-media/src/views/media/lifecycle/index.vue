@@ -76,6 +76,7 @@ const mediaType = ref<null | string>(null);
 const drawerVisible = ref(false);
 const selected = ref<LifecycleApi.Item | null>(null);
 const activeEpisode = ref<null | { episode: number; season: number }>(null);
+const episodePinned = ref(false);
 const events = ref<LifecycleApi.Event[]>([]);
 const episodes = ref<LifecycleApi.Item[]>([]);
 const activeSeason = ref<null | number>(null);
@@ -163,18 +164,38 @@ const latestTask = computed(() => {
   }
   return {};
 });
+const detailItem = computed(() => {
+  if (!selected.value) return null;
+  if (
+    !episodePinned.value ||
+    !activeEpisode.value ||
+    selected.value.episode_count <= 1
+  ) {
+    return selected.value;
+  }
+  return (
+    episodes.value.find(
+      (item) =>
+        (item.season || 0) === activeEpisode.value?.season &&
+        (item.episode || 0) === activeEpisode.value?.episode,
+    ) || selected.value
+  );
+});
 const currentPhaseIndex = computed(() =>
-  selected.value ? phaseIndexForStage(selected.value.stage) : -1,
+  detailItem.value ? phaseIndexForStage(detailItem.value.stage) : -1,
 );
 const stageProgress = computed(() =>
-  selected.value ? itemProgress(selected.value) : 0,
+  detailItem.value ? itemProgress(detailItem.value) : 0,
 );
 const actionConfig = computed(() => {
-  const stage = selected.value?.stage || '';
-  const status = selected.value?.status || '';
+  const stage = detailItem.value?.stage || '';
+  const status = detailItem.value?.status || '';
   const failed = ['blocked', 'dead', 'failed'].includes(status);
   const active = ['queued', 'retrying', 'running'].includes(status);
   const paused = status === 'paused';
+  if (detailItem.value?.missing) {
+    return { primary: '', primaryMode: '', danger: '', identify: '' };
+  }
   const isDownload = ['download_queued', 'downloaded', 'downloading'].includes(
     stage,
   );
@@ -295,11 +316,15 @@ const actionConfig = computed(() => {
 
   return { primary: '', primaryMode: '', danger: '', identify: '' };
 });
-const actionSeason = computed(
-  () => activeEpisode.value?.season ?? selected.value?.season ?? 0,
+const actionSeason = computed(() =>
+  episodePinned.value
+    ? (activeEpisode.value?.season ?? selected.value?.season ?? 0)
+    : (selected.value?.season ?? 0),
 );
-const actionEpisode = computed(
-  () => activeEpisode.value?.episode ?? selected.value?.episode ?? 0,
+const actionEpisode = computed(() =>
+  episodePinned.value
+    ? (activeEpisode.value?.episode ?? selected.value?.episode ?? 0)
+    : (selected.value?.episode ?? 0),
 );
 
 const seasonOptions = computed(() =>
@@ -637,6 +662,7 @@ async function openDetail(row: LifecycleApi.Item) {
 }
 
 async function selectEpisode(row: LifecycleApi.Item) {
+  episodePinned.value = true;
   activeEpisode.value = { season: row.season || 0, episode: row.episode || 0 };
   activeSeason.value = row.season || null;
   if (row.missing) {
@@ -661,6 +687,7 @@ async function selectEpisode(row: LifecycleApi.Item) {
 }
 
 function selectSeason(season: number) {
+  episodePinned.value = false;
   activeSeason.value = season;
   if (activeEpisode.value?.season === season) return;
   const firstEpisode = episodes.value.find(
@@ -745,11 +772,11 @@ function phaseState(index: number) {
   if (index < current) return 'complete';
   if (index === current) {
     if (
-      selected.value?.status === 'failed' ||
-      selected.value?.status === 'dead'
+      detailItem.value?.status === 'failed' ||
+      detailItem.value?.status === 'dead'
     )
       return 'failed';
-    if (selected.value?.status === 'cancelled') return 'paused';
+    if (detailItem.value?.status === 'cancelled') return 'paused';
     return 'current';
   }
   return 'upcoming';
@@ -1281,15 +1308,25 @@ watch(
                 <div>
                   <span class="stage-caption">CURRENT STAGE / 当前阶段</span>
                   <div class="current-stage">
-                    {{ stageMap.get(selected.stage) || selected.stage }}
+                    {{
+                      detailItem?.missing
+                        ? '未下载'
+                        : stageMap.get(detailItem?.stage || '') ||
+                          detailItem?.stage
+                    }}
                   </div>
                 </div>
                 <span
                   class="status-badge"
-                  :data-status="statusTone(selected.status)"
+                  :data-status="statusTone(detailItem?.status || '')"
                 >
                   <span class="status-dot" aria-hidden="true"></span>
-                  {{ statusMap.get(selected.status) || selected.status }}
+                  {{
+                    detailItem?.missing
+                      ? '未下载'
+                      : statusMap.get(detailItem?.status || '') ||
+                        detailItem?.status
+                  }}
                 </span>
               </div>
 
@@ -1404,15 +1441,19 @@ watch(
               <dl class="metadata-grid">
                 <div>
                   <dt>重试次数</dt>
-                  <dd>{{ selected.retry_count }} / 5</dd>
+                  <dd>
+                    {{ detailItem?.retry_count ?? selected.retry_count }} / 5
+                  </dd>
                 </div>
                 <div>
                   <dt>当前阶段耗时</dt>
-                  <dd>{{ formatDuration(selected.elapsed_seconds) }}</dd>
+                  <dd>
+                    {{ formatDuration(detailItem?.elapsed_seconds || 0) }}
+                  </dd>
                 </div>
                 <div>
                   <dt>最近事件</dt>
-                  <dd>{{ formatTime(selected.last_event_at) }}</dd>
+                  <dd>{{ formatTime(detailItem?.last_event_at || '') }}</dd>
                 </div>
                 <div>
                   <dt>季 / 集</dt>
@@ -1444,11 +1485,11 @@ watch(
                 </div>
               </dl>
 
-              <div v-if="selected.last_error" class="error-banner">
+              <div v-if="detailItem?.last_error" class="error-banner">
                 <IconifyIcon icon="lucide:circle-alert" class="size-5" />
                 <div>
                   <strong>最近一次异常</strong>
-                  <p>{{ selected.last_error }}</p>
+                  <p>{{ detailItem?.last_error }}</p>
                 </div>
               </div>
             </section>
