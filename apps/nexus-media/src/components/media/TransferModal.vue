@@ -752,6 +752,7 @@ function selectTmdbMedia(media: any) {
   line-height: 1.4;
   color: hsl(var(--muted-foreground));
 }
+
 .selected-result {
   display: inline-flex;
   flex-wrap: wrap;
@@ -778,8 +779,8 @@ function selectTmdbMedia(media: any) {
   flex-direction: column;
   gap: 0.35rem;
   max-height: 12rem;
-  overflow-y: auto;
   margin-bottom: 0.75rem;
+  overflow-y: auto;
 }
 
 .metadata-item {

@@ -3,6 +3,7 @@ import { defineConfig } from '@vben/oxfmt-config';
 export default defineConfig({
   ignorePatterns: [
     'dist',
+    'design',
     'dev-dist',
     '.local',
     '.claude',

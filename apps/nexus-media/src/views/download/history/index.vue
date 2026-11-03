@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue';
-
 import { useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
@@ -610,8 +609,8 @@ onMounted(() => fetchData(1));
 }
 
 .history-queued {
-  color: hsl(var(--warning));
   font-size: 12px;
+  color: hsl(var(--warning));
 }
 
 .history-date {
