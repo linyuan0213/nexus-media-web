@@ -88,7 +88,7 @@ function getFavicon(name: string): string {
                   class="site-name"
                   :style="{ color: 'hsl(var(--card-foreground))' }"
                 >
-                  {{ site.name }}
+                  {{ site.display_name || site.name }}
                 </div>
                 <div
                   class="site-id"

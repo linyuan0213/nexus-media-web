@@ -31,6 +31,9 @@ export interface SiteForm {
 export interface SiteItem {
   id: number;
   name: string;
+  display_name?: string;
+  source_label?: string;
+  source_icon?: string;
   pri?: number | string;
   signurl?: string;
   rssurl?: string;

@@ -95,18 +95,20 @@ const features = computed(() => {
             v-if="resolveFavicon() && !isThirdParty"
             v-show="!faviconFailed"
             :src="resolveFavicon()"
-            :alt="site.name"
+            :alt="site.display_name || site.name"
             class="site-logo-img"
             @error="handleFaviconError"
           />
           <div v-if="showPlaceholder" class="site-logo-placeholder">
-            {{ site.name.charAt(0).toUpperCase() }}
+            {{ (site.display_name || site.name).charAt(0).toUpperCase() }}
           </div>
         </div>
 
         <div class="site-meta">
           <div class="site-name-row">
-            <span class="site-name" :title="site.name">{{ site.name }}</span>
+            <span class="site-name" :title="site.display_name || site.name">
+              {{ site.display_name || site.name }}
+            </span>
             <span
               class="site-type-badge"
               :class="

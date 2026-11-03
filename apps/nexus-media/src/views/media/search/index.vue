@@ -626,6 +626,7 @@ function toggleSeasonCollapse(key: string) {
 const advancedModalVisible = ref(false);
 // 可选索引器（站点）：空 = 全部当前用户可见站点
 const siteOptions = ref<{ label: string; value: string }[]>([]);
+const siteDisplayNames = ref<Record<string, string>>({});
 const selectedSites = ref<string[]>([]);
 const SITE_FILTER_KEY = 'media_search_sites';
 
@@ -642,7 +643,13 @@ async function loadVisibleSites() {
     const list = Array.isArray(res) ? res : res?.data || [];
     siteOptions.value = list
       .filter((i: any) => (i.permissions || []).includes('search'))
-      .map((i: any) => ({ label: i.name, value: i.name }));
+      .map((i: any) => ({
+        label: i.display_name || i.name,
+        value: i.name,
+      }));
+    siteDisplayNames.value = Object.fromEntries(
+      list.map((i: any) => [i.name, i.display_name || i.name]),
+    );
     const saved = localStorage.getItem(SITE_FILTER_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
@@ -2572,7 +2579,9 @@ async function confirmDownload() {
                         >
                           <td>
                             <span class="td-site">
-                              {{ torrent.site }}
+                              {{
+                                siteDisplayNames[torrent.site] || torrent.site
+                              }}
                             </span>
                           </td>
                           <td class="td-title">

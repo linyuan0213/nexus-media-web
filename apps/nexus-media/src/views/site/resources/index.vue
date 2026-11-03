@@ -91,7 +91,11 @@ async function fetchSites() {
     const list = Array.isArray(indexersRes)
       ? indexersRes
       : indexersRes?.data || [];
-    sites.value = list.map((s: any) => ({ id: s.id, name: s.name }));
+    sites.value = list.map((s: any) => ({
+      id: s.id,
+      name: s.name,
+      display_name: s.display_name || s.name,
+    }));
     favicons.value = faviconRes?.data || faviconRes || {};
   } catch {
     // 全局请求拦截器已展示错误提示

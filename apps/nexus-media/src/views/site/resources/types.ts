@@ -1,6 +1,7 @@
 export interface SiteItem {
   id: string;
   name: string;
+  display_name?: string;
 }
 
 export interface ResourceItem {
