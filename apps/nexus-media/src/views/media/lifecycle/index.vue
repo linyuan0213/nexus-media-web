@@ -1000,7 +1000,11 @@ watch(
       </template>
     </PageHeader>
 
-    <section class="lifecycle-stats" aria-label="流转状态统计">
+    <section
+      v-if="loading || rows.length > 0"
+      class="lifecycle-stats"
+      aria-label="流转状态统计"
+    >
       <button
         v-for="(card, index) in statCards"
         :key="card.label"
