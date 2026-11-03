@@ -868,13 +868,12 @@ async function handleSearch() {
         query: keyword.value,
       });
       const list = Array.isArray(res) ? res : res?.data || [];
-      const hits = filterMetadataHits(list, keyword.value);
-      if (hits.length > 0) {
-        mediaResults.value = mapMetadataResults(hits);
-        return;
-      }
-      // 单 provider 没有命中时回退聚合搜索，避免“未找到相关媒体”。
+      mediaResults.value = mapMetadataResults(
+        filterMetadataHits(list, keyword.value),
+      );
+      return;
     }
+    // 未选择来源时保留旧入口兼容，不进行多 provider 聚合。
     const res: any = await searchMediaApi({
       keyword: keyword.value,
       searchtype: '',
@@ -1811,9 +1810,12 @@ function totalTorrentCount(item: SearchResultWithFilter): number {
   return total;
 }
 
-function formatSeasonLabel(key: string): string {
-  if (!key || key === 'movie') return '';
-  return key;
+function formatSeasonLabel(key: string, mediaType?: string): string {
+  if (key && key !== 'movie') return key;
+  if (['anime', 'tv'].includes(String(mediaType || '').toLowerCase())) {
+    return '全部集数';
+  }
+  return '';
 }
 
 function getMediaStatSites(item: SearchResultWithFilter): number {
@@ -2535,156 +2537,158 @@ async function confirmDownload() {
               </div>
 
               <div class="result-tables">
-                <div
-                  v-for="seTuple in filteredTorrentDict(item)"
-                  :key="seTuple[0]"
-                  class="season-table-block"
-                >
-                  <div
-                    v-if="seTuple[0] !== 'movie'"
-                    class="season-table-header"
-                    @click="toggleSeasonCollapse(`${item.key}-${seTuple[0]}`)"
+                <table class="torrent-table">
+                  <thead>
+                    <tr>
+                      <th class="th-site">站点</th>
+                      <th>标题</th>
+                      <th class="th-num">做种</th>
+                      <th class="th-num">大小</th>
+                      <th class="th-num">促销</th>
+                      <th class="th-act"></th>
+                    </tr>
+                  </thead>
+                  <tbody
+                    v-for="seTuple in filteredTorrentDict(item)"
+                    :key="seTuple[0]"
+                    class="season-table-block"
                   >
-                    <IconifyIcon
-                      :icon="
-                        seasonCollapsed[`${item.key}-${seTuple[0]}`]
-                          ? 'lucide:chevron-right'
-                          : 'lucide:chevron-down'
+                    <tr
+                      v-if="
+                        ['anime', 'tv'].includes(
+                          String(item.type || '').toLowerCase(),
+                        ) || seTuple[0] !== 'movie'
                       "
-                      class="size-4"
-                    />
-                    {{ formatSeasonLabel(seTuple[0]) }}
-                    <span class="season-table-count"
-                      >{{ getSeasonTorrents(seTuple[1]).length }} 条</span
+                      class="season-row"
+                      @click="toggleSeasonCollapse(`${item.key}-${seTuple[0]}`)"
                     >
-                  </div>
-                  <template
-                    v-if="!seasonCollapsed[`${item.key}-${seTuple[0]}`]"
-                  >
-                    <table class="torrent-table">
-                      <thead>
-                        <tr>
-                          <th class="th-site">站点</th>
-                          <th>标题</th>
-                          <th class="th-num">做种</th>
-                          <th class="th-num">大小</th>
-                          <th class="th-num">促销</th>
-                          <th class="th-act"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr
-                          v-for="torrent in getSeasonTorrents(seTuple[1])"
-                          :key="torrent.id"
-                          class="torrent-tr"
-                        >
-                          <td>
-                            <span class="td-site">
-                              {{
-                                siteDisplayNames[torrent.site] || torrent.site
-                              }}
+                      <td colspan="6">
+                        <div class="season-table-header">
+                          <IconifyIcon
+                            :icon="
+                              seasonCollapsed[`${item.key}-${seTuple[0]}`]
+                                ? 'lucide:chevron-right'
+                                : 'lucide:chevron-down'
+                            "
+                            class="size-4"
+                          />
+                          {{ formatSeasonLabel(seTuple[0], item.type) }}
+                          <span class="season-table-count">
+                            {{ getSeasonTorrents(seTuple[1]).length }} 条
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                    <template
+                      v-if="!seasonCollapsed[`${item.key}-${seTuple[0]}`]"
+                    >
+                      <tr
+                        v-for="torrent in getSeasonTorrents(seTuple[1])"
+                        :key="torrent.id"
+                        class="torrent-tr"
+                      >
+                        <td>
+                          <span class="td-site">
+                            {{ siteDisplayNames[torrent.site] || torrent.site }}
+                          </span>
+                        </td>
+                        <td class="td-title">
+                          <div
+                            class="td-title-name"
+                            @click="openDownloadModal(torrent.id)"
+                          >
+                            {{ torrent.torrent_name }}
+                          </div>
+                          <div class="td-title-sub">
+                            <span v-if="torrent.respix" class="tag tag-res">{{
+                              torrent.respix
+                            }}</span>
+                            <span
+                              v-if="torrent.video_encode"
+                              class="tag tag-video"
+                            >
+                              {{ torrent.video_encode }}
                             </span>
-                          </td>
-                          <td class="td-title">
-                            <div
-                              class="td-title-name"
-                              @click="openDownloadModal(torrent.id)"
+                            <span v-if="torrent.restype" class="tag tag-type">
+                              {{ torrent.restype }}
+                            </span>
+                            <span
+                              v-if="torrent.reseffect"
+                              class="tag tag-effect"
                             >
-                              {{ torrent.torrent_name }}
-                            </div>
-                            <div class="td-title-sub">
-                              <span v-if="torrent.respix" class="tag tag-res">{{
-                                torrent.respix
-                              }}</span>
-                              <span
-                                v-if="torrent.video_encode"
-                                class="tag tag-video"
-                                >{{ torrent.video_encode }}</span
-                              >
-                              <span
-                                v-if="torrent.restype"
-                                class="tag tag-type"
-                                >{{ torrent.restype }}</span
-                              >
-                              <span
-                                v-if="torrent.reseffect"
-                                class="tag tag-effect"
-                                >{{ torrent.reseffect }}</span
-                              >
-                              <span
-                                v-if="
-                                  torrent.releasegroup &&
-                                  torrent.releasegroup !== '未知'
-                                "
-                                class="tag tag-group"
-                                >{{ torrent.releasegroup }}</span
-                              >
-                            </div>
-                            <div
-                              v-if="torrent.labels?.length"
-                              class="td-labels"
-                            >
-                              <span
-                                v-for="label in torrent.labels.filter((l) =>
-                                  l.trim(),
-                                )"
-                                :key="label"
-                                class="resource-tag"
-                                :class="getLabelClass(label)"
-                                >{{ label }}</span
-                              >
-                            </div>
-                            <div v-if="torrent.description" class="td-desc">
-                              {{ torrent.description }}
-                            </div>
-                          </td>
-                          <td class="td-seed">{{ torrent.seeders || 0 }}</td>
-                          <td class="td-size">{{ torrent.size }}</td>
-                          <td>
+                              {{ torrent.reseffect }}
+                            </span>
                             <span
                               v-if="
-                                getFreeBadgeText(
-                                  torrent.uploadvalue,
-                                  torrent.downloadvalue,
-                                )
+                                torrent.releasegroup &&
+                                torrent.releasegroup !== '未知'
                               "
-                              class="td-free"
-                              :class="{
-                                'td-free-promo':
-                                  torrent.downloadvalue > 0 &&
-                                  torrent.downloadvalue < 1,
-                              }"
-                              >{{
-                                getFreeBadgeText(
-                                  torrent.uploadvalue,
-                                  torrent.downloadvalue,
-                                )
-                              }}</span
+                              class="tag tag-group"
                             >
-                          </td>
-                          <td>
-                            <div class="td-actions">
-                              <button
-                                class="tbl-btn dl"
-                                @click="openDownloadModal(torrent.id)"
-                              >
-                                下载
-                              </button>
-                              <button
-                                class="tbl-btn gh"
-                                @click="
-                                  handleTorrentDropdown(torrent, 'pageurl')
-                                "
-                              >
-                                详情
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </template>
-                </div>
+                              {{ torrent.releasegroup }}
+                            </span>
+                          </div>
+                          <div v-if="torrent.labels?.length" class="td-labels">
+                            <span
+                              v-for="label in torrent.labels.filter((l) =>
+                                l.trim(),
+                              )"
+                              :key="label"
+                              class="resource-tag"
+                              :class="getLabelClass(label)"
+                            >
+                              {{ label }}
+                            </span>
+                          </div>
+                          <div v-if="torrent.description" class="td-desc">
+                            {{ torrent.description }}
+                          </div>
+                        </td>
+                        <td class="td-seed">{{ torrent.seeders || 0 }}</td>
+                        <td class="td-size">{{ torrent.size }}</td>
+                        <td>
+                          <span
+                            v-if="
+                              getFreeBadgeText(
+                                torrent.uploadvalue,
+                                torrent.downloadvalue,
+                              )
+                            "
+                            class="td-free"
+                            :class="{
+                              'td-free-promo':
+                                torrent.downloadvalue > 0 &&
+                                torrent.downloadvalue < 1,
+                            }"
+                          >
+                            {{
+                              getFreeBadgeText(
+                                torrent.uploadvalue,
+                                torrent.downloadvalue,
+                              )
+                            }}
+                          </span>
+                        </td>
+                        <td>
+                          <div class="td-actions">
+                            <button
+                              class="tbl-btn dl"
+                              @click="openDownloadModal(torrent.id)"
+                            >
+                              下载
+                            </button>
+                            <button
+                              class="tbl-btn gh"
+                              @click="handleTorrentDropdown(torrent, 'pageurl')"
+                            >
+                              详情
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -3207,8 +3211,17 @@ async function confirmDownload() {
 
 .season-table-block {
   width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+}
+
+.season-row td {
+  padding: 0;
+  border-bottom: 0;
+}
+
+.season-row .season-table-header {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .season-table-header {
