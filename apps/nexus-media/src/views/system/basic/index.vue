@@ -158,24 +158,36 @@ function saveRename() {
   );
 }
 
-function currentProviderName(): string {
-  return config.value['agent.default_provider'] || 'openai';
+function resolveAgentProvider(): string {
+  const configured = String(
+    config.value['agent.default_provider'] || '',
+  ).trim();
+  if (configured) return configured;
+  for (const key of Object.keys(config.value)) {
+    const match = key.match(/^agent\.providers\.([^.]+)\.model$/);
+    if (match?.[1] && String(config.value[key] || '').trim()) {
+      return match[1];
+    }
+  }
+  return 'openai';
 }
 
 function saveAi() {
   const data: Record<string, any> = {};
 
-  // default_provider 为空时补上当前生效的 provider（与界面高亮保持一致）
-  const provider = currentProviderName();
-  if (provider) {
+  const explicitProvider = String(
+    config.value['agent.default_provider'] || '',
+  ).trim();
+  const provider = resolveAgentProvider();
+  const model = String(
+    config.value[`agent.providers.${provider}.model`] || '',
+  ).trim();
+  if (model) {
     data['agent.default_provider'] = provider;
-
-    // 当前 provider 必须已选择模型，否则不允许保存
-    const model = config.value[`agent.providers.${provider}.model`];
-    if (!model) {
-      message.error(`请为 ${provider} 选择或填写模型`);
-      return;
-    }
+  } else if (explicitProvider) {
+    // 显式选择了 provider 却没填模型，保存会得到不可用的 AI 配置。
+    message.error(`请为 ${provider} 选择或填写模型`);
+    return;
   }
 
   for (const key of Object.keys(config.value)) {
@@ -226,7 +238,7 @@ function saveLaboratory() {
 }
 
 async function fetchModels() {
-  const provider = currentProviderName();
+  const provider = resolveAgentProvider();
   const apiUrl = config.value[`agent.providers.${provider}.api_url`] || '';
   const apiKey = config.value[`agent.providers.${provider}.api_key`] || '';
   if (!apiUrl || (provider !== 'ollama' && !apiKey)) {
