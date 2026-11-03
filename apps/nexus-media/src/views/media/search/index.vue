@@ -2898,21 +2898,21 @@ async function confirmDownload() {
   display: flex;
   flex-shrink: 0;
   flex-direction: column;
-  width: 280px;
-  padding: 1.25rem 1rem;
-  background: hsl(var(--accent) / 50%);
+  width: 220px;
+  padding: 1rem 0.875rem;
+  background: hsl(var(--accent) / 35%);
   border-right: 1px solid hsl(var(--border));
 }
 
 .result-poster {
   position: relative;
-  width: 150px;
+  width: 112px;
   aspect-ratio: 2/3;
-  margin: 0 auto 0.75rem;
+  margin: 0 auto 0.5rem;
   overflow: hidden;
   cursor: pointer;
   border-radius: var(--radius);
-  box-shadow: 0 12px 24px -8px hsl(0deg 0% 0% / 30%);
+  box-shadow: none;
   transition: transform 0.2s;
 }
 
@@ -2954,9 +2954,9 @@ async function confirmDownload() {
 
 .result-title {
   margin: 0 0 0.1875rem;
-  font-size: 1.0625rem;
-  font-weight: 700;
-  line-height: 1.25;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.35;
   color: hsl(var(--card-foreground));
   letter-spacing: -0.01em;
 }
@@ -3062,7 +3062,7 @@ async function confirmDownload() {
   flex: 1;
   flex-direction: column;
   min-width: 0;
-  padding: 1rem 1.25rem;
+  padding: 0.875rem 1rem;
   background: hsl(var(--card));
 }
 
@@ -3206,7 +3206,7 @@ async function confirmDownload() {
 .result-tables {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .season-table-block {
@@ -3215,7 +3215,8 @@ async function confirmDownload() {
 
 .season-row td {
   padding: 0;
-  border-bottom: 0;
+  background: hsl(var(--accent) / 35%);
+  border-bottom: 1px solid hsl(var(--border) / 40%);
 }
 
 .season-row .season-table-header {
@@ -3228,10 +3229,10 @@ async function confirmDownload() {
   display: flex;
   gap: 0.5rem;
   align-items: center;
-  padding: 0.5rem 0.25rem;
-  margin-bottom: 0.25rem;
-  font-size: 0.875rem;
-  font-weight: 700;
+  padding: 0.5rem 0.625rem;
+  margin-bottom: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: hsl(var(--primary));
   cursor: pointer;
   user-select: none;
@@ -3255,22 +3256,21 @@ async function confirmDownload() {
   overflow: hidden;
   table-layout: fixed;
   border-collapse: collapse;
-  border: 1px solid hsl(var(--border));
+  border: 0;
   border-radius: var(--radius);
 }
 
 .torrent-table thead th {
-  padding: 0.4375rem 0.5rem;
-  font-size: 0.625rem;
-  font-weight: 700;
+  padding: 0.5rem 0.625rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
   color: hsl(var(--muted-foreground));
   text-align: left;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
   white-space: nowrap;
   cursor: pointer;
-  background: hsl(var(--muted) / 80%);
-  border-bottom: 2px solid hsl(var(--border));
+  background: transparent;
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .torrent-table thead th:hover {
@@ -3278,7 +3278,7 @@ async function confirmDownload() {
 }
 
 .th-site {
-  width: 84px;
+  width: 96px;
 }
 
 .th-num {
@@ -3286,12 +3286,12 @@ async function confirmDownload() {
 }
 
 .th-act {
-  width: 94px;
+  width: 104px;
 }
 
 .torrent-tr td {
-  padding: 0.5rem;
-  font-size: 0.8125rem;
+  padding: 0.625rem 0.5rem;
+  font-size: 0.75rem;
   vertical-align: middle;
   white-space: nowrap;
   background: hsl(var(--card));
@@ -3313,12 +3313,14 @@ async function confirmDownload() {
 }
 
 .td-title-name {
+  display: -webkit-box;
   overflow: hidden;
-  text-overflow: ellipsis;
-  font-weight: 600;
-  line-height: 1.35;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-weight: 500;
+  line-height: 1.4;
   color: hsl(var(--card-foreground));
-  white-space: nowrap;
+  white-space: normal;
   cursor: pointer;
 }
 
