@@ -1000,11 +1000,7 @@ watch(
       </template>
     </PageHeader>
 
-    <section
-      v-if="loading || rows.length > 0"
-      class="lifecycle-stats"
-      aria-label="流转状态统计"
-    >
+    <section class="lifecycle-stats" aria-label="流转状态统计">
       <button
         v-for="(card, index) in statCards"
         :key="card.label"
@@ -1220,7 +1216,7 @@ watch(
         </template>
       </div>
 
-      <div v-else class="lifecycle-table-wrap">
+      <div v-else-if="loading || rows.length > 0" class="lifecycle-table-wrap">
         <div
           v-if="loading && rows.length === 0 && !loadError"
           class="table-skeletons"
