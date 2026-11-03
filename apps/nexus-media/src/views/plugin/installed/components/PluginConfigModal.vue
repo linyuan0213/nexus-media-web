@@ -181,7 +181,7 @@ watch(
 
             <!-- input -->
             <NInput
-              v-else-if="field.type === 'input'"
+              v-else-if="field.type === 'input' || field.type === 'text'"
               v-model:value="config[field.key]"
               :placeholder="field.placeholder"
             />

@@ -8,6 +8,7 @@ export namespace SiteApi {
   export interface SiteItem {
     id: number;
     name: string;
+    display_name?: string;
     url?: string;
     signurl?: string;
     cookie?: string;
