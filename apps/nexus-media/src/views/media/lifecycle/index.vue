@@ -1283,7 +1283,6 @@ watch(
       <NDrawerContent class="lifecycle-drawer" closable>
         <template #header>
           <div class="drawer-heading">
-            <span>LIFECYCLE INSPECTOR</span>
             <strong>流转详情</strong>
           </div>
         </template>
