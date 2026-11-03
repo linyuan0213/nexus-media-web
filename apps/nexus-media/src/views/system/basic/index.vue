@@ -164,6 +164,20 @@ function currentProviderName(): string {
 
 function saveAi() {
   const data: Record<string, any> = {};
+
+  // default_provider 为空时补上当前生效的 provider（与界面高亮保持一致）
+  const provider = currentProviderName();
+  if (provider) {
+    data['agent.default_provider'] = provider;
+
+    // 当前 provider 必须已选择模型，否则不允许保存
+    const model = config.value[`agent.providers.${provider}.model`];
+    if (!model) {
+      message.error(`请为 ${provider} 选择或填写模型`);
+      return;
+    }
+  }
+
   for (const key of Object.keys(config.value)) {
     // 提交 Agent 全部配置：含 embedding / notify / long_term / fallback / providers
     if (!key.startsWith('agent.') || key === 'agent.test') continue;
