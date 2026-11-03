@@ -327,6 +327,24 @@ const actionEpisode = computed(() =>
     : (selected.value?.episode ?? 0),
 );
 
+const latestVisibleEventAt = computed(() => {
+  if (events.value.length > 0) {
+    return events.value[events.value.length - 1]?.occurred_at || '';
+  }
+  return detailItem.value?.last_event_at || '';
+});
+const visibleElapsedSeconds = computed(() => {
+  const started = detailItem.value?.stage_started_at;
+  const latest = latestVisibleEventAt.value;
+  if (!started || !latest) return detailItem.value?.elapsed_seconds || 0;
+  return Math.max(
+    0,
+    Math.round(
+      (new Date(latest).getTime() - new Date(started).getTime()) / 1000,
+    ),
+  );
+});
+
 const seasonOptions = computed(() =>
   [...new Set(episodes.value.map((item) => item.season || 0))].sort(
     (left, right) => left - right,
@@ -1301,6 +1319,23 @@ watch(
                     <span>{{ selected.source_provider || '未知来源' }}</span>
                     <span>{{ selected.content_profile || 'default' }}</span>
                   </div>
+                  <div
+                    v-if="
+                      episodePinned &&
+                      activeEpisode &&
+                      activeEpisode.episode > 0
+                    "
+                    class="detail-episode"
+                  >
+                    <IconifyIcon icon="lucide:list-video" class="size-3.5" />
+                    当前查看：第 {{ activeEpisode.season }} 季 第
+                    {{ activeEpisode.episode }} 集
+                    <code>
+                      S{{ String(activeEpisode.season).padStart(2, '0') }}E{{
+                        String(activeEpisode.episode).padStart(2, '0')
+                      }}
+                    </code>
+                  </div>
                 </div>
               </div>
 
@@ -1448,12 +1483,12 @@ watch(
                 <div>
                   <dt>当前阶段耗时</dt>
                   <dd>
-                    {{ formatDuration(detailItem?.elapsed_seconds || 0) }}
+                    {{ formatDuration(visibleElapsedSeconds) }}
                   </dd>
                 </div>
                 <div>
                   <dt>最近事件</dt>
-                  <dd>{{ formatTime(detailItem?.last_event_at || '') }}</dd>
+                  <dd>{{ formatTime(latestVisibleEventAt) }}</dd>
                 </div>
                 <div>
                   <dt>季 / 集</dt>
@@ -2671,6 +2706,24 @@ watch(
 .detail-eyebrow span {
   font-family: monospace;
   overflow-wrap: anywhere;
+}
+
+.detail-episode {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.3rem 0.55rem;
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 8%);
+  border: 1px solid hsl(var(--primary) / 22%);
+  border-radius: calc(var(--radius) - 2px);
+}
+
+.detail-episode code {
+  font-size: 0.68rem;
+  color: hsl(var(--muted-foreground));
 }
 
 .detail-title {
