@@ -22,7 +22,7 @@ import {
   getPluginConfigApi,
   savePluginConfigApi,
 } from '#/api/modules/plugin_framework';
-import { getSitesApi } from '#/api/modules/site';
+import { getSitesApi, testIndexerProviderApi } from '#/api/modules/site';
 import { useAppNotification } from '#/utils/notify';
 
 const props = defineProps<{
@@ -35,6 +35,7 @@ const emit = defineEmits(['update:show', 'saved']);
 const notification = useAppNotification();
 const loading = ref(false);
 const saving = ref(false);
+const testing = ref(false);
 const config = ref<Record<string, any>>({});
 const fields = ref<any[]>([]);
 const siteOptions = ref<{ label: string; value: string }[]>([]);
@@ -90,6 +91,33 @@ async function loadConfig() {
     notification.error('加载配置失败', { description: error?.message || '' });
   } finally {
     loading.value = false;
+  }
+}
+
+const isIndexerPlugin = computed(() =>
+  fields.value.some((field) => field.key === 'base_url'),
+);
+
+async function handleTest() {
+  const baseUrl = String(config.value.base_url || '').trim();
+  if (!baseUrl) {
+    notification.warning('请先填写索引器地址');
+    return;
+  }
+  testing.value = true;
+  try {
+    const result = await testIndexerProviderApi({
+      base_url: baseUrl,
+      token: config.value.token || undefined,
+      timeout: Number(config.value.timeout || 30),
+    });
+    notification.success(
+      `连接正常：${result.name}，${result.sites?.length || 0} 个站点`,
+    );
+  } catch (error: any) {
+    notification.error('连接失败', { description: error?.message || '' });
+  } finally {
+    testing.value = false;
   }
 }
 
@@ -238,6 +266,9 @@ watch(
       <div class="flex justify-end gap-2">
         <NButton @click="visible = false">
           {{ fields.length === 0 ? '关闭' : '取消' }}
+        </NButton>
+        <NButton v-if="isIndexerPlugin" :loading="testing" @click="handleTest">
+          测试连接
         </NButton>
         <NButton
           v-if="fields.length > 0"

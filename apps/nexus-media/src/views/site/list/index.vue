@@ -516,6 +516,7 @@ async function handleSiteConfigUpdate(site: SiteItem, data: Partial<SiteItem>) {
   try {
     await updateIndexerSiteConfigApi({
       site_name: site.name,
+      source: site.source,
       enabled: data.enabled,
       download_setting: data.download_setting,
     });

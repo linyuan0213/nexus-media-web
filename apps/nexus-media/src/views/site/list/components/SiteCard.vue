@@ -65,9 +65,6 @@ const showPlaceholder = computed(
 );
 
 const isThirdParty = computed(() => props.site.source !== 'builtin');
-const isProviderSite = computed(() =>
-  String(props.site.id).startsWith('provider:'),
-);
 
 const features = computed(() => {
   const allFeatures = [
@@ -169,7 +166,7 @@ const features = computed(() => {
         </div>
       </div>
 
-      <div v-if="isThirdParty && !isProviderSite" class="site-control-bar">
+      <div v-if="isThirdParty" class="site-control-bar">
         <div class="control-item">
           <span class="control-label">启用</span>
           <NSwitch
@@ -187,13 +184,6 @@ const features = computed(() => {
             style="width: 130px"
             @update:value="handleDownloadSettingUpdate"
           />
-        </div>
-      </div>
-
-      <div v-if="isProviderSite" class="site-control-bar">
-        <div class="control-item">
-          <IconifyIcon icon="lucide:plug" class="control-icon" />
-          <span class="control-label">由插件提供</span>
         </div>
       </div>
 

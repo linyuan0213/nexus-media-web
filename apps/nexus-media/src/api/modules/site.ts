@@ -316,6 +316,7 @@ export async function updateIndexerSiteConfigApi(data: {
   download_setting?: number | string;
   enabled?: boolean;
   site_name: string;
+  source?: string;
 }) {
   return requestClient.post('/site/sites/indexer-config/update', data);
 }
@@ -351,4 +352,20 @@ export async function getVisibleSitesApi() {
       health?: string;
     }[]
   >('/site/sites/visible');
+}
+
+/** 测试 HTTP 索引器配置，不写入 provider 注册表 */
+export async function testIndexerProviderApi(data: {
+  base_url: string;
+  info_path?: string;
+  timeout?: number;
+  token?: string;
+}) {
+  return requestClient.post<{
+    api_version: string;
+    capabilities: string[];
+    name: string;
+    ok: boolean;
+    sites: Array<{ id: string; name: string }>;
+  }>('/site/sites/indexer-providers/test', data, { timeout: 60_000 });
 }
