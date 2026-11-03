@@ -32,6 +32,8 @@ export namespace SiteApi {
     rule?: string;
     /** 站点来源：builtin / jackett / prowlarr */
     source?: string;
+    source_label?: string;
+    source_icon?: string;
     /** 是否为第三方索引器站点 */
     third_party?: boolean;
     /** 第三方站点是否启用 */

@@ -209,12 +209,28 @@ function copyParseHealthFeedback(row: {
     .catch(() => message.warning('复制失败，请手动复制'));
 }
 
-const sourceOptions = [
+const baseSourceOptions = [
   { key: 'all', label: '全部来源', icon: 'lucide:layers' },
   { key: 'builtin', label: '内置索引器', icon: 'lucide:database' },
   { key: 'jackett', label: 'Jackett', icon: 'lucide:search' },
   { key: 'prowlarr', label: 'Prowlarr', icon: 'lucide:scan-search' },
 ];
+
+const sourceOptions = computed(() => {
+  const options = [...baseSourceOptions];
+  const known = new Set(options.map((item) => item.key));
+  for (const site of siteStore.sites) {
+    const source = site.source || 'builtin';
+    if (known.has(source)) continue;
+    known.add(source);
+    options.push({
+      key: source,
+      label: site.source_label || source,
+      icon: site.source_icon || 'lucide:search',
+    });
+  }
+  return options;
+});
 
 const typeOptions = [
   { label: '全部', value: 'all' },
@@ -250,7 +266,9 @@ const filteredSites = computed(() => {
 
 const groupedSites = computed(() => {
   if (activeSource.value !== 'all') {
-    const option = sourceOptions.find((o) => o.key === activeSource.value);
+    const option = sourceOptions.value.find(
+      (o) => o.key === activeSource.value,
+    );
     return [
       {
         source: activeSource.value,
@@ -263,7 +281,9 @@ const groupedSites = computed(() => {
   }
 
   const groups: Record<string, SiteItem[]> = {};
-  const orderedSources = ['builtin', 'jackett', 'prowlarr'];
+  const orderedSources = sourceOptions.value
+    .map((option) => option.key)
+    .filter((key) => key !== 'all');
   for (const source of orderedSources) {
     groups[source] = [];
   }
@@ -275,7 +295,7 @@ const groupedSites = computed(() => {
 
   return orderedSources
     .map((source) => {
-      const option = sourceOptions.find((o) => o.key === source);
+      const option = sourceOptions.value.find((o) => o.key === source);
       return {
         source,
         label: option?.label || source,
@@ -298,7 +318,7 @@ const sourceCounts = computed(() => {
 
 // 仅展示存在站点的来源；无站点的索引器（如 Prowlarr 0）不再出现在筛选里
 const visibleSourceOptions = computed(() =>
-  sourceOptions.filter(
+  sourceOptions.value.filter(
     (o) => o.key === 'all' || (sourceCounts.value[o.key] || 0) > 0,
   ),
 );

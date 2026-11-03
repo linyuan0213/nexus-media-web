@@ -25,6 +25,8 @@ export interface SiteItem {
   chrome?: boolean;
   proxy?: boolean;
   source?: string;
+  source_label?: string;
+  source_icon?: string;
   third_party?: boolean;
   enabled?: boolean;
 }
