@@ -868,12 +868,13 @@ async function handleSearch() {
         query: keyword.value,
       });
       const list = Array.isArray(res) ? res : res?.data || [];
-      mediaResults.value = mapMetadataResults(
-        filterMetadataHits(list, keyword.value),
-      );
-      return;
+      const hits = filterMetadataHits(list, keyword.value);
+      if (hits.length > 0) {
+        mediaResults.value = mapMetadataResults(hits);
+        return;
+      }
+      // 单 provider 没有命中时回退聚合搜索，避免“未找到相关媒体”。
     }
-    // 未选择来源时保留旧入口兼容，不进行多 provider 聚合。
     const res: any = await searchMediaApi({
       keyword: keyword.value,
       searchtype: '',
@@ -1811,7 +1812,7 @@ function totalTorrentCount(item: SearchResultWithFilter): number {
 }
 
 function formatSeasonLabel(key: string): string {
-  if (key === 'movie' || !key) return '';
+  if (!key || key === 'movie') return '';
   return key;
 }
 
@@ -2535,7 +2536,7 @@ async function confirmDownload() {
 
               <div class="result-tables">
                 <div
-                  v-for="(seTuple, seIndex) in filteredTorrentDict(item)"
+                  v-for="seTuple in filteredTorrentDict(item)"
                   :key="seTuple[0]"
                   class="season-table-block"
                 >
@@ -2561,7 +2562,7 @@ async function confirmDownload() {
                     v-if="!seasonCollapsed[`${item.key}-${seTuple[0]}`]"
                   >
                     <table class="torrent-table">
-                      <thead v-if="seIndex === 0">
+                      <thead>
                         <tr>
                           <th class="th-site">站点</th>
                           <th>标题</th>
