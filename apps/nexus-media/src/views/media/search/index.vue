@@ -2535,7 +2535,7 @@ async function confirmDownload() {
 
               <div class="result-tables">
                 <div
-                  v-for="seTuple in filteredTorrentDict(item)"
+                  v-for="(seTuple, seIndex) in filteredTorrentDict(item)"
                   :key="seTuple[0]"
                   class="season-table-block"
                 >
@@ -2561,7 +2561,7 @@ async function confirmDownload() {
                     v-if="!seasonCollapsed[`${item.key}-${seTuple[0]}`]"
                   >
                     <table class="torrent-table">
-                      <thead>
+                      <thead v-if="seIndex === 0">
                         <tr>
                           <th class="th-site">站点</th>
                           <th>标题</th>
