@@ -243,7 +243,7 @@ async function handleSubscribe(item: SearchResult, e: Event) {
     type: mtype,
     image: item.poster,
     overview: item.overview,
-    content_profile: (item as any).content_profile,
+    content_profile: effectiveContentProfile(item),
     metadata_ref: (item as any).metadata_ref,
     provider: (item as any).provider,
     anchor_provider: (item as any).anchor_provider,
@@ -1157,6 +1157,18 @@ async function handleSearch() {
 }
 
 /** 点击媒体卡片 → 进入媒体详情 */
+function effectiveContentProfile(item: any): string {
+  const profile = String(item?.content_profile || '').trim();
+  if (profile && profile !== 'default') return profile;
+  const source = String(
+    item?.provider ||
+      item?.anchor_provider ||
+      String(item?.metadata_ref || '').split(':')[0] ||
+      '',
+  );
+  return getContentProfileForSource(source);
+}
+
 function handleMediaCardClick(media: MediaItem) {
   const anchorProvider = String(
     (media as any).anchor_provider || media.provider || '',
@@ -1168,12 +1180,13 @@ function handleMediaCardClick(media: MediaItem) {
       '',
   );
   // 插件内容画像必须先走插件注册的详情路由，不能被通用 provider 分支截走。
-  if (media.content_profile && media.content_profile !== 'default') {
-    const detailPath = getContentProfileDetailPath(media.content_profile);
+  const profile = effectiveContentProfile(media);
+  if (profile) {
+    const detailPath = getContentProfileDetailPath(profile);
     if (!detailPath) return;
     const params = new URLSearchParams({
       id: String(media.id),
-      profile: media.content_profile,
+      profile,
       ...(anchorProvider ? { provider: anchorProvider } : {}),
       ...(anchorExternal ? { ref: anchorExternal } : {}),
       ...(media.metadata_ref ? { metadata_ref: media.metadata_ref } : {}),
@@ -2454,12 +2467,7 @@ async function confirmDownload() {
             <div style="aspect-ratio: 2/3; background: hsl(var(--muted))">
               <MediaPoster
                 :src="media.image || media.poster"
-                :content-profile="
-                  media.content_profile ||
-                  getContentProfileForSource(
-                    media.provider || media.anchor_provider,
-                  )
-                "
+                :content-profile="effectiveContentProfile(media)"
                 class="w-full h-full"
                 alt=""
               />
@@ -2475,10 +2483,7 @@ async function confirmDownload() {
               {{
                 getMediaTypeLabel(
                   media.media_type || media.type,
-                  media.content_profile ||
-                    getContentProfileForSource(
-                      media.provider || media.anchor_provider,
-                    ),
+                  effectiveContentProfile(media),
                 )
               }}
             </span>
