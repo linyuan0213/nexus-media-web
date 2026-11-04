@@ -60,6 +60,7 @@ export namespace AgentApi {
     title: string;
     content: string;
     image?: string;
+    content_profile?: string;
     items?: AgentApi.ListItem[];
     url?: string;
     read?: boolean;
