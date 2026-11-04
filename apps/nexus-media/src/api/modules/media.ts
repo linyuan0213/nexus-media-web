@@ -160,10 +160,11 @@ export async function searchMetadataApi(params: {
   limit?: number;
   provider?: string;
   query: string;
+  timeout_seconds?: number;
 }) {
   return requestClient.post<Record<string, any>[]>(
     '/media/metadata/search',
-    params,
+    { timeout_seconds: 120, ...params },
     { timeout: 150_000 },
   );
 }
