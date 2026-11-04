@@ -573,7 +573,7 @@ function itemVote(item: DiscoveryApi.Item) {
 }
 
 function handleSearchFromCard(item: Record<string, any>) {
-  // 榜单真实来源（javdb/javalibrary/douban）和内部身份锚点（content_id）是两回事。
+  // 榜单真实来源和内部身份锚点是两回事。
   const sourceProvider = String(item.provider || '').trim();
   const anchorProvider = String(item.anchorProvider || sourceProvider).trim();
   const externalId = String(item.anchorExternalId || '').trim();
