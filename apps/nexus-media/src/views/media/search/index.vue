@@ -2,7 +2,7 @@
 import type { SubscribeConfirmItem } from '#/components/subscribe/SubscribeConfirmModal.vue';
 import type { SubscribeEditItem } from '#/components/subscribe/SubscribeEditModal.vue';
 
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
@@ -24,7 +24,6 @@ import {
 import {
   getMetadataProvidersApi,
   getSearchResultApi,
-  searchMediaApi,
   searchMetadataApi,
   webSearchApi,
 } from '#/api';
@@ -169,33 +168,6 @@ function mediaIdentityKey(item: any): string {
   if (item?.metadata_ref) return String(item.metadata_ref);
   if (item?.tmdb_id) return `tmdb:${item.tmdb_id}`;
   return `local:${item?.id || item?.key || item?.title || ''}`;
-}
-
-function normalizeMediaItem(raw: any): MediaItem {
-  const linkProvider = String(raw?.links?.[0]?.provider || '').trim();
-  const provider = String(
-    raw?.anchor_provider || raw?.provider || linkProvider || '',
-  ).trim();
-  let external = String(raw?.anchor_external_id || '').trim();
-  if (!external && provider === 'douban')
-    external = String(raw?.douban_id || '');
-  if (!external && provider === 'tmdb') {
-    external = String(raw?.tmdb_id || raw?.orgid || raw?.id || '');
-  }
-  if (!external && raw?.metadata_ref) {
-    const [, ...rest] = String(raw.metadata_ref).split(':');
-    external = rest.join(':');
-  }
-  const tmdbOnly = provider === 'tmdb' ? external : '';
-  return {
-    ...raw,
-    anchor_provider: provider || undefined,
-    anchor_external_id: external || undefined,
-    metadata_ref:
-      raw?.metadata_ref ||
-      (provider && external ? `${provider}:${external}` : undefined),
-    tmdb_id: tmdbOnly || undefined,
-  } as MediaItem;
 }
 
 function itemLinks(item: any): Array<{ label: string; url: string }> {
@@ -580,10 +552,133 @@ interface MediaItem {
   douban_id?: string;
   link?: string;
   links?: Array<{ label: string; url: string }>;
+  sources?: string[];
+  score?: number;
   fav?: string;
   rssid?: string;
 }
 const mediaResults = ref<MediaItem[]>([]);
+
+// 搜索页快照：切走再切回时恢复关键词/结果/进度，避免重复发起搜索
+interface SearchSnapshot {
+  keyword: string;
+  sessionId: string;
+  displayMode: 'empty' | 'media' | 'torrent';
+  searchtype: string;
+  metadataSource: string;
+  status: 'completed' | 'idle' | 'running';
+  from: string;
+  mediaResults: MediaItem[];
+  torrentRequest?: null | TorrentSearchPayload;
+  updatedAt: number;
+}
+
+const SEARCH_SNAPSHOT_KEY = 'nexus:search:snapshot';
+const SEARCH_SNAPSHOT_TTL = 30 * 60 * 1000;
+
+// 最近一次种子搜索参数，供站点筛选变化时按同一目标重跑
+type TorrentSearchPayload = Parameters<typeof webSearchApi>[0];
+const lastTorrentRequest = ref<null | TorrentSearchPayload>(null);
+
+function requestTorrentSearch(payload: TorrentSearchPayload) {
+  lastTorrentRequest.value = payload;
+  saveSearchSnapshot({ torrentRequest: payload });
+  return webSearchApi(payload);
+}
+
+function readSearchSnapshot(): null | SearchSnapshot {
+  try {
+    const raw = sessionStorage.getItem(SEARCH_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const snapshot = JSON.parse(raw) as SearchSnapshot;
+    if (!snapshot || typeof snapshot !== 'object') return null;
+    if (Date.now() - Number(snapshot.updatedAt || 0) > SEARCH_SNAPSHOT_TTL) {
+      sessionStorage.removeItem(SEARCH_SNAPSHOT_KEY);
+      return null;
+    }
+    return snapshot;
+  } catch {
+    return null;
+  }
+}
+
+function saveSearchSnapshot(patch: Partial<SearchSnapshot> = {}) {
+  try {
+    const previous = readSearchSnapshot();
+    const snapshot: SearchSnapshot = {
+      ...(previous || {}),
+      keyword: keyword.value,
+      sessionId: searchSessionId.value,
+      displayMode: displayMode.value,
+      searchtype: searchtype.value,
+      metadataSource: metadataSource.value,
+      status: previous?.status || 'idle',
+      from: String(route.query.from || previous?.from || ''),
+      mediaResults: previous?.mediaResults || [],
+      torrentRequest: previous?.torrentRequest || null,
+      ...patch,
+      updatedAt: Date.now(),
+    };
+    if (snapshot.mediaResults.length > 40) {
+      snapshot.mediaResults = snapshot.mediaResults.slice(0, 40);
+    }
+    sessionStorage.setItem(SEARCH_SNAPSHOT_KEY, JSON.stringify(snapshot));
+  } catch {}
+}
+
+function clearSearchSnapshot() {
+  try {
+    sessionStorage.removeItem(SEARCH_SNAPSHOT_KEY);
+  } catch {}
+}
+
+/** 恢复上次搜索；运行中的任务只续接进度，不重新发起搜索 */
+function restoreSearchSnapshot(snapshot: SearchSnapshot) {
+  resultPollToken += 1;
+  stopSearchProgress();
+  keyword.value = snapshot.keyword || '';
+  searchtype.value = snapshot.searchtype || '';
+  metadataSource.value = snapshot.metadataSource || '';
+  displayMode.value = snapshot.displayMode || 'empty';
+  searchSessionId.value = snapshot.sessionId || '';
+  lastTorrentRequest.value = snapshot.torrentRequest || null;
+  if (snapshot.displayMode === 'media') {
+    mediaResults.value = Array.isArray(snapshot.mediaResults)
+      ? snapshot.mediaResults
+      : [];
+    loading.value = false;
+    return;
+  }
+  if (!snapshot.sessionId) {
+    loading.value = false;
+    return;
+  }
+  loading.value = true;
+  if (snapshot.status === 'running') {
+    startSearchProgress(snapshot.sessionId, () => {
+      saveSearchSnapshot({ status: 'completed' });
+      void loadResultsWhenReady();
+    });
+  }
+  void loadResultsWhenReady();
+}
+
+/** 统一的进度跟踪：开始时写快照，结束后标记完成 */
+function trackSearchProgress(sessionId: string, onCompleted: () => void) {
+  saveSearchSnapshot({
+    sessionId,
+    status: 'running',
+    displayMode: displayMode.value,
+    keyword: keyword.value,
+  });
+  startSearchProgress(sessionId, () => {
+    saveSearchSnapshot({
+      status: 'completed',
+      mediaResults: mediaResults.value,
+    });
+    onCompleted();
+  });
+}
 
 // 种子搜索结果
 const results = ref<SearchResultWithFilter[]>([]);
@@ -627,14 +722,103 @@ const advancedModalVisible = ref(false);
 // 可选索引器（站点）：空 = 全部当前用户可见站点
 const siteOptions = ref<{ label: string; value: string }[]>([]);
 const siteDisplayNames = ref<Record<string, string>>({});
-const selectedSites = ref<string[]>([]);
 const SITE_FILTER_KEY = 'media_search_sites';
+const ALL_SITES_VALUE = '__all__';
+const SYNCED_DEFAULTS_KEY = 'nexus:search:synced_defaults';
 
-function buildSiteFilter(): Record<string, any> {
-  // 未选择站点时必须显式传空数组：后端约定「空数组 = 全部当前用户可见站点」，
-  // 若省略 site 字段会被当成"未指定"，转而套用默认订阅设置的 search_sites，
-  // 导致第三方索引器站点被排除。
-  return { site: [...selectedSites.value] };
+function readSavedSites(): string[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SITE_FILTER_KEY) || '[]');
+    const list = Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === 'string')
+      : [];
+    return list.includes(ALL_SITES_VALUE) ? [ALL_SITES_VALUE] : list;
+  } catch {
+    return [];
+  }
+}
+
+function readSyncedDefaults(): string[] {
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(SYNCED_DEFAULTS_KEY) || '[]',
+    );
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === 'string')
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeSyncedDefaults(sites: string[]) {
+  try {
+    localStorage.setItem(SYNCED_DEFAULTS_KEY, JSON.stringify(sites));
+  } catch {}
+}
+
+// 同步初始化，避免可见站点异步返回后覆盖用户刚做的选择
+const selectedSites = ref<string[]>(readSavedSites());
+
+function buildSiteFilter(defaultFirst = false): Record<string, any> {
+  // 显式选择「全部已授权站点」：传空数组，后端归一为全站
+  if (selectedSites.value.includes(ALL_SITES_VALUE)) return { site: [] };
+  const selected = selectedSites.value.filter(
+    (item) => item !== ALL_SITES_VALUE,
+  );
+  if (selected.length === 0) {
+    return defaultFirst ? { site_default_first: true } : {};
+  }
+  // 探索/订阅来源：默认站点优先，页面选择作为 fallback；
+  // 手动搜索：页面选择直接生效。
+  return defaultFirst
+    ? { site_default_first: true, site_fallback: selected }
+    : { site: selected };
+}
+
+/**
+ * 探索/订阅跳转：用订阅默认站点更新“搜索站点”。
+ * - 内置类型（TV/电影/动漫）：默认站点直接替换搜索站点；
+ * - 插件画像：默认站点 + 已手动选择的站点合并，避免丢掉插件专属站点；
+ * - 默认未配置时保留当前选择。
+ */
+async function syncSitesFromSubscriptionDefault(
+  mediaType?: string,
+  profile?: string,
+) {
+  if (selectedSites.value.includes(ALL_SITES_VALUE)) return;
+  try {
+    const mtype = (mediaType || (profile ? 'movie' : 'tv')).trim();
+    const res: any = await getDefaultSubscriptionSettingApi(
+      mtype,
+      profile || undefined,
+    );
+    const setting = res?.data || res || {};
+    const sites = Array.isArray(setting.search_sites)
+      ? setting.search_sites.filter(
+          (item: any) => typeof item === 'string' && item,
+        )
+      : [];
+    if (sites.length === 0) return;
+    const isPluginProfile = Boolean(profile) && profile !== 'default';
+    let next = [...sites];
+    if (isPluginProfile) {
+      const previous = readSyncedDefaults();
+      const explicit = selectedSites.value.filter(
+        (item) => item !== ALL_SITES_VALUE && !previous.includes(item),
+      );
+      for (const item of explicit) {
+        if (!next.includes(item)) next.push(item);
+      }
+    }
+    suppressSiteAutoRerun = true;
+    selectedSites.value = next;
+    writeSyncedDefaults(sites);
+    await nextTick();
+    suppressSiteAutoRerun = false;
+  } catch {
+    // 默认设置读取失败时保留页面当前选择
+  }
 }
 
 async function loadVisibleSites() {
@@ -650,22 +834,65 @@ async function loadVisibleSites() {
     siteDisplayNames.value = Object.fromEntries(
       list.map((i: any) => [i.name, i.display_name || i.name]),
     );
-    const saved = localStorage.getItem(SITE_FILTER_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      selectedSites.value = Array.isArray(parsed)
-        ? parsed.filter((n: string) =>
-            siteOptions.value.some((o) => o.value === n),
-          )
-        : [];
-    }
   } catch {
     siteOptions.value = [];
   }
 }
 
-watch(selectedSites, (val) => {
+// 站点筛选变化：持久化，并在种子结果页自动按新站点重跑搜索
+let siteRerunTimer: null | ReturnType<typeof setTimeout> = null;
+
+async function rerunTorrentSearchWithFilters() {
+  const payload = lastTorrentRequest.value;
+  if (!payload || displayMode.value !== 'torrent') return;
+  resultPollToken += 1;
+  stopSearchProgress();
+  loading.value = true;
+  try {
+    const baseFilters =
+      typeof payload.filters === 'object' && payload.filters
+        ? payload.filters
+        : {};
+    const defaultFirst = Boolean(
+      (baseFilters as Record<string, any>).site_default_first,
+    );
+    const resp: any = await requestTorrentSearch({
+      ...payload,
+      filters: { ...baseFilters, ...buildSiteFilter(defaultFirst) },
+    });
+    searchSessionId.value = resp?.session_id || '';
+    if (searchSessionId.value)
+      sessionStorage.setItem(SEARCH_SESSION_KEY, searchSessionId.value);
+    trackSearchProgress(searchSessionId.value, () => {
+      sessionStorage.removeItem(SEARCH_SESSION_KEY);
+      void loadResultsWhenReady();
+    });
+  } catch (error: any) {
+    loading.value = false;
+    notification.error('筛选站点失败', {
+      description: error?.message || '未知错误',
+    });
+  }
+}
+
+let suppressSiteAutoRerun = false;
+
+watch(selectedSites, (val, old) => {
+  if (val.includes(ALL_SITES_VALUE) && val.length > 1) {
+    const addedAll = !old.includes(ALL_SITES_VALUE);
+    selectedSites.value = addedAll
+      ? [ALL_SITES_VALUE]
+      : val.filter((item) => item !== ALL_SITES_VALUE);
+    return;
+  }
   localStorage.setItem(SITE_FILTER_KEY, JSON.stringify(val));
+  if (suppressSiteAutoRerun) return;
+  if (displayMode.value !== 'torrent' || !lastTorrentRequest.value) return;
+  if (siteRerunTimer) clearTimeout(siteRerunTimer);
+  siteRerunTimer = setTimeout(() => {
+    siteRerunTimer = null;
+    void rerunTorrentSearchWithFilters();
+  }, 800);
 });
 
 const advancedForm = ref({
@@ -701,6 +928,8 @@ function resetSearchLanding() {
   resultCount.value = 0;
   displayMode.value = 'empty';
   loading.value = false;
+  lastTorrentRequest.value = null;
+  clearSearchSnapshot();
   try {
     sessionStorage.removeItem(SEARCH_SESSION_KEY);
   } catch {}
@@ -709,6 +938,10 @@ function resetSearchLanding() {
 const metadataProviders = ref<
   Array<{ label: string; profile: string; value: string }>
 >([]);
+const siteSelectOptions = computed(() => [
+  { label: '全部已授权站点', value: ALL_SITES_VALUE },
+  ...siteOptions.value,
+]);
 const baseTypeOptions = computed(() => [
   { label: '全部来源', profile: '', value: '' },
   ...metadataProviders.value,
@@ -783,7 +1016,13 @@ function mapMetadataResults(list: any[]): MediaItem[] {
   const routeYear = String(route.query.year || '');
   return list.map((item) => {
     const extra = item.extra || {};
-    const profile = item.content_profile || 'default';
+    // 新框架的 content_profile 也用于内建分类（如 anime），只有插件注册的画像才走专属路由。
+    const rawProfile = String(item.content_profile || 'default');
+    const contentProfile =
+      rawProfile !== 'default' && getContentProfileDetailPath(rawProfile)
+        ? rawProfile
+        : 'default';
+    const profile = contentProfile;
     const contentId = metadataContentId(item);
     const searchQuery = String(
       extra.search_query || contentId || item.title || '',
@@ -801,7 +1040,7 @@ function mapMetadataResults(list: any[]): MediaItem[] {
       String(contentId || '').toUpperCase() ===
         keyword.value.trim().toUpperCase();
     return {
-      content_profile: item.content_profile,
+      content_profile: contentProfile,
       id: String(anchorExternalId || contentId || item.title || ''),
       image: item.poster || (isKeywordHit ? routePoster : ''),
       media_type: item.media_type || 'movie',
@@ -820,6 +1059,12 @@ function mapMetadataResults(list: any[]): MediaItem[] {
       type: item.media_type || 'movie',
       vote: item.extra?.rating || (isKeywordHit ? routeVote : ''),
       year: item.year || (isKeywordHit ? routeYear : ''),
+      sources: [
+        metadataProviderLabel(
+          String(item.ref?.provider || item.provider || ''),
+        ),
+      ].filter(Boolean),
+      score: Number(item.score || 0),
     };
   });
 }
@@ -857,31 +1102,32 @@ async function handleSearch() {
   displayMode.value = 'media';
   mediaResults.value = [];
   loading.value = true;
+  saveSearchSnapshot({
+    keyword: keyword.value,
+    mediaResults: [],
+    metadataSource: metadataSource.value,
+    searchtype: searchtype.value,
+    sessionId: '',
+    status: 'running',
+  });
   try {
     const { activeProvider, sourceProfile } = resolveSearchTarget();
-    // 搜索只使用当前选定的单一 provider；所有 provider 统一走 metadata 接口。
-    if (activeProvider) {
-      const res: any = await searchMetadataApi({
-        content_profile: sourceProfile || undefined,
-        limit: 24,
-        provider: activeProvider,
-        query: keyword.value,
-      });
-      const list = Array.isArray(res) ? res : res?.data || [];
-      mediaResults.value = mapMetadataResults(
-        filterMetadataHits(list, keyword.value),
-      );
-      return;
-    }
-    // 未选择来源时保留旧入口兼容，不进行多 provider 聚合。
-    const res: any = await searchMediaApi({
-      keyword: keyword.value,
-      searchtype: '',
+    // 全部来源也走统一的多元数据框架，由后端聚合所有已注册 provider。
+    const res: any = await searchMetadataApi({
+      content_profile: sourceProfile || undefined,
+      limit: 24,
+      ...(activeProvider ? { provider: activeProvider } : {}),
+      query: keyword.value,
     });
-    mediaResults.value = (Array.isArray(res) ? res : res?.data || []).map(
-      normalizeMediaItem,
-    );
+    const list = Array.isArray(res) ? res : res?.data || [];
+    const mapped = mapMetadataResults(filterMetadataHits(list, keyword.value));
+    mediaResults.value = activeProvider ? mapped : mergeMetadataResults(mapped);
+    saveSearchSnapshot({
+      status: 'completed',
+      mediaResults: mediaResults.value,
+    });
   } catch (error: any) {
+    saveSearchSnapshot({ status: 'idle', mediaResults: [] });
     notification.error('搜索失败', {
       description: error?.message || '未知错误',
     });
@@ -960,7 +1206,7 @@ async function handleMediaSearch(media: MediaItem) {
     mediaResults.value = [];
     results.value = [];
     loading.value = true;
-    webSearchApi({
+    requestTorrentSearch({
       filters: {
         ...buildSiteFilter(),
         content_profile: media.content_profile,
@@ -977,7 +1223,7 @@ async function handleMediaSearch(media: MediaItem) {
         searchSessionId.value = resp?.session_id || '';
         if (searchSessionId.value)
           sessionStorage.setItem(SEARCH_SESSION_KEY, searchSessionId.value);
-        startSearchProgress(searchSessionId.value, () => {
+        trackSearchProgress(searchSessionId.value, () => {
           sessionStorage.removeItem(SEARCH_SESSION_KEY);
           void loadResultsWhenReady();
         });
@@ -1004,7 +1250,7 @@ async function handleMediaSearch(media: MediaItem) {
       anchorExternalId = anchorExternalId || rest.join(':');
     }
     // 没有显式 provider 时不猜测 TMDB；让后端按标题/类型识别。
-    const resp: any = await webSearchApi({
+    const resp: any = await requestTorrentSearch({
       filters: buildSiteFilter(),
       search_word: media.title,
       metadata_ref: metadataRef || undefined,
@@ -1016,7 +1262,7 @@ async function handleMediaSearch(media: MediaItem) {
     searchSessionId.value = resp?.session_id || '';
     if (searchSessionId.value)
       sessionStorage.setItem(SEARCH_SESSION_KEY, searchSessionId.value);
-    startSearchProgress(resp?.session_id || '', () => {
+    trackSearchProgress(resp?.session_id || '', () => {
       sessionStorage.removeItem(SEARCH_SESSION_KEY);
       loadSearchResults();
     });
@@ -1144,7 +1390,7 @@ async function handleAdvancedSearch() {
   setSearchKeyword(advancedForm.value.name);
   loading.value = true;
   try {
-    const resp: any = await webSearchApi({
+    const resp: any = await requestTorrentSearch({
       filters: buildSiteFilter(),
       search_word: advancedForm.value.name,
       tmdbid: '',
@@ -1153,7 +1399,7 @@ async function handleAdvancedSearch() {
     searchSessionId.value = resp?.session_id || '';
     if (searchSessionId.value)
       sessionStorage.setItem(SEARCH_SESSION_KEY, searchSessionId.value);
-    startSearchProgress(resp?.session_id || '', () => {
+    trackSearchProgress(resp?.session_id || '', () => {
       sessionStorage.removeItem(SEARCH_SESSION_KEY);
       loadSearchResults();
     });
@@ -1434,20 +1680,35 @@ onMounted(() => {
   void loadMetadataProviders();
   loadVisibleSites();
   startSSE();
+  const snapshot = readSearchSnapshot();
   const initialS = String(route.query.s || '');
   lastHandledQueryKey = routeQueryKey(route.query);
-  // 从菜单进入搜索页时不恢复上次会话，避免自动发起旧关键词搜索
+  // 切页回来：优先恢复上次搜索（结果/进度），不重新发起
   if (!initialS) {
+    if (snapshot?.keyword) {
+      restoreSearchSnapshot(snapshot);
+      return;
+    }
     resetSearchLanding();
+    return;
+  }
+
+  const s = initialS;
+  const from = route.query.from as string;
+  const sid = route.query.session_id as string;
+  if (
+    snapshot &&
+    snapshot.keyword === s &&
+    (!sid || snapshot.sessionId === sid) &&
+    (snapshot.sessionId || (snapshot.mediaResults?.length ?? 0) > 0)
+  ) {
+    restoreSearchSnapshot(snapshot);
     return;
   }
 
   resultPollToken += 1;
   stopSearchProgress();
 
-  const s = initialS;
-  const from = route.query.from as string;
-  const sid = route.query.session_id as string;
   applyIncomingSource(String(route.query.metadata_source || ''));
   if (sid) searchSessionId.value = sid;
 
@@ -1458,10 +1719,26 @@ onMounted(() => {
       sid &&
       (from === 'discovery' || from === 'detail' || from === 'subscription')
     ) {
+      const queryProfile = String(route.query.content_profile || '');
+      const defaultFirst = from === 'discovery' || from === 'subscription';
+      lastTorrentRequest.value = {
+        search_word: s,
+        tmdbid: String(route.query.tmdbid || '') || undefined,
+        media_type: String(route.query.media_type || '') || undefined,
+        anchor_provider: String(route.query.anchor_provider || '') || undefined,
+        anchor_external_id:
+          String(route.query.anchor_external_id || '') || undefined,
+        metadata_ref: String(route.query.metadata_ref || '') || undefined,
+        filters: {
+          ...buildSiteFilter(defaultFirst),
+          ...(queryProfile ? { content_profile: queryProfile } : {}),
+        },
+      };
+      saveSearchSnapshot({ torrentRequest: lastTorrentRequest.value });
       displayMode.value = 'torrent';
       loading.value = true;
       if (sid) sessionStorage.setItem(SEARCH_SESSION_KEY, sid);
-      startSearchProgress(sid, () => {
+      trackSearchProgress(sid, () => {
         sessionStorage.removeItem(SEARCH_SESSION_KEY);
         void loadResultsWhenReady();
       });
@@ -1472,31 +1749,42 @@ onMounted(() => {
     ) {
       const tmdbId = (route.query.tmdbid as string) || '';
       const mediaType = (route.query.media_type as string) || '';
+      const defaultFirst = from === 'discovery' || from === 'subscription';
+      const startSearch = async () => {
+        if (defaultFirst) {
+          await syncSitesFromSubscriptionDefault(
+            mediaType,
+            contentProfileKey.value,
+          );
+        }
+        return requestTorrentSearch({
+          filters: {
+            ...buildSiteFilter(defaultFirst),
+            ...(contentProfileKey.value
+              ? { content_profile: contentProfileKey.value }
+              : {}),
+            ...(String(route.query.metadata_source || '')
+              ? { metadata_source: String(route.query.metadata_source) }
+              : {}),
+          },
+          search_word: s,
+          tmdbid: tmdbId,
+          media_type: mediaType,
+          anchor_provider:
+            String(route.query.anchor_provider || '') || undefined,
+          anchor_external_id:
+            String(route.query.anchor_external_id || '') || undefined,
+          metadata_ref: String(route.query.metadata_ref || '') || undefined,
+        });
+      };
       displayMode.value = 'torrent';
       loading.value = true;
-      webSearchApi({
-        filters: {
-          ...buildSiteFilter(),
-          ...(contentProfileKey.value
-            ? { content_profile: contentProfileKey.value }
-            : {}),
-          ...(String(route.query.metadata_source || '')
-            ? { metadata_source: String(route.query.metadata_source) }
-            : {}),
-        },
-        search_word: s,
-        tmdbid: tmdbId,
-        media_type: mediaType,
-        anchor_provider: String(route.query.anchor_provider || '') || undefined,
-        anchor_external_id:
-          String(route.query.anchor_external_id || '') || undefined,
-        metadata_ref: String(route.query.metadata_ref || '') || undefined,
-      })
+      void startSearch()
         .then((resp: any) => {
           searchSessionId.value = resp?.session_id || '';
           if (searchSessionId.value)
             sessionStorage.setItem(SEARCH_SESSION_KEY, searchSessionId.value);
-          startSearchProgress(resp?.session_id || '', () => {
+          trackSearchProgress(resp?.session_id || '', () => {
             sessionStorage.removeItem(SEARCH_SESSION_KEY);
             void loadResultsWhenReady();
           });
@@ -1514,12 +1802,12 @@ onMounted(() => {
       displayMode.value = 'torrent';
       results.value = [];
       loading.value = true;
-      webSearchApi({ filters: buildSiteFilter(), search_word: s })
+      requestTorrentSearch({ filters: buildSiteFilter(), search_word: s })
         .then((resp: any) => {
           searchSessionId.value = resp?.session_id || '';
           if (searchSessionId.value)
             sessionStorage.setItem(SEARCH_SESSION_KEY, searchSessionId.value);
-          startSearchProgress(resp?.session_id || '', () => {
+          trackSearchProgress(resp?.session_id || '', () => {
             sessionStorage.removeItem(SEARCH_SESSION_KEY);
             void loadResultsWhenReady();
           });
@@ -1553,10 +1841,25 @@ watch(
     }
     const s = q.s as string;
     const from = q.from as string;
+    const sid = String(q.session_id || '');
     const tmdbId = (q.tmdbid as string) || '';
     const mediaType = (q.media_type as string) || '';
+    const snapshot = readSearchSnapshot();
     if (!s) {
+      if (snapshot?.keyword) {
+        restoreSearchSnapshot(snapshot);
+        return;
+      }
       resetSearchLanding();
+      return;
+    }
+    if (
+      snapshot &&
+      snapshot.keyword === s &&
+      (!sid || snapshot.sessionId === sid) &&
+      (snapshot.sessionId || (snapshot.mediaResults?.length ?? 0) > 0)
+    ) {
+      restoreSearchSnapshot(snapshot);
       return;
     }
     setSearchKeyword(s);
@@ -1564,26 +1867,33 @@ watch(
       displayMode.value = 'torrent';
       loading.value = true;
       const profile = String(q.content_profile || '').trim();
-      webSearchApi({
-        filters: {
-          ...buildSiteFilter(),
-          ...(profile ? { content_profile: profile } : {}),
-          ...(String(q.metadata_source || '')
-            ? { metadata_source: String(q.metadata_source) }
-            : {}),
-        },
-        search_word: s,
-        tmdbid: tmdbId,
-        media_type: mediaType,
-        anchor_provider: String(q.anchor_provider || '') || undefined,
-        anchor_external_id: String(q.anchor_external_id || '') || undefined,
-        metadata_ref: String(q.metadata_ref || '') || undefined,
-      })
+      const defaultFirst = from === 'discovery' || from === 'subscription';
+      const startSearch = async () => {
+        if (defaultFirst) {
+          await syncSitesFromSubscriptionDefault(mediaType, profile);
+        }
+        return requestTorrentSearch({
+          filters: {
+            ...buildSiteFilter(defaultFirst),
+            ...(profile ? { content_profile: profile } : {}),
+            ...(String(q.metadata_source || '')
+              ? { metadata_source: String(q.metadata_source) }
+              : {}),
+          },
+          search_word: s,
+          tmdbid: tmdbId,
+          media_type: mediaType,
+          anchor_provider: String(q.anchor_provider || '') || undefined,
+          anchor_external_id: String(q.anchor_external_id || '') || undefined,
+          metadata_ref: String(q.metadata_ref || '') || undefined,
+        });
+      };
+      void startSearch()
         .then((resp: any) => {
           searchSessionId.value = resp?.session_id || '';
           if (searchSessionId.value)
             sessionStorage.setItem(SEARCH_SESSION_KEY, searchSessionId.value);
-          startSearchProgress(resp?.session_id || '', () => {
+          trackSearchProgress(resp?.session_id || '', () => {
             sessionStorage.removeItem(SEARCH_SESSION_KEY);
             void loadResultsWhenReady();
           });
@@ -1596,7 +1906,16 @@ watch(
   },
 );
 onUnmounted(() => {
-  // 只断开 SSE 连接，保留 sessionStorage 用于页面切回时恢复
+  if (siteRerunTimer) {
+    clearTimeout(siteRerunTimer);
+    siteRerunTimer = null;
+  }
+  // 只断开 SSE 连接，保留快照用于页面切回时恢复（结果 + 运行中进度）
+  if (displayMode.value === 'media') {
+    saveSearchSnapshot({ mediaResults: mediaResults.value });
+  } else {
+    saveSearchSnapshot();
+  }
   stopSearchProgress();
   stopSSE();
 });
@@ -1617,6 +1936,99 @@ function getMediaTypeLabel(type?: string, profile?: string) {
     anime: '动漫',
   };
   return (type && map[type]) || '未知';
+}
+
+const METADATA_PROVIDER_LABELS: Record<string, string> = {
+  bangumi: 'Bangumi',
+  douban: '豆瓣',
+  tmdb: 'TMDB',
+};
+
+function metadataProviderLabel(provider?: string) {
+  const key = String(provider || '').trim();
+  if (!key) return '';
+  return METADATA_PROVIDER_LABELS[key] || key.toUpperCase();
+}
+
+function mediaSourceLabel(media: MediaItem) {
+  if (media.sources && media.sources.length > 0) {
+    return media.sources.join(' / ');
+  }
+  return mediaProviderSource(media);
+}
+
+function mediaProviderSource(media: MediaItem) {
+  return metadataProviderLabel(media.provider || media.anchor_provider);
+}
+
+function mediaTypeFamily(type?: string) {
+  if (type === 'movie') return 'movie';
+  if (type === 'anime' || type === 'tv') return 'series';
+  return 'unknown';
+}
+
+function mediaTypeRank(type?: string) {
+  if (type === 'anime') return 0;
+  if (type === 'tv') return 1;
+  if (type === 'movie') return 2;
+  return 3;
+}
+
+/** 全部来源下同一作品可能命中多个 provider：按标题+年份+类型族合并，优先动漫。 */
+function mergeMetadataResults(items: MediaItem[]): MediaItem[] {
+  const order: string[] = [];
+  const buckets = new Map<string, MediaItem[]>();
+  for (const item of items) {
+    const titleKey = String(item.title || '')
+      .trim()
+      .toLowerCase();
+    const family = mediaTypeFamily(item.media_type || item.type);
+    const key = titleKey ? `${titleKey}|${family}` : `__${order.length}`;
+    let list = buckets.get(key);
+    if (!list) {
+      list = [];
+      buckets.set(key, list);
+      order.push(key);
+    }
+    const itemYear = String(item.year || '');
+    // 同标题同类型族合并；年份都已知且不同才视为不同作品
+    const target = list.find((entry) => {
+      const entryYear = String(entry.year || '');
+      return !entryYear || !itemYear || entryYear === itemYear;
+    });
+    if (!target) {
+      list.push({ ...item, sources: [...(item.sources || [])] });
+      continue;
+    }
+    const index = list.indexOf(target);
+    const currentRank = mediaTypeRank(target.media_type || target.type);
+    const itemRank = mediaTypeRank(item.media_type || item.type);
+    let keep = target;
+    let other = item;
+    if (
+      itemRank < currentRank ||
+      (itemRank === currentRank && (item.score || 0) > (target.score || 0))
+    ) {
+      keep = item;
+      other = target;
+    }
+    list[index] = {
+      ...keep,
+      image: keep.image || other.image,
+      overview: keep.overview || other.overview,
+      poster: keep.poster || other.poster,
+      sources: Array.from(
+        new Set([
+          ...(target.sources || []),
+          ...(item.sources || []),
+          mediaProviderSource(item),
+          mediaProviderSource(target),
+        ]),
+      ).filter(Boolean),
+      year: String(keep.year || other.year || ''),
+    };
+  }
+  return order.flatMap((key) => buckets.get(key) || []);
 }
 
 function hasFilters(item: SearchResultWithFilter) {
@@ -1972,10 +2384,8 @@ async function confirmDownload() {
         />
         <NSelect
           v-model:value="selectedSites"
-          :options="siteOptions"
-          :placeholder="
-            siteOptions.length > 0 ? '全部已授权站点' : '无可用站点'
-          "
+          :options="siteSelectOptions"
+          :placeholder="siteOptions.length > 0 ? '默认搜索站点' : '无可用站点'"
           :disabled="siteOptions.length === 0"
           multiple
           clearable
@@ -2066,6 +2476,12 @@ async function confirmDownload() {
               <div class="text-sm font-bold truncate">{{ media.title }}</div>
               <div class="flex items-center gap-2 text-xs mt-0.5">
                 <span v-if="media.year">{{ media.year }}</span>
+                <span
+                  v-if="mediaSourceLabel(media)"
+                  class="truncate rounded bg-white/20 px-1 py-0.5 text-[10px] leading-none"
+                >
+                  {{ mediaSourceLabel(media) }}
+                </span>
               </div>
             </div>
             <div
@@ -2323,7 +2739,7 @@ async function confirmDownload() {
                   </div>
                   <div class="result-stat">
                     <div class="stat-num">{{ getMediaStatSites(item) }}</div>
-                    <div class="stat-lbl">站点</div>
+                    <div class="stat-lbl">有结果站点</div>
                   </div>
                   <div class="result-stat">
                     <div class="stat-num">{{ getMediaStatFree(item) }}</div>
