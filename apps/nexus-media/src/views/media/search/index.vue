@@ -276,6 +276,7 @@ async function handleConfirmSubscribe(payload: {
           content_profile: it.content_profile,
           metadata_ref: it.metadata_ref,
           provider: it.provider,
+          image: it.image,
         });
         lastRssid = r?.rssid ? String(r.rssid) : lastRssid;
       }
@@ -312,6 +313,7 @@ async function handleConfirmSubscribe(payload: {
         provider: it.provider,
         anchor_provider: it.anchor_provider,
         anchor_external_id: it.anchor_external_id,
+        image: it.image,
       });
       const success = res?.code === 0 || res?.success || res?.rssid || !res;
       if (success) {
