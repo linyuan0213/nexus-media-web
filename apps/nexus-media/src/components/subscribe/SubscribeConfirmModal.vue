@@ -19,9 +19,15 @@ import {
   getTvSeasonListApi,
 } from '#/api/modules/media';
 import { getVisibleSitesApi } from '#/api/modules/site';
-import { getSubscribedSeasonsApi } from '#/api/modules/subscription';
+import {
+  getDefaultSubscriptionSettingApi,
+  getSubscribedSeasonsApi,
+} from '#/api/modules/subscription';
 import MediaPoster from '#/components/media/MediaPoster.vue';
-import { getContentProfileLabel } from '#/plugin-framework';
+import {
+  getContentProfileForSource,
+  getContentProfileLabel,
+} from '#/plugin-framework';
 
 export interface SubscribeConfirmItem {
   id: string;
@@ -59,9 +65,22 @@ const emit = defineEmits<{
   (e: 'edit'): void;
 }>();
 
+const effectiveProfile = computed(() => {
+  if (!props.item) return '';
+  const profile = String(props.item.content_profile || '').trim();
+  if (profile && profile !== 'default') return profile;
+  const source = String(
+    props.item.provider ||
+      props.item.anchor_provider ||
+      String(props.item.metadata_ref || '').split(':')[0] ||
+      '',
+  );
+  return getContentProfileForSource(source);
+});
+
 const typeLabel = computed(() => {
   if (!props.item) return '';
-  const profile = props.item.content_profile;
+  const profile = effectiveProfile.value;
   if (profile && profile !== 'default') {
     return getContentProfileLabel(profile) || profile.toUpperCase();
   }
@@ -88,19 +107,43 @@ const policyOptions = [
   { label: 'Bangumi 为主', value: 'bangumi_primary' },
 ];
 const subscribedSeasons = ref<number[]>([]);
-// 当前将使用的站点（未配置 = 全部已授权站点）
+// 优先展示默认订阅配置；未配置时才回退全部已授权站点
 const siteSummary = ref<{ rss: number; search: number }>({ rss: 0, search: 0 });
+const usingDefaultSites = ref(false);
 
 async function loadSiteSummary() {
   try {
     const res: any = await getVisibleSitesApi();
     const list = Array.isArray(res) ? res : res?.data || [];
-    siteSummary.value = {
-      search: list.filter((i: any) => (i.permissions || []).includes('search'))
-        .length,
-      rss: list.filter((i: any) => (i.permissions || []).includes('rss'))
-        .length,
-    };
+    const allSearch = list.filter((i: any) =>
+      (i.permissions || []).includes('search'),
+    ).length;
+    const allRss = list.filter((i: any) =>
+      (i.permissions || []).includes('rss'),
+    ).length;
+    let search = allSearch;
+    let rss = allRss;
+    usingDefaultSites.value = false;
+    if (props.item) {
+      const mtype = props.item.type === 'movie' ? 'movie' : 'tv';
+      const defaults: any = await getDefaultSubscriptionSettingApi(
+        mtype,
+        effectiveProfile.value || undefined,
+      );
+      const setting = defaults?.data || defaults || {};
+      const defaultSearch = Array.isArray(setting.search_sites)
+        ? setting.search_sites
+        : [];
+      const defaultRss = Array.isArray(setting.rss_sites)
+        ? setting.rss_sites
+        : [];
+      if (defaultSearch.length > 0 || defaultRss.length > 0) {
+        usingDefaultSites.value = true;
+        search = defaultSearch.length || allSearch;
+        rss = defaultRss.length || allRss;
+      }
+    }
+    siteSummary.value = { search, rss };
   } catch {
     siteSummary.value = { rss: 0, search: 0 };
   }
@@ -357,8 +400,13 @@ function toggleSeason(num: number) {
         <span v-if="siteSummary.search === 0">
           暂无可用站点，请联系管理员为你授权站点
         </span>
+        <span v-else-if="usingDefaultSites">
+          将使用默认订阅配置（搜索 {{ siteSummary.search }} 个 · RSS
+          {{ siteSummary.rss }} 个），可在「修改配置」中调整
+        </span>
         <span v-else>
-          将使用全部已授权站点（搜索 {{ siteSummary.search }} 个 · RSS
+          默认订阅未配置站点，将使用全部已授权站点（搜索
+          {{ siteSummary.search }} 个 · RSS
           {{ siteSummary.rss }} 个），可在「修改配置」中指定
         </span>
       </div>

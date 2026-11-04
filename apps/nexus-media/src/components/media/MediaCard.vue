@@ -19,7 +19,10 @@ import {
 import MediaPoster from '#/components/media/MediaPoster.vue';
 import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.vue';
 import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
-import { getContentProfileLabel } from '#/plugin-framework';
+import {
+  getContentProfileForSource,
+  getContentProfileLabel,
+} from '#/plugin-framework';
 import { useAppNotification } from '#/utils/notify';
 
 interface Props {
@@ -75,12 +78,21 @@ watch(
   },
 );
 
+const effectiveProfile = computed(() => {
+  const profile = String(props.contentProfile || '').trim();
+  if (profile && profile !== 'default') return profile;
+  const source = String(
+    props.anchorProvider || String(props.metadataRef || '').split(':')[0] || '',
+  );
+  return getContentProfileForSource(source);
+});
+
 const typeLabel = computed(() => {
   // 自定义画像优先使用插件标签；插件前端未就绪时也不回落成“电影”
-  if (props.contentProfile && props.contentProfile !== 'default') {
+  if (effectiveProfile.value) {
     return (
-      getContentProfileLabel(props.contentProfile) ||
-      props.contentProfile.toUpperCase()
+      getContentProfileLabel(effectiveProfile.value) ||
+      effectiveProfile.value.toUpperCase()
     );
   }
   const t = props.mediaType || props.type || '';
@@ -179,7 +191,7 @@ function handleSubscribe(e: Event) {
     type: isTvType.value ? 'tv' : 'movie',
     image: props.poster,
     overview: props.overview,
-    content_profile: props.contentProfile,
+    content_profile: effectiveProfile.value,
     metadata_ref: props.metadataRef,
     provider: props.anchorProvider,
   };

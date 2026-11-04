@@ -1037,11 +1037,10 @@ function mapMetadataResults(list: any[]): MediaItem[] {
   return list.map((item) => {
     const extra = item.extra || {};
     // 新框架的 content_profile 也用于内建分类（如 anime），只有插件注册的画像才走专属路由。
-    const rawProfile = String(item.content_profile || 'default');
+    const rawProfile = String(item.content_profile || '');
+    // 保留后端返回的画像；详情路由是否已注册只影响点击跳转，不能把标签降级成电影。
     const contentProfile =
-      rawProfile !== 'default' && getContentProfileDetailPath(rawProfile)
-        ? rawProfile
-        : 'default';
+      rawProfile && rawProfile !== 'default' ? rawProfile : 'default';
     const profile = contentProfile;
     const contentId = metadataContentId(item);
     const searchQuery = String(
