@@ -92,8 +92,12 @@ const voteText = computed(() => {
 });
 
 const seasonLabel = computed(() => {
-  const s = props.item.season;
-  return s && s !== 'S00' ? String(s) : '';
+  const raw = String(props.item.season || '').trim();
+  if (!raw || raw === 'S00' || raw === '0') return '';
+  const num = Number(raw.replace(/^S/i, ''));
+  return Number.isFinite(num) && num > 0
+    ? `S${String(num).padStart(2, '0')}`
+    : raw;
 });
 
 // 归属用户（管理员视角可见）：有 username 时展示

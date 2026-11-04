@@ -71,8 +71,12 @@ function stateMeta(item: Record<string, any>) {
 }
 
 const seasonLabel = computed(() => {
-  const s = props.season;
-  return s && s !== 'S00' ? String(s) : '';
+  const raw = String(props.season || '').trim();
+  if (!raw || raw === 'S00' || raw === '0') return '';
+  const num = Number(raw.replace(/^S/i, ''));
+  return Number.isFinite(num) && num > 0
+    ? `S${String(num).padStart(2, '0')}`
+    : raw;
 });
 
 const voteText = computed(() => {
