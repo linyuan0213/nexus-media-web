@@ -788,6 +788,7 @@ function buildSiteFilter(defaultFirst = false): Record<string, any> {
 async function syncSitesFromSubscriptionDefault(
   mediaType?: string,
   profile?: string,
+  replace = false,
 ) {
   // 从订阅进入时默认订阅站点优先，先清掉上次搜索残留的“全部站点”。
   if (selectedSites.value.includes(ALL_SITES_VALUE)) {
@@ -805,10 +806,13 @@ async function syncSitesFromSubscriptionDefault(
           (item: any) => typeof item === 'string' && item,
         )
       : [];
-    if (sites.length === 0) return;
+    if (sites.length === 0) {
+      if (replace) selectedSites.value = [];
+      return;
+    }
     const isPluginProfile = Boolean(profile) && profile !== 'default';
     let next = [...sites];
-    if (isPluginProfile) {
+    if (isPluginProfile && !replace) {
       const previous = readSyncedDefaults();
       const explicit = selectedSites.value.filter(
         (item) => item !== ALL_SITES_VALUE && !previous.includes(item),
@@ -1792,6 +1796,7 @@ onMounted(() => {
           await syncSitesFromSubscriptionDefault(
             mediaType,
             contentProfileKey.value,
+            from === 'subscription',
           );
         }
         return requestTorrentSearch({
@@ -1907,7 +1912,11 @@ watch(
       const defaultFirst = from === 'discovery' || from === 'subscription';
       const startSearch = async () => {
         if (defaultFirst) {
-          await syncSitesFromSubscriptionDefault(mediaType, profile);
+          await syncSitesFromSubscriptionDefault(
+            mediaType,
+            profile,
+            from === 'subscription',
+          );
         }
         return requestTorrentSearch({
           filters: {
