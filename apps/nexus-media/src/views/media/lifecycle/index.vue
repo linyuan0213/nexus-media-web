@@ -3,7 +3,7 @@ import type { DataTableColumns } from 'naive-ui';
 
 import type { LifecycleApi } from '#/api/modules/lifecycle';
 
-import { computed, h, onMounted, ref, watch } from 'vue';
+import { computed, h, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
@@ -600,9 +600,11 @@ const columns = computed<DataTableColumns<LifecycleApi.Item>>(() => {
   );
 });
 
-async function fetchData() {
-  loading.value = true;
-  loadError.value = '';
+async function fetchData(silent = false) {
+  if (!silent) {
+    loading.value = true;
+    loadError.value = '';
+  }
   try {
     const [list, statData] = await Promise.all([
       getLifecycleListApi({
@@ -619,11 +621,22 @@ async function fetchData() {
     total.value = list?.total || 0;
     stats.value = statData || { total: 0, by_status: {}, by_stage: {} };
   } catch (error: any) {
+    if (silent) return;
     loadError.value =
       error?.response?.data?.detail || '媒体生命周期加载失败，请稍后重试';
     message.error(loadError.value);
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
+  }
+}
+
+let pollTimer: null | ReturnType<typeof setInterval> = null;
+
+async function refreshSilently() {
+  if (document.hidden || loading.value) return;
+  await fetchData(true);
+  if (drawerVisible.value && selected.value) {
+    await refreshDetail().catch(() => {});
   }
 }
 
@@ -979,6 +992,16 @@ onMounted(async () => {
   if (route.query.keyword) keyword.value = String(route.query.keyword);
   await fetchData();
   await openIdentityFromQuery();
+  pollTimer = setInterval(() => {
+    void refreshSilently();
+  }, 3000);
+});
+
+onUnmounted(() => {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
 });
 
 watch(
@@ -996,7 +1019,7 @@ watch(
       subtitle="集中追踪识别、下载、转移与入库状态，快速定位需要介入的任务"
     >
       <template #actions>
-        <NButton :loading="loading" @click="fetchData">
+        <NButton :loading="loading" @click="fetchData()">
           <template #icon>
             <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
           </template>
@@ -1122,7 +1145,7 @@ watch(
           <strong>暂时无法加载流转记录</strong>
           <p>{{ loadError }}</p>
         </div>
-        <NButton size="small" :loading="loading" @click="fetchData">
+        <NButton size="small" :loading="loading" @click="fetchData()">
           重新加载
         </NButton>
       </div>
