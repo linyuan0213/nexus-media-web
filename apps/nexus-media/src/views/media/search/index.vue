@@ -789,7 +789,10 @@ async function syncSitesFromSubscriptionDefault(
   mediaType?: string,
   profile?: string,
 ) {
-  if (selectedSites.value.includes(ALL_SITES_VALUE)) return;
+  // 从订阅进入时默认订阅站点优先，先清掉上次搜索残留的“全部站点”。
+  if (selectedSites.value.includes(ALL_SITES_VALUE)) {
+    selectedSites.value = [];
+  }
   try {
     const mtype = (mediaType || (profile ? 'movie' : 'tv')).trim();
     const res: any = await getDefaultSubscriptionSettingApi(
