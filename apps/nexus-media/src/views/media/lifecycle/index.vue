@@ -198,9 +198,17 @@ const timelineEvents = computed(() => {
 });
 
 const latestTask = computed(() => {
-  for (let index = events.value.length - 1; index >= 0; index -= 1) {
-    const payload = events.value[index]?.payload || {};
-    if (payload.queue || payload.task_id) return payload;
+  // 只展示仍在排队/运行的任务；已完成任务不应出现在“当前队列”
+  for (let index = timelineEvents.value.length - 1; index >= 0; index -= 1) {
+    const event = timelineEvents.value[index];
+    if (!event) continue;
+    const payload = event.payload || {};
+    if (
+      (payload.queue || payload.task_id) &&
+      ['queued', 'retrying', 'running'].includes(event.status)
+    ) {
+      return payload;
+    }
   }
   return {};
 });
