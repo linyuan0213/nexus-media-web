@@ -54,6 +54,7 @@ http {
       root /usr/share/nginx/html;
       try_files $uri $uri/ /index.html;
       index index.html;
+      add_header Cache-Control "no-store" always;
     }
 
     # 静态资源：不存在时返回 404，避免 SPA 回退把 HTML 当图片返回
@@ -99,6 +100,7 @@ http {
       proxy_connect_timeout 300s;
       proxy_send_timeout 300s;
       proxy_read_timeout 300s;
+      add_header Cache-Control "no-store" always;
     }
 
     # 图片代理（后端 /img 为图片反代接口，避免前端直连外部图床被限）
