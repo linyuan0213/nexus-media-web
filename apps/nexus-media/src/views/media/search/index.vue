@@ -606,7 +606,7 @@ function saveSearchSnapshot(patch: Partial<SearchSnapshot> = {}) {
   try {
     const previous = readSearchSnapshot();
     const snapshot: SearchSnapshot = {
-      ...(previous || {}),
+      ...previous,
       keyword: keyword.value,
       sessionId: searchSessionId.value,
       displayMode: displayMode.value,
@@ -947,16 +947,32 @@ const baseTypeOptions = computed(() => [
   ...metadataProviders.value,
 ]);
 const pluginSourceOptions = computed(() => getContentProfileSourceOptions());
+
+function normalizeProviderOptionKey(value: string): string {
+  const key = String(value || '')
+    .trim()
+    .toLowerCase();
+  if (['content-id', 'content_id', '番号识别'].includes(key))
+    return 'content_id';
+  return key;
+}
+
 const typeOptions = computed(() => {
-  // 同一 provider 可能同时来自后端 provider 列表和插件画像；保留有 profile 的项。
+  // 同一 provider 可能同时来自后端列表和插件画像，且存在大小写/content_id 别名；
+  // 统一归一化后合并，避免下拉里出现多个 TMDB、番号识别。
   const merged = new Map<
     string,
     { label: string; profile: string; value: string }
   >();
   for (const item of [...baseTypeOptions.value, ...pluginSourceOptions.value]) {
-    const previous = merged.get(item.value);
+    const key = normalizeProviderOptionKey(item.value);
+    if (!key) continue;
+    const previous = merged.get(key);
     if (!previous || (!previous.profile && item.profile)) {
-      merged.set(item.value, item);
+      merged.set(key, {
+        ...item,
+        value: previous?.value ?? item.value,
+      });
     }
   }
   return [...merged.values()];
