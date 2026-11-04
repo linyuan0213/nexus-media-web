@@ -315,6 +315,7 @@ export async function updateIndexerSiteConfigApi(data: {
   default_settings?: Record<string, any>;
   download_setting?: number | string;
   enabled?: boolean;
+  priority?: number;
   site_name: string;
   source?: string;
 }) {

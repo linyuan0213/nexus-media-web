@@ -519,7 +519,13 @@ async function handleSiteConfigUpdate(site: SiteItem, data: Partial<SiteItem>) {
       source: site.source,
       enabled: data.enabled,
       download_setting: data.download_setting,
+      priority: data.priority,
     });
+    if (data.priority !== undefined) {
+      // 数字输入逐次触发，直接更新本地对象，避免每次点击都刷新整个列表
+      site.priority = data.priority;
+      return;
+    }
     notification.success('保存成功');
     await fetchSites();
   } catch (error: any) {

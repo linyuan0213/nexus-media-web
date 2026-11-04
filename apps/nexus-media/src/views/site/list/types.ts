@@ -37,6 +37,7 @@ export interface SiteItem {
   source_label?: string;
   source_icon?: string;
   pri?: number | string;
+  priority?: number;
   signurl?: string;
   rssurl?: string;
   cookie?: string;

@@ -5,7 +5,7 @@ import { computed } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { NButton, NSelect, NSwitch } from 'naive-ui';
+import { NButton, NInputNumber, NSelect, NSwitch } from 'naive-ui';
 
 interface Props {
   site: SiteItem;
@@ -54,6 +54,11 @@ function handleEnabledUpdate(enabled: boolean) {
 
 function handleDownloadSettingUpdate(value: string) {
   emit('update', props.site, { download_setting: value });
+}
+
+function handlePriorityUpdate(value: null | number) {
+  if (value == null) return;
+  emit('update', props.site, { priority: value });
 }
 
 function resolveFavicon(): string {
@@ -185,13 +190,27 @@ const features = computed(() => {
             @update:value="handleDownloadSettingUpdate"
           />
         </div>
+        <div class="control-item">
+          <span class="control-label">优先级</span>
+          <NInputNumber
+            :value="site.priority ?? 100"
+            :min="0"
+            :max="9999"
+            size="small"
+            style="width: 110px"
+            title="数值越小优先级越高"
+            @update:value="handlePriorityUpdate"
+          />
+        </div>
       </div>
 
       <div v-if="!isThirdParty" class="site-status">
         <div class="status-item">
           <IconifyIcon icon="lucide:gauge" class="status-icon" />
           <span class="status-label">优先级</span>
-          <span class="status-value">{{ site.pri ?? '-' }}</span>
+          <span class="status-value">{{
+            site.priority ?? site.pri ?? '-'
+          }}</span>
         </div>
         <div
           v-if="site.cookie || site.api_key || site.bearer_token"
