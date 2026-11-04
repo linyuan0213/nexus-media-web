@@ -24,7 +24,6 @@ import {
   lookupMetadataApi,
   searchMediaApi,
   searchMetadataApi,
-  webSearchApi,
 } from '#/api/modules/media';
 import {
   addSubscriptionApi,
@@ -398,40 +397,25 @@ async function handleCardSearch(item: any) {
     notification.warning('缺少名称，无法搜索');
     return;
   }
-  try {
-    const resp: any = await webSearchApi({
-      search_word: item.keyword || item.name,
-      media_type: props.mediaType === 'movie' ? 'movie' : item.type || 'tv',
-      ...(item.anchor_provider && item.anchor_external_id
-        ? {
-            anchor_provider: item.anchor_provider,
-            anchor_external_id: item.anchor_external_id,
-            content_profile: item.content_profile || effectiveProfile.value,
-          }
-        : { tmdbid: item.tmdbid ? String(item.tmdbid) : undefined }),
-      filters: {
-        content_profile: item.content_profile || effectiveProfile.value,
-        metadata_source: item.provider || item.anchor_provider || undefined,
-        anchor_provider: item.anchor_provider || undefined,
-        anchor_external_id: item.anchor_external_id || undefined,
-      },
-    });
-    const sessionId = resp?.session_id || '';
-    const sidParam = sessionId
-      ? `&session_id=${encodeURIComponent(sessionId)}`
-      : '';
-    const profileParam =
-      activeProfile.value &&
-      activeProfile.value !== 'default' &&
-      activeProfile.value !== 'all'
-        ? `&content_profile=${encodeURIComponent(activeProfile.value)}`
-        : '';
-    router.push(
-      `/media/search?s=${encodeURIComponent(item.keyword || item.name)}&from=subscription${sidParam}&media_type=${props.mediaType}${profileParam}`,
-    );
-  } catch (error: any) {
-    notification.error('搜索失败', { description: error?.message || '' });
+  // 与排行榜一致：不在订阅页预建搜索会话，交给搜索页按订阅默认站点发起，
+  // 否则 session_id 会让搜索页跳过 syncSitesFromSubscriptionDefault。
+  const params = new URLSearchParams({
+    s: item.keyword || item.name,
+    from: 'subscription',
+    media_type: props.mediaType === 'movie' ? 'movie' : item.type || 'tv',
+  });
+  if (item.tmdbid) params.set('tmdbid', String(item.tmdbid));
+  if (item.metadata_ref) params.set('metadata_ref', item.metadata_ref);
+  if (item.anchor_provider) {
+    params.set('metadata_source', item.provider || item.anchor_provider);
+    params.set('anchor_provider', item.anchor_provider);
   }
+  if (item.anchor_external_id) {
+    params.set('anchor_external_id', item.anchor_external_id);
+  }
+  const profile = item.content_profile || effectiveProfile.value;
+  if (profile) params.set('content_profile', profile);
+  router.push(`/media/search?${params.toString()}`);
 }
 
 async function handleCardRefresh(item: any) {
