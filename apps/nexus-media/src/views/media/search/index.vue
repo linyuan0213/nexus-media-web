@@ -966,7 +966,10 @@ const typeOptions = computed(() => {
   >();
   for (const item of [...baseTypeOptions.value, ...pluginSourceOptions.value]) {
     const key = normalizeProviderOptionKey(item.value);
-    if (!key) continue;
+    if (!key || key === 'content_id') continue;
+    // provider 与画像同名的是聚合入口，不是实际元数据来源，不放进来源下拉。
+    if (item.profile && normalizeProviderOptionKey(item.profile) === key)
+      continue;
     const previous = merged.get(key);
     if (!previous || (!previous.profile && item.profile)) {
       merged.set(key, {
