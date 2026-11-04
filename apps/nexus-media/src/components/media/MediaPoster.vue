@@ -5,7 +5,7 @@
  * 所有媒体卡片只通过这里处理：内容画像展示变换 → 图片代理 → 海报位置 → 懒加载/失败回退。
  * 消息通知的模糊由后端 message transformer 处理，组件不读取消息模糊配置。
  */
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import { fallbackImage } from '#/utils/image';
 import {
@@ -35,6 +35,22 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const failed = ref(false);
+const revision = ref(0);
+
+function bumpRevision() {
+  revision.value += 1;
+}
+
+onMounted(() => {
+  window.addEventListener('nexus:content-profile-image-updated', bumpRevision);
+});
+
+onUnmounted(() => {
+  window.removeEventListener(
+    'nexus:content-profile-image-updated',
+    bumpRevision,
+  );
+});
 
 watch(
   () => [props.src, props.contentProfile],
@@ -44,6 +60,7 @@ watch(
 );
 
 const resolved = computed(() => {
+  revision.value;
   if (failed.value || !props.src) return props.fallback || fallbackImage;
   return resolveMediaPoster(props.src, props.contentProfile);
 });

@@ -140,6 +140,13 @@ const lifecyclePhases = [
   },
   { label: '入库', icon: 'lucide:library', stages: ['in_library'] },
 ];
+function formatSourceProvider(value?: null | string) {
+  const key = String(value || '').trim();
+  if (!key) return '未知来源';
+  if (key === 'content_id') return '番号识别';
+  return key.toUpperCase();
+}
+
 const stageMap = new Map(stageOptions.map((item) => [item.value, item.label]));
 const statusMap = new Map(
   statusOptions.map((item) => [item.value, item.label]),
@@ -529,7 +536,7 @@ const columns = computed<DataTableColumns<LifecycleApi.Item>>(() => {
       width: 130,
       render: (row) =>
         h('div', { class: 'provider-cell' }, [
-          h('span', (row.source_provider || '未知来源').toUpperCase()),
+          h('span', formatSourceProvider(row.source_provider)),
           h('small', row.content_profile || 'default'),
         ]),
     },
@@ -1256,7 +1263,7 @@ watch(
             <div class="mobile-card-foot">
               <span>
                 <IconifyIcon icon="lucide:database" class="size-3.5" />
-                {{ row.source_provider || '未知来源' }}
+                {{ formatSourceProvider(row.source_provider) }}
               </span>
               <span>
                 <IconifyIcon icon="lucide:timer" class="size-3.5" />
@@ -1371,7 +1378,9 @@ watch(
                     {{ selected.title || selected.identity_id }}
                   </h2>
                   <div class="detail-meta">
-                    <span>{{ selected.source_provider || '未知来源' }}</span>
+                    <span>{{
+                      formatSourceProvider(selected.source_provider)
+                    }}</span>
                     <span>{{ selected.content_profile || 'default' }}</span>
                   </div>
                   <div
