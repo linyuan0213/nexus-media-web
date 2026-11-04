@@ -87,12 +87,15 @@ async function loadOptions() {
     rssSites.value = visibleSites
       .filter((s: any) => (s.permissions || []).includes('rss'))
       .map((s: any) => ({
-        label: s.source === 'custom_rss' ? `${s.name}（自定义 RSS）` : s.name,
+        label:
+          s.source === 'custom_rss'
+            ? `${s.display_name || s.name}（自定义 RSS）`
+            : s.display_name || s.name,
         value: s.value || s.name,
       }));
     searchSites.value = visibleSites
       .filter((s: any) => (s.permissions || []).includes('search'))
-      .map((s: any) => ({ label: s.name, value: s.name }));
+      .map((s: any) => ({ label: s.display_name || s.name, value: s.name }));
     const rules = Array.isArray(rulesRes) ? rulesRes : rulesRes?.data || [];
     filterRules.value = [
       { label: '站点规则', value: '' },
