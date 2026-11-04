@@ -44,6 +44,7 @@ import SiteBatchTestModal from './components/SiteBatchTestModal.vue';
 import SiteCard from './components/SiteCard.vue';
 import SiteDeleteModal from './components/SiteDeleteModal.vue';
 import SiteEditModal from './components/SiteEditModal.vue';
+import { isPublicSite } from './types';
 
 const siteStore = useSiteStore();
 const notification = useAppNotification();
@@ -247,8 +248,8 @@ const filteredSites = computed(() => {
   }
   if (activeType.value !== 'all') {
     list = list.filter((s: any) => {
-      if (activeType.value === 'bt') return s.site_public ?? s.public;
-      return !(s.site_public ?? s.public);
+      if (activeType.value === 'bt') return isPublicSite(s);
+      return !isPublicSite(s);
     });
   }
   const kw = searchKeyword.value.trim().toLowerCase();
@@ -479,7 +480,7 @@ async function handleTest(item: SiteItem) {
 const batchTestSites = computed(() =>
   filteredSites.value.filter(
     (s: any) =>
-      !(s.site_public ?? s.public) &&
+      !isPublicSite(s) &&
       (s.source || 'builtin') === 'builtin' &&
       !s.third_party,
   ),

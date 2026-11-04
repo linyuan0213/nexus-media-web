@@ -86,3 +86,21 @@ export interface SiteDefinition {
   encoding: string;
   detail_page_url: string;
 }
+
+/** 站点是否为公开/BT：手动覆盖(note.public) > 站点定义 > 运行时推断。 */
+export function isPublicSite(
+  site: Pick<SiteItem, 'note' | 'public' | 'site_public'>,
+): boolean {
+  let note: any = site.note;
+  if (typeof note === 'string') {
+    try {
+      note = JSON.parse(note);
+    } catch {
+      note = undefined;
+    }
+  }
+  const explicit = note && typeof note === 'object' ? note.public : undefined;
+  if (typeof explicit === 'boolean') return explicit;
+  if (typeof site.site_public === 'boolean') return site.site_public;
+  return site.public === true;
+}

@@ -23,6 +23,8 @@ import {
   NTabs,
 } from 'naive-ui';
 
+import { isPublicSite } from '../types';
+
 interface Props {
   show: boolean;
   site: null | SiteForm;
@@ -60,7 +62,7 @@ const rateLimitOptions = [
 ];
 
 const featureSwitches = computed(() => {
-  const isBt = props.site?.site_public ?? props.site?.public;
+  const isBt = props.site ? isPublicSite(props.site) : false;
   const allSwitches = [
     {
       key: 'search_enabled' as const,

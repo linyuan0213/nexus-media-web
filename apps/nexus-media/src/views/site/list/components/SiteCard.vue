@@ -7,6 +7,8 @@ import { IconifyIcon } from '@vben/icons';
 
 import { NButton, NInputNumber, NSelect, NSwitch } from 'naive-ui';
 
+import { isPublicSite } from '../types';
+
 interface Props {
   site: SiteItem;
   favicon?: string;
@@ -116,13 +118,9 @@ const features = computed(() => {
             </span>
             <span
               class="site-type-badge"
-              :class="
-                (site.site_public ?? site.public)
-                  ? 'site-type-bt'
-                  : 'site-type-pt'
-              "
+              :class="isPublicSite(site) ? 'site-type-bt' : 'site-type-pt'"
             >
-              {{ (site.site_public ?? site.public) ? 'BT' : 'PT' }}
+              {{ isPublicSite(site) ? 'BT' : 'PT' }}
             </span>
           </div>
           <div v-if="!isThirdParty" class="site-url">
