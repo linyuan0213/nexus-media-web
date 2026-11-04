@@ -11,15 +11,6 @@ const fallbackImage = '/static/img/no-image.png';
  * 3. TMDB 图片转换为 /img/tmdb/{size}/{path}
  * 4. 其他外部图片走 /img?url= 重定向代理
  */
-const FC2_COVER_RE =
-  /fourhoi\.com\/fc2-ppv-[^/]+\/cover[^/]*\.(?:jpe?g|webp|png)/i;
-
-/** FC2 横向拼图封面按配置走人脸裁剪；旧路由原图也在此兜底。 */
-function fc2CropUrl(src: string): string {
-  if (!FC2_COVER_RE.test(src)) return src;
-  return `/img/crop?url=${encodeURIComponent(src)}&mode=face`;
-}
-
 export function getImgUrl(src?: null | string): string {
   if (!src) return fallbackImage;
   if (src.startsWith('/img/crop?')) {
@@ -34,17 +25,8 @@ export function getImgUrl(src?: null | string): string {
         /https?:\/\/image\.tmdb\.org\/t\/p\/(\w+)(\/.+)/,
       );
       if (proxiedTmdb) return `/img/tmdb/${proxiedTmdb[1]}${proxiedTmdb[2]}`;
-      if (FC2_COVER_RE.test(inner)) return fc2CropUrl(inner);
     } catch {
       // 保留原 URL，交给代理处理
-    }
-  }
-  if (src.startsWith('/img/library/')) {
-    try {
-      const inner = decodeURIComponent(src.slice('/img/library/'.length));
-      if (FC2_COVER_RE.test(inner)) return fc2CropUrl(inner);
-    } catch {
-      // 保留原代理 URL
     }
   }
   if (src.startsWith('/img/') || src.startsWith('/img?')) return src;
@@ -53,7 +35,6 @@ export function getImgUrl(src?: null | string): string {
   if (src.includes('doubanio.com') || src.includes('douban.com'))
     return `/img/douban/${encodeURIComponent(src)}`;
   if (src.includes('lain.bgm.tv')) return `/img/bgm/${encodeURIComponent(src)}`;
-  if (FC2_COVER_RE.test(src)) return fc2CropUrl(src);
   return `/img/library/${encodeURIComponent(src)}`;
 }
 
