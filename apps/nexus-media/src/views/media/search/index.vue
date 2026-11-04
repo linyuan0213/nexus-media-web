@@ -50,6 +50,7 @@ import { useSearchProgress } from '#/composables/useSearchProgress';
 import {
   getContentProfileDefaultSearchSource,
   getContentProfileDetailPath,
+  getContentProfileForSource,
   getContentProfileLabel,
   getContentProfileOverviewFallback,
   getContentProfileSearchSources,
@@ -2453,7 +2454,12 @@ async function confirmDownload() {
             <div style="aspect-ratio: 2/3; background: hsl(var(--muted))">
               <MediaPoster
                 :src="media.image || media.poster"
-                :content-profile="media.content_profile"
+                :content-profile="
+                  media.content_profile ||
+                  getContentProfileForSource(
+                    media.provider || media.anchor_provider,
+                  )
+                "
                 class="w-full h-full"
                 alt=""
               />
@@ -2469,7 +2475,10 @@ async function confirmDownload() {
               {{
                 getMediaTypeLabel(
                   media.media_type || media.type,
-                  media.content_profile,
+                  media.content_profile ||
+                    getContentProfileForSource(
+                      media.provider || media.anchor_provider,
+                    ),
                 )
               }}
             </span>

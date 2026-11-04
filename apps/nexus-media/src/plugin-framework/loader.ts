@@ -311,6 +311,23 @@ export function getContentProfilePosterPosition(key?: null | string): string {
   return contentProfiles[key]?.posterPosition || '';
 }
 
+export function getContentProfileForSource(source?: null | string): string {
+  const value = String(source || '')
+    .trim()
+    .toLowerCase();
+  if (!value) return '';
+  for (const [key, profile] of Object.entries(contentProfiles)) {
+    if (
+      (profile.searchSources || []).some(
+        (item) => String(item.value).toLowerCase() === value,
+      )
+    ) {
+      return key;
+    }
+  }
+  return '';
+}
+
 export function getContentProfileDefaultSearchSource(
   key?: null | string,
 ): string {
