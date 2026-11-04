@@ -781,6 +781,8 @@ export function unloadPluginFrontend(pluginId: string): void {
   for (const key of pluginProfileKeys.get(pluginId) || []) {
     delete contentProfiles[key];
     contentProfileImageTransformers.delete(key);
+    contentProfileMessageImageTransformers.delete(key);
+    pendingSearchSources.delete(key);
   }
   pluginProfileKeys.delete(pluginId);
 
