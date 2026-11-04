@@ -336,7 +336,7 @@ onUnmounted(() => {
             </template>
           </NButton>
           <h1 class="page-title" :style="{ color: 'hsl(var(--foreground))' }">
-            {{ selectedSite.name }}
+            {{ selectedSite.display_name || selectedSite.name }}
           </h1>
           <span
             class="page-subtitle"
