@@ -162,6 +162,34 @@ const activeFilterCount = computed(
     [stage.value, status.value, mediaType.value].filter(Boolean).length +
     (keyword.value.trim() ? 1 : 0),
 );
+const terminalEventStatuses = new Set([
+  'cancelled',
+  'dead',
+  'failed',
+  'succeeded',
+]);
+const activeEventStatuses = new Set([
+  'blocked',
+  'paused',
+  'queued',
+  'retrying',
+  'running',
+]);
+// 旧事件里的“进行中”只代表当时状态；后续已有终态事件时按已结束展示
+const timelineEvents = computed(() => {
+  const list = events.value || [];
+  return list.map((event, index) => {
+    if (index === list.length - 1 || !activeEventStatuses.has(event.status)) {
+      return event;
+    }
+    const terminal = list
+      .slice(index + 1)
+      .find((item) => terminalEventStatuses.has(item.status));
+    if (!terminal) return event;
+    return { ...event, status: terminal.status };
+  });
+});
+
 const latestTask = computed(() => {
   for (let index = events.value.length - 1; index >= 0; index -= 1) {
     const payload = events.value[index]?.payload || {};
@@ -1660,7 +1688,7 @@ watch(
                 </div>
                 <NTimeline v-else-if="events.length > 0" class="event-timeline">
                   <NTimelineItem
-                    v-for="event in events"
+                    v-for="event in timelineEvents"
                     :key="event.id"
                     :type="statusTagType(event.status)"
                     :time="formatTime(event.occurred_at)"
