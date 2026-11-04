@@ -19,12 +19,13 @@ function ensureOutsideListener() {
 </script>
 
 <script lang="ts" setup>
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
 import { NTag } from 'naive-ui';
 
+import { getDefaultSubscriptionSettingApi } from '#/api/modules/subscription';
 import MediaPoster from '#/components/media/MediaPoster.vue';
 import { formatPix, formatRestype } from '#/utils/subscribe';
 
@@ -231,17 +232,46 @@ const hasFilterInfo = computed(
 
 const MAX_SITES = 4;
 const sitesExpanded = ref(false);
+const defaultRssSites = ref<string[]>([]);
+const defaultSearchSites = ref<string[]>([]);
 
-const rssSites = computed<string[]>(() =>
-  Array.isArray(props.item.rss_sites)
+const rssSites = computed<string[]>(() => {
+  const own = Array.isArray(props.item.rss_sites)
     ? props.item.rss_sites.filter(Boolean).map(String)
-    : [],
-);
-const searchSites = computed<string[]>(() =>
-  Array.isArray(props.item.search_sites)
+    : [];
+  return own.length > 0 ? own : defaultRssSites.value;
+});
+const searchSites = computed<string[]>(() => {
+  const own = Array.isArray(props.item.search_sites)
     ? props.item.search_sites.filter(Boolean).map(String)
-    : [],
-);
+    : [];
+  return own.length > 0 ? own : defaultSearchSites.value;
+});
+
+async function loadDefaultSites() {
+  if (rssSites.value.length > 0 || searchSites.value.length > 0) return;
+  try {
+    const mtype = props.type === 'movie' ? 'movie' : 'tv';
+    const profile = String(props.item.content_profile || '').trim();
+    const res: any = await getDefaultSubscriptionSettingApi(
+      mtype,
+      profile && profile !== 'default' ? profile : undefined,
+    );
+    const setting = res?.data || res || {};
+    defaultRssSites.value = Array.isArray(setting.rss_sites)
+      ? setting.rss_sites.filter(Boolean).map(String)
+      : [];
+    defaultSearchSites.value = Array.isArray(setting.search_sites)
+      ? setting.search_sites.filter(Boolean).map(String)
+      : [];
+  } catch {
+    defaultRssSites.value = [];
+    defaultSearchSites.value = [];
+  }
+}
+
+onMounted(loadDefaultSites);
+watch(() => props.item, loadDefaultSites);
 
 const hasSites = computed(
   () => rssSites.value.length > 0 || searchSites.value.length > 0,
