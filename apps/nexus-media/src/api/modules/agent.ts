@@ -222,7 +222,7 @@ export function getMessageUnreadCount() {
 }
 
 /** 未读消息列表 + 未读数（通知栏下拉，轻量接口） */
-export function getMessageUnreadList(limit = 100) {
+export function getMessageUnreadList(limit = 20) {
   return requestClient.get<{
     messages: AgentApi.MessageStreamItem[];
     unread: number;

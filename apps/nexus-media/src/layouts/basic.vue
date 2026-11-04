@@ -123,7 +123,7 @@ function setUnreadCount(next: number) {
 /** 从后端加载未读通知 + 未读数（15s 轮询兜底，SSE 为主） */
 async function loadNotifications() {
   try {
-    const res = await getMessageUnreadList(100);
+    const res = await getMessageUnreadList(20);
     const items = res?.messages || [];
     // 新未读消息 → OS 通知栏：有授权才弹并记录去重（前台也弹，去重防重复）
     const osReady = canOsNotify();

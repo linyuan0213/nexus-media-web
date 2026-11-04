@@ -1015,7 +1015,7 @@ async function restoreTimeline() {
     // 会话历史不可用时忽略
   }
   try {
-    const res: any = await getMessageHistory(200);
+    const res: any = await getMessageHistory(50);
     const list: AgentApi.MessageStreamItem[] = res?.messages || [];
     if (list.length > 0 && streamCursor) {
       streamCursor = Math.max(...list.map((m) => m.cursor));
