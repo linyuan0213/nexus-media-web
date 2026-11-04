@@ -622,6 +622,9 @@ export async function loadPluginFrontend(
     pluginFrontendVersions.set(plugin.id, plugin.version || '');
   }
 
+  // 画像标签/搜索源只依赖 manifest，先注册，避免 ESM 加载失败导致页面回退成电影。
+  registerContentProfiles(plugin);
+
   try {
     // 如果有前端组件，先 import ESM 模块
     const hasComponents =
@@ -653,8 +656,6 @@ export async function loadPluginFrontend(
         Object.keys(components || {}),
       );
     }
-
-    registerContentProfiles(plugin);
 
     // 注册路由
     if (plugin.frontend.routes?.length > 0) {
