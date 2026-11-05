@@ -1,15 +1,15 @@
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import type { SectionKey } from './settings';
 
-import { NSpin, NTabPane, NTabs, useMessage } from 'naive-ui';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
+
+import { NSpin, NTag, useMessage } from 'naive-ui';
 
 import {
-  getAllSystemConfigApi,
   getSiteConfigVersionApi,
   listAgentModelsApi,
   reloadConfigApi,
-  updateConfigApi,
   updateSiteConfigApi,
 } from '#/api';
 import PageHeader from '#/components/page/PageHeader.vue';
@@ -20,22 +20,40 @@ import LogSection from './components/LogSection.vue';
 import MediaSection from './components/MediaSection.vue';
 import RenameSection from './components/RenameSection.vue';
 import ServiceSection from './components/ServiceSection.vue';
+import SettingsNavigation from './components/SettingsNavigation.vue';
+import SettingsSection from './components/SettingsSection.vue';
 import SiteConfigCard from './components/SiteConfigCard.vue';
 import SystemSection from './components/SystemSection.vue';
+import { SECTIONS } from './settings';
+import { useBasicSettings } from './useBasicSettings';
 
 const message = useMessage();
+const route = useRoute();
+const router = useRouter();
 
-const loading = ref(false);
-const saving = ref<null | string>(null);
+const {
+  config,
+  dirtySections,
+  fetchData,
+  hasSectionErrors,
+  loading,
+  resetSection,
+  resolveAgentProvider,
+  saveAi,
+  saveLaboratory,
+  saveLog,
+  saveMedia,
+  saveRename,
+  saveService,
+  saveSystem,
+  savedSection,
+  saving,
+  updateConfig,
+} = useBasicSettings();
+
 const loadingModels = ref(false);
 const modelOptions = ref<string[]>([]);
-const route = useRoute();
-const activeTab = ref(String(route.query.tab || 'system'));
-
-const config = ref<Record<string, any>>({});
-
-// 记录原始为数字的字段，保存时还原类型避免后端收到字符串
-const numericKeys = new Set<string>();
+const activeSection = ref<SectionKey>(resolveSection(route.query.tab));
 
 const siteConfigVersion = ref({
   local: '',
@@ -45,197 +63,26 @@ const siteConfigVersion = ref({
 const updatingSiteConfig = ref(false);
 const reloadingConfig = ref(false);
 
-function updateConfig(key: string, value: any) {
-  config.value = { ...config.value, [key]: value };
+const activeDefinition = computed(
+  () =>
+    SECTIONS.find((item) => item.key === activeSection.value) ?? SECTIONS[0]!,
+);
+
+function resolveSection(value: unknown): SectionKey {
+  const key = String(value || '');
+  return SECTIONS.some((item) => item.key === key)
+    ? (key as SectionKey)
+    : 'system';
 }
 
-async function fetchData() {
-  loading.value = true;
-  try {
-    const res = await getAllSystemConfigApi();
-    if (res) {
-      for (const key of Object.keys(res)) {
-        if (typeof res[key] === 'number') {
-          numericKeys.add(key);
-          res[key] = String(res[key]);
-        }
-      }
-    }
-    config.value = res || {};
-  } finally {
-    loading.value = false;
-  }
+function isDirty(section: SectionKey) {
+  return dirtySections.value.includes(section);
 }
 
-async function saveSection(sectionKey: string, data: Record<string, any>) {
-  saving.value = sectionKey;
-  try {
-    await updateConfigApi(data);
-    message.success('保存成功');
-  } catch {
-    message.error('保存失败');
-  } finally {
-    saving.value = null;
-  }
-}
-
-// 敏感字段（密码/密钥/令牌/Cookie）：空值代表“不修改”，跳过以避免误清
-const SECRET_KEY_RE =
-  /(password|secret|token|api[_-]?key|apikey|tmdbkey|ssl_cert|ssl_key|cookie)/i;
-
-function isSecretKey(key: string): boolean {
-  return SECRET_KEY_RE.test(key);
-}
-
-function buildPayload(fields: string[]) {
-  const data: Record<string, any> = {};
-  for (const f of fields) {
-    let v = config.value[f];
-    if (v === undefined) continue;
-    // 空值：非敏感字段允许清空（如代理置空），敏感字段跳过以保留原值
-    if (v === '') {
-      if (isSecretKey(f)) continue;
-      data[f] = '';
-      continue;
-    }
-    if (numericKeys.has(f) && typeof v === 'string') {
-      v = v.includes('.') ? Number.parseFloat(v) : Number.parseInt(v, 10);
-    }
-    data[f] = v;
-  }
-  return data;
-}
-
-function saveSystem() {
-  saveSection(
-    'system',
-    buildPayload([
-      'app.web_port',
-      'app.ssl_cert',
-      'app.ssl_key',
-      'app.proxies',
-      'app.domain',
-      'app.user_agent',
-      'app.enable_image_proxy',
-    ]),
-  );
-}
-
-function saveLog() {
-  saveSection(
-    'log',
-    buildPayload(['log.type', 'log.path', 'log.level', 'log.format']),
-  );
-}
-
-function saveMedia() {
-  saveSection(
-    'media',
-    buildPayload([
-      'app.rmt_tmdbkey',
-      'app.tmdb_domain',
-      'app.rmt_match_mode',
-      'media.tmdb_language',
-      'app.tmdb_image_url',
-      'pt.download_order',
-      'media.min_filesize',
-      'media.media_default_path',
-      'media.ignored_paths',
-      'media.ignored_files',
-      'media.filesize_cover',
-      'media.nfo_poster',
-      'media.sync_transfer_interval',
-      'media.episode_mapping_enabled',
-    ]),
-  );
-}
-
-function saveRename() {
-  saveSection(
-    'rename',
-    buildPayload(['media.movie_name_format', 'media.tv_name_format']),
-  );
-}
-
-function resolveAgentProvider(): string {
-  const configured = String(
-    config.value['agent.default_provider'] || '',
-  ).trim();
-  if (configured) return configured;
-  for (const key of Object.keys(config.value)) {
-    const match = key.match(/^agent\.providers\.([^.]+)\.model$/);
-    if (match?.[1] && String(config.value[key] || '').trim()) {
-      return match[1];
-    }
-  }
-  return 'openai';
-}
-
-function saveAi() {
-  const data: Record<string, any> = {};
-
-  const explicitProvider = String(
-    config.value['agent.default_provider'] || '',
-  ).trim();
-  const provider = resolveAgentProvider();
-  const model = String(
-    config.value[`agent.providers.${provider}.model`] || '',
-  ).trim();
-  if (model) {
-    data['agent.default_provider'] = provider;
-  } else if (explicitProvider) {
-    // 显式选择了 provider 却没填模型，保存会得到不可用的 AI 配置。
-    message.error(`请为 ${provider} 选择或填写模型`);
-    return;
-  }
-
-  for (const key of Object.keys(config.value)) {
-    // 提交 Agent 全部配置：含 embedding / notify / long_term / fallback / providers
-    if (!key.startsWith('agent.') || key === 'agent.test') continue;
-    const v = config.value[key];
-    if (v === undefined || v === '') continue;
-    data[key] = v;
-  }
-  saveSection('ai', data);
-}
-
-function saveService() {
-  saveSection(
-    'service',
-    buildPayload([
-      'media.mediasync_interval',
-      'media.sync_transfer_interval',
-      'pt.ptrefresh_date_cron',
-      'pt.search_auto',
-      'pt.search_no_result_rss',
-      'queue.transfer_workers',
-      'queue.sync_workers',
-      'queue.scrape_workers',
-      'queue.lifecycle_reconcile_seconds',
-      'subscribe.queue_interval',
-      'subscribe.rss_interval',
-      'subscribe.search_interval',
-      'subscribe.batch_limit',
-      'subscribe.batch_workers',
-      'subscribe.reconcile_interval',
-    ]),
-  );
-}
-
-function saveLaboratory() {
-  saveSection(
-    'laboratory',
-    buildPayload([
-      'laboratory.search_keyword',
-      'laboratory.search_tmdbweb',
-      'laboratory.search_multi_language',
-      'laboratory.ocr_enabled',
-      'laboratory.ocr_server_host',
-      'laboratory.chrome_enabled',
-      'laboratory.chrome_server_host',
-      'laboratory.chrome_admin_token',
-    ]),
-  );
+function selectSection(section: SectionKey) {
+  if (section === activeSection.value) return;
+  activeSection.value = section;
+  router.replace({ query: { ...route.query, tab: section } });
 }
 
 async function fetchModels() {
@@ -317,18 +164,51 @@ async function handleReloadConfig() {
   }
 }
 
+function handleBeforeUnload(event: BeforeUnloadEvent) {
+  if (dirtySections.value.length === 0) return;
+  event.preventDefault();
+  event.returnValue = '';
+}
+
+onBeforeRouteLeave(() => {
+  if (dirtySections.value.length === 0) return true;
+  return window.confirm('有未保存的更改，离开后这些修改会丢失。确定离开吗？');
+});
+
+watch(
+  () => route.query.tab,
+  (value) => {
+    const next = resolveSection(value);
+    if (next !== activeSection.value) activeSection.value = next;
+  },
+);
+
 onMounted(() => {
   fetchData();
   fetchSiteConfigVersion();
+  window.addEventListener('beforeunload', handleBeforeUnload);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload);
 });
 </script>
 
 <template>
-  <div class="p-4 lg:p-6">
-    <PageHeader title="基础设置" />
+  <div class="settings-page p-4 lg:p-6">
+    <PageHeader
+      title="基础设置"
+      subtitle="集中管理运行环境、媒体识别与自动化任务"
+    >
+      <template #actions>
+        <NTag v-if="dirtySections.length" type="warning" :bordered="false">
+          {{ dirtySections.length }} 个分区未保存
+        </NTag>
+      </template>
+    </PageHeader>
 
     <SiteConfigCard
-      class="mb-6"
+      class="mb-5"
       :local="siteConfigVersion.local"
       :remote="siteConfigVersion.remote"
       :needs-update="siteConfigVersion.needs_update"
@@ -339,78 +219,218 @@ onMounted(() => {
     />
 
     <NSpin :show="loading">
-      <NTabs
-        v-model:value="activeTab"
-        type="line"
-        animated
-        class="settings-tabs"
-      >
-        <NTabPane name="system" tab="系统">
-          <SystemSection
-            :config="config"
+      <div class="settings-layout">
+        <aside class="settings-sidebar">
+          <div class="settings-sidebar-inner">
+            <SettingsNavigation
+              :active="activeSection"
+              :dirty-sections="dirtySections"
+              :sections="SECTIONS"
+              @select="selectSection"
+            />
+            <p class="settings-shortcut">
+              <span class="shortcut-dot" aria-hidden="true"></span>
+              圆点表示该分区有未保存修改
+            </p>
+          </div>
+        </aside>
+
+        <main class="settings-main">
+          <SettingsSection
+            v-if="activeSection === 'system'"
+            dom-id="basic_system"
+            :title="activeDefinition.title"
+            :description="activeDefinition.description"
+            icon="lucide:server-cog"
+            :dirty="isDirty('system')"
+            :saved="savedSection === 'system'"
             :saving="saving === 'system'"
+            :invalid="hasSectionErrors('system')"
+            @reset="resetSection('system')"
             @save="saveSystem"
-            @update-config="updateConfig"
-          />
-        </NTabPane>
+          >
+            <SystemSection :config="config" @update-config="updateConfig" />
+          </SettingsSection>
 
-        <NTabPane name="log" tab="日志">
-          <LogSection
-            :config="config"
-            :saving="saving === 'log'"
-            @save="saveLog"
-            @update-config="updateConfig"
-          />
-        </NTabPane>
-
-        <NTabPane name="media" tab="媒体">
-          <MediaSection
-            :config="config"
+          <SettingsSection
+            v-if="activeSection === 'media'"
+            dom-id="basic_media"
+            title="媒体与识别"
+            description="配置元数据来源、识别策略以及媒体整理的基础规则。"
+            icon="lucide:library-big"
+            :dirty="isDirty('media')"
+            :saved="savedSection === 'media'"
             :saving="saving === 'media'"
+            :invalid="hasSectionErrors('media')"
+            @reset="resetSection('media')"
             @save="saveMedia"
-            @update-config="updateConfig"
-          />
-        </NTabPane>
+          >
+            <MediaSection :config="config" @update-config="updateConfig" />
+          </SettingsSection>
 
-        <NTabPane name="rename" tab="重命名">
-          <RenameSection
-            :config="config"
+          <SettingsSection
+            v-if="activeSection === 'rename'"
+            dom-id="basic_rename"
+            title="整理与重命名"
+            description="通过变量和固定文本构建电影、电视剧的统一命名格式。"
+            icon="lucide:folder-pen"
+            :dirty="isDirty('rename')"
+            :saved="savedSection === 'rename'"
             :saving="saving === 'rename'"
+            :invalid="hasSectionErrors('rename')"
+            @reset="resetSection('rename')"
             @save="saveRename"
-            @update-config="updateConfig"
-          />
-        </NTabPane>
+          >
+            <RenameSection
+              :config="config"
+              :saving="saving === 'rename'"
+              @save="saveRename"
+              @update-config="updateConfig"
+            />
+          </SettingsSection>
 
-        <NTabPane name="agent" tab="Agent">
-          <AgentSection
-            :config="config"
-            :saving="saving === 'ai'"
-            :loading-models="loadingModels"
-            :model-options="modelOptions"
-            @save="saveAi"
-            @fetch-models="fetchModels"
-            @update-config="updateConfig"
-          />
-        </NTabPane>
-
-        <NTabPane name="service" tab="服务">
-          <ServiceSection
-            :config="config"
+          <SettingsSection
+            v-if="activeSection === 'service'"
+            dom-id="basic_service"
+            title="自动化服务"
+            description="安排订阅、同步与站点任务，并控制后台队列的处理节奏。"
+            icon="lucide:workflow"
+            :dirty="isDirty('service')"
+            :saved="savedSection === 'service'"
             :saving="saving === 'service'"
+            :invalid="hasSectionErrors('service')"
+            @reset="resetSection('service')"
             @save="saveService"
-            @update-config="updateConfig"
-          />
-        </NTabPane>
+          >
+            <ServiceSection :config="config" @update-config="updateConfig" />
+          </SettingsSection>
 
-        <NTabPane name="laboratory" tab="实验室">
-          <LaboratorySection
-            :config="config"
+          <SettingsSection
+            v-if="activeSection === 'agent'"
+            dom-id="basic_agent"
+            title="AI Agent"
+            description="配置对话模型、知识库、长程记忆与智能通知增强。"
+            icon="lucide:bot"
+            :dirty="isDirty('agent')"
+            :saved="savedSection === 'agent'"
+            :saving="saving === 'agent'"
+            :invalid="hasSectionErrors('agent')"
+            @reset="resetSection('agent')"
+            @save="saveAi"
+          >
+            <AgentSection
+              :config="config"
+              :loading-models="loadingModels"
+              :model-options="modelOptions"
+              @fetch-models="fetchModels"
+              @save="saveAi"
+              @update-config="updateConfig"
+            />
+          </SettingsSection>
+
+          <SettingsSection
+            v-if="activeSection === 'log'"
+            dom-id="basic_log"
+            title="日志与诊断"
+            description="控制日志输出、详细程度以及文件轮转和保留策略。"
+            icon="lucide:scroll-text"
+            :dirty="isDirty('log')"
+            :saved="savedSection === 'log'"
+            :saving="saving === 'log'"
+            :invalid="hasSectionErrors('log')"
+            @reset="resetSection('log')"
+            @save="saveLog"
+          >
+            <LogSection :config="config" @update-config="updateConfig" />
+          </SettingsSection>
+
+          <SettingsSection
+            v-if="activeSection === 'laboratory'"
+            dom-id="basic_laboratory"
+            title="实验室"
+            description="启用辅助识别能力和外部自动化服务，功能可能持续调整。"
+            icon="lucide:flask-conical"
+            :dirty="isDirty('laboratory')"
+            :saved="savedSection === 'laboratory'"
             :saving="saving === 'laboratory'"
+            :invalid="hasSectionErrors('laboratory')"
+            @reset="resetSection('laboratory')"
             @save="saveLaboratory"
-            @update-config="updateConfig"
-          />
-        </NTabPane>
-      </NTabs>
+          >
+            <LaboratorySection :config="config" @update-config="updateConfig" />
+          </SettingsSection>
+
+          <p v-if="hasSectionErrors(activeSection)" class="settings-hint">
+            部分数字字段超出允许范围，保存时会提示具体字段。
+          </p>
+        </main>
+      </div>
     </NSpin>
   </div>
 </template>
+
+<style scoped>
+.settings-page {
+  max-width: 1440px;
+  margin-inline: auto;
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.settings-sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.settings-shortcut {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0 0.75rem;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+}
+
+.shortcut-dot {
+  flex: 0 0 auto;
+  width: 0.4375rem;
+  height: 0.4375rem;
+  background: hsl(var(--warning));
+  border-radius: 50%;
+}
+
+.settings-main {
+  min-width: 0;
+}
+
+.settings-hint {
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+@media (min-width: 1024px) {
+  .settings-layout {
+    grid-template-columns: 13rem minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+
+  .settings-sidebar-inner {
+    position: sticky;
+    top: 1rem;
+  }
+}
+
+@media (max-width: 1023px) {
+  .settings-shortcut {
+    display: none;
+  }
+}
+</style>

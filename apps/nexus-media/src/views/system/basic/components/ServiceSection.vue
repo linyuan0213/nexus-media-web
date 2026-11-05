@@ -1,62 +1,26 @@
 <script lang="ts" setup>
-import { IconifyIcon } from '@vben/icons';
+import { NForm, NFormItem, NGrid, NGridItem, NInput, NSwitch } from 'naive-ui';
 
-import {
-  NButton,
-  NCard,
-  NForm,
-  NFormItem,
-  NGrid,
-  NGridItem,
-  NInput,
-  NSwitch,
-} from 'naive-ui';
+import SettingsGroup from './SettingsGroup.vue';
 
 interface Props {
   config: Record<string, any>;
-  saving?: boolean;
 }
 
-withDefaults(defineProps<Props>(), {
-  saving: false,
-});
+defineProps<Props>();
 
 const emit = defineEmits<{
-  save: [];
   updateConfig: [key: string, value: any];
 }>();
 </script>
 
 <template>
-  <NCard
-    id="basic_service"
-    size="small"
-    class="mb-6 overflow-hidden"
-    style="
-      background: hsl(var(--card));
-      border-color: hsl(var(--border));
-      border-left-color: hsl(var(--primary));
-      border-left-width: 4px;
-    "
-  >
-    <template #header>
-      <div>
-        <div class="flex items-center gap-2">
-          <IconifyIcon
-            icon="lucide:settings"
-            class="size-4"
-            style="color: hsl(var(--primary))"
-          />
-          <span class="font-semibold" style="color: hsl(var(--card-foreground))"
-            >服务</span
-          >
-        </div>
-        <div class="mt-1 text-xs" style="color: hsl(var(--muted-foreground))">
-          RSS订阅、媒体库同步、站点刷新等后台任务周期
-        </div>
-      </div>
-    </template>
-    <NForm label-placement="top">
+  <NForm label-placement="top">
+    <SettingsGroup
+      title="订阅调度"
+      description="订阅队列、RSS 轮询与主动搜索的执行节奏。"
+      icon="lucide:calendar-clock"
+    >
       <NGrid cols="1 s:1 m:2 l:3" :x-gap="12" :y-gap="8" responsive="screen">
         <NGridItem span="1">
           <NFormItem label="订阅队列搜索间隔(秒)">
@@ -124,6 +88,15 @@ const emit = defineEmits<{
             />
           </NFormItem>
         </NGridItem>
+      </NGrid>
+    </SettingsGroup>
+
+    <SettingsGroup
+      title="媒体同步与站点"
+      description="媒体库、目录同步与站点数据的刷新周期。"
+      icon="lucide:refresh-cw"
+    >
+      <NGrid cols="1 s:1 m:2 l:3" :x-gap="12" :y-gap="8" responsive="screen">
         <NGridItem span="1">
           <NFormItem label="媒体库同步周期(小时)">
             <NInput
@@ -157,6 +130,15 @@ const emit = defineEmits<{
             />
           </NFormItem>
         </NGridItem>
+      </NGrid>
+    </SettingsGroup>
+
+    <SettingsGroup
+      title="下载与后台队列"
+      description="远程下载行为和转移、同步、刮削的并发上限。"
+      icon="lucide:workflow"
+    >
+      <NGrid cols="1 s:1 m:2 l:3" :x-gap="12" :y-gap="8" responsive="screen">
         <NGridItem span="1">
           <NFormItem label="远程搜索自动择优下载">
             <NSwitch
@@ -221,18 +203,6 @@ const emit = defineEmits<{
           </NFormItem>
         </NGridItem>
       </NGrid>
-    </NForm>
-    <template #footer>
-      <div class="flex justify-end">
-        <NButton
-          type="primary"
-          size="small"
-          :loading="saving"
-          @click="emit('save')"
-        >
-          保存
-        </NButton>
-      </div>
-    </template>
-  </NCard>
+    </SettingsGroup>
+  </NForm>
 </template>

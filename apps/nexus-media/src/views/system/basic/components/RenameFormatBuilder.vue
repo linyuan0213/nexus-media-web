@@ -5,8 +5,6 @@ import { computed, onMounted, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { NButton } from 'naive-ui';
-
 import { previewNameFormatApi } from '#/api';
 
 // ============ Props / Emits ============
@@ -297,12 +295,6 @@ function loadPreset(fmt: string) {
   pushChange();
 }
 
-function reset() {
-  chips.value = [];
-  separator.value = ' - ';
-  pushChange();
-}
-
 function beginEdit(chip: FormatChip) {
   if (chip.type !== 'static') return;
   editingId.value = chip.id;
@@ -491,13 +483,6 @@ onMounted(() => refreshPreview());
         spellcheck="false"
         @input="onOutputEdit(($event.target as HTMLTextAreaElement).value)"
       ></textarea>
-    </div>
-
-    <div class="flex justify-end gap-3">
-      <NButton @click="reset">重置</NButton>
-      <NButton type="primary" :loading="saving" @click="emit('save')">
-        保存格式
-      </NButton>
     </div>
   </div>
 </template>

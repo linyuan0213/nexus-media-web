@@ -1,63 +1,28 @@
 <script lang="ts" setup>
-import { IconifyIcon } from '@vben/icons';
+import { NForm, NFormItem, NGrid, NGridItem, NInput, NSwitch } from 'naive-ui';
 
-import {
-  NButton,
-  NCard,
-  NForm,
-  NFormItem,
-  NGrid,
-  NGridItem,
-  NInput,
-  NSwitch,
-} from 'naive-ui';
+import SettingsGroup from './SettingsGroup.vue';
+import SettingsSwitch from './SettingsSwitch.vue';
 
 interface Props {
   config: Record<string, any>;
-  saving?: boolean;
 }
 
-withDefaults(defineProps<Props>(), {
-  saving: false,
-});
+defineProps<Props>();
 
 const emit = defineEmits<{
-  save: [];
   updateConfig: [key: string, value: any];
 }>();
 </script>
 
 <template>
-  <NCard
-    id="basic_laboratory"
-    size="small"
-    class="mb-6 overflow-hidden"
-    style="
-      background: hsl(var(--card));
-      border-color: hsl(var(--border));
-      border-left-color: hsl(var(--primary));
-      border-left-width: 4px;
-    "
-  >
-    <template #header>
-      <div>
-        <div class="flex items-center gap-2">
-          <IconifyIcon
-            icon="lucide:flask-conical"
-            class="size-4"
-            style="color: hsl(var(--primary))"
-          />
-          <span class="font-semibold" style="color: hsl(var(--card-foreground))"
-            >实验室</span
-          >
-        </div>
-        <div class="mt-1 text-xs" style="color: hsl(var(--muted-foreground))">
-          实验性功能、辅助识别与外部服务地址
-        </div>
-      </div>
-    </template>
-    <NForm label-placement="top">
-      <NGrid cols="1 s:1 m:2 l:4" :x-gap="16" :y-gap="16" responsive="screen">
+  <NForm label-placement="top">
+    <SettingsGroup
+      title="识别增强"
+      description="TMDB 识别失败后的补充识别策略。"
+      icon="lucide:scan-text"
+    >
+      <NGrid cols="1 s:1 m:2 l:3" :x-gap="12" :y-gap="8" responsive="screen">
         <NGridItem span="1">
           <NFormItem label="辅助识别">
             <NSwitch
@@ -78,7 +43,6 @@ const emit = defineEmits<{
             />
           </NFormItem>
         </NGridItem>
-
         <NGridItem span="1">
           <NFormItem label="多语言搜索">
             <NSwitch
@@ -91,85 +55,80 @@ const emit = defineEmits<{
           </NFormItem>
         </NGridItem>
       </NGrid>
+    </SettingsGroup>
 
-      <div
-        class="mt-4 mb-2 text-sm font-semibold"
-        style="color: hsl(var(--card-foreground))"
-      >
-        外部服务
-      </div>
-      <NGrid cols="1 s:1 m:2 l:2" :x-gap="16" :y-gap="16" responsive="screen">
+    <SettingsGroup
+      title="验证码识别"
+      description="连接外部 OCR 服务处理登录验证码。"
+      icon="lucide:scan-line"
+    >
+      <NGrid cols="1 s:1 m:2 l:2" :x-gap="12" :y-gap="8" responsive="screen">
         <NGridItem span="1">
-          <div class="flex flex-col gap-4">
-            <NFormItem label="启用验证码识别服务器" class="mb-0">
-              <NSwitch
-                :value="config['laboratory.ocr_enabled']"
-                @update:value="
-                  (v) => emit('updateConfig', 'laboratory.ocr_enabled', v)
-                "
-              />
-            </NFormItem>
-            <NFormItem label="验证码识别服务器" class="mb-0">
-              <NInput
-                :value="config['laboratory.ocr_server_host']"
-                placeholder="http://127.0.0.1:9300"
-                :disabled="!config['laboratory.ocr_enabled']"
-                @update:value="
-                  (v) => emit('updateConfig', 'laboratory.ocr_server_host', v)
-                "
-              />
-            </NFormItem>
-          </div>
+          <SettingsSwitch
+            label="启用验证码识别服务器"
+            description="登录遇到验证码时，自动调用 OCR 服务识别。"
+            :value="config['laboratory.ocr_enabled']"
+            @update="(v) => emit('updateConfig', 'laboratory.ocr_enabled', v)"
+          />
         </NGridItem>
         <NGridItem span="1">
-          <div class="flex flex-col gap-4">
-            <NFormItem label="启用网页自动化" class="mb-0">
-              <NSwitch
-                :value="config['laboratory.chrome_enabled']"
-                @update:value="
-                  (v) => emit('updateConfig', 'laboratory.chrome_enabled', v)
-                "
-              />
-            </NFormItem>
-            <NFormItem label="网页自动化服务器" class="mb-0">
-              <NInput
-                :value="config['laboratory.chrome_server_host']"
-                placeholder="http://127.0.0.1:9850"
-                :disabled="!config['laboratory.chrome_enabled']"
-                @update:value="
-                  (v) =>
-                    emit('updateConfig', 'laboratory.chrome_server_host', v)
-                "
-              />
-            </NFormItem>
-            <NFormItem label="访问凭证（API Key）" class="mb-0">
-              <NInput
-                :value="config['laboratory.chrome_admin_token']"
-                type="password"
-                show-password-on="click"
-                placeholder="nexus-chrome 启用 AUTH_PASSWORD 时必填（API Key）"
-                :disabled="!config['laboratory.chrome_enabled']"
-                @update:value="
-                  (v) =>
-                    emit('updateConfig', 'laboratory.chrome_admin_token', v)
-                "
-              />
-            </NFormItem>
-          </div>
+          <NFormItem label="验证码识别服务器" class="mb-0">
+            <NInput
+              :value="config['laboratory.ocr_server_host']"
+              placeholder="http://127.0.0.1:9300"
+              :disabled="!config['laboratory.ocr_enabled']"
+              @update:value="
+                (v) => emit('updateConfig', 'laboratory.ocr_server_host', v)
+              "
+            />
+          </NFormItem>
         </NGridItem>
       </NGrid>
-    </NForm>
-    <template #footer>
-      <div class="flex justify-end">
-        <NButton
-          type="primary"
-          size="small"
-          :loading="saving"
-          @click="emit('save')"
-        >
-          保存
-        </NButton>
-      </div>
-    </template>
-  </NCard>
+    </SettingsGroup>
+
+    <SettingsGroup
+      title="网页自动化"
+      description="连接 nexus-chrome 处理需要浏览器渲染的站点。"
+      icon="lucide:mouse-pointer-click"
+    >
+      <NGrid cols="1 s:1 m:2 l:2" :x-gap="12" :y-gap="8" responsive="screen">
+        <NGridItem>
+          <SettingsSwitch
+            label="启用网页自动化"
+            description="站点访问与抓取需要浏览器渲染时，调用 nexus-chrome。"
+            :value="config['laboratory.chrome_enabled']"
+            @update="
+              (v) => emit('updateConfig', 'laboratory.chrome_enabled', v)
+            "
+          />
+        </NGridItem>
+        <NGridItem>
+          <NFormItem label="网页自动化服务器" class="mb-0">
+            <NInput
+              :value="config['laboratory.chrome_server_host']"
+              placeholder="http://127.0.0.1:9850"
+              :disabled="!config['laboratory.chrome_enabled']"
+              @update:value="
+                (v) => emit('updateConfig', 'laboratory.chrome_server_host', v)
+              "
+            />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="1 s:1 m:2 l:2">
+          <NFormItem label="访问凭证（API Key）" class="mb-0">
+            <NInput
+              :value="config['laboratory.chrome_admin_token']"
+              type="password"
+              show-password-on="click"
+              placeholder="nexus-chrome 启用 AUTH_PASSWORD 时必填（API Key）"
+              :disabled="!config['laboratory.chrome_enabled']"
+              @update:value="
+                (v) => emit('updateConfig', 'laboratory.chrome_admin_token', v)
+              "
+            />
+          </NFormItem>
+        </NGridItem>
+      </NGrid>
+    </SettingsGroup>
+  </NForm>
 </template>

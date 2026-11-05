@@ -5,7 +5,6 @@ import { IconifyIcon } from '@vben/icons';
 
 import {
   NButton,
-  NCard,
   NForm,
   NFormItem,
   NGrid,
@@ -215,388 +214,342 @@ onMounted(() => {
 </script>
 
 <template>
-  <NCard
-    id="basic_ai"
-    size="small"
-    class="mb-6 overflow-hidden"
-    style="
-      background: hsl(var(--card));
-      border-color: hsl(var(--border));
-      border-left-color: hsl(var(--primary));
-      border-left-width: 4px;
-    "
-  >
-    <template #header>
-      <div>
-        <div class="flex items-center gap-2">
-          <IconifyIcon
-            icon="lucide:cpu"
-            class="size-4"
-            style="color: hsl(var(--primary))"
+  <NForm label-placement="top">
+    <NGrid cols="1 s:1 m:2 l:3" :x-gap="12" :y-gap="8" responsive="screen">
+      <NGridItem span="1">
+        <NFormItem label="启用 Agent">
+          <NSwitch
+            :value="config['agent.enabled']"
+            @update:value="(v) => emit('updateConfig', 'agent.enabled', v)"
           />
-          <span class="font-semibold" style="color: hsl(var(--card-foreground))"
-            >Agent 设置</span
-          >
-        </div>
-        <div class="mt-1 text-xs" style="color: hsl(var(--muted-foreground))">
-          AI Provider 选择、API 配置与模型设置
-        </div>
-      </div>
-    </template>
+        </NFormItem>
+      </NGridItem>
+      <NGridItem span="1">
+        <NFormItem label="媒体识别增强">
+          <NSwitch
+            :value="config['agent.media_recognizer_enabled']"
+            @update:value="
+              (v) => emit('updateConfig', 'agent.media_recognizer_enabled', v)
+            "
+          />
+        </NFormItem>
+      </NGridItem>
+      <NGridItem span="1">
+        <NFormItem label="批量识别大小">
+          <NInput
+            :value="config['agent.batch_size']"
+            placeholder="100"
+            @update:value="(v) => emit('updateConfig', 'agent.batch_size', v)"
+          />
+        </NFormItem>
+      </NGridItem>
+    </NGrid>
 
-    <NForm label-placement="top">
-      <NGrid cols="1 s:1 m:2 l:3" :x-gap="12" :y-gap="8" responsive="screen">
-        <NGridItem span="1">
-          <NFormItem label="启用 Agent">
-            <NSwitch
-              :value="config['agent.enabled']"
-              @update:value="(v) => emit('updateConfig', 'agent.enabled', v)"
-            />
-          </NFormItem>
-        </NGridItem>
-        <NGridItem span="1">
-          <NFormItem label="媒体识别增强">
-            <NSwitch
-              :value="config['agent.media_recognizer_enabled']"
-              @update:value="
-                (v) => emit('updateConfig', 'agent.media_recognizer_enabled', v)
-              "
-            />
-          </NFormItem>
-        </NGridItem>
-        <NGridItem span="1">
-          <NFormItem label="批量识别大小">
-            <NInput
-              :value="config['agent.batch_size']"
-              placeholder="100"
-              @update:value="(v) => emit('updateConfig', 'agent.batch_size', v)"
-            />
-          </NFormItem>
-        </NGridItem>
-      </NGrid>
-
-      <!-- Provider 选择卡片 -->
-      <NFormItem label="默认 Provider">
+    <!-- Provider 选择卡片 -->
+    <NFormItem label="默认 Provider">
+      <div
+        class="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6"
+      >
         <div
-          class="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6"
+          v-for="p in providers"
+          :key="p.value"
+          class="flex cursor-pointer items-center gap-2 rounded-lg border p-2 transition-all"
+          :style="{
+            background:
+              currentProvider === p.value
+                ? 'hsl(var(--primary))'
+                : 'transparent',
+            borderColor:
+              currentProvider === p.value
+                ? 'hsl(var(--primary))'
+                : 'hsl(var(--border))',
+          }"
+          @click="currentProvider = p.value"
         >
-          <div
-            v-for="p in providers"
-            :key="p.value"
-            class="flex cursor-pointer items-center gap-2 rounded-lg border p-2 transition-all"
+          <IconifyIcon
+            :icon="p.icon"
+            class="size-4"
             :style="{
-              background:
+              color:
                 currentProvider === p.value
-                  ? 'hsl(var(--primary))'
-                  : 'transparent',
-              borderColor:
-                currentProvider === p.value
-                  ? 'hsl(var(--primary))'
-                  : 'hsl(var(--border))',
+                  ? 'hsl(var(--primary-foreground))'
+                  : 'hsl(var(--muted-foreground))',
             }"
-            @click="currentProvider = p.value"
+          />
+          <span
+            class="text-xs font-medium"
+            :style="{
+              color:
+                currentProvider === p.value
+                  ? 'hsl(var(--primary-foreground))'
+                  : 'hsl(var(--muted-foreground))',
+            }"
+            >{{ p.label }}</span
           >
-            <IconifyIcon
-              :icon="p.icon"
-              class="size-4"
-              :style="{
-                color:
-                  currentProvider === p.value
-                    ? 'hsl(var(--primary-foreground))'
-                    : 'hsl(var(--muted-foreground))',
-              }"
-            />
-            <span
-              class="text-xs font-medium"
-              :style="{
-                color:
-                  currentProvider === p.value
-                    ? 'hsl(var(--primary-foreground))'
-                    : 'hsl(var(--muted-foreground))',
-              }"
-              >{{ p.label }}</span
-            >
-          </div>
         </div>
-      </NFormItem>
-
-      <NGrid cols="1 s:1 m:2 l:3" :x-gap="16" responsive="screen">
-        <NGridItem span="1">
-          <NFormItem label="API URL">
-            <NInput
-              :value="getProviderConfig('api_url')"
-              :placeholder="placeholder('api_url')"
-              @update:value="(v) => setProviderConfig('api_url', v)"
-            />
-          </NFormItem>
-        </NGridItem>
-        <NGridItem span="1">
-          <NFormItem label="API Key">
-            <NInput
-              :value="getProviderConfig('api_key')"
-              placeholder="sk-xxx"
-              type="password"
-              show-password-on="click"
-              @update:value="(v) => setProviderConfig('api_key', v)"
-            />
-          </NFormItem>
-        </NGridItem>
-        <NGridItem span="1">
-          <NFormItem label="Model">
-            <div class="flex gap-2">
-              <NSelect
-                :value="getProviderConfig('model')"
-                :options="modelOptions.map((m) => ({ label: m, value: m }))"
-                :placeholder="placeholder('model')"
-                filterable
-                tag
-                clearable
-                class="flex-1"
-                @update:value="(v) => setProviderConfig('model', v)"
-              />
-              <NButton
-                size="small"
-                :loading="loadingModels"
-                title="刷新模型列表"
-                @click="emit('fetchModels')"
-              >
-                <template #icon>
-                  <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
-                </template>
-              </NButton>
-            </div>
-          </NFormItem>
-        </NGridItem>
-      </NGrid>
-
-      <!-- 故障转移链 -->
-      <NFormItem
-        label="故障转移链（主 Provider 失败时依次切换，可多选）"
-        label-placement="top"
-        class="mt-2"
-      >
-        <NSelect
-          :value="getFallbackProviders()"
-          :options="providers"
-          multiple
-          filterable
-          clearable
-          placeholder="选择备用 Provider（留空则不启用故障转移）"
-          @update:value="setFallbackProviders"
-        />
-      </NFormItem>
-
-      <!-- 推理与思考（统一作用于所有 Agent LLM 调用） -->
-      <div
-        class="mb-3 mt-2 flex items-center gap-2 text-xs font-medium"
-        style="color: hsl(var(--muted-foreground))"
-      >
-        <IconifyIcon icon="lucide:brain-cog" class="size-3.5" />
-        <span
-          >推理与思考（统一作用于对话、识别、意图、记忆等所有 LLM 调用）</span
-        >
       </div>
-      <NGrid cols="1 s:2 l:3" :x-gap="16" responsive="screen">
-        <NGridItem span="1">
-          <NFormItem label="推理强度">
-            <NSelect
-              :value="config['agent.reasoning_effort'] || 'high'"
-              :options="[
-                { value: 'low', label: '低' },
-                { value: 'high', label: '高' },
-                { value: 'max', label: '最高' },
-              ]"
-              @update:value="
-                (v) => emit('updateConfig', 'agent.reasoning_effort', v)
-              "
-            />
-          </NFormItem>
-        </NGridItem>
-        <NGridItem span="1">
-          <NFormItem label="思考模式">
-            <NSwitch
-              :value="!config['agent.disable_thinking']"
-              @update:value="
-                (v) => emit('updateConfig', 'agent.disable_thinking', !v)
-              "
-            />
-          </NFormItem>
-        </NGridItem>
-      </NGrid>
+    </NFormItem>
 
-      <!-- Embedding（知识库向量化）配置 -->
-      <div
-        class="mb-3 mt-2 flex items-center gap-2 text-xs font-medium"
-        style="color: hsl(var(--muted-foreground))"
-      >
-        <IconifyIcon icon="lucide:database" class="size-3.5" />
-        <span>Embedding（知识库向量化，不配则知识库仅用关键词检索）</span>
-      </div>
-      <NGrid cols="1 s:1 m:2 l:3" :x-gap="16" responsive="screen">
-        <NGridItem span="1">
-          <NFormItem label="Embedding Provider">
+    <NGrid cols="1 s:1 m:2 l:3" :x-gap="16" responsive="screen">
+      <NGridItem span="1">
+        <NFormItem label="API URL">
+          <NInput
+            :value="getProviderConfig('api_url')"
+            :placeholder="placeholder('api_url')"
+            @update:value="(v) => setProviderConfig('api_url', v)"
+          />
+        </NFormItem>
+      </NGridItem>
+      <NGridItem span="1">
+        <NFormItem label="API Key">
+          <NInput
+            :value="getProviderConfig('api_key')"
+            placeholder="sk-xxx"
+            type="password"
+            show-password-on="click"
+            @update:value="(v) => setProviderConfig('api_key', v)"
+          />
+        </NFormItem>
+      </NGridItem>
+      <NGridItem span="1">
+        <NFormItem label="Model">
+          <div class="flex gap-2">
             <NSelect
-              :value="embeddingProvider"
-              :options="embeddingProviderOptions"
-              @update:value="(v) => (embeddingProvider = v || '')"
-            />
-          </NFormItem>
-        </NGridItem>
-        <NGridItem span="1">
-          <NFormItem label="Embedding Model">
-            <div class="flex gap-2">
-              <NSelect
-                :value="getEmbeddingConfig('model')"
-                :options="
-                  embeddingModelOptions.map((m) => ({ label: m, value: m }))
-                "
-                filterable
-                tag
-                clearable
-                placeholder="选择或输入 embedding 模型"
-                class="flex-1"
-                @update:value="(v) => setEmbeddingConfig('model', v)"
-              />
-              <NButton
-                size="small"
-                :loading="loadingEmbeddingModels"
-                title="刷新模型列表"
-                @click="fetchEmbeddingModels"
-              >
-                <template #icon>
-                  <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
-                </template>
-              </NButton>
-            </div>
-          </NFormItem>
-        </NGridItem>
-        <NGridItem v-if="embeddingProvider" span="1">
-          <NFormItem label="Embedding API URL（可选，留空继承 Provider 配置）">
-            <NInput
-              :value="getEmbeddingConfig('api_url')"
-              placeholder="http://localhost:11434"
-              @update:value="(v) => setEmbeddingConfig('api_url', v)"
-            />
-          </NFormItem>
-        </NGridItem>
-        <NGridItem v-if="embeddingProvider" span="1">
-          <NFormItem label="Embedding API Key（可选）">
-            <NInput
-              :value="getEmbeddingConfig('api_key')"
-              placeholder="留空继承 Provider 配置"
-              type="password"
-              show-password-on="click"
-              @update:value="(v) => setEmbeddingConfig('api_key', v)"
-            />
-          </NFormItem>
-        </NGridItem>
-      </NGrid>
-
-      <!-- 长程语义记忆 -->
-      <div
-        class="mb-3 mt-2 flex items-center gap-2 text-xs font-medium"
-        style="color: hsl(var(--muted-foreground))"
-      >
-        <IconifyIcon icon="lucide:brain" class="size-3.5" />
-        <span>长程语义记忆（记住用户偏好，对话自动注入）</span>
-      </div>
-      <NGrid cols="1 s:2 l:3" :x-gap="16" responsive="screen">
-        <NGridItem span="1">
-          <NFormItem label="启用长程记忆">
-            <NSwitch
-              :value="config['agent.memory.long_term.enabled']"
-              @update:value="
-                (v) => emit('updateConfig', 'agent.memory.long_term.enabled', v)
-              "
-            />
-          </NFormItem>
-        </NGridItem>
-        <NGridItem span="1">
-          <NFormItem label="注入条数 top_k">
-            <NInputNumber
-              :value="Number(getLongTermConfig('top_k') || 5)"
-              :min="1"
-              :max="10"
-              @update:value="
-                (v) => setLongTermConfig('top_k', String(v == null ? 5 : v))
-              "
-            />
-          </NFormItem>
-        </NGridItem>
-        <NGridItem span="1">
-          <NFormItem label="抽取时机">
-            <NSelect
-              :value="getLongTermConfig('extraction') || 'on_session_end'"
-              :options="[
-                { value: 'on_session_end', label: '会话结束' },
-                { value: 'on_turn_end', label: '每轮结束' },
-                { value: 'off', label: '关闭抽取' },
-              ]"
-              @update:value="(v) => setLongTermConfig('extraction', v)"
-            />
-          </NFormItem>
-        </NGridItem>
-      </NGrid>
-
-      <!-- 通知增强（Agent 重写模板通知） -->
-      <div
-        class="mb-3 mt-2 flex items-center gap-2 text-xs font-medium"
-        style="color: hsl(var(--muted-foreground))"
-      >
-        <IconifyIcon icon="lucide:bell-ring" class="size-3.5" />
-        <span>通知增强（Agent 用 LLM 重写模板通知，单流替换不重复）</span>
-      </div>
-      <NGrid cols="1 s:1 m:2 l:3" :x-gap="16" responsive="screen">
-        <NGridItem span="1">
-          <NFormItem label="启用通知增强">
-            <NSwitch
-              :value="config['agent.notify.enabled']"
-              @update:value="
-                (v) => emit('updateConfig', 'agent.notify.enabled', v)
-              "
-            />
-          </NFormItem>
-        </NGridItem>
-        <NGridItem span="2">
-          <NFormItem label="增强的通知类型（其余保持模板）">
-            <NSelect
-              :value="getNotifyConfig('msg_types')"
-              :options="notifyMsgTypeOptions"
-              multiple
+              :value="getProviderConfig('model')"
+              :options="modelOptions.map((m) => ({ label: m, value: m }))"
+              :placeholder="placeholder('model')"
               filterable
+              tag
               clearable
-              @update:value="(v) => setNotifyConfig('msg_types', v ?? '')"
+              class="flex-1"
+              @update:value="(v) => setProviderConfig('model', v)"
             />
-          </NFormItem>
-        </NGridItem>
-        <NGridItem span="1">
-          <NFormItem label="生成温度">
-            <NInputNumber
-              :value="Number(getNotifyConfig('temperature') || 0.3)"
-              :min="0"
-              :max="1"
-              :step="0.1"
-              @update:value="
-                (v) =>
-                  setNotifyConfig('temperature', v == null ? '' : String(v))
-              "
-            />
-          </NFormItem>
-        </NGridItem>
-      </NGrid>
-    </NForm>
+            <NButton
+              size="small"
+              :loading="loadingModels"
+              title="刷新模型列表"
+              @click="emit('fetchModels')"
+            >
+              <template #icon>
+                <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
+              </template>
+            </NButton>
+          </div>
+        </NFormItem>
+      </NGridItem>
+    </NGrid>
 
-    <template #footer>
-      <div class="flex justify-end">
-        <NButton
-          type="primary"
-          size="small"
-          :loading="saving"
-          @click="emit('save')"
-        >
-          保存
-        </NButton>
-      </div>
-    </template>
-  </NCard>
+    <!-- 故障转移链 -->
+    <NFormItem
+      label="故障转移链（主 Provider 失败时依次切换，可多选）"
+      label-placement="top"
+      class="mt-2"
+    >
+      <NSelect
+        :value="getFallbackProviders()"
+        :options="providers"
+        multiple
+        filterable
+        clearable
+        placeholder="选择备用 Provider（留空则不启用故障转移）"
+        @update:value="setFallbackProviders"
+      />
+    </NFormItem>
+
+    <!-- 推理与思考（统一作用于所有 Agent LLM 调用） -->
+    <div
+      class="mb-3 mt-2 flex items-center gap-2 text-xs font-medium"
+      style="color: hsl(var(--muted-foreground))"
+    >
+      <IconifyIcon icon="lucide:brain-cog" class="size-3.5" />
+      <span>推理与思考（统一作用于对话、识别、意图、记忆等所有 LLM 调用）</span>
+    </div>
+    <NGrid cols="1 s:2 l:3" :x-gap="16" responsive="screen">
+      <NGridItem span="1">
+        <NFormItem label="推理强度">
+          <NSelect
+            :value="config['agent.reasoning_effort'] || 'high'"
+            :options="[
+              { value: 'low', label: '低' },
+              { value: 'high', label: '高' },
+              { value: 'max', label: '最高' },
+            ]"
+            @update:value="
+              (v) => emit('updateConfig', 'agent.reasoning_effort', v)
+            "
+          />
+        </NFormItem>
+      </NGridItem>
+      <NGridItem span="1">
+        <NFormItem label="思考模式">
+          <NSwitch
+            :value="!config['agent.disable_thinking']"
+            @update:value="
+              (v) => emit('updateConfig', 'agent.disable_thinking', !v)
+            "
+          />
+        </NFormItem>
+      </NGridItem>
+    </NGrid>
+
+    <!-- Embedding（知识库向量化）配置 -->
+    <div
+      class="mb-3 mt-2 flex items-center gap-2 text-xs font-medium"
+      style="color: hsl(var(--muted-foreground))"
+    >
+      <IconifyIcon icon="lucide:database" class="size-3.5" />
+      <span>Embedding（知识库向量化，不配则知识库仅用关键词检索）</span>
+    </div>
+    <NGrid cols="1 s:1 m:2 l:3" :x-gap="16" responsive="screen">
+      <NGridItem span="1">
+        <NFormItem label="Embedding Provider">
+          <NSelect
+            :value="embeddingProvider"
+            :options="embeddingProviderOptions"
+            @update:value="(v) => (embeddingProvider = v || '')"
+          />
+        </NFormItem>
+      </NGridItem>
+      <NGridItem span="1">
+        <NFormItem label="Embedding Model">
+          <div class="flex gap-2">
+            <NSelect
+              :value="getEmbeddingConfig('model')"
+              :options="
+                embeddingModelOptions.map((m) => ({ label: m, value: m }))
+              "
+              filterable
+              tag
+              clearable
+              placeholder="选择或输入 embedding 模型"
+              class="flex-1"
+              @update:value="(v) => setEmbeddingConfig('model', v)"
+            />
+            <NButton
+              size="small"
+              :loading="loadingEmbeddingModels"
+              title="刷新模型列表"
+              @click="fetchEmbeddingModels"
+            >
+              <template #icon>
+                <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
+              </template>
+            </NButton>
+          </div>
+        </NFormItem>
+      </NGridItem>
+      <NGridItem v-if="embeddingProvider" span="1">
+        <NFormItem label="Embedding API URL（可选，留空继承 Provider 配置）">
+          <NInput
+            :value="getEmbeddingConfig('api_url')"
+            placeholder="http://localhost:11434"
+            @update:value="(v) => setEmbeddingConfig('api_url', v)"
+          />
+        </NFormItem>
+      </NGridItem>
+      <NGridItem v-if="embeddingProvider" span="1">
+        <NFormItem label="Embedding API Key（可选）">
+          <NInput
+            :value="getEmbeddingConfig('api_key')"
+            placeholder="留空继承 Provider 配置"
+            type="password"
+            show-password-on="click"
+            @update:value="(v) => setEmbeddingConfig('api_key', v)"
+          />
+        </NFormItem>
+      </NGridItem>
+    </NGrid>
+
+    <!-- 长程语义记忆 -->
+    <div
+      class="mb-3 mt-2 flex items-center gap-2 text-xs font-medium"
+      style="color: hsl(var(--muted-foreground))"
+    >
+      <IconifyIcon icon="lucide:brain" class="size-3.5" />
+      <span>长程语义记忆（记住用户偏好，对话自动注入）</span>
+    </div>
+    <NGrid cols="1 s:2 l:3" :x-gap="16" responsive="screen">
+      <NGridItem span="1">
+        <NFormItem label="启用长程记忆">
+          <NSwitch
+            :value="config['agent.memory.long_term.enabled']"
+            @update:value="
+              (v) => emit('updateConfig', 'agent.memory.long_term.enabled', v)
+            "
+          />
+        </NFormItem>
+      </NGridItem>
+      <NGridItem span="1">
+        <NFormItem label="注入条数 top_k">
+          <NInputNumber
+            :value="Number(getLongTermConfig('top_k') || 5)"
+            :min="1"
+            :max="10"
+            @update:value="
+              (v) => setLongTermConfig('top_k', String(v == null ? 5 : v))
+            "
+          />
+        </NFormItem>
+      </NGridItem>
+      <NGridItem span="1">
+        <NFormItem label="抽取时机">
+          <NSelect
+            :value="getLongTermConfig('extraction') || 'on_session_end'"
+            :options="[
+              { value: 'on_session_end', label: '会话结束' },
+              { value: 'on_turn_end', label: '每轮结束' },
+              { value: 'off', label: '关闭抽取' },
+            ]"
+            @update:value="(v) => setLongTermConfig('extraction', v)"
+          />
+        </NFormItem>
+      </NGridItem>
+    </NGrid>
+
+    <!-- 通知增强（Agent 重写模板通知） -->
+    <div
+      class="mb-3 mt-2 flex items-center gap-2 text-xs font-medium"
+      style="color: hsl(var(--muted-foreground))"
+    >
+      <IconifyIcon icon="lucide:bell-ring" class="size-3.5" />
+      <span>通知增强（Agent 用 LLM 重写模板通知，单流替换不重复）</span>
+    </div>
+    <NGrid cols="1 s:1 m:2 l:3" :x-gap="16" responsive="screen">
+      <NGridItem span="1">
+        <NFormItem label="启用通知增强">
+          <NSwitch
+            :value="config['agent.notify.enabled']"
+            @update:value="
+              (v) => emit('updateConfig', 'agent.notify.enabled', v)
+            "
+          />
+        </NFormItem>
+      </NGridItem>
+      <NGridItem span="2">
+        <NFormItem label="增强的通知类型（其余保持模板）">
+          <NSelect
+            :value="getNotifyConfig('msg_types')"
+            :options="notifyMsgTypeOptions"
+            multiple
+            filterable
+            clearable
+            @update:value="(v) => setNotifyConfig('msg_types', v ?? '')"
+          />
+        </NFormItem>
+      </NGridItem>
+      <NGridItem span="1">
+        <NFormItem label="生成温度">
+          <NInputNumber
+            :value="Number(getNotifyConfig('temperature') || 0.3)"
+            :min="0"
+            :max="1"
+            :step="0.1"
+            @update:value="
+              (v) => setNotifyConfig('temperature', v == null ? '' : String(v))
+            "
+          />
+        </NFormItem>
+      </NGridItem>
+    </NGrid>
+  </NForm>
 </template>

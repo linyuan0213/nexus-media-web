@@ -1,63 +1,28 @@
 <script lang="ts" setup>
-import { IconifyIcon } from '@vben/icons';
+import { NForm, NFormItem, NGrid, NGridItem, NInput } from 'naive-ui';
 
-import {
-  NButton,
-  NCard,
-  NForm,
-  NFormItem,
-  NGrid,
-  NGridItem,
-  NInput,
-  NSwitch,
-} from 'naive-ui';
+import SettingsGroup from './SettingsGroup.vue';
+import SettingsSwitch from './SettingsSwitch.vue';
 
 interface Props {
   config: Record<string, any>;
-  saving?: boolean;
 }
 
-withDefaults(defineProps<Props>(), {
-  saving: false,
-});
+defineProps<Props>();
 
 const emit = defineEmits<{
-  save: [];
   updateConfig: [key: string, value: any];
 }>();
 </script>
 
 <template>
-  <NCard
-    id="basic_system"
-    size="small"
-    class="mb-6 overflow-hidden"
-    style="
-      background: hsl(var(--card));
-      border-color: hsl(var(--border));
-      border-left-color: hsl(var(--primary));
-      border-left-width: 4px;
-    "
-  >
-    <template #header>
-      <div>
-        <div class="flex items-center gap-2">
-          <IconifyIcon
-            icon="lucide:monitor"
-            class="size-4"
-            style="color: hsl(var(--primary))"
-          />
-          <span class="font-semibold" style="color: hsl(var(--card-foreground))"
-            >系统</span
-          >
-        </div>
-        <div class="mt-1 text-xs" style="color: hsl(var(--muted-foreground))">
-          WEB服务端口、HTTPS证书、代理等基础运行配置
-        </div>
-      </div>
-    </template>
-    <NForm label-placement="top">
-      <NGrid cols="1 s:1 m:2 l:3" :x-gap="12" :y-gap="8" responsive="screen">
+  <NForm label-placement="top">
+    <SettingsGroup
+      title="服务与访问"
+      description="Web 服务端口与外网访问地址。"
+      icon="lucide:server"
+    >
+      <NGrid cols="1 s:1 m:2 l:2" :x-gap="12" :y-gap="8" responsive="screen">
         <NGridItem span="1">
           <NFormItem label="WEB服务端口">
             <NInput
@@ -67,6 +32,24 @@ const emit = defineEmits<{
             />
           </NFormItem>
         </NGridItem>
+        <NGridItem span="1">
+          <NFormItem label="外网访问地址">
+            <NInput
+              :value="config['app.domain']"
+              placeholder="http://IP:PORT"
+              @update:value="(v) => emit('updateConfig', 'app.domain', v)"
+            />
+          </NFormItem>
+        </NGridItem>
+      </NGrid>
+    </SettingsGroup>
+
+    <SettingsGroup
+      title="HTTPS 证书"
+      description="使用自己的证书启用 HTTPS；两项都填写后生效。"
+      icon="lucide:lock-keyhole"
+    >
+      <NGrid cols="1 s:1 m:2 l:2" :x-gap="12" :y-gap="8" responsive="screen">
         <NGridItem span="1">
           <NFormItem label="HTTPS证书文件路径">
             <NInput
@@ -85,6 +68,15 @@ const emit = defineEmits<{
             />
           </NFormItem>
         </NGridItem>
+      </NGrid>
+    </SettingsGroup>
+
+    <SettingsGroup
+      title="网络与请求"
+      description="代理、请求标识以及远程图片访问方式。"
+      icon="lucide:wifi"
+    >
+      <NGrid cols="1 s:1 m:2 l:2" :x-gap="12" :y-gap="8" responsive="screen">
         <NGridItem span="1">
           <NFormItem label="代理服务器">
             <NInput
@@ -95,15 +87,6 @@ const emit = defineEmits<{
           </NFormItem>
         </NGridItem>
         <NGridItem span="1">
-          <NFormItem label="外网访问地址">
-            <NInput
-              :value="config['app.domain']"
-              placeholder="http://IP:PORT"
-              @update:value="(v) => emit('updateConfig', 'app.domain', v)"
-            />
-          </NFormItem>
-        </NGridItem>
-        <NGridItem span="1 s:1 m:2 l:2">
           <NFormItem label="User-Agent">
             <NInput
               :value="config['app.user_agent']"
@@ -112,29 +95,15 @@ const emit = defineEmits<{
             />
           </NFormItem>
         </NGridItem>
-        <NGridItem span="1">
-          <NFormItem label="启用图片代理">
-            <NSwitch
-              :value="config['app.enable_image_proxy']"
-              @update:value="
-                (v) => emit('updateConfig', 'app.enable_image_proxy', v)
-              "
-            />
-          </NFormItem>
+        <NGridItem span="1 s:1 m:2 l:2">
+          <SettingsSwitch
+            label="启用图片代理"
+            description="远程图片经服务端代理加载，避免海报被浏览器跨域拦截。"
+            :value="config['app.enable_image_proxy']"
+            @update="(v) => emit('updateConfig', 'app.enable_image_proxy', v)"
+          />
         </NGridItem>
       </NGrid>
-    </NForm>
-    <template #footer>
-      <div class="flex justify-end">
-        <NButton
-          type="primary"
-          size="small"
-          :loading="saving"
-          @click="emit('save')"
-        >
-          保存
-        </NButton>
-      </div>
-    </template>
-  </NCard>
+    </SettingsGroup>
+  </NForm>
 </template>

@@ -1,28 +1,15 @@
 <script lang="ts" setup>
-import { IconifyIcon } from '@vben/icons';
+import { NForm, NFormItem, NGrid, NGridItem, NInput, NSelect } from 'naive-ui';
 
-import {
-  NButton,
-  NCard,
-  NForm,
-  NFormItem,
-  NGrid,
-  NGridItem,
-  NInput,
-  NSelect,
-} from 'naive-ui';
+import SettingsGroup from './SettingsGroup.vue';
 
 interface Props {
   config: Record<string, any>;
-  saving?: boolean;
 }
 
-withDefaults(defineProps<Props>(), {
-  saving: false,
-});
+defineProps<Props>();
 
 const emit = defineEmits<{
-  save: [];
   updateConfig: [key: string, value: any];
 }>();
 
@@ -62,36 +49,13 @@ const logRetentions = [
 </script>
 
 <template>
-  <NCard
-    id="basic_log"
-    size="small"
-    class="mb-6 overflow-hidden"
-    style="
-      background: hsl(var(--card));
-      border-color: hsl(var(--border));
-      border-left-color: hsl(var(--primary));
-      border-left-width: 4px;
-    "
-  >
-    <template #header>
-      <div>
-        <div class="flex items-center gap-2">
-          <IconifyIcon
-            icon="lucide:log-in"
-            class="size-4"
-            style="color: hsl(var(--primary))"
-          />
-          <span class="font-semibold" style="color: hsl(var(--card-foreground))"
-            >日志</span
-          >
-        </div>
-        <div class="mt-1 text-xs" style="color: hsl(var(--muted-foreground))">
-          日志输出类型、文件路径、格式与级别设置
-        </div>
-      </div>
-    </template>
-    <NForm label-placement="top">
-      <NGrid cols="1 s:1 m:2 l:4" :x-gap="12" :y-gap="8" responsive="screen">
+  <NForm label-placement="top">
+    <SettingsGroup
+      title="输出目标"
+      description="日志写往控制台还是文件，以及文件位置。"
+      icon="lucide:file-text"
+    >
+      <NGrid cols="1 s:1 m:2 l:2" :x-gap="12" :y-gap="8" responsive="screen">
         <NGridItem span="1">
           <NFormItem label="日志输出类型">
             <NSelect
@@ -110,6 +74,15 @@ const logRetentions = [
             />
           </NFormItem>
         </NGridItem>
+      </NGrid>
+    </SettingsGroup>
+
+    <SettingsGroup
+      title="格式与级别"
+      description="选择日志格式和详细程度。"
+      icon="lucide:sliders-horizontal"
+    >
+      <NGrid cols="1 s:1 m:2 l:2" :x-gap="12" :y-gap="8" responsive="screen">
         <NGridItem span="1">
           <NFormItem label="日志格式">
             <NSelect
@@ -128,6 +101,15 @@ const logRetentions = [
             />
           </NFormItem>
         </NGridItem>
+      </NGrid>
+    </SettingsGroup>
+
+    <SettingsGroup
+      title="轮转与保留"
+      description="控制单个日志文件大小和历史保留时间。"
+      icon="lucide:archive"
+    >
+      <NGrid cols="1 s:1 m:2 l:2" :x-gap="12" :y-gap="8" responsive="screen">
         <NGridItem span="1">
           <NFormItem label="日志轮转大小">
             <NSelect
@@ -147,18 +129,6 @@ const logRetentions = [
           </NFormItem>
         </NGridItem>
       </NGrid>
-    </NForm>
-    <template #footer>
-      <div class="flex justify-end">
-        <NButton
-          type="primary"
-          size="small"
-          :loading="saving"
-          @click="emit('save')"
-        >
-          保存
-        </NButton>
-      </div>
-    </template>
-  </NCard>
+    </SettingsGroup>
+  </NForm>
 </template>

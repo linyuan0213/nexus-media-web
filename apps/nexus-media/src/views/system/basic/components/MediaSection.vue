@@ -1,9 +1,5 @@
 <script lang="ts" setup>
-import { IconifyIcon } from '@vben/icons';
-
 import {
-  NButton,
-  NCard,
   NForm,
   NFormItem,
   NGrid,
@@ -13,17 +9,15 @@ import {
   NSwitch,
 } from 'naive-ui';
 
+import SettingsGroup from './SettingsGroup.vue';
+
 interface Props {
   config: Record<string, any>;
-  saving?: boolean;
 }
 
-withDefaults(defineProps<Props>(), {
-  saving: false,
-});
+defineProps<Props>();
 
 const emit = defineEmits<{
-  save: [];
   updateConfig: [key: string, value: any];
 }>();
 
@@ -53,35 +47,12 @@ const downloadOrders = [
 </script>
 
 <template>
-  <NCard
-    id="basic_media"
-    size="small"
-    class="mb-6 overflow-hidden"
-    style="
-      background: hsl(var(--card));
-      border-color: hsl(var(--border));
-      border-left-color: hsl(var(--primary));
-      border-left-width: 4px;
-    "
-  >
-    <template #header>
-      <div>
-        <div class="flex items-center gap-2">
-          <IconifyIcon
-            icon="lucide:database"
-            class="size-4"
-            style="color: hsl(var(--primary))"
-          />
-          <span class="font-semibold" style="color: hsl(var(--card-foreground))"
-            >媒体</span
-          >
-        </div>
-        <div class="mt-1 text-xs" style="color: hsl(var(--muted-foreground))">
-          TMDB、重命名格式、转移方式与刮削选项
-        </div>
-      </div>
-    </template>
-    <NForm label-placement="top">
+  <NForm label-placement="top">
+    <SettingsGroup
+      title="元数据来源"
+      description="TMDB 接口、语言与默认元数据策略。"
+      icon="lucide:database"
+    >
       <NGrid cols="1 s:1 m:2 l:3" :x-gap="12" :y-gap="8" responsive="screen">
         <NGridItem span="1">
           <NFormItem label="TMDB API Key">
@@ -150,6 +121,15 @@ const downloadOrders = [
             />
           </NFormItem>
         </NGridItem>
+      </NGrid>
+    </SettingsGroup>
+
+    <SettingsGroup
+      title="下载与整理"
+      description="资源选择偏好、转移大小下限和默认落盘路径。"
+      icon="lucide:download"
+    >
+      <NGrid cols="1 s:1 m:2 l:3" :x-gap="12" :y-gap="8" responsive="screen">
         <NGridItem span="1">
           <NFormItem label="下载优先规则">
             <NSelect
@@ -161,7 +141,6 @@ const downloadOrders = [
             />
           </NFormItem>
         </NGridItem>
-
         <NGridItem span="1">
           <NFormItem label="转移最小文件大小(MB)">
             <NInput
@@ -184,6 +163,15 @@ const downloadOrders = [
             />
           </NFormItem>
         </NGridItem>
+      </NGrid>
+    </SettingsGroup>
+
+    <SettingsGroup
+      title="文件过滤与刮削"
+      description="控制转移时忽略的文件，以及刮削和分集行为。"
+      icon="lucide:file-cog"
+    >
+      <NGrid cols="1 s:1 m:2 l:3" :x-gap="12" :y-gap="8" responsive="screen">
         <NGridItem span="1">
           <NFormItem label="文件路径转移忽略词">
             <NInput
@@ -235,18 +223,6 @@ const downloadOrders = [
           </NFormItem>
         </NGridItem>
       </NGrid>
-    </NForm>
-    <template #footer>
-      <div class="flex justify-end">
-        <NButton
-          type="primary"
-          size="small"
-          :loading="saving"
-          @click="emit('save')"
-        >
-          保存
-        </NButton>
-      </div>
-    </template>
-  </NCard>
+    </SettingsGroup>
+  </NForm>
 </template>
