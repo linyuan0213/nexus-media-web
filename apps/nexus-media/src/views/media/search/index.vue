@@ -7,6 +7,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
 
+import { useMediaQuery } from '@vueuse/core';
 import {
   NButton,
   NCard,
@@ -41,6 +42,7 @@ import {
   removeSubscriptionApi,
 } from '#/api/modules/subscription';
 import EmptyState from '#/components/empty/EmptyState.vue';
+import MediaCardActions from '#/components/media/MediaCardActions.vue';
 import MediaPoster from '#/components/media/MediaPoster.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.vue';
@@ -488,6 +490,8 @@ async function confirmUnsubscribe() {
     unsubscribingMedia.value = null;
   }
 }
+
+const isTouch = useMediaQuery('(hover: none), (max-width: 1023px)');
 
 const loading = ref(false);
 const keyword = ref('');
@@ -1365,6 +1369,14 @@ function handleMediaCardSubscribe(media: MediaItem) {
     return;
   }
   handleMediaSubscribe(media);
+}
+
+function handleMediaSubscribeAction(media: MediaItem) {
+  if (String(media.fav) === '1') {
+    handleMediaSubscribedClick(media);
+    return;
+  }
+  handleMediaCardSubscribe(media);
 }
 
 async function handleResultSubscribe(item: SearchResult) {
@@ -2571,7 +2583,15 @@ async function confirmDownload() {
                 </span>
               </div>
             </div>
+            <MediaCardActions
+              v-if="isTouch"
+              :subscribed="String(media.fav) === '1'"
+              :in-library="String(media.fav) === '2'"
+              @search="handleMediaSearch(media)"
+              @subscribe="handleMediaSubscribeAction(media)"
+            />
             <div
+              v-if="!isTouch"
               class="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-0 hover:opacity-100 transition-opacity duration-200"
               style="background: rgb(0 0 0 / 50%)"
             >

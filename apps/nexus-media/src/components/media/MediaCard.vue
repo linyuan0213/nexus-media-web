@@ -7,6 +7,7 @@ import { useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
 
+import { useMediaQuery } from '@vueuse/core';
 import { NButton, NModal } from 'naive-ui';
 
 import {
@@ -16,6 +17,7 @@ import {
   getDefaultSubscriptionSettingApi,
   removeSubscriptionApi,
 } from '#/api/modules/subscription';
+import MediaCardActions from '#/components/media/MediaCardActions.vue';
 import MediaPoster from '#/components/media/MediaPoster.vue';
 import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.vue';
 import SubscribeEditModal from '#/components/subscribe/SubscribeEditModal.vue';
@@ -56,6 +58,7 @@ const router = useRouter();
 const notification = useAppNotification();
 
 const hovered = ref(false);
+const isTouch = useMediaQuery('(hover: none), (max-width: 1023px)');
 const subscribeShow = ref(false);
 const subscribeItem = ref<null | SubscribeConfirmItem>(null);
 const subscribeEditShow = ref(false);
@@ -167,13 +170,13 @@ function goDetail() {
   });
 }
 
-function handleSearch(e: Event) {
-  e.stopPropagation();
+function handleSearch(e?: Event) {
+  e?.stopPropagation();
   emit('search', props);
 }
 
-function handleSubscribe(e: Event) {
-  e.stopPropagation();
+function handleSubscribe(e?: Event) {
+  e?.stopPropagation();
   if (inLibrary.value) return;
   // 电影已订阅 → 取消订阅；电视剧已订阅 → 仍打开季选择框以追加其他季
   if (subscribed.value && !isTvType.value && _rssid.value) {
@@ -466,8 +469,16 @@ async function handleConfirmEdit(data: Record<string, any>) {
       </div>
     </div>
 
+    <MediaCardActions
+      v-if="isTouch"
+      :subscribed="subscribed"
+      :in-library="inLibrary"
+      @search="handleSearch"
+      @subscribe="handleSubscribe"
+    />
+
     <div
-      v-if="hovered"
+      v-if="hovered && !isTouch"
       class="absolute inset-0 flex flex-col items-center justify-center gap-2"
       style="background: rgb(0 0 0 / 50%)"
     >
