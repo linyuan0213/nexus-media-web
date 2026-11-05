@@ -334,6 +334,12 @@ onMounted(ensureOutsideListener);
                 <span class="sgc-username" :title="usernameOf(item)">
                   {{ usernameOf(item) }}
                 </span>
+                <span
+                  v-if="props.type !== 'movie' && item.season"
+                  class="sgc-season"
+                >
+                  {{ item.season }}
+                </span>
                 <span class="sgc-sub-state">
                   <span
                     class="inline-block w-1.5 h-1.5 rounded-full"
@@ -680,6 +686,16 @@ onMounted(ensureOutsideListener);
   font-weight: 600;
   color: hsl(var(--card-foreground));
   white-space: nowrap;
+}
+
+.sgc-season {
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: hsl(var(--primary));
+  white-space: nowrap;
+  background: hsl(var(--primary) / 12%);
+  border-radius: 4px;
 }
 
 .sgc-sub-state {

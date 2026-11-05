@@ -217,6 +217,9 @@ interface SubscriptionGroup {
 }
 
 function groupKey(item: any): string {
+  if (props.mediaType === 'tv' && item.series_key) {
+    return `series:${item.series_key}`;
+  }
   const identity = item.identity_id
     ? `id:${item.identity_id}`
     : item.anchor_provider && item.anchor_external_id
@@ -239,7 +242,7 @@ const groups = computed<SubscriptionGroup[]>(() => {
     } else {
       map.set(key, {
         key,
-        name: item.name || '',
+        name: item.series_title || item.name || '',
         year: item.year || '',
         season: item.season || '',
         image: item.image || '',
@@ -247,6 +250,10 @@ const groups = computed<SubscriptionGroup[]>(() => {
         items: [item],
       });
     }
+  }
+  for (const group of map.values()) {
+    const seasons = new Set(group.items.map((item: any) => item.season || ''));
+    if (seasons.size > 1) group.season = '';
   }
   return [...map.values()];
 });
