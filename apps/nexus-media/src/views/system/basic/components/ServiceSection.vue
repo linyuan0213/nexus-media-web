@@ -59,28 +59,6 @@ const emit = defineEmits<{
     <NForm label-placement="top">
       <NGrid cols="1 s:1 m:2 l:3" :x-gap="12" :y-gap="8" responsive="screen">
         <NGridItem span="1">
-          <NFormItem label="订阅RSS周期(秒)">
-            <NInput
-              :value="config['pt.pt_check_interval']"
-              placeholder="留空关闭RSS订阅"
-              @update:value="
-                (v) => emit('updateConfig', 'pt.pt_check_interval', v)
-              "
-            />
-          </NFormItem>
-        </NGridItem>
-        <NGridItem span="1">
-          <NFormItem label="订阅搜索周期(小时)">
-            <NInput
-              :value="config['pt.search_rss_interval']"
-              placeholder="留空关闭订阅定时搜索"
-              @update:value="
-                (v) => emit('updateConfig', 'pt.search_rss_interval', v)
-              "
-            />
-          </NFormItem>
-        </NGridItem>
-        <NGridItem span="1">
           <NFormItem label="订阅队列搜索间隔(秒)">
             <NInput
               :value="config['subscribe.queue_interval']"

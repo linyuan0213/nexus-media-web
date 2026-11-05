@@ -50,12 +50,6 @@ const downloadOrders = [
   { label: '站点优先', value: 'site' },
   { label: '做种数优先', value: 'seeder' },
 ];
-
-const rmtModes = [
-  { label: '硬链接', value: 'link' },
-  { label: '移动', value: 'move' },
-  { label: '复制', value: 'copy' },
-];
 </script>
 
 <template>
@@ -167,17 +161,7 @@ const rmtModes = [
             />
           </NFormItem>
         </NGridItem>
-        <NGridItem span="1">
-          <NFormItem label="默认文件转移方式">
-            <NSelect
-              :value="config['media.default_rmt_mode']"
-              :options="rmtModes"
-              @update:value="
-                (v) => emit('updateConfig', 'media.default_rmt_mode', v)
-              "
-            />
-          </NFormItem>
-        </NGridItem>
+
         <NGridItem span="1">
           <NFormItem label="转移最小文件大小(MB)">
             <NInput

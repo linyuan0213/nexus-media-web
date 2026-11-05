@@ -78,26 +78,7 @@ const emit = defineEmits<{
             />
           </NFormItem>
         </NGridItem>
-        <NGridItem span="1">
-          <NFormItem label="TMDB缓存过期策略">
-            <NSwitch
-              :value="config['laboratory.tmdb_cache_expire']"
-              @update:value="
-                (v) => emit('updateConfig', 'laboratory.tmdb_cache_expire', v)
-              "
-            />
-          </NFormItem>
-        </NGridItem>
-        <NGridItem span="1">
-          <NFormItem label="默认搜索豆瓣资源">
-            <NSwitch
-              :value="config['laboratory.use_douban_titles']"
-              @update:value="
-                (v) => emit('updateConfig', 'laboratory.use_douban_titles', v)
-              "
-            />
-          </NFormItem>
-        </NGridItem>
+
         <NGridItem span="1">
           <NFormItem label="多语言搜索">
             <NSwitch

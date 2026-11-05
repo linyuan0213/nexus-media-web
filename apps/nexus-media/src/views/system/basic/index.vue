@@ -138,7 +138,6 @@ function saveMedia() {
       'media.tmdb_language',
       'app.tmdb_image_url',
       'pt.download_order',
-      'media.default_rmt_mode',
       'media.min_filesize',
       'media.media_default_path',
       'media.ignored_paths',
@@ -204,8 +203,6 @@ function saveService() {
   saveSection(
     'service',
     buildPayload([
-      'pt.pt_check_interval',
-      'pt.search_rss_interval',
       'media.mediasync_interval',
       'media.sync_transfer_interval',
       'pt.ptrefresh_date_cron',
@@ -231,8 +228,6 @@ function saveLaboratory() {
     buildPayload([
       'laboratory.search_keyword',
       'laboratory.search_tmdbweb',
-      'laboratory.tmdb_cache_expire',
-      'laboratory.use_douban_titles',
       'laboratory.search_multi_language',
       'laboratory.ocr_enabled',
       'laboratory.ocr_server_host',
