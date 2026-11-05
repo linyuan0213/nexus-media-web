@@ -251,14 +251,27 @@ watch(
         String(props.item?.title || ''),
       );
       if (isTv.value && parsedTitleSeason > 0) {
-        if (
+        const fallbackEpisodeCount = seasons.value.find(
+          (s: any) => Number(s.episode_count) > 0,
+        )?.episode_count;
+        const onlyFirstSeason =
+          seasons.value.length === 0 ||
+          seasons.value.every((s: any) => Number(s.season_number) === 1);
+        if (parsedTitleSeason > 1 && onlyFirstSeason) {
+          // 豆瓣单季条目：来源只返回 S1，标题写的是第二/三季，直接替换，
+          // 不能再同时显示一个假的 S1。
+          seasons.value = [
+            {
+              name: `第${parsedTitleSeason}季`,
+              season_number: parsedTitleSeason,
+              episode_count: fallbackEpisodeCount,
+            },
+          ];
+        } else if (
           !seasons.value.some(
             (s: any) => Number(s.season_number) === parsedTitleSeason,
           )
         ) {
-          const fallbackEpisodeCount = seasons.value.find(
-            (s: any) => Number(s.episode_count) > 0,
-          )?.episode_count;
           seasons.value.push({
             name: `第${parsedTitleSeason}季`,
             season_number: parsedTitleSeason,
@@ -281,11 +294,21 @@ watch(
         seasons.value = [{ season_number: 1, name: '第一季' }];
       }
       if (isTv.value && seasons.value.length > 0) {
-        // 已有订阅：预选中已订阅季（可取消或追加）；无订阅：默认选中第一季
+        // 已有订阅：预选中已订阅季（可取消或追加）；
+        // 无订阅：标题写了第二/三季时优先选中该季，否则选第一季。
+        const titleSeasonExists =
+          parsedTitleSeason > 0 &&
+          seasons.value.some(
+            (s: any) => Number(s.season_number) === parsedTitleSeason,
+          );
         selectedSeasons.value =
           subscribedSeasons.value.length > 0
             ? [...subscribedSeasons.value]
-            : [seasons.value[0]!.season_number];
+            : [
+                titleSeasonExists
+                  ? parsedTitleSeason
+                  : seasons.value[0]!.season_number,
+              ];
       }
       loading.value = false;
     }
