@@ -421,10 +421,11 @@ async function handleCardSearch(item: any) {
 async function handleCardRefresh(item: any) {
   if (refreshing.value) return;
   refreshing.value = true;
+  const rssid = item.rssid ?? item.id;
   try {
     await refreshSubscriptionApi(
       props.mediaType,
-      String(item.id),
+      String(rssid),
       activeProfile.value,
     );
     notification.success('已触发刷新');
@@ -432,7 +433,7 @@ async function handleCardRefresh(item: any) {
       await new Promise((resolve) => setTimeout(resolve, 1500));
       await fetchData();
       const current = items.value.find(
-        (entry: any) => String(entry.id) === String(item.id),
+        (entry: any) => String(entry.rssid ?? entry.id) === String(rssid),
       );
       if (current && String(current.state) !== String(item.state)) break;
     }
@@ -446,9 +447,10 @@ async function handleCardRefresh(item: any) {
 // ---------- 编辑 ----------
 async function handleEdit(item: any) {
   let detail: any;
+  const rssid = item.rssid ?? item.id;
   try {
     const res: any = await getSubscriptionDetailApi(
-      item.id,
+      rssid,
       props.mediaType === 'movie' ? 'movie' : item.type || 'tv',
       item.content_profile || effectiveProfile.value,
     );
@@ -462,8 +464,25 @@ async function handleEdit(item: any) {
     detail.anchor_external_id || item.anchor_external_id || '';
   const profile =
     detail.content_profile || item.content_profile || effectiveProfile.value;
+  let defaults: any = {};
+  if (
+    !Array.isArray(detail.rss_sites) ||
+    !Array.isArray(detail.search_sites) ||
+    detail.rss_sites.length === 0 ||
+    detail.search_sites.length === 0
+  ) {
+    try {
+      const res: any = await getDefaultSubscriptionSettingApi(
+        props.mediaType,
+        profile,
+      );
+      defaults = res?.data || res || {};
+    } catch {
+      // 默认设置读取失败时仍展示订阅自身字段
+    }
+  }
   editItem.value = {
-    rssid: String(detail.id || item.id),
+    rssid: String(detail.id || detail.rssid || rssid || ''),
     name: detail.name || item.name || '',
     year: detail.year || item.year || '',
     type: type === 'anime' ? 'anime' : type === 'movie' ? 'movie' : 'tv',
@@ -510,6 +529,12 @@ async function handleEdit(item: any) {
         : String(detail.current_ep),
     rss_sites: Array.isArray(detail.rss_sites) ? detail.rss_sites : [],
     search_sites: Array.isArray(detail.search_sites) ? detail.search_sites : [],
+    default_rss_sites: Array.isArray(defaults.rss_sites)
+      ? defaults.rss_sites
+      : [],
+    default_search_sites: Array.isArray(defaults.search_sites)
+      ? defaults.search_sites
+      : [],
   };
   editShow.value = true;
 }
@@ -554,7 +579,7 @@ async function confirmDelete() {
             ? 'anime'
             : 'tv',
       year: String(target.year || ''),
-      rssid: String(target.id),
+      rssid: String(target.rssid ?? target.id),
       content_profile: target.content_profile || effectiveProfile.value,
     });
     const deleted = Number(res?.deleted ?? res?.data?.deleted ?? 1);
@@ -870,7 +895,7 @@ onUnmounted(() => {
         <div v-else class="subscription-flow">
           <SubscriptionHoverCard
             v-for="item in items"
-            :key="item.id"
+            :key="item.rssid ?? item.id"
             :item="item"
             :type="resolveItemType(item)"
             :type-label="customActive ? activeProfileLabel : ''"

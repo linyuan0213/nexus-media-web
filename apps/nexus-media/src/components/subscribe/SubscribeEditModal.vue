@@ -61,6 +61,8 @@ export interface SubscribeEditItem {
   current_ep?: number | string;
   rss_sites?: string[];
   search_sites?: string[];
+  default_rss_sites?: string[];
+  default_search_sites?: string[];
 }
 
 const props = defineProps<{
@@ -131,6 +133,36 @@ const profileLabel = computed(
     getContentProfileLabel(form.value.content_profile) ||
     form.value.content_profile.toUpperCase(),
 );
+
+function siteLabels(
+  values: string[] | undefined,
+  options: { label: string; value: string }[],
+): string {
+  if (!Array.isArray(values) || values.length === 0) return '';
+  return values
+    .map(
+      (value) =>
+        options.find((option) => option.value === value)?.label || value,
+    )
+    .join('、');
+}
+
+const defaultRssHint = computed(() => {
+  const labels = siteLabels(props.item?.default_rss_sites, rssSites.value);
+  return labels
+    ? `当前使用默认订阅站点：${labels}`
+    : '未选择时默认使用全部已授权订阅站点';
+});
+
+const defaultSearchHint = computed(() => {
+  const labels = siteLabels(
+    props.item?.default_search_sites,
+    searchSites.value,
+  );
+  return labels
+    ? `当前使用默认搜索站点：${labels}`
+    : '未选择时默认使用全部已授权搜索站点';
+});
 
 watch([() => props.show, () => props.item], async ([visible, item]) => {
   if (visible && item) {
@@ -533,7 +565,7 @@ function handleConfirm() {
               v-else-if="form.rss_sites.length === 0"
               class="site-empty-hint"
             >
-              未选择时默认使用全部已授权订阅站点
+              {{ defaultRssHint }}
             </div>
           </div>
         </div>
@@ -588,7 +620,7 @@ function handleConfirm() {
               v-else-if="form.search_sites.length === 0"
               class="site-empty-hint"
             >
-              未选择时默认使用全部已授权搜索站点
+              {{ defaultSearchHint }}
             </div>
           </div>
         </div>
