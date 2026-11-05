@@ -416,6 +416,13 @@ onUnmounted(() => {
   color: hsl(var(--muted-foreground));
 }
 
+.settings-main :deep(.n-form-item-feedback) {
+  margin-top: 0.125rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: hsl(var(--muted-foreground));
+}
+
 @media (min-width: 1024px) {
   .settings-layout {
     grid-template-columns: 13rem minmax(0, 1fr);

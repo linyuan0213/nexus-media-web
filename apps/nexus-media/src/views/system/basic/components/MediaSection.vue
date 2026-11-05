@@ -105,9 +105,7 @@ const downloadOrders = [
                 (v) => emit('updateConfig', 'media.metadata_default_policy', v)
               "
             />
-            <template #feedback>
-              未显式指定策略时使用；订阅自身策略优先
-            </template>
+            <template #feedback> 未指定时生效，订阅策略优先 </template>
           </NFormItem>
         </NGridItem>
         <NGridItem span="1">
