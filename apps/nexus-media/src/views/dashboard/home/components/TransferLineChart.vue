@@ -67,7 +67,6 @@ function buildOption() {
       name: s.name,
       showSymbol: false,
       smooth: true,
-      stack: 'total',
       type: 'line',
     })),
     tooltip: {
