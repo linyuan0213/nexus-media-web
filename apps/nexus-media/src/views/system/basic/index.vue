@@ -215,6 +215,12 @@ function saveService() {
       'queue.sync_workers',
       'queue.scrape_workers',
       'queue.lifecycle_reconcile_seconds',
+      'subscribe.queue_interval',
+      'subscribe.rss_interval',
+      'subscribe.search_interval',
+      'subscribe.batch_limit',
+      'subscribe.batch_workers',
+      'subscribe.reconcile_interval',
     ]),
   );
 }

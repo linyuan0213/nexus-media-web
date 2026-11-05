@@ -81,6 +81,72 @@ const emit = defineEmits<{
           </NFormItem>
         </NGridItem>
         <NGridItem span="1">
+          <NFormItem label="订阅队列搜索间隔(秒)">
+            <NInput
+              :value="config['subscribe.queue_interval']"
+              placeholder="默认 300"
+              @update:value="
+                (v) => emit('updateConfig', 'subscribe.queue_interval', v)
+              "
+            />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="1">
+          <NFormItem label="订阅RSS轮询间隔(秒)">
+            <NInput
+              :value="config['subscribe.rss_interval']"
+              placeholder="默认 1800，0 表示关闭"
+              @update:value="
+                (v) => emit('updateConfig', 'subscribe.rss_interval', v)
+              "
+            />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="1">
+          <NFormItem label="订阅主动搜索间隔(小时)">
+            <NInput
+              :value="config['subscribe.search_interval']"
+              placeholder="默认 6"
+              @update:value="
+                (v) => emit('updateConfig', 'subscribe.search_interval', v)
+              "
+            />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="1">
+          <NFormItem label="每轮订阅上限">
+            <NInput
+              :value="config['subscribe.batch_limit']"
+              placeholder="默认 20"
+              @update:value="
+                (v) => emit('updateConfig', 'subscribe.batch_limit', v)
+              "
+            />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="1">
+          <NFormItem label="订阅搜索并发数">
+            <NInput
+              :value="config['subscribe.batch_workers']"
+              placeholder="默认 3；M-Team 5/min 建议 2"
+              @update:value="
+                (v) => emit('updateConfig', 'subscribe.batch_workers', v)
+              "
+            />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="1">
+          <NFormItem label="待转移订阅对账间隔(秒)">
+            <NInput
+              :value="config['subscribe.reconcile_interval']"
+              placeholder="默认 900"
+              @update:value="
+                (v) => emit('updateConfig', 'subscribe.reconcile_interval', v)
+              "
+            />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="1">
           <NFormItem label="媒体库同步周期(小时)">
             <NInput
               :value="config['media.mediasync_interval']"
