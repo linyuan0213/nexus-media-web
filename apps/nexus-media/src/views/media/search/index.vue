@@ -1602,6 +1602,13 @@ async function loadSearchResults(keepLoading = false, token?: number) {
     if (token !== undefined && token !== resultPollToken) return;
     const searchData = res?.result || {};
     if (typeof searchData === 'object') {
+      const querySeason = normalizeSeasonKey(String(route.query.season || ''));
+      const defaultSeason =
+        querySeason ||
+        guessSeasonFromKeyword(
+          String(keyword.value || route.query.s || '') ||
+            String(route.query.s || ''),
+        );
       results.value = Object.entries(searchData)
         .map(([, item]: [string, any]) => {
           // 从 torrent_dict 键中提取集数，范围展开为单集（如 "S01 E02-E03" → E02, E03）
@@ -1644,7 +1651,8 @@ async function loadSearchResults(keepLoading = false, token?: number) {
             filter: { ...filter, episode: [...episodeSet].toSorted() },
             torrent_dict: dict,
             activeFilters: {
-              season: [],
+              // 从“第二季/S02”等搜索词推断默认季，避免第二季页面混入第一季资源。
+              season: defaultSeason ? [defaultSeason] : [],
               episode: [],
               site: [],
               releasegroup: [],
@@ -1675,6 +1683,39 @@ async function loadSearchResults(keepLoading = false, token?: number) {
   } finally {
     if (!keepLoading) loading.value = false;
   }
+}
+
+const CN_SEASON_NUMBERS: Record<string, string> = {
+  一: '1',
+  二: '2',
+  两: '2',
+  三: '3',
+  四: '4',
+  五: '5',
+  六: '6',
+  七: '7',
+  八: '8',
+  九: '9',
+  十: '10',
+};
+
+function normalizeSeasonKey(value: string): string {
+  const raw = String(value || '').trim();
+  const num = raw.match(/(\d{1,2})/);
+  if (!num) return '';
+  return `S${String(Number.parseInt(num[1]!, 10)).padStart(2, '0')}`;
+}
+
+function guessSeasonFromKeyword(value: string): string {
+  const text = String(value || '');
+  const cn = text.match(/第\s*([一二两三四五六七八九十]|\d{1,2})\s*季/);
+  if (cn) {
+    const raw = cn[1]!;
+    const number = CN_SEASON_NUMBERS[raw] || raw;
+    return `S${String(Number.parseInt(number, 10)).padStart(2, '0')}`;
+  }
+  const en = text.match(/(?:\bS|Season\s*)(\d{1,2})\b/i);
+  return en ? `S${String(Number.parseInt(en[1]!, 10)).padStart(2, '0')}` : '';
 }
 
 async function loadResultsWhenReady() {
