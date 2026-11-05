@@ -527,8 +527,20 @@ async function handleEdit(item: any) {
       detail.current_ep === null || detail.current_ep === undefined
         ? ''
         : String(detail.current_ep),
-    rss_sites: Array.isArray(detail.rss_sites) ? detail.rss_sites : [],
-    search_sites: Array.isArray(detail.search_sites) ? detail.search_sites : [],
+    // 编辑态必须把“当前生效值”装进表单：未显式保存站点时用默认站点预选，
+    // 否则用户看到的卡片与编辑表单不一致，也无法直接修改默认站点。
+    rss_sites:
+      Array.isArray(detail.rss_sites) && detail.rss_sites.length > 0
+        ? detail.rss_sites
+        : Array.isArray(defaults.rss_sites)
+          ? defaults.rss_sites
+          : [],
+    search_sites:
+      Array.isArray(detail.search_sites) && detail.search_sites.length > 0
+        ? detail.search_sites
+        : Array.isArray(defaults.search_sites)
+          ? defaults.search_sites
+          : [],
     default_rss_sites: Array.isArray(defaults.rss_sites)
       ? defaults.rss_sites
       : [],
