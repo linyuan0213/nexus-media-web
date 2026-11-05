@@ -467,15 +467,14 @@ async function handleConfirmEdit(data: Record<string, any>) {
           {{ metaTags.join(' · ') }}
         </span>
       </div>
+      <MediaCardActions
+        v-if="isTouch"
+        :subscribed="subscribed"
+        :in-library="inLibrary"
+        @search="handleSearch"
+        @subscribe="handleSubscribe"
+      />
     </div>
-
-    <MediaCardActions
-      v-if="isTouch"
-      :subscribed="subscribed"
-      :in-library="inLibrary"
-      @search="handleSearch"
-      @subscribe="handleSubscribe"
-    />
 
     <div
       v-if="hovered && !isTouch"

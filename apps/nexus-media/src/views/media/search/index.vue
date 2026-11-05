@@ -2582,14 +2582,14 @@ async function confirmDownload() {
                   {{ mediaSourceLabel(media) }}
                 </span>
               </div>
+              <MediaCardActions
+                v-if="isTouch"
+                :subscribed="String(media.fav) === '1'"
+                :in-library="String(media.fav) === '2'"
+                @search="handleMediaSearch(media)"
+                @subscribe="handleMediaSubscribeAction(media)"
+              />
             </div>
-            <MediaCardActions
-              v-if="isTouch"
-              :subscribed="String(media.fav) === '1'"
-              :in-library="String(media.fav) === '2'"
-              @search="handleMediaSearch(media)"
-              @subscribe="handleMediaSubscribeAction(media)"
-            />
             <div
               v-if="!isTouch"
               class="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-0 hover:opacity-100 transition-opacity duration-200"
