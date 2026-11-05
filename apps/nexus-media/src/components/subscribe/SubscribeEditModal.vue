@@ -124,6 +124,11 @@ const form = ref({
 
 // 动漫与电视剧共用季/集相关表单项
 const isTv = computed(() => form.value.type !== 'movie');
+const allEpisodesDownloaded = computed(() => {
+  const total = Number(form.value.total_ep) || 0;
+  const current = Number(form.value.current_ep) || 0;
+  return total > 0 && current > total;
+});
 const isCustomProfile = computed(
   () =>
     !!form.value.content_profile && form.value.content_profile !== 'default',
@@ -417,8 +422,16 @@ function handleConfirm() {
               </NFormItem>
               <NFormItem label="开始集数">
                 <NInput
-                  v-model:value="form.current_ep"
+                  :value="
+                    allEpisodesDownloaded ? '已全部下载' : form.current_ep
+                  "
+                  :disabled="allEpisodesDownloaded"
                   placeholder="开始订阅集数"
+                  @update:value="
+                    (value) => {
+                      if (!allEpisodesDownloaded) form.current_ep = value;
+                    }
+                  "
                 />
               </NFormItem>
             </div>
