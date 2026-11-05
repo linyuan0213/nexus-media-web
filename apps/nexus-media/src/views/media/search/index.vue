@@ -2623,7 +2623,10 @@ async function confirmDownload() {
     <!-- 种子搜索：进度 + 结果 -->
     <template v-else-if="displayMode === 'torrent'">
       <!-- 有旧结果时：顶部内联进度条，保留旧结果列表 -->
-      <div v-if="loading && results.length > 0" class="torrent-progress-inline">
+      <div
+        v-if="loading && searchProgressPct < 100 && results.length > 0"
+        class="torrent-progress-inline"
+      >
         <IconifyIcon
           icon="lucide:loader-circle"
           class="size-4 animate-spin progress-icon"
@@ -2644,7 +2647,10 @@ async function confirmDownload() {
       </div>
 
       <!-- 无结果时：居中进度提示 -->
-      <div v-else-if="loading" class="flex items-center justify-center py-24">
+      <div
+        v-else-if="loading && searchProgressPct < 100"
+        class="flex items-center justify-center py-24"
+      >
         <NSpin show>
           <div class="text-center">
             <div class="text-lg mb-2">正在搜索「{{ keyword }}」</div>
