@@ -65,6 +65,31 @@ const emit = defineEmits<{
   (e: 'edit'): void;
 }>();
 
+const CN_SEASON: Record<string, number> = {
+  一: 1,
+  二: 2,
+  两: 2,
+  三: 3,
+  四: 4,
+  五: 5,
+  六: 6,
+  七: 7,
+  八: 8,
+  九: 9,
+  十: 10,
+};
+
+function parseTitleSeason(title: string): number {
+  const text = String(title || '');
+  const cn = text.match(/第\s*([一二两三四五六七八九十]|\d{1,2})\s*季/);
+  if (cn) {
+    const raw = cn[1]!;
+    return CN_SEASON[raw] || Number.parseInt(raw, 10) || 0;
+  }
+  const en = text.match(/(?:\bS|Season\s*)(\d{1,2})\b/i);
+  return en ? Number.parseInt(en[1]!, 10) || 0 : 0;
+}
+
 const effectiveProfile = computed(() => {
   if (!props.item) return '';
   const profile = String(props.item.content_profile || '').trim();
@@ -204,6 +229,8 @@ watch(
               'tv',
               props.item.content_profile,
               props.item.id,
+              props.item.title,
+              props.item.year,
             );
             const list = Array.isArray(detail?.seasons) ? detail.seasons : [];
             seasons.value = list
@@ -220,6 +247,36 @@ watch(
         }
       }
       // 未获取到季信息时（非 TMDB 来源或接口失败），默认提供第一季
+      const parsedTitleSeason = parseTitleSeason(
+        String(props.item?.title || ''),
+      );
+      if (isTv.value && parsedTitleSeason > 0) {
+        if (
+          !seasons.value.some(
+            (s: any) => Number(s.season_number) === parsedTitleSeason,
+          )
+        ) {
+          const fallbackEpisodeCount = seasons.value.find(
+            (s: any) => Number(s.episode_count) > 0,
+          )?.episode_count;
+          seasons.value.push({
+            name: `第${parsedTitleSeason}季`,
+            season_number: parsedTitleSeason,
+            episode_count: fallbackEpisodeCount,
+          });
+          seasons.value.sort(
+            (a: any, b: any) => a.season_number - b.season_number,
+          );
+        }
+        if (
+          selectedSeasons.value.length === 0 ||
+          (selectedSeasons.value.length === 1 &&
+            Number(selectedSeasons.value[0]) === 1 &&
+            parsedTitleSeason > 1)
+        ) {
+          selectedSeasons.value = [parsedTitleSeason];
+        }
+      }
       if (isTv.value && seasons.value.length === 0) {
         seasons.value = [{ season_number: 1, name: '第一季' }];
       }

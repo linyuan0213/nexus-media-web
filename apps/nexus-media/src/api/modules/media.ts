@@ -190,6 +190,8 @@ export async function getMediaDetailByRefApi(
   mediaType?: string,
   contentProfile?: string,
   contentId?: string,
+  title?: string,
+  year?: string,
 ) {
   return requestClient.post<Record<string, any>>('/media/detail_by_ref', {
     provider,
@@ -197,6 +199,8 @@ export async function getMediaDetailByRefApi(
     media_type: mediaType,
     content_profile: contentProfile || undefined,
     content_id: contentId || undefined,
+    title: title || undefined,
+    year: year || undefined,
   });
 }
 
