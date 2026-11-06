@@ -221,7 +221,7 @@ const aliases = computed(() => {
   return [];
 });
 
-const aliasPreview = computed(() => aliases.value.slice(0, 3));
+const aliasPreview = computed(() => aliases.value.slice(0, 4));
 
 const aliasesText = computed(() => aliasPreview.value.join(' / '));
 
