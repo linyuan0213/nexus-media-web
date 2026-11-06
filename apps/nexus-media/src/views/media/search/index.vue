@@ -1794,7 +1794,7 @@ onMounted(() => {
     snapshot &&
     snapshot.keyword === s &&
     (!sid || snapshot.sessionId === sid) &&
-    (snapshot.sessionId || (snapshot.mediaResults?.length ?? 0) > 0)
+    (snapshot.mediaResults?.length ?? 0) > 0
   ) {
     restoreSearchSnapshot(snapshot);
     return;
