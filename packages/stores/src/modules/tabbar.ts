@@ -724,6 +724,9 @@ function getTabKey(tab: RouteLocationNormalized | RouteRecordNormalized) {
   let rawKey;
   if (pageKey) {
     rawKey = pageKey;
+  } else if (path === '/media/search') {
+    // 资源搜索复用同一个标签页，避免每次搜索按 query 堆积大量不可关闭的重复页。
+    rawKey = path;
   } else {
     rawKey = fullPathKey === false ? path : (fullPath ?? path);
   }
