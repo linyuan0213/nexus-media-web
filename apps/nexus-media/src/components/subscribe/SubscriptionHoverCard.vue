@@ -207,6 +207,24 @@ const keyword = computed(() =>
   props.item.keyword ? String(props.item.keyword) : '',
 );
 
+const aliases = computed(() => {
+  const raw = props.item.aliases;
+  if (Array.isArray(raw)) {
+    return raw.map((item) => String(item).trim()).filter(Boolean);
+  }
+  if (typeof raw === 'string') {
+    return raw
+      .split(/[/|,，、;；]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+});
+
+const aliasPreview = computed(() => aliases.value.slice(0, 3));
+
+const aliasesText = computed(() => aliasPreview.value.join(' / '));
+
 const freeOnly = computed(() => {
   const v = props.item.filter_free;
   return v === true || v === 1 || String(v) === '1';
@@ -446,6 +464,13 @@ onMounted(ensureOutsideListener);
         <div v-if="keyword" class="shc-setting-row">
           <span class="shc-setting-label">关键词</span>
           <span class="shc-setting-value" :title="keyword">{{ keyword }}</span>
+        </div>
+
+        <div v-if="aliases.length" class="shc-setting-row">
+          <span class="shc-setting-label">别名</span>
+          <span class="shc-setting-value" :title="aliasesText">
+            {{ aliasesText }}
+          </span>
         </div>
 
         <div v-if="hasFilterInfo" class="shc-setting-row">
