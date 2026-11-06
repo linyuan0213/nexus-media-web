@@ -639,6 +639,20 @@ function clearSearchSnapshot() {
   } catch {}
 }
 
+/** 仅恢复确实有结果的快照，避免空结果/已完成会话把页面锁在旧状态 */
+function canRestoreSearchSnapshot(
+  snapshot: null | SearchSnapshot,
+  keywordText: string,
+  sessionId: string,
+): boolean {
+  return Boolean(
+    snapshot &&
+    snapshot.keyword === keywordText &&
+    (!sessionId || snapshot.sessionId === sessionId) &&
+    (snapshot.mediaResults?.length ?? 0) > 0,
+  );
+}
+
 /** 恢复上次搜索；运行中的任务只续接进度，不重新发起搜索 */
 function restoreSearchSnapshot(snapshot: SearchSnapshot) {
   resultPollToken += 1;
@@ -1790,13 +1804,8 @@ onMounted(() => {
   const s = initialS;
   const from = route.query.from as string;
   const sid = route.query.session_id as string;
-  if (
-    snapshot &&
-    snapshot.keyword === s &&
-    (!sid || snapshot.sessionId === sid) &&
-    (snapshot.mediaResults?.length ?? 0) > 0
-  ) {
-    restoreSearchSnapshot(snapshot);
+  if (canRestoreSearchSnapshot(snapshot, s, sid)) {
+    restoreSearchSnapshot(snapshot!);
     return;
   }
 
@@ -1948,13 +1957,8 @@ watch(
       resetSearchLanding();
       return;
     }
-    if (
-      snapshot &&
-      snapshot.keyword === s &&
-      (!sid || snapshot.sessionId === sid) &&
-      (snapshot.mediaResults?.length ?? 0) > 0
-    ) {
-      restoreSearchSnapshot(snapshot);
+    if (canRestoreSearchSnapshot(snapshot, s, sid)) {
+      restoreSearchSnapshot(snapshot!);
       return;
     }
     setSearchKeyword(s);
