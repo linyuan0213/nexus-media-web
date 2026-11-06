@@ -122,6 +122,8 @@ export const SECTION_FIELD_KEYS: Record<SectionKey, string[]> = {
     'subscribe.search_interval',
     'subscribe.batch_limit',
     'subscribe.batch_workers',
+    'subscribe.site_search_concurrency',
+    'subscribe.site_search_timeout',
     'subscribe.reconcile_interval',
   ],
   agent: [],

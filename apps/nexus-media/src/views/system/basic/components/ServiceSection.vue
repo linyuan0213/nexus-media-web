@@ -78,6 +78,29 @@ const emit = defineEmits<{
           </NFormItem>
         </NGridItem>
         <NGridItem span="1">
+          <NFormItem label="站点搜索并发数">
+            <NInput
+              :value="config['subscribe.site_search_concurrency']"
+              placeholder="默认 1；同一站点同时搜索数"
+              @update:value="
+                (v) =>
+                  emit('updateConfig', 'subscribe.site_search_concurrency', v)
+              "
+            />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="1">
+          <NFormItem label="站点搜索排队超时(秒)">
+            <NInput
+              :value="config['subscribe.site_search_timeout']"
+              placeholder="默认 30；超时本轮延迟"
+              @update:value="
+                (v) => emit('updateConfig', 'subscribe.site_search_timeout', v)
+              "
+            />
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="1">
           <NFormItem label="待转移订阅对账间隔(秒)">
             <NInput
               :value="config['subscribe.reconcile_interval']"
