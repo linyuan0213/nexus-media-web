@@ -113,11 +113,16 @@ function onMouseDown(e: MouseEvent, tab: TabConfig) {
               class="absolute top-1/2 right-1.5 z-3 translate-y-[-50%] overflow-hidden"
             >
               <!-- close-icon -->
-              <X
+              <button
                 v-show="!tab.affixTab && tabsView.length > 1 && tab.closable"
-                class="size-3 cursor-pointer rounded-full stroke-accent-foreground/80 transition-all group-[.is-active]:text-primary hover:bg-accent hover:stroke-accent-foreground group-[.is-active]:dark:text-accent-foreground"
-                @click.stop="() => emit('close', tab.key)"
-              />
+                type="button"
+                class="flex size-3 cursor-pointer items-center justify-center rounded-full text-accent-foreground/80 transition-all group-[.is-active]:text-primary hover:bg-accent group-[.is-active]:dark:text-accent-foreground"
+                aria-label="关闭标签页"
+                @mousedown.stop
+                @click.stop.prevent="() => emit('close', tab.key)"
+              >
+                <X class="size-3 stroke-current" />
+              </button>
               <Pin
                 v-show="tab.affixTab && tabsView.length > 1 && tab.closable"
                 class="mt-px size-3.5 cursor-pointer rounded-full transition-all group-[.is-active]:text-primary hover:bg-accent hover:stroke-accent-foreground group-[.is-active]:dark:text-accent-foreground"
