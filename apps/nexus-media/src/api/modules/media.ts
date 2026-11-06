@@ -692,12 +692,13 @@ export async function getLibraryPathsApi() {
   }>('/media/library/paths', {});
 }
 
-// ---------- TMDB 黑名单 ----------
+// ---------- 识别黑名单 ----------
 
-export interface TmdbBlacklistItem {
+export interface MetadataBlacklistItem {
   id: number;
   title: string;
-  tmdb_id: string;
+  provider: string;
+  external_id: string;
   media_type: string;
   year?: string;
   poster_path?: string;
@@ -705,15 +706,15 @@ export interface TmdbBlacklistItem {
   note?: string;
 }
 
-export interface TmdbBlacklistPageResult {
-  items: TmdbBlacklistItem[];
+export interface MetadataBlacklistPageResult {
+  items: MetadataBlacklistItem[];
   total: number;
   page: number;
   count: number;
 }
 
-/** 获取 TMDB 黑名单列表 */
-export async function getTmdbBlacklistApi(params: {
+/** 获取识别黑名单列表 */
+export async function getMetadataBlacklistApi(params: {
   count?: number;
   page?: number;
   s?: string;
@@ -722,30 +723,32 @@ export async function getTmdbBlacklistApi(params: {
   if (params.page) query.set('page', String(params.page));
   if (params.count) query.set('count', String(params.count));
   if (params.s) query.set('s', params.s);
-  return requestClient.get<TmdbBlacklistPageResult>(
-    `/media/tmdb_blacklist/list?${query.toString()}`,
+  return requestClient.get<MetadataBlacklistPageResult>(
+    `/media/metadata_blacklist/list?${query.toString()}`,
   );
 }
 
-/** 添加 TMDB 黑名单 */
-export async function addTmdbBlacklistApi(data: {
+/** 添加识别黑名单 */
+export async function addMetadataBlacklistApi(data: {
   media_type: string;
-  tmdb_id: string;
+  external_id: string;
+  provider?: string;
 }) {
-  return requestClient.post('/media/tmdb_blacklist/add', data);
+  return requestClient.post('/media/metadata_blacklist/add', data);
 }
 
-/** 删除 TMDB 黑名单 */
-export async function deleteTmdbBlacklistApi(data: {
+/** 删除识别黑名单 */
+export async function deleteMetadataBlacklistApi(data: {
   media_type: string;
-  tmdb_id: string;
+  external_id: string;
+  provider?: string;
 }) {
-  return requestClient.post('/media/tmdb_blacklist/delete', data);
+  return requestClient.post('/media/metadata_blacklist/delete', data);
 }
 
-/** 清空 TMDB 黑名单 */
-export async function clearTmdbBlacklistApi() {
-  return requestClient.post('/media/tmdb_blacklist/clear', {});
+/** 清空识别黑名单 */
+export async function clearMetadataBlacklistApi() {
+  return requestClient.post('/media/metadata_blacklist/clear', {});
 }
 
 // ---------- 分类配置 ----------

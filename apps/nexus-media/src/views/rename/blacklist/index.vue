@@ -18,10 +18,11 @@ import {
 } from 'naive-ui';
 
 import {
-  addTmdbBlacklistApi,
-  clearTmdbBlacklistApi,
-  deleteTmdbBlacklistApi,
-  getTmdbBlacklistApi,
+  addMetadataBlacklistApi,
+  clearMetadataBlacklistApi,
+  deleteMetadataBlacklistApi,
+  getMetadataBlacklistApi,
+  getMetadataProvidersApi,
 } from '#/api/modules/media';
 import EmptyState from '#/components/empty/EmptyState.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
@@ -39,26 +40,48 @@ const list = ref<Array<Record<string, any>>>([]);
 
 const addModalShow = ref(false);
 const addLoading = ref(false);
-const addForm = ref({ tmdb_id: '', media_type: '' });
+const addForm = ref({ provider: 'tmdb', external_id: '', media_type: '' });
+const providerOptions = ref<Array<{ label: string; value: string }>>([]);
 
 const mediaTypeOptions = [
-  { label: '电影', value: '电影' },
-  { label: '电视剧', value: '电视剧' },
+  { label: '电影', value: 'movie' },
+  { label: '电视剧', value: 'tv' },
+  { label: '动漫', value: 'anime' },
 ];
 
 function getMediaTypeLabel(type?: string) {
   const map: Record<string, string> = {
     movie: '电影',
     tv: '电视剧',
+    anime: '动漫',
   };
   return (type && map[type]) || type || '未知';
+}
+
+async function loadProviders() {
+  try {
+    const res = await getMetadataProvidersApi();
+    providerOptions.value = (res || []).map((item) => ({
+      label: `${item.name || item.provider} (${item.provider})`,
+      value: item.provider,
+    }));
+    if (
+      !providerOptions.value.some(
+        (item) => item.value === addForm.value.provider,
+      )
+    ) {
+      addForm.value.provider = providerOptions.value[0]?.value || 'tmdb';
+    }
+  } catch {
+    providerOptions.value = [{ label: 'TMDB (tmdb)', value: 'tmdb' }];
+  }
 }
 
 async function fetchData(page = 1) {
   loading.value = true;
   currentPage.value = page;
   try {
-    const res = await getTmdbBlacklistApi({
+    const res = await getMetadataBlacklistApi({
       page,
       count: pageSize.value,
       s: keyword.value || undefined,
@@ -82,13 +105,13 @@ function handlePageChange(page: number) {
 }
 
 function openAddModal() {
-  addForm.value = { tmdb_id: '', media_type: '' };
+  addForm.value = { provider: 'tmdb', external_id: '', media_type: '' };
   addModalShow.value = true;
 }
 
 async function submitAdd() {
-  if (!addForm.value.tmdb_id.trim()) {
-    notification.warning('请输入 TMDB ID');
+  if (!addForm.value.external_id.trim()) {
+    notification.warning('请输入外部 ID');
     return;
   }
   if (!addForm.value.media_type) {
@@ -97,11 +120,12 @@ async function submitAdd() {
   }
   addLoading.value = true;
   try {
-    await addTmdbBlacklistApi({
-      tmdb_id: addForm.value.tmdb_id.trim(),
+    await addMetadataBlacklistApi({
+      provider: addForm.value.provider,
+      external_id: addForm.value.external_id.trim(),
       media_type: addForm.value.media_type,
     });
-    notification.success('已添加到黑名单');
+    notification.success('已添加到识别黑名单');
     addModalShow.value = false;
     await fetchData(currentPage.value);
   } catch (error: any) {
@@ -113,9 +137,10 @@ async function submitAdd() {
 
 async function handleDelete(item: any) {
   try {
-    await deleteTmdbBlacklistApi({
-      tmdb_id: String(item.tmdb_id),
+    await deleteMetadataBlacklistApi({
+      external_id: String(item.external_id),
       media_type: item.media_type,
+      provider: item.provider,
     });
     notification.success('已删除');
     await fetchData(currentPage.value);
@@ -126,8 +151,8 @@ async function handleDelete(item: any) {
 
 async function handleClear() {
   try {
-    await clearTmdbBlacklistApi();
-    notification.success('黑名单已清空');
+    await clearMetadataBlacklistApi();
+    notification.success('识别黑名单已清空');
     await fetchData(1);
   } catch (error: any) {
     notification.error('清空失败', { description: error?.message || '' });
@@ -140,10 +165,11 @@ function getPosterUrl(path?: string) {
   return `https://image.tmdb.org/t/p/w500${path}`;
 }
 
-function getTmdbUrl(item: any) {
+function getSourceUrl(item: any) {
+  if (item.provider !== 'tmdb') return '';
   return item.media_type === 'movie'
-    ? `https://www.themoviedb.org/movie/${item.tmdb_id}`
-    : `https://www.themoviedb.org/tv/${item.tmdb_id}`;
+    ? `https://www.themoviedb.org/movie/${item.external_id}`
+    : `https://www.themoviedb.org/tv/${item.external_id}`;
 }
 
 function hasNote(note?: string) {
@@ -152,17 +178,23 @@ function hasNote(note?: string) {
   return t.length > 0 && t !== '{}' && t !== 'None';
 }
 
-onMounted(() => fetchData(1));
+onMounted(() => {
+  loadProviders();
+  fetchData(1);
+});
 </script>
 
 <template>
   <div class="p-4">
-    <PageHeader title="TMDB 黑名单" subtitle="屏蔽不想识别的 TMDB 条目">
+    <PageHeader
+      title="识别黑名单"
+      subtitle="屏蔽不想识别的元数据条目（当前支持 TMDB）"
+    >
       <template #actions>
         <NSpace align="center">
           <NInput
             v-model:value="keyword"
-            placeholder="搜索标题或 TMDB ID..."
+            placeholder="搜索标题或外部 ID..."
             style="width: 240px"
             clearable
             @keyup.enter="handleSearch"
@@ -195,7 +227,7 @@ onMounted(() => fetchData(1));
               </NButton>
             </template>
             <div class="max-w-[280px]">
-              确定要清空所有 TMDB 黑名单记录吗？此操作不可恢复。
+              确定要清空所有识别黑名单记录吗？此操作不可恢复。
             </div>
           </NPopconfirm>
         </NSpace>
@@ -211,7 +243,7 @@ onMounted(() => fetchData(1));
         <div class="blacklist-grid">
           <NCard
             v-for="item in list"
-            :key="`${item.tmdb_id}-${item.media_type}`"
+            :key="`${item.provider}-${item.external_id}-${item.media_type}`"
             size="small"
             :bordered="false"
             class="blacklist-card"
@@ -264,10 +296,14 @@ onMounted(() => fetchData(1));
                       "
                       class="size-3 inline mr-1"
                     />
-                    {{ getMediaTypeLabel(item.media_type) }}
+                    {{
+                      item.media_type_label ||
+                      getMediaTypeLabel(item.media_type)
+                    }}
                   </span>
                   <a
-                    :href="getTmdbUrl(item)"
+                    v-if="getSourceUrl(item)"
+                    :href="getSourceUrl(item)"
                     target="_blank"
                     class="blacklist-link"
                     @click.stop
@@ -276,8 +312,11 @@ onMounted(() => fetchData(1));
                       icon="lucide:external-link"
                       class="size-3 inline mr-1"
                     />
-                    TMDB {{ item.tmdb_id }}
+                    {{ item.provider.toUpperCase() }} {{ item.external_id }}
                   </a>
+                  <span v-else class="blacklist-link">
+                    {{ item.provider.toUpperCase() }} {{ item.external_id }}
+                  </span>
                 </div>
 
                 <div
@@ -302,7 +341,7 @@ onMounted(() => fetchData(1));
         </div>
       </div>
 
-      <EmptyState v-else title="黑名单为空" subtitle="没有屏蔽的 TMDB 条目">
+      <EmptyState v-else title="黑名单为空" subtitle="没有屏蔽的识别条目">
         <template #icon>
           <IconifyIcon
             icon="lucide:shield-check"
@@ -315,7 +354,7 @@ onMounted(() => fetchData(1));
             <template #icon>
               <IconifyIcon icon="lucide:plus" class="size-4" />
             </template>
-            添加黑名单
+            添加识别黑名单
           </NButton>
         </template>
       </EmptyState>
@@ -324,19 +363,27 @@ onMounted(() => fetchData(1));
     <!-- 添加弹窗 -->
     <NModal
       v-model:show="addModalShow"
-      title="添加黑名单"
+      title="添加识别黑名单"
       preset="card"
       style="width: 400px; max-width: 90vw"
       :mask-closable="false"
     >
       <NForm label-placement="left" label-width="80">
-        <NFormItem label="TMDB ID" required>
-          <NInput
-            v-model:value="addForm.tmdb_id"
-            placeholder="请输入 TMDB ID"
+        <NFormItem label="元数据来源" required>
+          <NSelect
+            v-model:value="addForm.provider"
+            :options="providerOptions"
+            filterable
+            placeholder="请选择元数据来源"
           />
         </NFormItem>
-        <NFormItem label="媒体类型" required>
+        <NFormItem label="元数据 ID" required>
+          <NInput
+            v-model:value="addForm.external_id"
+            placeholder="请输入该来源下的元数据 ID"
+          />
+        </NFormItem>
+        <NFormItem label="内容类型" required>
           <NSelect
             v-model:value="addForm.media_type"
             :options="mediaTypeOptions"
