@@ -393,7 +393,7 @@ function handleCardClick(item: any) {
   router.push({
     name: 'MediaDetail',
     query: {
-      type: props.mediaType === 'movie' ? 'movie' : item.type || 'tv',
+      type: item.type || (props.mediaType === 'movie' ? 'movie' : 'tv'),
       id: item.tmdbid,
     },
   });
@@ -409,7 +409,7 @@ async function handleCardSearch(item: any) {
   const params = new URLSearchParams({
     s: item.keyword || item.name,
     from: 'subscription',
-    media_type: props.mediaType === 'movie' ? 'movie' : item.type || 'tv',
+    media_type: item.type || (props.mediaType === 'movie' ? 'movie' : 'tv'),
   });
   if (item.tmdbid) params.set('tmdbid', String(item.tmdbid));
   if (item.metadata_ref) params.set('metadata_ref', item.metadata_ref);
