@@ -99,9 +99,21 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   async function doRefreshToken() {
     const accessStore = useAccessStore();
     const resp = await refreshTokenApi();
-    const newToken = resp.access_token;
+    const newToken = resp?.access_token;
+    if (!newToken) {
+      const error: any = new Error(
+        'Refresh token response missing access_token',
+      );
+      error.response = { status: 401, data: { code: 'REFRESH_TOKEN_INVALID' } };
+      throw error;
+    }
     accessStore.setAccessToken(newToken);
     return newToken;
+  }
+
+  /** 只有刷新接口明确返回 401 才代表会话失效；网络/5xx 不应强制登出。 */
+  function shouldReAuthenticate(error: any): boolean {
+    return error?.response?.status === 401;
   }
 
   function formatToken(token: null | string) {
@@ -138,6 +150,7 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
       doRefreshToken,
       enableRefreshToken: preferences.app.enableRefreshToken,
       formatToken,
+      shouldReAuthenticate,
     }),
   );
 

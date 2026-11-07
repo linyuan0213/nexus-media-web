@@ -50,12 +50,14 @@ export const authenticateResponseInterceptor = ({
   doRefreshToken,
   enableRefreshToken,
   formatToken,
+  shouldReAuthenticate = () => true,
 }: {
   client: RequestClient;
   doReAuthenticate: () => Promise<void>;
   doRefreshToken: () => Promise<string>;
   enableRefreshToken: boolean;
   formatToken: (token: string) => null | string;
+  shouldReAuthenticate?: (error: any) => boolean;
 }): ResponseInterceptorConfig => {
   return {
     rejected: async (error) => {
@@ -73,10 +75,16 @@ export const authenticateResponseInterceptor = ({
       // 如果正在刷新 token，则将请求加入队列，等待刷新完成
       if (client.isRefreshing) {
         return new Promise((resolve) => {
-          client.refreshTokenQueue.push((newToken: string) => {
-            config.headers.Authorization = formatToken(newToken);
-            resolve(client.request(config.url, { ...config }));
-          });
+          client.refreshTokenQueue.push(
+            (newToken: null | string, refreshError?: any) => {
+              if (!newToken) {
+                resolve(Promise.reject(refreshError ?? error));
+                return;
+              }
+              config.headers.Authorization = formatToken(newToken);
+              resolve(client.request(config.url, { ...config }));
+            },
+          );
         });
       }
 
@@ -95,12 +103,19 @@ export const authenticateResponseInterceptor = ({
 
         return client.request(error.config.url, { ...error.config });
       } catch (refreshError) {
-        // 如果刷新 token 失败，处理错误（如强制登出或跳转登录页面）
-        client.refreshTokenQueue.forEach((callback) => callback(''));
+        // 只有明确的会话失效才登出；网络/5xx 等异常保留当前会话，交由调用方重试。
+        client.refreshTokenQueue.forEach((callback) =>
+          callback(null, refreshError),
+        );
         client.refreshTokenQueue = [];
-        console.error('Refresh token failed, please login again.');
-        await doReAuthenticate();
-
+        if (shouldReAuthenticate(refreshError)) {
+          console.error('Refresh token rejected, please login again.');
+          await doReAuthenticate();
+        } else {
+          console.warn(
+            'Refresh token request failed transiently; keep session.',
+          );
+        }
         throw refreshError;
       } finally {
         client.isRefreshing = false;
