@@ -94,6 +94,11 @@ function getMediaTypeLabel(type?: string) {
   const map: Record<string, string> = {
     movie: '电影',
     tv: '电视剧',
+    电影: '电影',
+    电视剧: '电视剧',
+    动漫: '动漫',
+    anime: '动漫',
+    unknown: '未知',
   };
   return (type && map[type]) || type || '';
 }
@@ -246,8 +251,8 @@ onMounted(() => fetchData(1));
                 </NTooltip>
                 <div class="history-meta">
                   <span v-if="item.year">{{ item.year }}</span>
-                  <span v-if="item.media_type">{{
-                    getMediaTypeLabel(item.media_type)
+                  <span v-if="item.media_type_name || item.media_type">{{
+                    getMediaTypeLabel(item.media_type_name || item.media_type)
                   }}</span>
                   <span v-if="isSerial(item) && item.season_episode">{{
                     formatSeasonEpisode(item.season_episode)
@@ -354,8 +359,8 @@ onMounted(() => fetchData(1));
               </NTooltip>
               <div class="history-list-meta">
                 <span v-if="item.year">{{ item.year }}</span>
-                <span v-if="item.media_type">{{
-                  getMediaTypeLabel(item.media_type)
+                <span v-if="item.media_type_name || item.media_type">{{
+                  getMediaTypeLabel(item.media_type_name || item.media_type)
                 }}</span>
                 <span v-if="isSerial(item) && item.season_episode">{{
                   formatSeasonEpisode(item.season_episode)

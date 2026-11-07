@@ -95,8 +95,11 @@ export namespace DownloadApi {
     history_id?: number;
     content_profile?: string;
     title: string;
-    type: 'MOV' | 'TV';
+    type: string;
     media_type: string;
+    media_type_key?: string;
+    media_type_name?: string;
+    media_kind?: string;
     year: string;
     vote: string;
     image: string;

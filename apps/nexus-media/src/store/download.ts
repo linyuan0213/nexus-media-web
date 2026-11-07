@@ -21,8 +21,11 @@ export interface DownloadHistoryItem {
   state?: string;
   id: string;
   title: string;
-  type: 'MOV' | 'TV';
+  type: string;
   media_type: string;
+  media_type_key?: string;
+  media_type_name?: string;
+  media_kind?: string;
   year: string;
   vote: string;
   image: string;
