@@ -110,6 +110,7 @@ interface SearchResult {
   tmdbid: string;
   type: string;
   type_key?: string;
+  media_type_name?: string;
   year: string;
   vote: string;
   content_profile?: string;
@@ -544,6 +545,7 @@ interface MediaItem {
   year?: string;
   type?: string;
   media_type?: string;
+  media_type_name?: string;
   content_profile?: string;
   metadata_ref?: string;
   provider?: string;
@@ -2764,7 +2766,10 @@ async function confirmDownload() {
                     size="small"
                     round
                   >
-                    {{ getMediaTypeLabel(item.type_key, item.content_profile) }}
+                    {{
+                      item.media_type_name ||
+                      getMediaTypeLabel(item.type_key, item.content_profile)
+                    }}
                   </NTag>
                 </div>
                 <div v-if="item.fav === '2'" class="result-poster-fav">
