@@ -154,6 +154,7 @@ const statusMap = new Map(
 
 const isSeries = computed(
   () =>
+    selected.value?.media_kind === 'episodic' ||
     selected.value?.media_type === 'tv' ||
     selected.value?.media_type === 'anime',
 );
@@ -526,7 +527,7 @@ const columns = computed<DataTableColumns<LifecycleApi.Item>>(() => {
             h(
               'div',
               { class: 'lifecycle-subtitle' },
-              `${typeLabel(row.media_type)} · ${row.year || '年份未知'}${
+              `${row.media_type_name || typeLabel(row.media_type)} · ${row.year || '年份未知'}${
                 row.episode_count > 1
                   ? ` · ${row.episode_count} 集 · 订阅 ${row.subscribed_episodes || 0} · 入库 ${row.in_library_episodes}`
                   : row.season || row.episode
@@ -1232,7 +1233,7 @@ watch(
                   {{ row.title || row.identity_id }}
                 </div>
                 <div class="lifecycle-subtitle">
-                  {{ typeLabel(row.media_type) }} ·
+                  {{ row.media_type_name || typeLabel(row.media_type) }} ·
                   {{ row.year || '年份未知' }}
                   <template v-if="row.episode_count > 1">
                     · {{ row.episode_count }} 集 · 订阅
@@ -1378,7 +1379,10 @@ watch(
                 </div>
                 <div class="detail-copy">
                   <div class="detail-eyebrow">
-                    {{ typeLabel(selected.media_type) }} ·
+                    {{
+                      selected.media_type_name || typeLabel(selected.media_type)
+                    }}
+                    ·
                     {{ selected.year || '年份未知' }}
                     <span>{{ selected.identity_id }}</span>
                   </div>

@@ -8,6 +8,8 @@ export namespace LifecycleApi {
   export interface Item {
     identity_id: string;
     media_type: string;
+    media_type_name?: string;
+    media_kind?: string;
     season: number;
     episode: number;
     title?: null | string;
