@@ -32,6 +32,15 @@ const formSchema = computed((): VbenFormSchema[] => {
       label: $t('authentication.password'),
       rules: z.string().min(1, { message: $t('authentication.passwordTip') }),
     },
+    {
+      component: 'VbenInput',
+      componentProps: {
+        placeholder: '未开启两步验证可留空',
+      },
+      fieldName: 'totp_code',
+      label: '两步验证码',
+      rules: z.string().optional(),
+    },
   ];
 });
 </script>

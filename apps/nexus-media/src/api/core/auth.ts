@@ -5,6 +5,7 @@ export namespace AuthApi {
   export interface LoginParams {
     username: string;
     password: string;
+    totp_code?: string;
   }
 
   /** 登录接口返回值（后端 TokenPair 结构） */
@@ -29,6 +30,9 @@ export async function loginApi(data: AuthApi.LoginParams) {
   const formData = new URLSearchParams();
   formData.append('username', data.username);
   formData.append('password', data.password);
+  if (data.totp_code) {
+    formData.append('totp_code', data.totp_code);
+  }
 
   return requestClient.post<AuthApi.LoginResult>('/auth/login', formData, {
     headers: {
