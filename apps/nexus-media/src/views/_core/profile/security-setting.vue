@@ -5,7 +5,7 @@ import { onMounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { NButton, NInput, NModal, NPopconfirm, NSpin, NTag } from 'naive-ui';
+import { NButton, NInput, NModal, NPopconfirm, NSpin } from 'naive-ui';
 
 import { message } from '#/adapter/naive';
 import { getUserInfoApi } from '#/api';
@@ -246,7 +246,10 @@ onMounted(() => {
           <div class="security-item-desc">建议定期更换密码以保障账户安全</div>
         </div>
       </div>
-      <NTag type="success" size="small">已设置</NTag>
+      <span class="security-status security-status--success">
+        <IconifyIcon icon="lucide:check-circle-2" class="size-3.5" />
+        已设置
+      </span>
     </div>
 
     <div class="security-item">
@@ -261,9 +264,17 @@ onMounted(() => {
           </div>
         </div>
       </div>
-      <NTag :type="userInfo.is_superadmin ? 'warning' : 'default'" size="small">
+      <span
+        class="security-status"
+        :class="
+          userInfo.is_superadmin
+            ? 'security-status--warning'
+            : 'security-status--muted'
+        "
+      >
+        <span class="security-status-dot"></span>
         {{ userInfo.is_superadmin ? '超级管理员' : '普通用户' }}
-      </NTag>
+      </span>
     </div>
 
     <div class="security-item">
@@ -279,15 +290,27 @@ onMounted(() => {
         </div>
       </div>
       <div class="security-actions">
-        <NTag :type="totp.enabled ? 'success' : 'default'" size="small">
+        <span
+          class="security-status"
+          :class="
+            totp.enabled ? 'security-status--success' : 'security-status--muted'
+          "
+        >
+          <span class="security-status-dot"></span>
           {{ totp.enabled ? '已开启' : '未开启' }}
-        </NTag>
+        </span>
         <NButton
           size="small"
-          :type="totp.enabled ? 'error' : 'primary'"
+          secondary
+          :type="totp.enabled ? 'default' : 'primary'"
           @click="totp.enabled ? (disableVisible = true) : startSetup()"
         >
-          {{ totp.enabled ? '关闭' : '启用' }}
+          <template #icon>
+            <IconifyIcon
+              :icon="totp.enabled ? 'lucide:shield-off' : 'lucide:shield-check'"
+            />
+          </template>
+          {{ totp.enabled ? '关闭两步验证' : '启用两步验证' }}
         </NButton>
       </div>
     </div>
@@ -299,7 +322,10 @@ onMounted(() => {
           查看当前账户的登录设备，发现异常可立即退出该设备
         </div>
       </div>
-      <NButton size="small" quaternary @click="revokeOthers">
+      <NButton size="small" secondary @click="revokeOthers">
+        <template #icon>
+          <IconifyIcon icon="lucide:log-out" />
+        </template>
         退出其他设备
       </NButton>
     </div>
@@ -327,14 +353,13 @@ onMounted(() => {
           <div class="security-item-info">
             <div class="security-item-title">
               {{ deviceLabel(item) }}
-              <NTag
+              <span
                 v-if="item.is_current"
-                type="success"
-                size="small"
-                class="ml-2"
+                class="security-status security-status--success ml-2"
               >
+                <span class="security-status-dot"></span>
                 当前设备
-              </NTag>
+              </span>
             </div>
             <div class="security-item-desc">
               {{ item.login_ip || '未知 IP' }} · 最近活跃
@@ -347,13 +372,21 @@ onMounted(() => {
           @positive-click="revoke(item)"
         >
           <template #trigger>
-            <NButton size="small" type="error" quaternary>退出</NButton>
+            <NButton size="small" type="error" tertiary aria-label="退出该设备">
+              <template #icon>
+                <IconifyIcon icon="lucide:log-out" />
+              </template>
+              退出
+            </NButton>
           </template>
           确认让该设备退出登录？
         </NPopconfirm>
-        <NTag v-else-if="item.revoked_at" size="small" type="default">
+        <span
+          v-else-if="item.revoked_at"
+          class="security-status security-status--muted"
+        >
           已退出
-        </NTag>
+        </span>
       </div>
     </NSpin>
 
@@ -519,6 +552,42 @@ onMounted(() => {
   flex-shrink: 0;
   gap: 0.5rem;
   align-items: center;
+}
+
+.security-status {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+  background: hsl(var(--muted));
+  border-radius: 9999px;
+}
+
+.security-status--success {
+  color: hsl(var(--success));
+  background: hsl(var(--success) / 12%);
+}
+
+.security-status--warning {
+  color: hsl(var(--warning));
+  background: hsl(var(--warning) / 14%);
+}
+
+.security-status--muted {
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted));
+}
+
+.security-status-dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  background: currentcolor;
+  border-radius: 9999px;
 }
 
 .security-session {
