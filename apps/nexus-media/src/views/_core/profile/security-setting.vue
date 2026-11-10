@@ -79,8 +79,13 @@ async function fetchUserInfo() {
 async function fetchSessions() {
   loading.value = true;
   try {
-    sessions.value =
-      unwrap<SecurityApi.SessionItem[]>(await getSessionsApi()) || [];
+    sessions.value = (
+      unwrap<SecurityApi.SessionItem[]>(await getSessionsApi()) || []
+    ).sort(
+      (a, b) =>
+        Number(b.is_current) - Number(a.is_current) ||
+        (b.last_seen_at || '').localeCompare(a.last_seen_at || ''),
+    );
   } catch (error: any) {
     message.error(error?.message || '获取登录设备失败');
   } finally {
