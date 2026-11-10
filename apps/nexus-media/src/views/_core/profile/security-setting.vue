@@ -151,6 +151,57 @@ async function confirmSetup() {
   }
 }
 
+function exportRecoveryPdf() {
+  const win = window.open('', '_blank', 'width=760,height=900');
+  if (!win) {
+    message.error('浏览器阻止了弹窗，请允许后重试');
+    return;
+  }
+  const account = (userInfo.value.username || 'Nexus Media 用户').replace(
+    /[&<>"']/g,
+    (char) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      })[char] || char,
+  );
+  const codes = recoveryCodes.value
+    .map((code) => `<li><code>${code}</code></li>`)
+    .join('');
+  const generatedAt = new Date().toLocaleString('zh-CN');
+  win.document.write(`<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>Nexus Media 两步验证恢复码</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif; color: #111; margin: 48px; }
+  h1 { font-size: 22px; margin: 0 0 8px; }
+  .meta { color: #555; font-size: 13px; line-height: 1.8; }
+  .warning { margin: 20px 0; padding: 12px 14px; background: #f5f5f5; border-left: 3px solid #111; font-size: 13px; }
+  ul { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0; list-style: none; margin: 20px 0 0; }
+  li { padding: 10px 12px; font-size: 15px; background: #f5f5f5; border-radius: 6px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  footer { margin-top: 28px; font-size: 12px; color: #777; }
+  @media print { body { margin: 20mm; } .warning { break-inside: avoid; } }
+</style>
+</head>
+<body>
+  <h1>Nexus Media 两步验证恢复码</h1>
+  <div class="meta">账号：${account}<br />生成时间：${generatedAt}</div>
+  <div class="warning">每个恢复码只能使用一次。请离线保存，不要通过聊天或邮件发送给他人。</div>
+  <ul>${codes}</ul>
+  <footer>如果怀疑泄露，请立即在安全设置中关闭并重新启用两步验证。</footer>
+</body>
+</html>`);
+  win.document.close();
+  win.focus();
+  window.setTimeout(() => win.print(), 300);
+}
+
 async function confirmDisable() {
   if (!disablePassword.value || !disableCode.value.trim()) {
     message.warning('请输入密码和验证码');
@@ -364,6 +415,7 @@ onMounted(() => {
       </div>
       <template #footer>
         <div class="modal-footer">
+          <NButton @click="exportRecoveryPdf">导出 PDF</NButton>
           <NButton type="primary" @click="recoveryVisible = false">
             我已保存
           </NButton>
