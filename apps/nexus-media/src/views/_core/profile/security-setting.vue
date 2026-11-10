@@ -30,7 +30,11 @@ const loading = ref(false);
 const totp = ref<SecurityApi.TOTPStatus>({ configured: false, enabled: false });
 
 const setupVisible = ref(false);
-const setupData = ref<SecurityApi.TOTPSetupResult>({ secret: '', uri: '' });
+const setupData = ref<SecurityApi.TOTPSetupResult>({
+  qr_data_uri: '',
+  secret: '',
+  uri: '',
+});
 const setupCode = ref('');
 const setupLoading = ref(false);
 const recoveryVisible = ref(false);
@@ -104,6 +108,15 @@ async function revokeOthers() {
     await fetchSessions();
   } catch (error: any) {
     message.error(error?.message || '操作失败');
+  }
+}
+
+async function copyText(text: string, label: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    message.success(`${label}已复制`);
+  } catch {
+    message.error('复制失败');
   }
 }
 
@@ -293,18 +306,39 @@ onMounted(() => {
       preset="card"
       title="启用两步验证"
       class="security-modal"
+      style="width: 460px; max-width: 92vw"
     >
-      <div class="totp-tip">
-        在验证器中添加以下密钥，或使用提供的 otpauth 地址：
+      <div class="totp-setup">
+        <div class="totp-setup-head">
+          <img
+            v-if="setupData.qr_data_uri"
+            :src="setupData.qr_data_uri"
+            alt="两步验证二维码"
+            class="totp-qr"
+          />
+          <div class="totp-setup-copy">
+            <div class="totp-tip">使用验证器扫描二维码，或手动输入密钥。</div>
+            <div class="totp-secret-row">
+              <code>{{ setupData.secret }}</code>
+              <NButton
+                text
+                type="primary"
+                @click="copyText(setupData.secret, '密钥')"
+              >
+                复制
+              </NButton>
+            </div>
+            <div class="totp-uri-label">otpauth 地址</div>
+            <NInput :value="setupData.uri" readonly size="small" />
+          </div>
+        </div>
+        <NInput
+          v-model:value="setupCode"
+          placeholder="输入验证器中的 6 位验证码"
+          maxlength="6"
+          class="totp-code-input"
+        />
       </div>
-      <NInput :value="setupData.secret" readonly />
-      <div class="totp-uri">{{ setupData.uri }}</div>
-      <NInput
-        v-model:value="setupCode"
-        placeholder="输入验证器中的 6 位验证码"
-        maxlength="6"
-        class="mt-3"
-      />
       <template #footer>
         <div class="modal-footer">
           <NButton @click="setupVisible = false">取消</NButton>
@@ -320,6 +354,7 @@ onMounted(() => {
       preset="card"
       title="保存恢复码"
       class="security-modal"
+      style="width: 460px; max-width: 92vw"
     >
       <div class="totp-tip">
         以下恢复码只显示一次，请离线保存。每使用一次即失效。
@@ -341,6 +376,7 @@ onMounted(() => {
       preset="card"
       title="关闭两步验证"
       class="security-modal"
+      style="width: 460px; max-width: 92vw"
     >
       <NInput
         v-model:value="disablePassword"
@@ -440,24 +476,74 @@ onMounted(() => {
 }
 
 .security-modal {
-  width: min(520px, 92vw);
+  width: min(460px, 92vw);
+}
+
+.totp-setup-head {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.totp-qr {
+  flex-shrink: 0;
+  width: 168px;
+  height: 168px;
+  padding: 0.5rem;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) - 2px);
+}
+
+.totp-setup-copy {
+  flex: 1;
+  min-width: 0;
 }
 
 .totp-tip {
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.65rem;
   font-size: 0.8125rem;
+  line-height: 1.5;
   color: hsl(var(--muted-foreground));
 }
 
-.totp-uri {
-  padding: 0.5rem;
-  margin-top: 0.5rem;
-  font-family: monospace;
-  font-size: 0.6875rem;
-  color: hsl(var(--muted-foreground));
-  overflow-wrap: anywhere;
+.totp-secret-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.7rem;
   background: hsl(var(--muted));
   border-radius: calc(var(--radius) - 4px);
+}
+
+.totp-secret-row code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: monospace;
+  font-size: 0.6875rem;
+  white-space: nowrap;
+}
+
+.totp-uri-label {
+  margin: 0.65rem 0 0.35rem;
+  font-size: 0.6875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.totp-code-input {
+  margin-top: 1rem;
+}
+
+@media (max-width: 560px) {
+  .totp-setup-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .totp-qr {
+    align-self: center;
+  }
 }
 
 .recovery-grid {

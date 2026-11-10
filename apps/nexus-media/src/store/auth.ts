@@ -82,11 +82,13 @@ export const useAuthStore = defineStore('auth', () => {
     };
   }
 
-  async function logout(redirect: boolean = true) {
-    try {
-      await logoutApi();
-    } catch {
-      // 不做任何处理
+  async function logout(redirect: boolean = true, callApi: boolean = true) {
+    if (callApi) {
+      try {
+        await logoutApi();
+      } catch {
+        // 不做任何处理
+      }
     }
     resetAllStores();
     accessStore.setLoginExpired(false);

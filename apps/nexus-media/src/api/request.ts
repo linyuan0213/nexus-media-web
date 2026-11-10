@@ -89,31 +89,75 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
     ) {
       accessStore.setLoginExpired(true);
     } else {
-      await authStore.logout();
+      await authStore.logout(true, false);
     }
   }
 
   /**
    * 刷新 token 逻辑
    */
+  function errorStatus(error: any): number | undefined {
+    return error?.response?.status ?? error?.status;
+  }
+
+  function errorCode(error: any): number | string | undefined {
+    return (
+      error?.response?.data?.code ??
+      error?.data?.code ??
+      error?.code ??
+      error?.response?.data?.errcode
+    );
+  }
+
   async function doRefreshToken() {
     const accessStore = useAccessStore();
-    const resp = await refreshTokenApi();
+    let resp: any;
+    try {
+      resp = await refreshTokenApi();
+    } catch (error: any) {
+      const code = errorCode(error);
+      if (
+        errorStatus(error) === 401 ||
+        Number(code) === ErrorCode.REFRESH_TOKEN_INVALID
+      ) {
+        const normalized: any =
+          error instanceof Error ? error : new Error('Refresh token invalid');
+        normalized.response = {
+          ...error?.response,
+          status: 401,
+          data: { code: ErrorCode.REFRESH_TOKEN_INVALID },
+        };
+        throw normalized;
+      }
+      throw error;
+    }
     const newToken = resp?.access_token;
     if (!newToken) {
       const error: any = new Error(
         'Refresh token response missing access_token',
       );
-      error.response = { status: 401, data: { code: 'REFRESH_TOKEN_INVALID' } };
+      error.response = {
+        status: 401,
+        data: { code: ErrorCode.REFRESH_TOKEN_INVALID },
+      };
       throw error;
     }
     accessStore.setAccessToken(newToken);
     return newToken;
   }
 
-  /** 只有刷新接口明确返回 401 才代表会话失效；网络/5xx 不应强制登出。 */
+  /** 明确 401 或认证业务码都代表会话失效；网络/5xx 不应强制登出。 */
   function shouldReAuthenticate(error: any): boolean {
-    return error?.response?.status === 401;
+    const code = Number(errorCode(error));
+    return (
+      errorStatus(error) === 401 ||
+      [
+        ErrorCode.REFRESH_TOKEN_INVALID,
+        ErrorCode.TOKEN_EXPIRED,
+        ErrorCode.TOKEN_INVALID,
+        ErrorCode.UNAUTHORIZED,
+      ].includes(code)
+    );
   }
 
   function formatToken(token: null | string) {

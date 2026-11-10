@@ -160,9 +160,18 @@ function setupAccessGuard(router: Router) {
         ...router.resolve(decodeURIComponent(redirectPath)),
         replace: true,
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('[RouterGuard] 初始化访问控制失败:', error);
       stopProgress();
+      const status = error?.response?.status;
+      const code = error?.response?.data?.code ?? error?.code;
+      if (status === 401 || [20001, 20002, 20003, 20004].includes(code)) {
+        return {
+          path: LOGIN_PATH,
+          query: { redirect: encodeURIComponent(to.fullPath) },
+          replace: true,
+        };
+      }
       return { path: '/offline', replace: true };
     }
   });

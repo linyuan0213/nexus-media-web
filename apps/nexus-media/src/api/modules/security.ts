@@ -27,6 +27,7 @@ export namespace SecurityApi {
   export interface TOTPSetupResult {
     secret: string;
     uri: string;
+    qr_data_uri: string;
   }
 }
 
