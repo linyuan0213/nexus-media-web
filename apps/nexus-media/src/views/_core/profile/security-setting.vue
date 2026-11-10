@@ -50,11 +50,16 @@ function unwrap<T>(res: any): T {
 }
 
 function deviceLabel(item: SecurityApi.SessionItem): string {
-  return (
-    [item.device_model, item.os, item.browser]
-      .filter((value) => value && value !== 'Unknown')
-      .join(' · ') || '未知设备'
+  const parts = [item.device_model, item.os, item.browser].filter(
+    (value) => value && value !== 'Unknown',
+  ) as string[];
+  const unique = parts.filter(
+    (value, index) =>
+      parts.findIndex(
+        (candidate) => candidate.toLowerCase() === value.toLowerCase(),
+      ) === index,
   );
+  return unique.join(' · ') || '未知设备';
 }
 
 async function fetchUserInfo() {
@@ -94,17 +99,17 @@ async function fetchTotp() {
 async function revoke(item: SecurityApi.SessionItem) {
   try {
     await revokeSessionApi(item.session_id);
-    message.success('已吊销该设备');
+    message.success('该设备已退出登录');
     await fetchSessions();
   } catch (error: any) {
-    message.error(error?.message || '吊销失败');
+    message.error(error?.message || '退出失败');
   }
 }
 
 async function revokeOthers() {
   try {
     const result = unwrap<{ revoked: number }>(await revokeOtherSessionsApi());
-    message.success(`已吊销 ${result?.revoked ?? 0} 个其他设备`);
+    message.success(`已退出 ${result?.revoked ?? 0} 个其他设备`);
     await fetchSessions();
   } catch (error: any) {
     message.error(error?.message || '操作失败');
@@ -291,7 +296,7 @@ onMounted(() => {
       <div>
         <div class="security-item-title">登录设备</div>
         <div class="security-item-desc">
-          查看当前账户的登录设备，发现异常可立即吊销
+          查看当前账户的登录设备，发现异常可立即退出该设备
         </div>
       </div>
       <NButton size="small" quaternary @click="revokeOthers">
@@ -342,12 +347,12 @@ onMounted(() => {
           @positive-click="revoke(item)"
         >
           <template #trigger>
-            <NButton size="small" type="error" quaternary>吊销</NButton>
+            <NButton size="small" type="error" quaternary>退出</NButton>
           </template>
-          确认吊销该设备登录？
+          确认让该设备退出登录？
         </NPopconfirm>
         <NTag v-else-if="item.revoked_at" size="small" type="default">
-          已吊销
+          已退出
         </NTag>
       </div>
     </NSpin>

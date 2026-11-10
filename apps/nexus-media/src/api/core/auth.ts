@@ -61,7 +61,8 @@ export async function refreshTokenApi() {
  * 退出登录
  */
 export async function logoutApi() {
-  return baseRequestClient.post('/auth/logout', null, {
+  // 必须携带 Access Token；baseRequestClient 不带 Authorization，服务端无法定位并吊销 sid。
+  return requestClient.post('/auth/logout', null, {
     withCredentials: true,
   });
 }
