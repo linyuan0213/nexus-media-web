@@ -78,6 +78,11 @@ const editDrawerShow = ref(false);
 const editingDownloader = ref<Partial<DownloaderItem>>({});
 const editingType = ref('qbittorrent');
 const editingConfig = ref<Record<string, any>>({});
+const passwordVisible = ref<Record<string, boolean>>({});
+
+function togglePassword(fieldKey: string) {
+  passwordVisible.value[fieldKey] = !passwordVisible.value[fieldKey];
+}
 const dirTypeOptions = computed(() => [
   { label: '全部', value: '' },
   { label: '电影', value: '电影' },
@@ -705,9 +710,30 @@ onMounted(fetchData);
               <NInput
                 v-else
                 v-model:value="editingConfig[key]"
-                :type="field.type === 'password' ? 'password' : 'text'"
+                :type="
+                  field.type === 'password' && !passwordVisible[key]
+                    ? 'password'
+                    : 'text'
+                "
                 :placeholder="field.placeholder || field.default"
-              />
+              >
+                <template v-if="field.type === 'password'" #suffix>
+                  <NButton
+                    text
+                    size="tiny"
+                    :aria-label="passwordVisible[key] ? '隐藏内容' : '显示内容'"
+                    @click="togglePassword(key)"
+                  >
+                    <IconifyIcon
+                      :icon="
+                        passwordVisible[key] ? 'lucide:eye-off' : 'lucide:eye'
+                      "
+                      class="size-4"
+                      style="color: hsl(var(--muted-foreground))"
+                    />
+                  </NButton>
+                </template>
+              </NInput>
             </NFormItem>
           </div>
         </div>
