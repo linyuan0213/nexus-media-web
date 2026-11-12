@@ -36,6 +36,8 @@ const searchText = ref('');
 const isPaused = ref(false);
 const autoScroll = ref(true);
 const listRef = ref<HTMLDivElement | null>(null);
+let lastScrollTop = 0;
+let restoringScroll = false;
 
 const searchTotal = ref(0);
 const searchTruncated = ref(false);
@@ -102,8 +104,10 @@ function scrollToBottom() {
 }
 
 function onLogListScroll() {
+  if (restoringScroll) return;
   const el = listRef.value;
   if (!el) return;
+  lastScrollTop = el.scrollTop;
   const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
   // 用户主动向上翻看时关闭跟随，避免新日志把视图再次拉到底部。
   if (distance > 40) {
@@ -111,7 +115,31 @@ function onLogListScroll() {
   }
 }
 
-watch(() => logs.value.length, scrollToBottom);
+watch(autoScroll, (enabled) => {
+  if (!enabled && listRef.value) {
+    lastScrollTop = listRef.value.scrollTop;
+  }
+});
+
+watch(
+  () => logs.value.length,
+  () => {
+    if (autoScroll.value) {
+      scrollToBottom();
+      return;
+    }
+    // 关闭跟随后强制恢复用户位置，覆盖浏览器 scroll anchoring 的自动调整。
+    nextTick(() => {
+      const el = listRef.value;
+      if (!el) return;
+      restoringScroll = true;
+      el.scrollTop = Math.min(lastScrollTop, el.scrollHeight - el.clientHeight);
+      window.requestAnimationFrame(() => {
+        restoringScroll = false;
+      });
+    });
+  },
+);
 
 function collectSources(items: any[]) {
   for (const item of items) {
