@@ -48,6 +48,16 @@ const visible = computed({
 
 const activeTab = ref('basic');
 
+const spaSourceLabel = computed(() => {
+  if (props.site?.spa_source === 'cookiecloud') return 'CookieCloud';
+  if (props.site?.spa_source === 'manual') return '手动配置';
+  return props.site?.spa_bearer_token ? '已配置' : '未配置';
+});
+const spaUpdatedLabel = computed(() => {
+  const ts = Number(props.site?.spa_updated_at || 0);
+  return ts ? new Date(ts * 1000).toLocaleString() : '—';
+});
+
 const modalTitle = computed(() => (props.site?.id ? '编辑站点' : '新增站点'));
 
 const rateLimitOptions = [
@@ -311,6 +321,8 @@ function parseSiteToForm(item: SiteItem): SiteForm {
         }
       })()
     : note;
+  const storedCredentials =
+    parsedNote?.api_credentials || item.api_credentials || {};
 
   return {
     id: item.id,
@@ -320,6 +332,11 @@ function parseSiteToForm(item: SiteItem): SiteForm {
     cookie: item.cookie || '',
     api_key: item.api_key || '',
     bearer_token: item.bearer_token || '',
+    api_profile: parsedNote?.api_profile || '',
+    spa_bearer_token: storedCredentials?.spa?.bearer_token || '',
+    spa_visitor_id: storedCredentials?.spa?.visitor_id || '',
+    spa_source: storedCredentials?.spa?.source || '',
+    spa_updated_at: Number(storedCredentials?.spa?.updated_at || 0),
     rssurl: item.rssurl || '',
     public: !!item.public,
     site_public: item.site_public !== false,
@@ -359,6 +376,16 @@ function buildNote(form: SiteForm): string {
   note.public = form.public;
   if (form.rate_limit) note.rate_limit = form.rate_limit;
   if (form.rate_burst) note.rate_burst = form.rate_burst;
+  if (form.api_profile) note.api_profile = form.api_profile;
+  if (form.spa_bearer_token || form.spa_visitor_id) {
+    note.api_credentials = {
+      ...note.api_credentials,
+      spa: {
+        bearer_token: form.spa_bearer_token,
+        visitor_id: form.spa_visitor_id,
+      },
+    };
+  }
   return JSON.stringify(note);
 }
 
@@ -368,6 +395,7 @@ function buildSavePayload(form: SiteForm): any {
     form.cookie ||
     form.api_key ||
     form.bearer_token ||
+    form.spa_bearer_token ||
     form.headers
   );
   if (form.rss_enable && form.rssurl) uses.push('D');
@@ -530,6 +558,62 @@ defineExpose({
                 />
               </NFormItem>
             </div>
+
+            <template v-if="matchedDefinition?.type === 'api'">
+              <NFormItem label="接口模式">
+                <NSelect
+                  :value="site.api_profile"
+                  :options="[
+                    { label: '自动（有 SPA 凭据时优先）', value: '' },
+                    { label: '官方 API (/v1/api)', value: 'official' },
+                    { label: 'SPA API (/v1/web)', value: 'spa' },
+                  ]"
+                  @update:value="(v) => updateField('api_profile', v)"
+                />
+              </NFormItem>
+              <NCollapse
+                v-if="site.api_profile !== 'official'"
+                class="auth-advanced"
+                :default-expanded-names="site.spa_bearer_token ? ['spa'] : []"
+              >
+                <NCollapseItem
+                  title="SPA 接口凭据（可选，用于完整标签和免费状态）"
+                  name="spa"
+                >
+                  <div class="form-grid-2">
+                    <NFormItem label="SPA Token">
+                      <NInput
+                        :value="site.spa_bearer_token"
+                        type="password"
+                        show-password-on="click"
+                        placeholder="浏览器 localStorage.pig_token"
+                        :input-props="{ autocomplete: 'new-password' }"
+                        @update:value="
+                          (v) => updateField('spa_bearer_token', v)
+                        "
+                      />
+                    </NFormItem>
+                    <NFormItem label="SPA Visitor ID">
+                      <NInput
+                        :value="site.spa_visitor_id"
+                        placeholder="浏览器 window.__ptvisitorid"
+                        @update:value="(v) => updateField('spa_visitor_id', v)"
+                      />
+                    </NFormItem>
+                  </div>
+                  <div class="form-hint">
+                    <IconifyIcon icon="lucide:info" class="h-3 w-3" />
+                    <span
+                      >来源：{{ spaSourceLabel }} · 最近同步：{{
+                        spaUpdatedLabel
+                      }}。SPA Token 失效时自动回退官方 API，站点 Cookie 同时用于
+                      SPA。</span
+                    >
+                  </div>
+                </NCollapseItem>
+              </NCollapse>
+            </template>
+
             <NCollapse class="auth-advanced">
               <NCollapseItem title="高级请求头">
                 <NFormItem label="自定义请求头">

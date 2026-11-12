@@ -6,6 +6,11 @@ export interface SiteForm {
   cookie: string;
   api_key: string;
   bearer_token: string;
+  api_profile: string;
+  spa_bearer_token: string;
+  spa_visitor_id: string;
+  spa_source: string;
+  spa_updated_at: number;
   rssurl: string;
   public: boolean;
   site_public: boolean;
@@ -45,6 +50,7 @@ export interface SiteItem {
   bearer_token?: string;
   headers?: string;
   note?: Record<string, any> | string;
+  api_credentials?: Record<string, any>;
   public?: boolean;
   rss_enable?: boolean;
   brush_enable?: boolean;
