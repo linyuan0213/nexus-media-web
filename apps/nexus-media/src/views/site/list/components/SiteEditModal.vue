@@ -341,8 +341,11 @@ function parseSiteToForm(item: SiteItem): SiteForm {
     ),
     spa_configured: Boolean(
       storedCredentials?.spa?.bearer_token ||
-      storedCredentials?.spa?.local_storage ||
+      storedCredentials?.spa?.token ||
       item.spa_configured,
+    ),
+    spa_synced: Boolean(
+      storedCredentials?.spa?.local_storage || item.spa_synced,
     ),
     rssurl: item.rssurl || '',
     public: !!item.public,

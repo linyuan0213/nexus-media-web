@@ -24,6 +24,7 @@ import { getDownloadSettingsApi } from '#/api/modules/download';
 import { getFilterGroupsApi } from '#/api/modules/filter';
 import {
   deleteSiteApi,
+  getSiteApiCredentialsApi,
   getSiteDefinitionsApi,
   getSiteFaviconsApi,
   getSiteParseHealthLatestApi,
@@ -395,6 +396,7 @@ function handleAdd() {
     spa_source: '',
     spa_updated_at: 0,
     spa_configured: false,
+    spa_synced: false,
     rssurl: '',
     public: false,
     site_public: false,
@@ -419,8 +421,24 @@ function handleAdd() {
   editModalShow.value = true;
 }
 
-function handleEdit(item: SiteItem) {
-  editingSite.value = editModalRef.value?.parseSiteToForm(item) ?? null;
+async function handleEdit(item: SiteItem) {
+  const form = editModalRef.value?.parseSiteToForm(item) ?? null;
+  if (form && item.id) {
+    try {
+      const credentials: any = await getSiteApiCredentialsApi(item.id);
+      const spa = credentials?.spa || credentials?.data?.spa || {};
+      form.spa_bearer_token = spa.bearer_token || spa.token || '';
+      form.spa_visitor_id = spa.visitor_id || spa.visitorId || '';
+      form.spa_source = spa.source || form.spa_source;
+      form.spa_updated_at = Number(spa.updated_at || form.spa_updated_at);
+      form.spa_configured = Boolean(
+        spa.bearer_token || spa.local_storage || form.spa_configured,
+      );
+    } catch {
+      // 凭据读取失败时保持列表脱敏状态，用户仍可重新填写
+    }
+  }
+  editingSite.value = form;
   editModalShow.value = true;
 }
 

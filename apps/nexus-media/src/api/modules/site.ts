@@ -164,6 +164,16 @@ export async function getSiteApi(id: number | string) {
   }>('/site/sites/detail', { id });
 }
 
+/** 读取站点 API/SPA 凭据（编辑页按需） */
+export async function getSiteApiCredentialsApi(id: number | string) {
+  return requestClient.post<Record<string, any>>(
+    '/site/sites/api-credentials',
+    {
+      id: String(id),
+    },
+  );
+}
+
 /** 添加/更新站点 */
 export async function saveSiteApi(data: Record<string, any>) {
   return requestClient.post('/site/sites/update', {
