@@ -37,7 +37,7 @@ const emit = defineEmits<{
           <NFormItem label="订阅RSS轮询间隔(秒)">
             <NInput
               :value="config['subscribe.rss_interval']"
-              placeholder="默认 1800，0 表示关闭"
+              placeholder="默认 600，0 表示关闭"
               @update:value="
                 (v) => emit('updateConfig', 'subscribe.rss_interval', v)
               "
