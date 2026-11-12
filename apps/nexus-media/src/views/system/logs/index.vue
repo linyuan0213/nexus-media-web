@@ -101,6 +101,16 @@ function scrollToBottom() {
   });
 }
 
+function onLogListScroll() {
+  const el = listRef.value;
+  if (!el) return;
+  const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+  // 用户主动向上翻看时关闭跟随，避免新日志把视图再次拉到底部。
+  if (distance > 40) {
+    autoScroll.value = false;
+  }
+}
+
 watch(() => logs.value.length, scrollToBottom);
 
 function collectSources(items: any[]) {
@@ -403,7 +413,9 @@ onUnmounted(() => {
       <span class="text-xs" style="color: hsl(var(--muted-foreground))">
         <template v-if="isFiltering">
           {{ searchTruncated ? '≥' : '共' }} {{ searchTotal }} 条
-          <template v-if="searchTruncated">（结果过多，仅展示前 20000 条）</template>
+          <template v-if="searchTruncated"
+            >（结果过多，仅展示前 20000 条）</template
+          >
           <template v-else>（已搜索全部日志）</template>
         </template>
         <template v-else>共 {{ logs.length }} 条</template>
@@ -420,7 +432,12 @@ onUnmounted(() => {
     </div>
 
     <NSpin :show="loading && logs.length === 0" class="mt-4">
-      <div v-if="logs.length > 0" ref="listRef" class="log-list">
+      <div
+        v-if="logs.length > 0"
+        ref="listRef"
+        class="log-list"
+        @scroll="onLogListScroll"
+      >
         <!-- 表头 -->
         <div class="log-header">
           <span class="h-time">时间</span>
@@ -462,6 +479,7 @@ onUnmounted(() => {
 .log-list {
   max-height: 600px;
   overflow: auto;
+  overflow-anchor: none;
   font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
   font-size: 13px;
   line-height: 1.6;
