@@ -335,8 +335,10 @@ function parseSiteToForm(item: SiteItem): SiteForm {
     api_profile: parsedNote?.api_profile || '',
     spa_bearer_token: storedCredentials?.spa?.bearer_token || '',
     spa_visitor_id: storedCredentials?.spa?.visitor_id || '',
-    spa_source: storedCredentials?.spa?.source || '',
-    spa_updated_at: Number(storedCredentials?.spa?.updated_at || 0),
+    spa_source: storedCredentials?.spa?.source || item.spa_source || '',
+    spa_updated_at: Number(
+      storedCredentials?.spa?.updated_at || item.spa_updated_at || 0,
+    ),
     rssurl: item.rssurl || '',
     public: !!item.public,
     site_public: item.site_public !== false,

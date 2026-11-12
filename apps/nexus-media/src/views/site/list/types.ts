@@ -51,6 +51,10 @@ export interface SiteItem {
   headers?: string;
   note?: Record<string, any> | string;
   api_credentials?: Record<string, any>;
+  api_profiles?: string[];
+  has_api_credentials?: boolean;
+  spa_source?: string;
+  spa_updated_at?: number;
   public?: boolean;
   rss_enable?: boolean;
   brush_enable?: boolean;
