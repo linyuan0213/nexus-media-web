@@ -339,6 +339,11 @@ function parseSiteToForm(item: SiteItem): SiteForm {
     spa_updated_at: Number(
       storedCredentials?.spa?.updated_at || item.spa_updated_at || 0,
     ),
+    spa_configured: Boolean(
+      storedCredentials?.spa?.bearer_token ||
+      storedCredentials?.spa?.local_storage ||
+      item.spa_configured,
+    ),
     rssurl: item.rssurl || '',
     public: !!item.public,
     site_public: item.site_public !== false,
@@ -588,7 +593,11 @@ defineExpose({
                         :value="site.spa_bearer_token"
                         type="password"
                         show-password-on="click"
-                        placeholder="浏览器 localStorage.pig_token"
+                        :placeholder="
+                          site.spa_configured
+                            ? '已同步，留空保持不变'
+                            : '浏览器 localStorage.pig_token'
+                        "
                         :input-props="{ autocomplete: 'new-password' }"
                         @update:value="
                           (v) => updateField('spa_bearer_token', v)
@@ -598,7 +607,11 @@ defineExpose({
                     <NFormItem label="SPA Visitor ID">
                       <NInput
                         :value="site.spa_visitor_id"
-                        placeholder="浏览器 window.__ptvisitorid"
+                        :placeholder="
+                          site.spa_configured
+                            ? '已同步，留空保持不变'
+                            : '浏览器 window.__ptvisitorid'
+                        "
                         @update:value="(v) => updateField('spa_visitor_id', v)"
                       />
                     </NFormItem>

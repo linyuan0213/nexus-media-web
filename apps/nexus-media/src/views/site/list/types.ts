@@ -11,6 +11,7 @@ export interface SiteForm {
   spa_visitor_id: string;
   spa_source: string;
   spa_updated_at: number;
+  spa_configured: boolean;
   rssurl: string;
   public: boolean;
   site_public: boolean;
@@ -53,6 +54,7 @@ export interface SiteItem {
   api_credentials?: Record<string, any>;
   api_profiles?: string[];
   has_api_credentials?: boolean;
+  spa_configured?: boolean;
   spa_source?: string;
   spa_updated_at?: number;
   public?: boolean;

@@ -394,6 +394,7 @@ function handleAdd() {
     spa_visitor_id: '',
     spa_source: '',
     spa_updated_at: 0,
+    spa_configured: false,
     rssurl: '',
     public: false,
     site_public: false,
