@@ -208,6 +208,15 @@ function getLongTermConfig(field: string): string {
 function setLongTermConfig(field: string, value: string) {
   emit('updateConfig', `agent.memory.long_term.${field}`, value);
 }
+
+function getMemoryInt(field: string, fallback: number): number {
+  const value = Number(props.config[`agent.memory.${field}`]);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function setMemoryInt(field: string, value: null | number, fallback: number) {
+  emit('updateConfig', `agent.memory.${field}`, Number(value ?? fallback));
+}
 onMounted(() => {
   fetchEmbeddingModels();
 });
@@ -387,6 +396,37 @@ onMounted(() => {
             @update:value="
               (v) => emit('updateConfig', 'agent.disable_thinking', !v)
             "
+          />
+        </NFormItem>
+      </NGridItem>
+    </NGrid>
+
+    <!-- 运行限制 -->
+    <div
+      class="mb-3 mt-2 flex items-center gap-2 text-xs font-medium"
+      style="color: hsl(var(--muted-foreground))"
+    >
+      <IconifyIcon icon="lucide:gauge" class="size-3.5" />
+      <span>运行限制（请求预算按模型往返计，达到上限会暂停本轮工具循环）</span>
+    </div>
+    <NGrid cols="1 s:2 l:3" :x-gap="16" responsive="screen">
+      <NGridItem span="1">
+        <NFormItem label="工具循环步数上限">
+          <NInputNumber
+            :value="getMemoryInt('max_steps', 8)"
+            :min="2"
+            :max="64"
+            @update:value="(v) => setMemoryInt('max_steps', v, 8)"
+          />
+        </NFormItem>
+      </NGridItem>
+      <NGridItem span="1">
+        <NFormItem label="单轮模型请求总预算">
+          <NInputNumber
+            :value="getMemoryInt('request_limit', 16)"
+            :min="0"
+            :max="100"
+            @update:value="(v) => setMemoryInt('request_limit', v, 16)"
           />
         </NFormItem>
       </NGridItem>

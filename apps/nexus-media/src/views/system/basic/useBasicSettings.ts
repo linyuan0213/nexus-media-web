@@ -27,6 +27,12 @@ const NUMERIC_RULES: Record<string, NumericRule> = {
   'app.web_port': { label: 'WEB 服务端口', min: 1, max: 65_535 },
   'media.min_filesize': { label: '转移最小文件大小', min: 0, max: 1_000_000 },
   'agent.batch_size': { label: '批量识别大小', min: 1, max: 1000 },
+  'agent.memory.max_steps': { label: '工具循环步数上限', min: 2, max: 64 },
+  'agent.memory.request_limit': {
+    label: '单轮模型请求总预算',
+    min: 0,
+    max: 100,
+  },
   'queue.transfer_workers': { label: '转移队列并发', min: 1, max: 64 },
   'queue.sync_workers': { label: '目录同步队列并发', min: 1, max: 64 },
   'queue.scrape_workers': { label: '刮削队列并发', min: 1, max: 64 },

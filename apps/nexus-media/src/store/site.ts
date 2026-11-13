@@ -31,6 +31,16 @@ export interface SiteItem {
   source_icon?: string;
   third_party?: boolean;
   enabled?: boolean;
+  rate_limit?: string;
+  rate_burst?: string;
+  rate_status?: {
+    tokens?: null | number;
+    burst?: null | number;
+    waiting?: number;
+    last_wait_ms?: number;
+    blocked?: number;
+    waited?: number;
+  };
 }
 
 export const useSiteStore = defineStore('site', () => {

@@ -154,6 +154,22 @@ export async function getSitesApi(filter?: {
   return requestClient.post<SiteApi.SiteItem[]>('/site/sites', filter || {});
 }
 
+/** 获取站点限流实时状态 */
+export async function getSiteRateStatusApi() {
+  return requestClient.post<
+    Record<
+      string,
+      {
+        rate_limit?: string;
+        rate_burst?: number;
+        tokens?: null | number;
+        waiting?: number;
+        last_wait_ms?: number;
+      }
+    >
+  >('/site/sites/rate-status', {});
+}
+
 /** 获取站点详情 */
 export async function getSiteApi(id: number | string) {
   return requestClient.post<{

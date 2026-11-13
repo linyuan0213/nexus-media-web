@@ -6,7 +6,7 @@ import type {
   SiteSelectOption,
 } from './types';
 
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
@@ -29,6 +29,7 @@ import {
   getSiteFaviconsApi,
   getSiteParseHealthLatestApi,
   getSiteParseHealthRunStateApi,
+  getSiteRateStatusApi,
   getSitesApi,
   runSiteParseHealthApi,
   saveSiteApi,
@@ -327,6 +328,24 @@ const visibleSourceOptions = computed(() =>
 
 const editModalRef = ref<InstanceType<typeof SiteEditModal> | null>(null);
 
+let rateStatusTimer: null | ReturnType<typeof setInterval> = null;
+
+async function fetchRateStatus() {
+  try {
+    const res: any = await getSiteRateStatusApi();
+    const data = res?.data || res || {};
+    for (const site of siteStore.sites) {
+      const status = data[String(site.id)];
+      if (!status) continue;
+      site.rate_limit = status.rate_limit || site.rate_limit;
+      site.rate_burst = String(status.rate_burst ?? site.rate_burst ?? '');
+      site.rate_status = status;
+    }
+  } catch {
+    // 限流状态轮询失败不打扰用户
+  }
+}
+
 async function fetchSites() {
   loading.value = true;
   try {
@@ -571,9 +590,14 @@ async function fetchSiteDefinitions() {
 }
 
 onMounted(() => {
-  fetchSites();
+  fetchSites().then(fetchRateStatus);
   fetchSiteDefinitions();
   fetchParseHealth();
+  rateStatusTimer = setInterval(fetchRateStatus, 10_000);
+});
+
+onUnmounted(() => {
+  if (rateStatusTimer) clearInterval(rateStatusTimer);
 });
 </script>
 

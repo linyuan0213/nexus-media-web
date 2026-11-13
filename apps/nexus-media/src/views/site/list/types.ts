@@ -73,6 +73,14 @@ export interface SiteItem {
   download_setting?: string;
   rate_limit?: string;
   rate_burst?: string;
+  rate_status?: {
+    tokens?: null | number;
+    burst?: null | number;
+    waiting?: number;
+    last_wait_ms?: number;
+    blocked?: number;
+    waited?: number;
+  };
   /** 站点来源：builtin / jackett / prowlarr */
   source?: string;
   /** 是否为第三方索引器站点 */

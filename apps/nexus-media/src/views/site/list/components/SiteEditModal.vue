@@ -61,7 +61,7 @@ const spaUpdatedLabel = computed(() => {
 const modalTitle = computed(() => (props.site?.id ? '编辑站点' : '新增站点'));
 
 const rateLimitOptions = [
-  { label: '不限流', value: '' },
+  { label: '不限流', value: 'none' },
   { label: '每秒 1 次', value: '1/s' },
   { label: '每秒 2 次', value: '2/s' },
   { label: '每分钟 5 次', value: '5/m' },

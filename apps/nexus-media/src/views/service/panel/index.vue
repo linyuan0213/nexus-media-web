@@ -143,6 +143,7 @@ const backupFile = ref<File | null>(null);
 const backupFilePath = ref('');
 const backupLoading = ref(false);
 const restoreLoading = ref(false);
+const backupStatusText = ref('');
 const isDragging = ref(false);
 
 const showConfirm = ref(false);
@@ -620,14 +621,40 @@ async function handleNetTest() {
   netTestAllLoading.value = false;
 }
 
+async function waitBackupTask(taskId: string, label: string) {
+  // 后台任务会持续推进；轮询只查询轻量状态，不受导出/导入耗时影响。
+  for (let i = 0; i < 1800; i += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const res: any = await requestClient.get(
+      `/system/backup/tasks/${encodeURIComponent(taskId)}`,
+    );
+    const task = res?.task_id ? res : (res?.data ?? res);
+    backupStatusText.value = String(task?.message || '');
+    if (task?.status === 'success') return task;
+    if (task?.status === 'failed') {
+      throw new Error(task.message || `${label}失败`);
+    }
+  }
+  throw new Error(`${label}超时，请查看系统日志`);
+}
+
+async function startBackupTask() {
+  const res: any = await requestClient.post('/system/backup/start', {});
+  const task = res?.task_id ? res : (res?.data ?? res);
+  if (!task?.task_id) throw new Error('创建备份任务失败');
+  return String(task.task_id);
+}
+
 async function handleBackupDownload() {
   backupLoading.value = true;
+  backupStatusText.value = '正在创建备份任务';
   try {
-    const blob = await requestClient.download('/system/backup', {
-      method: 'POST',
-      timeout: 300_000, // 全库导出 + 打包可能耗时较长，覆盖默认 10s 超时
-    });
-    // 失败时后端返回 JSON 错误体（responseType 强制为 blob），需识别后抛错
+    const taskId = await startBackupTask();
+    const task = await waitBackupTask(taskId, '备份');
+    const blob = await requestClient.download(
+      `/system/backup/download/${encodeURIComponent(taskId)}`,
+      { method: 'GET', timeout: 300_000 },
+    );
     if (blob.type.includes('application/json')) {
       const err = JSON.parse(await blob.text());
       throw new Error(err?.message || err?.msg || '备份失败');
@@ -635,7 +662,9 @@ async function handleBackupDownload() {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `nexus_media_backup_${new Date().toISOString().slice(0, 10)}.zip`;
+    link.download =
+      task.file_name ||
+      `nexus_media_backup_${new Date().toISOString().slice(0, 10)}.zip`;
     document.body.append(link);
     link.click();
     link.remove();
@@ -645,6 +674,7 @@ async function handleBackupDownload() {
     message.error(error?.message || '备份失败');
   } finally {
     backupLoading.value = false;
+    backupStatusText.value = '';
   }
 }
 
@@ -688,18 +718,21 @@ async function handleRestore() {
     return;
   }
   restoreLoading.value = true;
+  backupStatusText.value = '正在创建恢复任务';
   try {
-    await requestClient.post(
-      '/system/backup/restore',
-      { file_name: backupFilePath.value },
-      { timeout: 300_000 }, // 恢复为全库导入，耗时较长
-    );
+    const res: any = await requestClient.post('/system/backup/restore/start', {
+      file_name: backupFilePath.value,
+    });
+    const task = res?.task_id ? res : (res?.data ?? res);
+    if (!task?.task_id) throw new Error('创建恢复任务失败');
+    await waitBackupTask(String(task.task_id), '恢复');
     message.success('配置恢复成功');
     showBackup.value = false;
   } catch (error: any) {
     message.error(error?.message || '恢复失败');
   } finally {
     restoreLoading.value = false;
+    backupStatusText.value = '';
   }
 }
 
@@ -1187,6 +1220,9 @@ onMounted(() => {
             </template>
             恢复配置
           </NButton>
+        </div>
+        <div v-if="backupStatusText" class="backup-task-status">
+          {{ backupStatusText }}
         </div>
       </NSpace>
     </NModal>
@@ -1906,6 +1942,12 @@ onMounted(() => {
   display: flex;
   gap: 0.75rem;
   justify-content: flex-end;
+}
+
+.backup-task-status {
+  margin-top: -0.5rem;
+  font-size: 0.8125rem;
+  color: hsl(var(--muted-foreground));
 }
 
 /* 目录同步 */

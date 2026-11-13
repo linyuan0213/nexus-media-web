@@ -73,6 +73,57 @@ const showPlaceholder = computed(
 
 const isThirdParty = computed(() => props.site.source !== 'builtin');
 
+const rateStatus = computed(() => props.site.rate_status || null);
+const rateWaiting = computed(() => Number(rateStatus.value?.waiting || 0) > 0);
+const rateTokens = computed(() => {
+  const value = rateStatus.value?.tokens;
+  return typeof value === 'number' ? value : null;
+});
+const lastWaitText = computed(() => {
+  const value = Number(rateStatus.value?.last_wait_ms || 0);
+  if (value <= 0) return '';
+  return value >= 1000
+    ? `${(value / 1000).toFixed(1)}s`
+    : `${Math.round(value)}ms`;
+});
+
+const rateTokenText = computed(() => {
+  const tokens = rateTokens.value;
+  if (tokens === null) return '—';
+  const burst = Number(rateStatus.value?.burst || props.site.rate_burst || 0);
+  return burst > 0 ? `${Math.min(tokens, burst)}/${burst}` : String(tokens);
+});
+
+const rateEmpty = computed(
+  () => rateTokens.value !== null && rateTokens.value <= 0,
+);
+const rateStateText = computed(() =>
+  rateWaiting.value ? '等待中' : rateEmpty.value ? '待恢复' : '空闲',
+);
+const rateLiveClass = computed(() =>
+  rateWaiting.value || rateEmpty.value ? 'rate-live-waiting' : 'rate-live-ok',
+);
+
+const rateLimitText = computed(() => {
+  let note: Record<string, any> = {};
+  if (props.site.note && typeof props.site.note === 'object') {
+    note = props.site.note;
+  } else if (typeof props.site.note === 'string') {
+    try {
+      note = JSON.parse(props.site.note);
+    } catch {
+      note = {};
+    }
+  }
+  const rate = props.site.rate_limit || note.rate_limit;
+  const burst = props.site.rate_burst || note.rate_burst;
+  if (rate) return `${rate} · 突发 ${burst ?? rate.split('/')[0]}`;
+  const interval = note.limit_interval;
+  const count = note.limit_count;
+  if (interval && count) return `${count}/${interval}s · 突发 ${count}`;
+  return '未配置';
+});
+
 const features = computed(() => {
   const allFeatures = [
     { key: 'search_enabled', label: '搜索', icon: 'lucide:search' },
@@ -232,6 +283,25 @@ const features = computed(() => {
           <IconifyIcon icon="lucide:rss" class="status-icon" />
           <span class="status-label">RSS</span>
           <span class="status-value">未配置</span>
+        </div>
+        <div class="rate-status-item" title="站点请求限流实时状态">
+          <div class="rate-status-main">
+            <IconifyIcon icon="lucide:shield-check" class="status-icon" />
+            <span class="status-label">限流</span>
+            <span class="status-value">{{ rateLimitText }}</span>
+          </div>
+          <div v-if="rateStatus" class="rate-live" :class="rateLiveClass">
+            <span class="rate-live-dot"></span>
+            <span class="rate-live-state">{{ rateStateText }}</span>
+            <span class="rate-live-sep">·</span>
+            <span class="rate-token" title="可立即发送的请求数 / 突发容量"
+              >可用 {{ rateTokenText }}</span
+            >
+            <template v-if="lastWaitText">
+              <span class="rate-live-sep">·</span>
+              <span>{{ lastWaitText }}</span>
+            </template>
+          </div>
         </div>
       </div>
 
@@ -467,6 +537,79 @@ const features = computed(() => {
 
 .status-ok {
   color: hsl(var(--success));
+}
+
+.rate-status-item {
+  display: flex;
+  flex-direction: column;
+  grid-column: 1 / -1;
+  gap: 0.25rem;
+  align-items: flex-start;
+  padding-top: 0.5rem;
+  border-top: 1px solid hsl(var(--border) / 55%);
+}
+
+.rate-status-main,
+.rate-live {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.rate-live {
+  padding: 0.1875rem 0.5rem;
+  font-size: 0.6875rem;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted) / 35%);
+  border-radius: 9999px;
+}
+
+.rate-live-state {
+  font-weight: 550;
+}
+
+.rate-live-ok .rate-live-state {
+  color: hsl(var(--success));
+}
+
+.rate-token {
+  font-variant-numeric: tabular-nums;
+  color: hsl(var(--card-foreground));
+}
+
+.rate-live-dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
+}
+
+.rate-live-ok .rate-live-dot {
+  background: hsl(var(--success));
+}
+
+.rate-live-waiting {
+  color: hsl(var(--warning));
+}
+
+.rate-live-waiting .rate-live-dot {
+  background: hsl(var(--warning));
+  animation: rate-pulse 1.2s ease-in-out infinite;
+}
+
+.rate-live-sep {
+  opacity: 0.45;
+}
+
+@keyframes rate-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.35;
+  }
 }
 
 .site-features {
