@@ -92,6 +92,7 @@ export const SECTION_FIELD_KEYS: Record<SectionKey, string[]> = {
   ],
   media: [
     'app.rmt_tmdbkey',
+    'app.tmdb_rate',
     'app.tmdb_domain',
     'app.rmt_match_mode',
     'media.tmdb_language',

@@ -7,7 +7,6 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { useMediaQuery } from '@vueuse/core';
 import {
   NButton,
   NCard,
@@ -42,7 +41,7 @@ import {
   removeSubscriptionApi,
 } from '#/api/modules/subscription';
 import EmptyState from '#/components/empty/EmptyState.vue';
-import MediaCardActions from '#/components/media/MediaCardActions.vue';
+import MediaCard from '#/components/media/MediaCard.vue';
 import MediaPoster from '#/components/media/MediaPoster.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
 import SubscribeConfirmModal from '#/components/subscribe/SubscribeConfirmModal.vue';
@@ -152,7 +151,6 @@ const subscribeConfirmShow = ref(false);
 const subscribeConfirmItem = ref<null | SubscribeConfirmItem>(null);
 const subscribeEditShow = ref(false);
 const subscribeEditItem = ref<null | SubscribeEditItem>(null);
-const unsubscribingMedia = ref<MediaItem | null>(null);
 const subscribeConfirmPending = ref(false);
 
 function normalizeMediaType(type?: string): 'anime' | 'movie' | 'tv' {
@@ -438,61 +436,6 @@ function updateMediaSubscribeState(
     }
   }
 }
-
-function handleMediaSubscribe(media: MediaItem) {
-  const provider = String((media as any).anchor_provider || '').trim();
-  const external = String(
-    (media as any).anchor_external_id || media.id || '',
-  ).trim();
-  subscribeConfirmItem.value = {
-    id: external,
-    tmdbid: provider === 'tmdb' ? String(media.tmdb_id || external) : '',
-    mediaid:
-      (media as any).metadata_ref ||
-      (provider ? `${provider}:${external}` : external),
-    title: media.title,
-    year: media.year || '',
-    type: normalizeMediaType(media.media_type || media.type),
-    image: media.image || media.poster,
-    overview: media.overview,
-    content_profile: (media as any).content_profile,
-    metadata_ref: (media as any).metadata_ref,
-    anchor_provider: (media as any).anchor_provider,
-    anchor_external_id: (media as any).anchor_external_id,
-  };
-  subscribeConfirmShow.value = true;
-}
-
-async function handleMediaUnsubscribe(media: MediaItem) {
-  if (!media.rssid) return;
-  unsubscribingMedia.value = media;
-}
-
-/** 已订阅按钮：电影 → 取消订阅；电视剧 → 打开季选择框追加其他季 */
-function handleMediaSubscribedClick(media: MediaItem) {
-  if (normalizeMediaType(media.media_type || media.type) === 'movie') {
-    handleMediaUnsubscribe(media);
-  } else {
-    handleMediaSubscribe(media);
-  }
-}
-
-async function confirmUnsubscribe() {
-  const media = unsubscribingMedia.value;
-  if (!media?.rssid) return;
-  try {
-    await deleteSubscriptionApi(Number(media.rssid));
-    updateMediaSubscribeState(mediaIdentityKey(media), '');
-    updateCardSubscribeState(media.title, '');
-    notification.success('已取消订阅', { description: media.title });
-  } catch (error: any) {
-    notification.error('取消订阅失败', { description: error?.message || '' });
-  } finally {
-    unsubscribingMedia.value = null;
-  }
-}
-
-const isTouch = useMediaQuery('(hover: none), (max-width: 1023px)');
 
 const loading = ref(false);
 const keyword = ref('');
@@ -1092,6 +1035,8 @@ function mapMetadataResults(list: any[]): MediaItem[] {
       id: String(anchorExternalId || contentId || item.title || ''),
       image: item.poster || (isKeywordHit ? routePoster : ''),
       media_type: item.media_type || 'movie',
+      fav: String(item.fav || '0'),
+      rssid: String(item.rssid || ''),
       metadata_ref: item.ref
         ? `${item.ref.provider}:${item.ref.external_id}`
         : '',
@@ -1197,50 +1142,26 @@ function effectiveContentProfile(item: any): string {
   return getContentProfileForSource(source);
 }
 
-function handleMediaCardClick(media: MediaItem) {
-  const anchorProvider = String(
-    (media as any).anchor_provider || media.provider || '',
-  );
+function mediaDetailLink(media: MediaItem) {
+  const profile = effectiveContentProfile(media);
+  if (!profile) return undefined;
+  const detailPath = getContentProfileDetailPath(profile);
+  if (!detailPath) return undefined;
+  const anchorProvider = String(media.anchor_provider || media.provider || '');
   const anchorExternal = String(
-    (media as any).anchor_external_id ||
-      (media as any).douban_id ||
+    media.anchor_external_id ||
+      media.douban_id ||
       String(media.metadata_ref || '').split(':')[1] ||
       '',
   );
-  // 插件内容画像必须先走插件注册的详情路由，不能被通用 provider 分支截走。
-  const profile = effectiveContentProfile(media);
-  if (profile) {
-    const detailPath = getContentProfileDetailPath(profile);
-    if (!detailPath) return;
-    const params = new URLSearchParams({
-      id: String(media.id),
-      profile,
-      ...(anchorProvider ? { provider: anchorProvider } : {}),
-      ...(anchorExternal ? { ref: anchorExternal } : {}),
-      ...(media.metadata_ref ? { metadata_ref: media.metadata_ref } : {}),
-    });
-    router.push(`${detailPath}?${params.toString()}`);
-    return;
-  }
-  // 所有普通 provider（含 TMDB）统一走 provider+ref 详情，不再把 TMDB 当默认。
-  if (anchorProvider && anchorExternal) {
-    router.push({
-      name: 'MediaDetail',
-      query: {
-        provider: anchorProvider,
-        ref: anchorExternal,
-        type: normalizeMediaType(media.media_type || media.type),
-      },
-    });
-    return;
-  }
-  const id = media.tmdb_id || media.id;
-  if (!id) return;
-  const t = normalizeMediaType(media.media_type || media.type);
-  router.push({
-    name: 'MediaDetail',
-    query: { id: String(id), type: t },
+  const params = new URLSearchParams({
+    id: String(media.id),
+    profile,
+    ...(anchorProvider ? { provider: anchorProvider } : {}),
+    ...(anchorExternal ? { ref: anchorExternal } : {}),
+    ...(media.metadata_ref ? { metadata_ref: media.metadata_ref } : {}),
   });
+  return `${detailPath}?${params.toString()}`;
 }
 
 /** 点击「搜索资源」→ 触发种子搜索 */
@@ -1377,22 +1298,6 @@ function openResultDetail(item: SearchResult) {
       },
     });
   }
-}
-
-function handleMediaCardSubscribe(media: MediaItem) {
-  if (media.content_profile && media.content_profile !== 'default') {
-    handleResultSubscribe(media as unknown as SearchResult);
-    return;
-  }
-  handleMediaSubscribe(media);
-}
-
-function handleMediaSubscribeAction(media: MediaItem) {
-  if (String(media.fav) === '1') {
-    handleMediaSubscribedClick(media);
-    return;
-  }
-  handleMediaCardSubscribe(media);
 }
 
 async function handleResultSubscribe(item: SearchResult) {
@@ -2530,147 +2435,28 @@ async function confirmDownload() {
           class="grid gap-4"
           style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr))"
         >
-          <div
+          <MediaCard
             v-for="media in mediaResults"
             :key="media.id"
-            class="cursor-pointer relative rounded-lg overflow-hidden shadow-sm hover:shadow-md transition"
-            @click="handleMediaCardClick(media)"
-          >
-            <div style="aspect-ratio: 2/3; background: hsl(var(--muted))">
-              <MediaPoster
-                :src="media.image || media.poster"
-                :content-profile="effectiveContentProfile(media)"
-                class="w-full h-full"
-                alt=""
-              />
-            </div>
-            <span
-              v-if="media.media_type || media.type || media.content_profile"
-              class="absolute top-1.5 left-1.5 text-[10px] px-1.5 py-0.5 rounded"
-              :style="{
-                backgroundColor: 'hsl(var(--primary))',
-                color: 'hsl(var(--primary-foreground))',
-              }"
-            >
-              {{
-                getMediaTypeLabel(
-                  media.media_type || media.type,
-                  effectiveContentProfile(media),
-                )
-              }}
-            </span>
-            <span
-              v-if="media.vote && media.vote !== '0.0' && media.vote !== '0'"
-              style="
-                position: absolute;
-                top: 0.375rem;
-                right: 0.375rem;
-                padding: 0.125rem 0.375rem;
-                font-size: 10px;
-                color: #fff;
-                background: var(--tblr-purple);
-                border-radius: 0.25rem;
-              "
-            >
-              {{ media.vote }}
-            </span>
-            <div
-              class="absolute bottom-0 left-0 right-0 p-2 text-white"
-              style="background: linear-gradient(transparent, rgb(0 0 0 / 75%))"
-            >
-              <div class="text-sm font-bold truncate">{{ media.title }}</div>
-              <div class="flex items-center gap-2 text-xs mt-0.5">
-                <span v-if="media.year">{{ media.year }}</span>
-                <span
-                  v-if="mediaSourceLabel(media)"
-                  class="truncate rounded bg-white/20 px-1 py-0.5 text-[10px] leading-none"
-                >
-                  {{ mediaSourceLabel(media) }}
-                </span>
-              </div>
-              <MediaCardActions
-                v-if="isTouch"
-                :subscribed="String(media.fav) === '1'"
-                :in-library="String(media.fav) === '2'"
-                @search="handleMediaSearch(media)"
-                @subscribe="handleMediaSubscribeAction(media)"
-              />
-            </div>
-            <div
-              v-if="!isTouch"
-              class="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-0 hover:opacity-100 transition-opacity duration-200"
-              style="background: rgb(0 0 0 / 50%)"
-            >
-              <NButton
-                size="small"
-                type="primary"
-                round
-                @click.stop="handleMediaSearch(media)"
-              >
-                搜索资源
-              </NButton>
-              <NButton
-                v-if="
-                  media.content_profile &&
-                  media.content_profile !== 'default' &&
-                  media.fav !== '1'
-                "
-                size="small"
-                round
-                style="color: #fff; border-color: #fff"
-                ghost
-                @click.stop="handleMediaCardSubscribe(media)"
-              >
-                <template #icon>
-                  <IconifyIcon icon="lucide:heart" />
-                </template>
-                订阅
-              </NButton>
-              <NButton
-                v-else-if="
-                  media.content_profile &&
-                  media.content_profile !== 'default' &&
-                  media.fav === '1'
-                "
-                size="small"
-                type="error"
-                ghost
-                round
-                @click.stop="handleMediaSubscribedClick(media)"
-              >
-                <template #icon>
-                  <IconifyIcon icon="lucide:heart" style="fill: currentcolor" />
-                </template>
-                已订阅
-              </NButton>
-              <NButton
-                v-else-if="media.fav !== '1'"
-                size="small"
-                round
-                style="color: #fff; border-color: #fff"
-                ghost
-                @click.stop="handleMediaSubscribe(media)"
-              >
-                <template #icon>
-                  <IconifyIcon icon="lucide:heart" />
-                </template>
-                订阅
-              </NButton>
-              <NButton
-                v-else
-                size="small"
-                type="error"
-                ghost
-                round
-                @click.stop="handleMediaSubscribedClick(media)"
-              >
-                <template #icon>
-                  <IconifyIcon icon="lucide:heart" style="fill: currentcolor" />
-                </template>
-                已订阅
-              </NButton>
-            </div>
-          </div>
+            :id="media.id"
+            :tmdb-id="media.tmdb_id"
+            :title="media.title"
+            :year="media.year"
+            :poster="media.image || media.poster"
+            :type="media.media_type || media.type"
+            :media-type="media.media_type || media.type"
+            :vote="media.vote"
+            :overview="media.overview"
+            :anchor-provider="media.anchor_provider || media.provider"
+            :anchor-external-id="media.anchor_external_id"
+            :content-profile="media.content_profile"
+            :metadata-ref="media.metadata_ref"
+            :detail-link="mediaDetailLink(media)"
+            :source-label="mediaSourceLabel(media)"
+            :fav="String(media.fav || '0')"
+            :rssid="media.rssid"
+            @search="() => handleMediaSearch(media)"
+          />
         </div>
       </div>
       <NEmpty
@@ -3339,19 +3125,6 @@ async function confirmDownload() {
           </NButton>
         </div>
       </template>
-    </NModal>
-    <NModal
-      :show="unsubscribingMedia !== null"
-      preset="dialog"
-      type="warning"
-      title="取消订阅"
-      positive-text="确认"
-      negative-text="取消"
-      @positive-click="confirmUnsubscribe"
-      @negative-click="unsubscribingMedia = null"
-      @update:show="unsubscribingMedia = null"
-    >
-      确认取消订阅「{{ unsubscribingMedia?.title }}」？
     </NModal>
     <SubscribeConfirmModal
       v-model:show="subscribeConfirmShow"

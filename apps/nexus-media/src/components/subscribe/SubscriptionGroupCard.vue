@@ -511,6 +511,7 @@ onMounted(ensureOutsideListener);
   font-size: 10px;
   line-height: 1.2;
   color: hsl(var(--primary-foreground) / 72%);
+  text-align: center;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }

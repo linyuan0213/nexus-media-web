@@ -574,6 +574,13 @@ function itemMetadataRef(item: DiscoveryApi.Item) {
   return `${item.ref.provider}:${item.ref.external_id}`;
 }
 
+function itemSourceLabel(item: DiscoveryApi.Item) {
+  return (
+    sources.value.find((source) => source.provider === item.provider)?.name ||
+    item.provider
+  );
+}
+
 function itemDetailLink(item: DiscoveryApi.Item) {
   const path = getContentProfileDetailPath(item.content_profile);
   if (!path) return undefined;
@@ -966,6 +973,7 @@ onUnmounted(() => {
             :content-profile="item.content_profile"
             :metadata-ref="itemMetadataRef(item)"
             :detail-link="itemDetailLink(item)"
+            :source-label="itemSourceLabel(item)"
             :fav="subscriptionFor(item)?.fav || '0'"
             :rssid="subscriptionFor(item)?.rssid || ''"
             @search="() => handleCardSearch(item)"

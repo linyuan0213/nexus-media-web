@@ -47,6 +47,7 @@ interface Props {
   contentProfile?: string;
   metadataRef?: string;
   detailLink?: string;
+  sourceLabel?: string;
 }
 
 const props = defineProps<Props>();
@@ -449,6 +450,12 @@ async function handleConfirmEdit(data: Record<string, any>) {
         );
       "
     >
+      <div
+        v-if="sourceLabel"
+        class="mb-1 text-center text-[10px] font-medium tracking-wider uppercase opacity-75"
+      >
+        {{ sourceLabel }}
+      </div>
       <div
         class="text-sm font-bold line-clamp-2 text-center"
         style="min-height: 2.5em"

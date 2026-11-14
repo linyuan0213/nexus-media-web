@@ -66,6 +66,16 @@ const downloadOrders = [
           </NFormItem>
         </NGridItem>
         <NGridItem span="1">
+          <NFormItem label="TMDB 请求速率">
+            <NInput
+              :value="config['app.tmdb_rate'] ?? '40/m'"
+              placeholder="40/m"
+              @update:value="(v) => emit('updateConfig', 'app.tmdb_rate', v)"
+            />
+            <template #feedback>默认 40/m，支持 40/10s 等格式</template>
+          </NFormItem>
+        </NGridItem>
+        <NGridItem span="1">
           <NFormItem label="TMDB API Url">
             <NSelect
               :value="config['app.tmdb_domain']"
