@@ -47,6 +47,8 @@ const selectedSeason = computed(
 );
 const selectedWeekday = ref('');
 const selectedGenre = ref('');
+const selectedCountry = ref('');
+const countryOptions = ref<Array<{ label: string; value: string }>>([]);
 const selectedSort = ref('');
 const sortOptions = ref<Array<{ label: string; value: string }>>([]);
 const sortOptionsFeed = ref('');
@@ -145,6 +147,9 @@ const supportsGenre = computed(() =>
 );
 const supportsSort = computed(() =>
   (activeFeedConfig.value?.facets || []).includes('sort'),
+);
+const supportsCountry = computed(() =>
+  (activeFeedConfig.value?.facets || []).includes('country'),
 );
 const hasGenreOptions = computed(() =>
   genreOptions.value.some((item) => item.value !== '其他'),
@@ -283,6 +288,9 @@ async function loadItems(reset = false, force = false) {
             ...(supportsSort.value && selectedSort.value
               ? { sort: selectedSort.value }
               : {}),
+            ...(supportsCountry.value && selectedCountry.value
+              ? { country: selectedCountry.value }
+              : {}),
           },
         }),
         // 冷缓存时后端可能先等后台预热，再走一次浏览器挑战；与浏览器
@@ -317,6 +325,31 @@ async function loadItems(reset = false, force = false) {
           }
           sortOptionsFeed.value = feedKey;
         }
+      }
+    }
+    if (supportsCountry.value) {
+      // 国家选项随无限滚动结果增长：首屏重建，后续页合并新值。
+      const facets: any[] = (result as any)?.facets?.country || [];
+      const nextOptions = facets.map((item) => ({
+        label: String(item.label || item.value),
+        value: String(item.value),
+      }));
+      if (reset) {
+        countryOptions.value = nextOptions;
+      } else {
+        const known = new Set(countryOptions.value.map((item) => item.value));
+        countryOptions.value = [
+          ...countryOptions.value,
+          ...nextOptions.filter((item) => !known.has(item.value)),
+        ];
+      }
+      if (
+        selectedCountry.value &&
+        !countryOptions.value.some(
+          (item) => item.value === selectedCountry.value,
+        )
+      ) {
+        selectedCountry.value = '';
       }
     }
     if (supportsGenre.value) {
@@ -389,11 +422,13 @@ function beginTabSwitch() {
   loading.value = true;
   selectedWeekday.value = '';
   selectedGenre.value = '';
+  selectedCountry.value = '';
   selectedSort.value = '';
   sortOptions.value = [];
   sortOptionsFeed.value = '';
   genreOptions.value = [];
   genreOptionsFeed.value = '';
+  countryOptions.value = [];
   loadError.value = null;
 }
 
@@ -421,6 +456,7 @@ async function selectFeed(feed: string) {
   // Top250 等全量榜单不应继承上一个榜单的年份筛选，否则会被过滤成空。
   selectedYear.value = '';
   selectedGenre.value = '';
+  selectedCountry.value = '';
   selectedSort.value = '';
   beginTabSwitch();
   savePreference();
@@ -673,6 +709,11 @@ function selectGenre(value: string) {
   loadItems(true);
 }
 
+function selectCountry(value: string) {
+  selectedCountry.value = value;
+  loadItems(true);
+}
+
 function loadMore() {
   if (!hasMore.value || loading.value || loadingMore.value) return;
   page.value += 1;
@@ -747,7 +788,19 @@ watch(
     await nextTick();
     if (hasMore.value && sentinelRef.value) {
       if (!loadMoreObserver) setupLoadMoreObserver();
-      else loadMoreObserver.observe(sentinelRef.value);
+      else {
+        loadMoreObserver.unobserve(sentinelRef.value);
+        loadMoreObserver.observe(sentinelRef.value);
+      }
+      // 筛选后结果可能变少，sentinel 一直在视口内，IntersectionObserver
+      // 不会产生新的 intersecting 事件；直接用 sentinel 的视口位置补页，
+      // 避免 document 不是滚动容器时判断失败。
+      if (!loading.value && !loadingMore.value) {
+        const rect = sentinelRef.value.getBoundingClientRect();
+        if (rect.top <= window.innerHeight + 240) {
+          loadMore();
+        }
+      }
     }
   },
   { immediate: true },
@@ -949,12 +1002,40 @@ onUnmounted(() => {
             </button>
           </div>
         </div>
+        <div
+          v-if="supportsCountry && countryOptions.length > 0"
+          class="filter-row filter-row--wrap"
+        >
+          <span class="filter-label">国家/地区</span>
+          <div class="year-list">
+            <button
+              type="button"
+              class="year-tab"
+              :class="{ active: selectedCountry === '' }"
+              :aria-pressed="selectedCountry === ''"
+              @click="selectCountry('')"
+            >
+              全部
+            </button>
+            <button
+              v-for="country in countryOptions"
+              :key="country.value"
+              type="button"
+              class="year-tab"
+              :class="{ active: selectedCountry === country.value }"
+              :aria-pressed="selectedCountry === country.value"
+              @click="selectCountry(country.value)"
+            >
+              {{ country.label }}
+            </button>
+          </div>
+        </div>
       </section>
 
       <NSpin :show="loading">
         <div
           v-if="items.length > 0"
-          class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4"
+          class="grid grid-cols-2 items-stretch gap-4 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6"
         >
           <MediaCard
             v-for="item in items"
@@ -1014,9 +1095,14 @@ onUnmounted(() => {
           />
           <span class="text-xs text-muted-foreground">加载中...</span>
         </template>
-        <span v-else class="text-xs text-muted-foreground">
-          已加载 {{ items.length }} 条，继续滚动加载
-        </span>
+        <button
+          v-else
+          type="button"
+          class="text-xs text-muted-foreground hover:text-foreground"
+          @click="loadMore"
+        >
+          已加载 {{ items.length }} 条，继续滚动或点击加载更多
+        </button>
       </div>
       <div
         v-else-if="loadError && items.length > 0"

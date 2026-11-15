@@ -363,12 +363,15 @@ async function handleConfirmEdit(data: Record<string, any>) {
 
 <template>
   <div
-    class="media-card relative rounded-lg overflow-hidden shadow-sm hover:shadow-md transition cursor-pointer"
+    class="media-card relative flex h-full flex-col overflow-hidden rounded-lg shadow-sm transition hover:shadow-md cursor-pointer"
     @click="goDetail"
     @mouseenter="hovered = true"
     @mouseleave="hovered = false"
   >
-    <div class="aspect-[2/3]" style="background: hsl(var(--muted))">
+    <div
+      class="aspect-[2/3] w-full shrink-0"
+      style="background: hsl(var(--muted))"
+    >
       <MediaPoster
         :src="poster"
         :content-profile="contentProfile"
@@ -450,24 +453,22 @@ async function handleConfirmEdit(data: Record<string, any>) {
         );
       "
     >
+      <!-- 固定行高：不同站点的 source/genre 数量不影响标题底部基线 -->
       <div
-        v-if="sourceLabel"
-        class="mb-1 text-center text-[10px] font-medium tracking-wider uppercase opacity-75"
+        class="flex h-4 items-center justify-center text-[10px] font-medium uppercase tracking-wider opacity-75"
       >
-        {{ sourceLabel }}
+        {{ sourceLabel || '' }}
       </div>
       <div
-        class="text-sm font-bold line-clamp-2 text-center"
-        style="min-height: 2.5em"
+        class="flex h-10 min-w-0 items-center justify-center text-center text-sm font-bold leading-5"
       >
-        {{ title }}{{ year ? `（${year}）` : '' }}
+        <span class="line-clamp-2 min-w-0">
+          {{ title }}{{ year ? `（${year}）` : '' }}
+        </span>
       </div>
-      <div
-        v-if="metaTags.length > 0"
-        class="mt-1 text-center"
-        style="min-height: 2em"
-      >
+      <div class="flex h-8 items-start justify-center text-center">
         <span
+          v-if="metaTags.length > 0"
           class="text-[10px] leading-tight line-clamp-2"
           style="color: rgb(255 255 255 / 80%)"
         >
