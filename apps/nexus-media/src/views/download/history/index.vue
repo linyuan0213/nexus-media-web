@@ -7,6 +7,7 @@ import { IconifyIcon } from '@vben/icons';
 import {
   NButton,
   NCard,
+  NInput,
   NPagination,
   NPopconfirm,
   NSpace,
@@ -32,6 +33,7 @@ const currentPage = ref(1);
 const pageSize = ref(30);
 const total = ref(0);
 const viewMode = ref<'grid' | 'list'>('grid');
+const keyword = ref('');
 
 const history = computed(() => downloadStore.history);
 
@@ -39,7 +41,11 @@ async function fetchData(page = 1) {
   loading.value = true;
   currentPage.value = page;
   try {
-    const res = (await getDownloadHistoryApi(page, pageSize.value)) as any;
+    const res = (await getDownloadHistoryApi(
+      page,
+      pageSize.value,
+      keyword.value,
+    )) as any;
     const list = Array.isArray(res) ? res : res?.data || [];
     downloadStore.setHistory(list);
     total.value =
@@ -49,6 +55,10 @@ async function fetchData(page = 1) {
   } finally {
     loading.value = false;
   }
+}
+
+function handleSearch() {
+  fetchData(1);
 }
 
 async function handleDelete(item: any) {
@@ -168,6 +178,18 @@ onMounted(() => fetchData(1));
     <div class="header-row">
       <h1 class="page-title">近期下载</h1>
       <div class="toolbar-actions">
+        <NInput
+          v-model:value="keyword"
+          clearable
+          placeholder="搜索标题、站点或集数"
+          class="w-full sm:w-56"
+          @keyup.enter="handleSearch"
+          @clear="handleSearch"
+        >
+          <template #prefix>
+            <IconifyIcon icon="lucide:search" class="size-4" />
+          </template>
+        </NInput>
         <NButton @click="fetchData(currentPage)">
           <template #icon>
             <IconifyIcon icon="lucide:refresh-cw" class="size-4" />

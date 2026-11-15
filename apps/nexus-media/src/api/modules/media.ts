@@ -227,10 +227,12 @@ export async function getLibraryHistoryApi() {
 export async function getLibraryDownloadedApi(
   page?: number,
   pageSize?: number,
+  keyword?: string,
 ) {
   return requestClient.post('/media/library/downloaded', {
     page: page || 1,
     page_size: pageSize || 30,
+    keyword: keyword?.trim() || undefined,
   });
 }
 
