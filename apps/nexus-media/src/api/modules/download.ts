@@ -154,12 +154,17 @@ export async function getDownloaderSpeedStatisticsApi() {
 }
 
 /** 获取下载历史 */
-export async function getDownloadHistoryApi(page?: number, pageSize?: number) {
+export async function getDownloadHistoryApi(
+  page?: number,
+  pageSize?: number,
+  keyword?: string,
+) {
   return requestClient.post<DownloadApi.DownloadHistoryItem[]>(
     '/media/library/downloaded',
     {
       page,
       page_size: pageSize || 30,
+      keyword: keyword?.trim() || undefined,
     },
   );
 }

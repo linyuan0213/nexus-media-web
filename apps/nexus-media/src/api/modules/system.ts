@@ -101,6 +101,20 @@ export async function runSchedulerItemApi(item: string) {
   return requestClient.post('/system/scheduler/run', { item });
 }
 
+/** 网络连通性测试目标 */
+export async function getNetTestTargetsApi() {
+  return requestClient.get<
+    Array<{
+      key: string;
+      label: string;
+      target: string;
+      url: string;
+      category: string;
+      requires_auth?: boolean;
+    }>
+  >('/system/net_test/targets');
+}
+
 /** 网络连通性测试 */
 export async function netTestApi(target?: string) {
   return requestClient.post<{ res: boolean; time: string }>(

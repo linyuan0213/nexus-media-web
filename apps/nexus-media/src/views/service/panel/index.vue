@@ -26,7 +26,11 @@ import {
   runSyncTaskApi,
   truncateSubscriptionHistoryApi,
 } from '#/api';
-import { clearCacheApi, getCachesApi } from '#/api/modules/system';
+import {
+  clearCacheApi,
+  getCachesApi,
+  getNetTestTargetsApi,
+} from '#/api/modules/system';
 import { requestClient } from '#/api/request';
 import IdentifyResult from '#/components/media/IdentifyResult.vue';
 import PageHeader from '#/components/page/PageHeader.vue';
@@ -105,32 +109,14 @@ const filterGroups = ref<Array<{ id: number; name: string }>>([]);
 
 interface NetTestTarget {
   target: string;
+  label: string;
   status: 'error' | 'pending' | 'success';
   time: string;
   loading: boolean;
 }
 
-const NETTEST_TARGETS = [
-  { target: 'api.themoviedb.org', label: 'api.themoviedb.org' },
-  { target: 'www.themoviedb.org', label: 'www.themoviedb.org' },
-  { target: 'image.tmdb.org', label: 'image.tmdb.org' },
-  { target: 'webservice.fanart.tv', label: 'webservice.fanart.tv' },
-  { target: 'api.telegram.org', label: 'api.telegram.org' },
-  { target: 'qyapi.weixin.qq.com', label: 'qyapi.weixin.qq.com' },
-  { target: 'frodo.douban.com', label: 'frodo.douban.com' },
-  { target: 'api.github.com', label: 'api.github.com' },
-  { target: 'api.openai.com', label: 'api.openai.com' },
-];
-
 const showNetTest = ref(false);
-const netTestTargets = ref<NetTestTarget[]>(
-  NETTEST_TARGETS.map((t) => ({
-    target: t.target,
-    status: 'pending',
-    time: '-',
-    loading: false,
-  })),
-);
+const netTestTargets = ref<NetTestTarget[]>([]);
 const netTestAllLoading = ref(false);
 
 const showCommand = ref(false);
@@ -434,12 +420,7 @@ function openModal(modal?: string) {
     }
     case 'nettest': {
       showNetTest.value = true;
-      netTestTargets.value = NETTEST_TARGETS.map((t) => ({
-        target: t.target,
-        status: 'pending' as const,
-        time: '-',
-        loading: false,
-      }));
+      void loadNetTestTargets();
       break;
     }
     case 'ruletest': {
@@ -598,6 +579,22 @@ async function handleRuleTest() {
     message.error(error?.message || '测试失败');
   } finally {
     ruleTestLoading.value = false;
+  }
+}
+
+async function loadNetTestTargets() {
+  try {
+    const rows = await getNetTestTargetsApi();
+    netTestTargets.value = (rows || []).map((item) => ({
+      target: item.target || item.key,
+      label: item.label || item.key,
+      status: 'pending' as const,
+      time: '-',
+      loading: false,
+    }));
+  } catch {
+    netTestTargets.value = [];
+    message.error('加载连通性测试目标失败');
   }
 }
 
