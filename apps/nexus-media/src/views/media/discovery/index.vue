@@ -1149,7 +1149,7 @@ onUnmounted(() => {
 }
 
 .filter-row--wrap {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   padding: 0.55rem 0;
 }
 
@@ -1250,9 +1250,18 @@ onUnmounted(() => {
 
 .year-list {
   display: flex;
-  flex-wrap: wrap;
+  flex: 1;
+  flex-wrap: nowrap;
   gap: 0.25rem;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.year-list::-webkit-scrollbar {
+  display: none;
 }
 
 .year-tab {
@@ -1321,9 +1330,18 @@ onUnmounted(() => {
 
 .facet-group {
   display: flex;
-  flex-wrap: wrap;
+  flex: 1;
+  flex-wrap: nowrap;
   gap: 0.75rem;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.facet-group::-webkit-scrollbar {
+  display: none;
 }
 
 .facet {
