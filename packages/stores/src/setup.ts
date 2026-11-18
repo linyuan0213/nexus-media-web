@@ -31,7 +31,7 @@ function cleanupLegacyStoreKeys(namespace: string) {
   try {
     const prefix = namespace.replace(/-\d+\.\d+\.\d+-[^-]+$/, '');
     const legacyPattern = new RegExp(
-      `^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-\\d+\\.\\d+\\.\\d+-[^-]+-.+$`,
+      `^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-\\d+\\.\\d+\\.\\d+-[^-]+(?:-.+)?$`,
     );
     const currentPrefix = `${namespace}-`;
     for (let index = localStorage.length - 1; index >= 0; index -= 1) {
