@@ -65,9 +65,7 @@ const metadataRef = computed(
         </div>
         <div class="tl-desc">
           {{ modeLabel(item) }}
-          <template v-if="destPath">
-            → <code>{{ destPath }}</code>
-          </template>
+          <template v-if="destPath"> → <code>{{ destPath }}</code> </template>
           <template v-else>· 未记录媒体库目标</template>
         </div>
       </div>
