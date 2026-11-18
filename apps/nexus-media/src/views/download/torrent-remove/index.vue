@@ -380,31 +380,28 @@ onMounted(fetchData);
   <div class="remove-page">
     <PageHeader
       title="自动删种任务"
-      subtitle="按条件自动暂停或删除下载器中的种子"
+      :subtitle="`${tasks.length} 个任务 · 按条件自动暂停或删除下载器中的种子`"
     >
       <template #actions>
-        <NButton text size="small" @click="fetchData">
+        <NButton aria-label="刷新" title="刷新" @click="fetchData">
           <template #icon>
-            <IconifyIcon icon="lucide:refresh-cw" class="size-3.5" />
+            <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
           </template>
+          <span>刷新</span>
+        </NButton>
+        <NButton
+          type="primary"
+          aria-label="新增删种任务"
+          title="新增删种任务"
+          @click="openEdit()"
+        >
+          <template #icon>
+            <IconifyIcon icon="lucide:plus" class="size-4" />
+          </template>
+          <span>新增删种任务</span>
         </NButton>
       </template>
     </PageHeader>
-
-    <div class="section-bar">
-      <span class="section-count">{{ tasks.length }} 个任务</span>
-      <NButton
-        size="small"
-        secondary
-        class="add-btn-section"
-        @click="openEdit()"
-      >
-        <template #icon>
-          <IconifyIcon icon="lucide:plus" class="size-3.5" />
-        </template>
-        新增删种任务
-      </NButton>
-    </div>
 
     <NSpin :show="loading">
       <div v-if="tasks.length > 0" class="task-list">
