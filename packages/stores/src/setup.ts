@@ -25,9 +25,25 @@ const secureLSModule = SecureLS as unknown as {
 };
 
 const SecureLSConstructor =
-  secureLSModule.default ??
-  secureLSModule.SecureLS ??
-  (SecureLS as unknown as SecureLSCtor);
+  secureLSModule.default ?? secureLSModule.SecureLS ?? SecureLS;
+
+function cleanupLegacyStoreKeys(namespace: string) {
+  try {
+    const prefix = namespace.replace(/-\d+\.\d+\.\d+-[^-]+$/, '');
+    const legacyPattern = new RegExp(
+      `^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-\\d+\\.\\d+\\.\\d+-[^-]+(?:-.+)?$`,
+    );
+    const currentPrefix = `${namespace}-`;
+    for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+      const key = localStorage.key(index);
+      if (key && legacyPattern.test(key) && !key.startsWith(currentPrefix)) {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // localStorage 不可用时跳过清理
+  }
+}
 
 export interface InitStoreOptions {
   /**
@@ -43,6 +59,7 @@ export async function initStores(app: App, options: InitStoreOptions) {
   const { createPersistedState } = await import('pinia-plugin-persistedstate');
   pinia = createPinia();
   const { namespace } = options;
+  cleanupLegacyStoreKeys(namespace);
   const ls = new SecureLSConstructor({
     encodingType: 'aes',
     encryptionSecret: import.meta.env.VITE_APP_STORE_SECURE_KEY,

@@ -12,7 +12,8 @@
   "type": "module",
   "scripts": {
     "build": "pnpm exec tsdown",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "typecheck": "vue-tsc --noEmit"
   },
   "files": [
     "dist"
@@ -48,12 +49,13 @@
     "@vben-core/shared": "workspace:*",
     "@vben-core/typings": "workspace:*",
     "@vueuse/core": "catalog:",
-    "vue": "catalog:",
+    "vue": "^3.5.45",
     "zod": "catalog:",
     "zod-defaults": "catalog:"
   },
   "devDependencies": {
     "@vue/test-utils": "catalog:",
+    "element-plus": "catalog:",
     "unplugin-vue": "catalog:"
   }
 }

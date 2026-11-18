@@ -21,6 +21,9 @@ import {
   markMessageRead,
   streamMessages,
 } from '#/api/modules/agent';
+import AppBackground from '#/components/background/AppBackground.vue';
+import GlassThemeToggle from '#/components/glass/GlassThemeToggle.vue';
+import { useAppBackground } from '#/composables/useAppBackground';
 import { $t } from '#/locales';
 import { useAuthStore } from '#/store';
 import { useAppNotification } from '#/utils/notify';
@@ -249,7 +252,31 @@ const router = useRouter();
 const userStore = useUserStore();
 const authStore = useAuthStore();
 const accessStore = useAccessStore();
+const { backgroundUrls } = useAppBackground();
+const backgroundReady = ref(false);
+const activeBackgroundUrl = ref('');
+const backgroundContain = ref(false);
+const hasBackground = computed(
+  () => !!backgroundUrls.value.desktop || !!backgroundUrls.value.mobile,
+);
+const backgroundStyle = computed(() => ({
+  '--app-background-image': activeBackgroundUrl.value
+    ? `url(${JSON.stringify(encodeURI(activeBackgroundUrl.value))})`
+    : 'none',
+  '--app-background-size': backgroundContain.value ? 'contain' : 'cover',
+}));
 const { destroyWatermark, updateWatermark } = useWatermark();
+
+function resetBackground() {
+  backgroundReady.value = false;
+  activeBackgroundUrl.value = '';
+}
+
+function handleBackgroundReady(url: string, desktopFallback: boolean) {
+  activeBackgroundUrl.value = url;
+  backgroundContain.value = desktopFallback;
+  backgroundReady.value = true;
+}
 
 const menus = computed(() => {
   const list = [
@@ -372,44 +399,64 @@ watch(
 </script>
 
 <template>
-  <BasicLayout @clear-preferences-and-logout="handleLogout">
-    <template #user-dropdown>
-      <UserDropdown
-        :avatar
-        :menus
-        :text="userStore.userInfo?.realName || userStore.userInfo?.username"
-        @logout="handleLogout"
-      />
-    </template>
-    <template #notification>
-      <Notification
-        :dot="showDot"
-        :badge-count="unreadCount"
-        :badge-enabled="notifySettings.badgeEnabled"
-        :notifications="notifications"
-        :os-enabled="notifySettings.osEnabled"
-        :sound-enabled="notifySettings.soundEnabled"
-        @clear="handleNoticeClear"
-        @click="handleNoticeClick"
-        @read="(item) => item.id && markRead(item.id)"
-        @remove="(item) => item.id && remove(item.id)"
-        @make-all="handleMakeAll"
-        @view-all="handleViewAll"
-        @update-badge-enabled="(v) => updateNotifySettings({ badgeEnabled: v })"
-        @update-os-enabled="onToggleOsEnabled"
-        @update-sound-enabled="(v) => updateNotifySettings({ soundEnabled: v })"
-      />
-    </template>
-    <template #extra>
-      <AuthenticationLoginExpiredModal
-        v-model:open="accessStore.loginExpired"
-        :avatar
-      >
-        <LoginForm />
-      </AuthenticationLoginExpiredModal>
-    </template>
-    <template #lock-screen>
-      <LockScreen :avatar @to-login="handleLogout" />
-    </template>
-  </BasicLayout>
+  <div
+    class="app-shell"
+    :style="backgroundStyle"
+    :class="{ 'has-app-background': backgroundReady && hasBackground }"
+  >
+    <AppBackground
+      @loading="resetBackground"
+      @ready="handleBackgroundReady"
+      @error="resetBackground"
+    />
+    <div class="app-shell__layout">
+      <BasicLayout @clear-preferences-and-logout="handleLogout">
+        <template #user-dropdown>
+          <UserDropdown
+            :avatar
+            :menus
+            :text="userStore.userInfo?.realName || userStore.userInfo?.username"
+            @logout="handleLogout"
+          />
+        </template>
+        <template #header-right-95>
+          <GlassThemeToggle />
+        </template>
+        <template #notification>
+          <Notification
+            :dot="showDot"
+            :badge-count="unreadCount"
+            :badge-enabled="notifySettings.badgeEnabled"
+            :notifications="notifications"
+            :os-enabled="notifySettings.osEnabled"
+            :sound-enabled="notifySettings.soundEnabled"
+            @clear="handleNoticeClear"
+            @click="handleNoticeClick"
+            @read="(item) => item.id && markRead(item.id)"
+            @remove="(item) => item.id && remove(item.id)"
+            @make-all="handleMakeAll"
+            @view-all="handleViewAll"
+            @update-badge-enabled="
+              (v) => updateNotifySettings({ badgeEnabled: v })
+            "
+            @update-os-enabled="onToggleOsEnabled"
+            @update-sound-enabled="
+              (v) => updateNotifySettings({ soundEnabled: v })
+            "
+          />
+        </template>
+        <template #extra>
+          <AuthenticationLoginExpiredModal
+            v-model:open="accessStore.loginExpired"
+            :avatar
+          >
+            <LoginForm />
+          </AuthenticationLoginExpiredModal>
+        </template>
+        <template #lock-screen>
+          <LockScreen :avatar @to-login="handleLogout" />
+        </template>
+      </BasicLayout>
+    </div>
+  </div>
 </template>

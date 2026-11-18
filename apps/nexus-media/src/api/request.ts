@@ -146,20 +146,6 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
     return newToken;
   }
 
-  /** 明确 401 或认证业务码都代表会话失效；网络/5xx 不应强制登出。 */
-  function shouldReAuthenticate(error: any): boolean {
-    const code = Number(errorCode(error));
-    return (
-      errorStatus(error) === 401 ||
-      [
-        ErrorCode.REFRESH_TOKEN_INVALID,
-        ErrorCode.TOKEN_EXPIRED,
-        ErrorCode.TOKEN_INVALID,
-        ErrorCode.UNAUTHORIZED,
-      ].includes(code)
-    );
-  }
-
   function formatToken(token: null | string) {
     return token ? `Bearer ${token}` : null;
   }
@@ -194,7 +180,6 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
       doRefreshToken,
       enableRefreshToken: preferences.app.enableRefreshToken,
       formatToken,
-      shouldReAuthenticate,
     }),
   );
 

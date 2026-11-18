@@ -188,14 +188,16 @@ class PreferenceManager {
    * 更新扩展偏好设置
    * @param updates - 要更新的扩展偏好设置
    */
-  updateCustomPreferences = (updates: DeepPartial<object>) => {
+  updateCustomPreferences = <
+    TCustomPreferences extends object = CustomPreferencesRecord,
+  >(
+    updates: DeepPartial<TCustomPreferences>,
+  ) => {
     if (!this.customPreferencesExtension) {
       return;
     }
 
-    const sanitizedUpdates = this.sanitizeCustomPreferences(
-      updates as DeepPartial<CustomPreferencesRecord>,
-    );
+    const sanitizedUpdates = this.sanitizeCustomPreferences(updates);
 
     if (Object.keys(sanitizedUpdates).length === 0) {
       return;

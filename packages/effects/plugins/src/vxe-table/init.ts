@@ -6,6 +6,7 @@ import { defineComponent, watch } from 'vue';
 
 import { usePreferences } from '@vben/preferences';
 
+import { VxeUI } from '@vxe-ui/core';
 import {
   VxeButton,
   VxeCheckbox,
@@ -18,11 +19,10 @@ import {
   VxeRadioGroup,
   VxeSelect,
   VxeTooltip,
-  VxeUI,
   VxeUpload,
 } from 'vxe-pc-ui';
-import enUS from 'vxe-pc-ui/lib/language/en-US'; // 导入默认的语言
-import zhCN from 'vxe-pc-ui/lib/language/zh-CN';
+import enUS from 'vxe-pc-ui/es/language/en-US'; // 导入默认的语言
+import zhCN from 'vxe-pc-ui/es/language/zh-CN';
 import {
   VxeColgroup,
   VxeColumn,
@@ -33,6 +33,10 @@ import {
 
 import { injectPluginsOptions } from '../plugins-context';
 import { extendsDefaultFormatter } from './extends'; // 是否加载过
+
+// 按需导入不会经过包入口，需显式引入以注册默认配置与图标
+import 'vxe-pc-ui/es/ui';
+import 'vxe-table/es/ui';
 
 // 是否加载过
 let isInit = false;
@@ -133,11 +137,8 @@ export function setupVbenVxeTable(setupOptions: SetupVxeTable) {
       // vxe-table 仅为其内置语言提供类型定义，应用通过模块增强扩展的
       // 语言可能超出 VxeGlobalI18nLocale 联合范围，因此边界处需要断言，
       // 未打包的自定义语言回退到 en-US
-      VxeUI.setI18n(
-        localeValue as any,
-        localMap[localeValue] ?? localMap['en-US'],
-      );
-      VxeUI.setLanguage(localeValue as any);
+      VxeUI.setI18n(localeValue, localMap[localeValue] ?? localMap['en-US']);
+      VxeUI.setLanguage(localeValue);
     },
     {
       immediate: true,

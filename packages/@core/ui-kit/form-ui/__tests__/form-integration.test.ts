@@ -69,17 +69,72 @@ beforeAll(() => {
   });
 });
 
-afterEach(async () => {
+afterEach(() => {
   for (const wrapper of wrappers.splice(0)) {
     wrapper.unmount();
   }
-  // 卸载会触发挂起的异步校验，等待其收敛，避免结果泄漏到下一个用例导致随机失败
-  await flushPromises();
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
-describe('useVbenForm integration', { retry: 3 }, () => {
+describe('useVbenForm integration', () => {
+  it('provides empty defaults for native zod string formats', async () => {
+    const [Form, formApi] = useVbenForm({
+      schema: [
+        {
+          component: TestInput,
+          fieldName: 'email',
+          rules: z.email(),
+        },
+        {
+          component: TestInput,
+          fieldName: 'address',
+          rules: z.ipv4(),
+        },
+      ],
+      showDefaultActions: false,
+    });
+    const wrapper = mount(Form);
+    wrappers.push(wrapper);
+    await flushPromises();
+
+    expect(await formApi.getValues()).toEqual({
+      address: '',
+      email: '',
+    });
+  });
+
+  it('filters native zod formats from nested default extraction', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const [Form, formApi] = useVbenForm({
+      schema: [
+        {
+          component: TestInput,
+          fieldName: 'profile',
+          rules: z.object({
+            email: z.email(),
+            address: z.object({
+              ip: z.ipv4(),
+              backup: z.email().default('backup@example.com'),
+            }),
+          }),
+        },
+      ],
+      showDefaultActions: false,
+    });
+    const wrapper = mount(Form);
+    wrappers.push(wrapper);
+    await flushPromises();
+
+    expect(warn).not.toHaveBeenCalled();
+    expect(await formApi.getValues()).toEqual({
+      profile: {
+        address: { backup: 'backup@example.com', ip: '' },
+        email: '',
+      },
+    });
+  });
+
   it('uses model updates as the primary channel and preserves empty strings', async () => {
     const validateValue = vi.fn();
     const [Form, formApi] = useVbenForm({
@@ -909,14 +964,12 @@ describe('useVbenForm integration', { retry: 3 }, () => {
     expect(wrapper.text()).not.toContain('Name is required');
 
     await input.trigger('blur');
-    await vi.waitFor(() =>
-      expect(wrapper.text()).toContain('Name is required'),
-    );
+    await flushPromises();
+    expect(wrapper.text()).toContain('Name is required');
 
     await input.setValue('Ada');
-    await vi.waitFor(() =>
-      expect(wrapper.text()).not.toContain('Name is required'),
-    );
+    await flushPromises();
+    expect(wrapper.text()).not.toContain('Name is required');
 
     await input.trigger('blur');
     await flushPromises();
