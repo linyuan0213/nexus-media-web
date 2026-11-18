@@ -227,11 +227,7 @@ function onCardEnter(e: MouseEvent) {
 }
 
 function onPosterClick() {
-  if (!isTouchMode()) {
-    if (props.items[0]) emit('click', props.items[0]);
-    return;
-  }
-  activeGroup.value = isPopup.value ? null : props.groupKey;
+  if (props.items[0]) emit('click', props.items[0]);
 }
 
 function closePopover() {

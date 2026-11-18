@@ -341,11 +341,7 @@ function onCardEnter(e: MouseEvent) {
 }
 
 function onPosterClick() {
-  if (!isTouchMode()) {
-    emit('click', props.item);
-    return;
-  }
-  activeItem.value = isPopup.value ? null : props.item;
+  emit('click', props.item);
 }
 
 function openTmdb() {
