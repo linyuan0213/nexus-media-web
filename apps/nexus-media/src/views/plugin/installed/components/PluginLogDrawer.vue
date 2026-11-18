@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
+import { useWindowSize } from '@vueuse/core';
 import {
   NButton,
   NDrawer,
@@ -32,6 +33,9 @@ const logs = ref<any[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
+
+const { width: viewportWidth } = useWindowSize();
+const drawerWidth = computed(() => (viewportWidth.value <= 640 ? '100%' : 500));
 
 const visible = computed({
   get: () => props.show,
@@ -98,7 +102,7 @@ watch(
 <template>
   <NDrawer
     v-model:show="visible"
-    :width="500"
+    :width="drawerWidth"
     placement="right"
     class="plugin-log-drawer"
   >
