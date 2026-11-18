@@ -377,3 +377,64 @@
   background: hsl(var(--primary) / 12%) !important;
   border-color: hsl(var(--primary) / 28%);
 }
+
+/* 统一 Naive Button 图标/文字对齐 */
+.n-button {
+  justify-content: center;
+}
+
+.n-button .n-button__content {
+  display: inline-flex;
+  gap: 0.3rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.n-button .n-button__icon,
+.n-button .n-icon-slot {
+  margin: 0 !important;
+}
+
+.n-button .n-icon-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 纯图标按钮：Naive 图标槽与内容区是兄弟节点，直接绝对居中 */
+.card-action,
+.blacklist-refresh,
+.blacklist-clear,
+.history-icon-action {
+  position: relative;
+}
+
+.card-action .n-button__content,
+.blacklist-refresh .n-button__content,
+.blacklist-clear .n-button__content,
+.history-icon-action .n-button__content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+}
+
+.card-action .n-icon-slot,
+.blacklist-refresh .n-icon-slot,
+.blacklist-clear .n-icon-slot,
+.history-icon-action .n-icon-slot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin: 0 !important;
+  transform: translate(-50%, -50%);
+}

@@ -605,7 +605,7 @@ onUnmounted(() => {
             @click="handleSyncThirdParty"
           >
             <template #icon>
-              <IconifyIcon icon="lucide:refresh-cw" class="h-4 w-4" />
+              <IconifyIcon icon="lucide:cloud-download" class="h-4 w-4" />
             </template>
             <span class="site-action-label">同步站点</span>
           </NButton>
@@ -1059,8 +1059,36 @@ onUnmounted(() => {
   }
 
   .site-header-actions :deep(.n-button) {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 2.25rem;
     padding-inline: 0;
+  }
+
+  .site-header-actions :deep(.n-button__content) {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+  }
+
+  .site-header-actions :deep(.n-icon-slot) {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin: 0 !important;
+    transform: translate(-50%, -50%);
   }
 
   .site-action-label {
