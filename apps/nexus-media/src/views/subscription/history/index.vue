@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { NButton, NSpin, NTab, NTabs } from 'naive-ui';
+import { NButton, NPagination, NSpin, NTab, NTabs } from 'naive-ui';
 
 import {
   deleteSubscriptionHistoryApi,
@@ -33,16 +33,22 @@ const notification = useAppNotification();
 const loading = ref(false);
 const deleteModalShow = ref(false);
 const deleteTarget = ref<any>(null);
+const currentPage = ref(1);
+const pageSize = 20;
+const total = ref(0);
+
+type HistoryType = 'all' | 'movie' | 'tv';
 
 type HistoryTab = {
   key: string;
   label: string;
   profile: string;
-  type: 'movie' | 'tv';
+  type: HistoryType;
 };
 
 const historyTabs = computed<HistoryTab[]>(() => {
   const tabs: HistoryTab[] = [
+    { key: 'all', label: '全部', profile: '', type: 'all' },
     { key: 'movie', label: '电影', profile: 'default', type: 'movie' },
     { key: 'tv', label: '电视剧', profile: 'default', type: 'tv' },
     {
@@ -69,13 +75,13 @@ const requestedTab = String(route.query.t || '').toLowerCase();
 const activeKey = ref(
   historyTabs.value.some((tab) => tab.key === requestedTab)
     ? requestedTab
-    : 'movie',
+    : 'all',
 );
 const FALLBACK_TAB: HistoryTab = {
-  key: 'movie',
-  label: '电影',
-  profile: 'default',
-  type: 'movie',
+  key: 'all',
+  label: '全部',
+  profile: '',
+  type: 'all',
 };
 const activeTab = computed<HistoryTab>(
   () =>
@@ -94,12 +100,14 @@ const backPath = computed(() => {
       return detailPath.replace(/\/detail\/?$/, '') || detailPath;
     }
   }
+  if (filterType.value === 'all') return '/subscription/movie';
   return filterType.value === 'tv' ? '/subscription/tv' : '/subscription/movie';
 });
 
 function handleTypeChange(value: string) {
   if (value === activeKey.value) return;
   activeKey.value = value;
+  currentPage.value = 1;
   fetchData();
 }
 
@@ -125,9 +133,18 @@ const historyList = computed(() => {
     start: (item.START ?? item.start ?? 0) as number,
     desc: (item.DESC ?? item.desc ?? '') as string,
     finishTime: (item.FINISH_TIME ?? item.date ?? '') as string,
-    type: (item.type ?? filterType.value) as 'movie' | 'tv',
+    type: (item._historyType ??
+      item.type ??
+      (filterType.value === 'all' ? 'movie' : filterType.value)) as
+      | 'movie'
+      | 'tv',
+    profile: (item._historyProfile ?? filterProfile.value) as string,
   }));
 });
+
+const pageCount = computed(() =>
+  Math.max(1, Math.ceil(total.value / pageSize)),
+);
 
 async function fetchData() {
   loading.value = true;
@@ -135,19 +152,29 @@ async function fetchData() {
     const res = await getSubscriptionHistoryApi(
       filterType.value,
       filterProfile.value,
+      currentPage.value,
+      pageSize,
     );
-    subscriptionStore.setSubscriptionHistory(res);
+    subscriptionStore.setSubscriptionHistory(res.items || []);
+    total.value = res.total || 0;
+    currentPage.value = res.page || 1;
   } finally {
     loading.value = false;
   }
+}
+function handlePageChange(page: number) {
+  if (page === currentPage.value) return;
+  currentPage.value = page;
+  fetchData();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 async function handleReRss(item: any) {
   try {
     await redoSubscriptionHistoryApi(
       item.id,
-      filterType.value,
-      filterProfile.value,
+      item.type === 'tv' ? 'tv' : 'movie',
+      item.profile || filterProfile.value,
     );
     notification.success('重新订阅成功');
     await fetchData();
@@ -204,7 +231,7 @@ onMounted(fetchData);
       <div v-if="historyList.length > 0" class="history-layout">
         <div class="history-stats">
           <IconifyIcon icon="lucide:history" class="h-4 w-4" />
-          <span>共 {{ historyList.length }} 条记录</span>
+          <span>共 {{ total }} 条记录</span>
         </div>
         <div class="history-list">
           <HistoryCard
@@ -213,6 +240,16 @@ onMounted(fetchData);
             :item="item"
             @re-rss="handleReRss"
             @delete="handleDelete"
+          />
+        </div>
+        <div v-if="total > pageSize" class="history-pagination">
+          <NPagination
+            :page="currentPage"
+            :page-count="pageCount"
+            :page-size="pageSize"
+            :page-slot="5"
+            size="small"
+            @update:page="handlePageChange"
           />
         </div>
       </div>
@@ -255,6 +292,12 @@ onMounted(fetchData);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.history-pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
 }
 
 @media (max-width: 640px) {

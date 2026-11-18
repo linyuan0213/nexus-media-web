@@ -348,13 +348,22 @@ onMounted(fetchData);
     <PageHeader title="下载器设置" subtitle="管理下载器配置及监控选项">
       <template #actions>
         <NSpace>
-          <NButton type="primary" @click="handleAdd">
+          <NButton
+            type="primary"
+            aria-label="新增下载器"
+            title="新增下载器"
+            @click="handleAdd"
+          >
             <template #icon>
               <IconifyIcon icon="lucide:plus" class="size-4" />
             </template>
             新增下载器
           </NButton>
-          <NButton @click="gotoDownloadSetting">
+          <NButton
+            aria-label="下载设置"
+            title="下载设置"
+            @click="gotoDownloadSetting"
+          >
             <template #icon>
               <IconifyIcon icon="lucide:settings" class="size-4" />
             </template>

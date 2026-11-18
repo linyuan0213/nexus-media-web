@@ -1465,7 +1465,7 @@ function onVisibilityChange() {
     <!-- 输入区 -->
     <div
       v-if="activeTab === 'chat'"
-      class="border-t px-4 py-3"
+      class="chat-input-area border-t px-4 py-3"
       :style="{
         background: 'hsl(var(--card))',
         borderColor: 'hsl(var(--border))',

@@ -340,13 +340,21 @@ onMounted(async () => {
               clearable
               @keyup.enter="handleSearch"
             />
-            <NButton aria-label="搜索" @click="handleSearch">
+            <NButton
+              class="history-icon-action"
+              aria-label="搜索"
+              @click="handleSearch"
+            >
               <template #icon>
                 <IconifyIcon icon="lucide:search" class="size-4" />
               </template>
               <span class="hide-sm">搜索</span>
             </NButton>
-            <NButton aria-label="刷新" @click="fetchData(currentPage, true)">
+            <NButton
+              class="history-icon-action"
+              aria-label="刷新"
+              @click="fetchData(currentPage, true)"
+            >
               <template #icon>
                 <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
               </template>

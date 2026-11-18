@@ -259,7 +259,12 @@ onMounted(fetch);
   <div class="p-5" style="background: hsl(var(--background))">
     <PageHeader title="目录同步" subtitle="配置目录监控与自动同步转移">
       <template #actions>
-        <NButton type="primary" @click="openAdd">
+        <NButton
+          type="primary"
+          aria-label="新增同步目录"
+          title="新增同步目录"
+          @click="openAdd"
+        >
           <template #icon>
             <IconifyIcon icon="lucide:plus" class="size-4" />
           </template>
@@ -503,7 +508,12 @@ onMounted(fetch);
         <p class="text-sm mb-4" style="color: hsl(var(--muted-foreground))">
           暂无同步目录
         </p>
-        <NButton type="primary" @click="openAdd">
+        <NButton
+          type="primary"
+          aria-label="新增同步目录"
+          title="新增同步目录"
+          @click="openAdd"
+        >
           <template #icon>
             <IconifyIcon icon="lucide:plus" class="size-4" />
           </template>

@@ -99,6 +99,7 @@ onMounted(fetchData);
 <template>
   <div class="library-page">
     <PageHeader
+      class="stacked-mobile-header"
       title="我的媒体库"
       :subtitle="`${onlineCount} / ${sections.length} 个实例连接正常`"
     >
@@ -214,6 +215,10 @@ onMounted(fetchData);
 @media (max-width: 640px) {
   .library-page {
     padding: 12px;
+  }
+
+  .library-page :deep(.page-header-title) {
+    white-space: nowrap;
   }
 
   .page-actions,
