@@ -2633,3 +2633,29 @@ html.theme-glass .file-toolbar {
   box-shadow: none !important;
   backdrop-filter: none !important;
 }
+
+/* 文件管理器列表：透出主内容玻璃，不做整块黑色数据表 */
+html.theme-glass .file-manager .file-list,
+html.theme-glass .file-manager .file-list-row {
+  background: transparent !important;
+}
+
+html.theme-glass .file-manager .file-list-header {
+  background: hsl(var(--glass-surface) / 58%) !important;
+  border-bottom: 1px solid hsl(var(--glass-card-border) / 30%);
+  backdrop-filter: blur(18px) saturate(125%);
+}
+
+html.theme-glass .file-manager .file-list-row:hover {
+  background: hsl(var(--primary) / 8%) !important;
+}
+
+html.theme-glass .file-manager .file-row-selected,
+html.theme-glass .file-manager .file-row-selected:hover {
+  background: hsl(var(--primary) / 14%) !important;
+  box-shadow: inset 2px 0 0 hsl(var(--primary));
+}
+
+html.theme-glass .file-manager .file-row-highlighted {
+  background: hsl(var(--warning) / 12%) !important;
+}
