@@ -10,15 +10,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import {
-  NButton,
-  NInput,
-  NSelect,
-  NSpace,
-  NSpin,
-  NTag,
-  useMessage,
-} from 'naive-ui';
+import { NButton, NInput, NSelect, NSpin, NTag, useMessage } from 'naive-ui';
 
 import { getDownloadSettingsApi } from '#/api/modules/download';
 import { getFilterGroupsApi } from '#/api/modules/filter';
@@ -605,38 +597,58 @@ onUnmounted(() => {
   <div class="p-4">
     <PageHeader title="站点维护">
       <template #actions>
-        <NSpace align="center">
-          <NButton :loading="syncLoading" @click="handleSyncThirdParty">
+        <div class="site-header-actions">
+          <NButton
+            aria-label="同步站点"
+            title="同步站点"
+            :loading="syncLoading"
+            @click="handleSyncThirdParty"
+          >
             <template #icon>
-              <IconifyIcon icon="lucide:refresh-cw" class="h-4 w-4" />
+              <IconifyIcon icon="lucide:cloud-download" class="h-4 w-4" />
             </template>
-            同步站点
+            <span class="site-action-label">同步站点</span>
           </NButton>
-          <NButton :loading="parseHealthLoading" @click="handleParseHealthRun">
+          <NButton
+            aria-label="解析自检"
+            title="解析自检"
+            :loading="parseHealthLoading"
+            @click="handleParseHealthRun"
+          >
             <template #icon>
               <IconifyIcon icon="lucide:heart-pulse" class="h-4 w-4" />
             </template>
-            解析自检
+            <span class="site-action-label">解析自检</span>
           </NButton>
-          <NButton @click="handleBatchTest">
+          <NButton
+            aria-label="批量测试"
+            title="批量测试"
+            @click="handleBatchTest"
+          >
             <template #icon>
               <IconifyIcon icon="lucide:activity" class="h-4 w-4" />
             </template>
-            批量测试
+            <span class="site-action-label">批量测试</span>
           </NButton>
-          <NButton type="primary" @click="handleAdd">
+          <NButton
+            class="site-add-button"
+            type="primary"
+            aria-label="新增站点"
+            title="新增站点"
+            @click="handleAdd"
+          >
             <template #icon>
               <IconifyIcon icon="lucide:plus" class="h-4 w-4" />
             </template>
-            新增站点
+            <span class="site-action-label">新增站点</span>
           </NButton>
-          <NButton @click="fetchSites">
+          <NButton aria-label="刷新" title="刷新" @click="fetchSites">
             <template #icon>
               <IconifyIcon icon="lucide:refresh-cw" class="h-4 w-4" />
             </template>
-            刷新
+            <span class="site-action-label">刷新</span>
           </NButton>
-        </NSpace>
+        </div>
       </template>
     </PageHeader>
 
@@ -1022,6 +1034,65 @@ onUnmounted(() => {
   .toolbar-search {
     flex: 1 1 100%;
     width: auto;
+  }
+}
+
+.site-header-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.site-header-actions :deep(.n-button) {
+  height: 36px;
+  padding-inline: 0.8rem;
+  font-size: 0.8rem;
+  border-radius: 10px;
+}
+
+@media (max-width: 640px) {
+  .site-header-actions {
+    gap: 0.375rem;
+  }
+
+  .site-header-actions :deep(.n-button) {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    padding-inline: 0;
+  }
+
+  .site-header-actions :deep(.n-button__content) {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+  }
+
+  .site-header-actions :deep(.n-icon-slot) {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin: 0 !important;
+    transform: translate(-50%, -50%);
+  }
+
+  .site-action-label {
+    display: none;
   }
 }
 </style>

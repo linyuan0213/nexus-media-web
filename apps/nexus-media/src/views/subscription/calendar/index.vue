@@ -931,6 +931,8 @@ onUnmounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  justify-content: flex-end;
+  width: 100%;
 }
 
 .calendar-toolbar {

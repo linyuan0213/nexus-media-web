@@ -4,6 +4,7 @@ import type { SubscribeEditItem } from '#/components/subscribe/SubscribeEditModa
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
+import { IconifyIcon } from '@vben/icons';
 import { useUserStore } from '@vben/stores';
 
 import {
@@ -11,8 +12,6 @@ import {
   NInput,
   NModal,
   NProgress,
-  NRadioButton,
-  NRadioGroup,
   NSelect,
   NSpace,
   NSpin,
@@ -867,32 +866,61 @@ onUnmounted(() => {
   <div class="p-4">
     <PageHeader :title="props.title">
       <template #actions>
-        <NSpace>
-          <NButton v-if="isSuperAdmin" @click="groupView = !groupView">
-            {{ groupView ? '平铺视图' : '聚合视图' }}
+        <div class="subscription-actions">
+          <NButton
+            v-if="isSuperAdmin"
+            :aria-label="groupView ? '平铺视图' : '聚合视图'"
+            :title="groupView ? '平铺视图' : '聚合视图'"
+            @click="groupView = !groupView"
+          >
+            <template #icon>
+              <IconifyIcon
+                :icon="groupView ? 'lucide:layout-list' : 'lucide:layout-grid'"
+                class="size-4"
+              />
+            </template>
+            <span class="subscription-action-label">{{
+              groupView ? '平铺视图' : '聚合视图'
+            }}</span>
           </NButton>
-          <NButton type="primary" @click="openAdd">新增订阅</NButton>
-          <NButton v-if="canEditDefault" @click="settingShow = true">
-            默认设置
+          <NButton
+            v-if="canEditDefault"
+            aria-label="默认设置"
+            title="默认设置"
+            @click="settingShow = true"
+          >
+            <template #icon>
+              <IconifyIcon icon="lucide:settings" class="size-4" />
+            </template>
+            <span class="subscription-action-label">默认设置</span>
           </NButton>
-        </NSpace>
+          <NButton
+            type="primary"
+            aria-label="新增订阅"
+            title="新增订阅"
+            @click="openAdd"
+          >
+            <template #icon>
+              <IconifyIcon icon="lucide:plus" class="size-4" />
+            </template>
+            <span class="subscription-action-label">新增订阅</span>
+          </NButton>
+        </div>
       </template>
     </PageHeader>
 
     <div v-if="profileTabs.length > 1" class="subscription-tabs">
-      <NRadioGroup
-        :value="activeProfile"
-        size="small"
-        @update:value="handleTabChange"
+      <button
+        v-for="tab in profileTabs"
+        :key="tab.value"
+        type="button"
+        class="subscription-tab"
+        :class="{ 'is-active': activeProfile === tab.value }"
+        :aria-selected="activeProfile === tab.value"
+        @click="handleTabChange(tab.value)"
       >
-        <NRadioButton
-          v-for="tab in profileTabs"
-          :key="tab.value"
-          :value="tab.value"
-        >
-          {{ tab.label }}
-        </NRadioButton>
-      </NRadioGroup>
+        {{ tab.label }}
+      </button>
     </div>
 
     <NSpin :show="loading">
@@ -1032,8 +1060,72 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.subscription-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  width: 100%;
+}
+
 .subscription-tabs {
+  display: inline-flex;
+  gap: 0.25rem;
+  max-width: 100%;
+  padding: 0.25rem;
   margin-top: 0.75rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  background: hsl(var(--muted) / 38%);
+  border: 1px solid hsl(var(--border) / 60%);
+  border-radius: 10px;
+}
+
+.subscription-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.subscription-tab {
+  flex: 0 0 auto;
+  padding: 0.32rem 0.8rem;
+  font: inherit;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.subscription-tab:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--primary) / 6%);
+}
+
+.subscription-tab.is-active {
+  font-weight: 600;
+  color: hsl(var(--primary));
+  background: hsl(var(--card) / 72%);
+  border-color: hsl(var(--primary) / 24%);
+  box-shadow: 0 1px 3px hsl(var(--foreground) / 6%);
+}
+
+@media (max-width: 640px) {
+  .subscription-action-label {
+    display: none;
+  }
+
+  .subscription-actions .n-button {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+  }
 }
 
 .subscription-flow {

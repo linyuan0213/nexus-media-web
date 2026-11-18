@@ -109,7 +109,12 @@ onMounted(fetchData);
       subtitle="管理媒体服务器配置及媒体库同步目标"
     >
       <template #actions>
-        <NButton type="primary" @click="openCreate">
+        <NButton
+          type="primary"
+          aria-label="新增媒体服务器"
+          title="新增媒体服务器"
+          @click="openCreate"
+        >
           <template #icon>
             <IconifyIcon icon="lucide:plus" class="size-4" />
           </template>

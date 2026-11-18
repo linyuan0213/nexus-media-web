@@ -20,6 +20,7 @@ import { router } from './router';
 
 import './styles/tabler-theme.css';
 import './styles/glass-theme.css';
+import './styles/mobile-layout.css';
 
 // 暴露 Vue 到全局，供插件 UMD 使用
 (window as any).Vue = Vue;

@@ -2623,3 +2623,84 @@ html.theme-glass .lifecycle-mobile-card .mobile-card-arrow {
   border: 1px solid hsl(var(--glass-card-border) / 28%);
   backdrop-filter: blur(10px);
 }
+
+/* 文件管理器工具栏：作为内容面板内部区域，避免双层圆角 */
+html.theme-glass .file-toolbar {
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid hsl(var(--glass-card-border) / 30%) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+/* 文件管理器列表：透出主内容玻璃，不做整块黑色数据表 */
+html.theme-glass .file-manager .file-list,
+html.theme-glass .file-manager .file-list-row {
+  background: transparent !important;
+}
+
+html.theme-glass .file-manager .file-list-header {
+  background: hsl(var(--glass-surface) / 58%) !important;
+  border-bottom: 1px solid hsl(var(--glass-card-border) / 30%);
+  backdrop-filter: blur(18px) saturate(125%);
+}
+
+html.theme-glass .file-manager .file-list-row:hover {
+  background: hsl(var(--primary) / 8%) !important;
+}
+
+html.theme-glass .file-manager .file-row-selected,
+html.theme-glass .file-manager .file-row-selected:hover {
+  background: hsl(var(--primary) / 14%) !important;
+  box-shadow: inset 2px 0 0 hsl(var(--primary));
+}
+
+html.theme-glass .file-manager .file-row-highlighted {
+  background: hsl(var(--warning) / 12%) !important;
+}
+
+/* 移动端文件网格卡片 */
+@media (max-width: 640px) {
+  html.theme-glass .file-card {
+    background: hsl(var(--glass-surface) / 52%) !important;
+    border-color: hsl(var(--glass-card-border) / 30%) !important;
+    backdrop-filter: blur(14px) saturate(125%);
+  }
+
+  html.theme-glass .file-card:hover {
+    background: hsl(var(--primary) / 8%) !important;
+  }
+
+  html.theme-glass .file-card-selected {
+    background: hsl(var(--primary) / 14%) !important;
+    border-color: hsl(var(--primary) / 38%) !important;
+  }
+
+  html.theme-glass .file-card-highlighted {
+    background: hsl(var(--warning) / 12%) !important;
+  }
+}
+
+html.theme-glass :is(.chat-input-area, .batch-bar-mobile, .mobile-detail-bar) {
+  background: hsl(var(--glass-surface) / var(--glass-shell-opacity)) !important;
+  border-color: hsl(var(--glass-card-border) / 34%) !important;
+  box-shadow:
+    inset 0 1px 0 hsl(var(--glass-highlight) / 36%),
+    0 -12px 32px -24px hsl(var(--glass-shadow-color) / 30%);
+  backdrop-filter: blur(12px) saturate(120%);
+}
+
+html.theme-glass .discovery-filter .feed-toggle-group {
+  background: hsl(var(--glass-surface) / var(--glass-panel-opacity));
+  border: 1px solid hsl(var(--glass-card-border) / 28%);
+  backdrop-filter: blur(12px) saturate(120%);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html.theme-glass :is(.chat-input-area, .batch-bar-mobile, .mobile-detail-bar),
+  html.theme-glass .discovery-filter .feed-toggle-group {
+    background: hsl(var(--card)) !important;
+    backdrop-filter: none;
+  }
+}
