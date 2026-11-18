@@ -60,9 +60,39 @@ const hasSubtitle = computed(() => !!props.subtitle);
     justify-content: space-between;
   }
 
+  .page-header > div:first-child {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
   .page-header-actions {
     width: auto;
     margin-left: auto;
+  }
+
+  .page-header:has(.page-header-actions .n-button:only-child),
+  .page-header:has(
+    .page-header-actions .n-button:first-child:nth-child(2):last-child
+  ) {
+    flex-wrap: nowrap;
+    align-items: flex-start;
+  }
+
+  .page-header:has(.page-header-actions .n-button:only-child) > div:first-child,
+  .page-header:has(
+      .page-header-actions .n-button:first-child:nth-child(2):last-child
+    )
+    > div:first-child {
+    min-width: 0;
+  }
+
+  .page-header:has(.page-header-actions .n-button:only-child)
+    .page-header-actions,
+  .page-header:has(
+      .page-header-actions .n-button:first-child:nth-child(2):last-child
+    )
+    .page-header-actions {
+    flex-shrink: 0;
   }
 
   .page-header-actions > * {

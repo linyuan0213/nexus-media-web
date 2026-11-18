@@ -105,15 +105,21 @@ onMounted(fetchData);
 <template>
   <div class="mediaserver-page">
     <PageHeader
+      class="compact-mobile-header"
       title="媒体服务器设置"
       subtitle="管理媒体服务器配置及媒体库同步目标"
     >
       <template #actions>
-        <NButton type="primary" @click="openCreate">
+        <NButton
+          type="primary"
+          aria-label="新增媒体服务器"
+          title="新增媒体服务器"
+          @click="openCreate"
+        >
           <template #icon>
             <IconifyIcon icon="lucide:plus" class="size-4" />
           </template>
-          新增媒体服务器
+          <span class="compact-action-label">新增媒体服务器</span>
         </NButton>
       </template>
     </PageHeader>
