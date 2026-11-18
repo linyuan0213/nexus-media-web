@@ -257,11 +257,7 @@ onMounted(fetch);
 
 <template>
   <div class="p-5" style="background: hsl(var(--background))">
-    <PageHeader
-      class="compact-mobile-header"
-      title="目录同步"
-      subtitle="配置目录监控与自动同步转移"
-    >
+    <PageHeader title="目录同步" subtitle="配置目录监控与自动同步转移">
       <template #actions>
         <NButton
           type="primary"
@@ -272,7 +268,7 @@ onMounted(fetch);
           <template #icon>
             <IconifyIcon icon="lucide:plus" class="size-4" />
           </template>
-          <span class="compact-action-label">新增同步目录</span>
+          新增同步目录
         </NButton>
       </template>
     </PageHeader>
@@ -521,7 +517,7 @@ onMounted(fetch);
           <template #icon>
             <IconifyIcon icon="lucide:plus" class="size-4" />
           </template>
-          <span class="compact-action-label">新增同步目录</span>
+          新增同步目录
         </NButton>
       </div>
     </NSpin>

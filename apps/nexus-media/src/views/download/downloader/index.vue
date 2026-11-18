@@ -345,11 +345,7 @@ onMounted(fetchData);
 
 <template>
   <div class="p-5" style="background: hsl(var(--background))">
-    <PageHeader
-      class="compact-mobile-header"
-      title="下载器设置"
-      subtitle="管理下载器配置及监控选项"
-    >
+    <PageHeader title="下载器设置" subtitle="管理下载器配置及监控选项">
       <template #actions>
         <NSpace>
           <NButton
@@ -361,7 +357,7 @@ onMounted(fetchData);
             <template #icon>
               <IconifyIcon icon="lucide:plus" class="size-4" />
             </template>
-            <span class="compact-action-label">新增下载器</span>
+            新增下载器
           </NButton>
           <NButton
             aria-label="下载设置"
@@ -371,7 +367,7 @@ onMounted(fetchData);
             <template #icon>
               <IconifyIcon icon="lucide:settings" class="size-4" />
             </template>
-            <span class="compact-action-label">下载设置</span>
+            下载设置
           </NButton>
         </NSpace>
       </template>

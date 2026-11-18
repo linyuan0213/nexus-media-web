@@ -66,8 +66,44 @@ const hasSubtitle = computed(() => !!props.subtitle);
   }
 
   .page-header-actions {
+    align-self: flex-start;
     width: auto;
     margin-left: auto;
+  }
+
+  .page-header-actions :deep(.n-button:has(.n-icon-slot)) {
+    position: relative;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+  }
+
+  .page-header-actions :deep(.n-button:has(.n-icon-slot) .n-button__content) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
+
+  .page-header-actions :deep(.n-button:has(.n-icon-slot) .n-icon-slot) {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin: 0 !important;
+    transform: translate(-50%, -50%);
+  }
+
+  .page-header-actions :deep(.n-input) {
+    flex: 1 1 180px;
+    width: auto !important;
+    min-width: 0;
   }
 
   .page-header:has(.page-header-actions .n-button:only-child),

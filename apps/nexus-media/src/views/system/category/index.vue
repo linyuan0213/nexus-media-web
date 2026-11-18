@@ -449,7 +449,6 @@ onMounted(fetch);
 <template>
   <div class="category-page">
     <PageHeader
-      class="category-page-header"
       title="分类配置"
       subtitle="按顺序匹配分类规则；未命中任何规则的媒体归入默认分类。"
     >
@@ -459,13 +458,13 @@ onMounted(fetch);
             <template #icon>
               <IconifyIcon icon="lucide:refresh-cw" class="h-4 w-4" />
             </template>
-            <span class="category-action-label">刷新</span>
+            刷新
           </NButton>
           <NButton type="primary" size="small" :loading="saving" @click="save">
             <template #icon>
               <IconifyIcon icon="lucide:save" class="h-4 w-4" />
             </template>
-            <span class="category-action-label">保存</span>
+            保存
           </NButton>
         </NSpace>
       </template>
@@ -1144,62 +1143,6 @@ onMounted(fetch);
 
   .layout-actions {
     justify-content: flex-start;
-  }
-}
-</style>
-
-<style scoped>
-@media (max-width: 640px) {
-  .category-page-header :deep(.page-header) {
-    position: relative;
-  }
-
-  .category-page-header :deep(.page-header > div:first-child) {
-    padding-right: 5.75rem;
-  }
-
-  .category-page-header :deep(.page-header-actions) {
-    position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
-    gap: 0.375rem;
-    width: auto;
-    margin: 0;
-  }
-
-  .category-page-header :deep(.page-header-actions .n-button) {
-    position: relative;
-    width: 2.25rem;
-    height: 2.25rem;
-    padding: 0;
-  }
-
-  .category-page-header :deep(.page-header-actions .n-button__content) {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    padding: 0;
-  }
-
-  .category-page-header :deep(.page-header-actions .n-icon-slot) {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    margin: 0 !important;
-    transform: translate(-50%, -50%);
-  }
-
-  .category-action-label {
-    display: none;
   }
 }
 </style>
