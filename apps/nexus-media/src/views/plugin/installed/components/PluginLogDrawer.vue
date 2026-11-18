@@ -96,7 +96,12 @@ watch(
 </script>
 
 <template>
-  <NDrawer v-model:show="visible" :width="500" placement="right">
+  <NDrawer
+    v-model:show="visible"
+    :width="500"
+    placement="right"
+    class="plugin-log-drawer"
+  >
     <NDrawerContent title="插件日志" closable>
       <template #header>
         <NPopconfirm @positive-click="handleClear">
