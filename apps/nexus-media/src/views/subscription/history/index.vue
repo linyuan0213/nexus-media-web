@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
@@ -35,6 +35,7 @@ const deleteModalShow = ref(false);
 const deleteTarget = ref<any>(null);
 const currentPage = ref(1);
 const pageSize = 20;
+const total = ref(0);
 
 type HistoryType = 'all' | 'movie' | 'tv';
 
@@ -142,51 +143,25 @@ const historyList = computed(() => {
 });
 
 const pageCount = computed(() =>
-  Math.max(1, Math.ceil(historyList.value.length / pageSize)),
+  Math.max(1, Math.ceil(total.value / pageSize)),
 );
-const pagedHistory = computed(() => {
-  const start = (currentPage.value - 1) * pageSize;
-  return historyList.value.slice(start, start + pageSize);
-});
 
 async function fetchData() {
   loading.value = true;
   try {
-    if (filterType.value === 'all') {
-      const tabs = historyTabs.value.filter((tab) => tab.key !== 'all');
-      const chunks = await Promise.all(
-        tabs.map(async (tab) => {
-          const items = await getSubscriptionHistoryApi(
-            tab.type as 'movie' | 'tv',
-            tab.profile,
-          );
-          return (items || []).map((item: any) => ({
-            ...item,
-            _historyType: tab.type,
-            _historyProfile: tab.profile,
-          }));
-        }),
-      );
-      const seen = new Set<string>();
-      const merged = chunks.flat().filter((item: any) => {
-        const key = String(item.id ?? item.ID ?? '');
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-      subscriptionStore.setSubscriptionHistory(merged);
-    } else {
-      const res = await getSubscriptionHistoryApi(
-        filterType.value as 'movie' | 'tv',
-        filterProfile.value,
-      );
-      subscriptionStore.setSubscriptionHistory(res);
-    }
+    const res = await getSubscriptionHistoryApi(
+      filterType.value,
+      filterProfile.value,
+      currentPage.value,
+      pageSize,
+    );
+    subscriptionStore.setSubscriptionHistory(res.items || []);
+    total.value = res.total || 0;
+    currentPage.value = res.page || 1;
   } finally {
     loading.value = false;
   }
 }
-
 async function handleReRss(item: any) {
   try {
     await redoSubscriptionHistoryApi(
@@ -220,14 +195,6 @@ async function confirmDelete() {
   }
 }
 
-watch(
-  () => historyList.value.length,
-  () => {
-    if (currentPage.value > pageCount.value)
-      currentPage.value = pageCount.value;
-  },
-);
-
 onMounted(fetchData);
 </script>
 
@@ -257,18 +224,18 @@ onMounted(fetchData);
       <div v-if="historyList.length > 0" class="history-layout">
         <div class="history-stats">
           <IconifyIcon icon="lucide:history" class="h-4 w-4" />
-          <span>共 {{ historyList.length }} 条记录</span>
+          <span>共 {{ total }} 条记录</span>
         </div>
         <div class="history-list">
           <HistoryCard
-            v-for="item in pagedHistory"
+            v-for="item in historyList"
             :key="item.id"
             :item="item"
             @re-rss="handleReRss"
             @delete="handleDelete"
           />
         </div>
-        <div v-if="historyList.length > pageSize" class="history-pagination">
+        <div v-if="total > pageSize" class="history-pagination">
           <NPagination
             v-model:page="currentPage"
             :page-count="pageCount"

@@ -75,6 +75,13 @@ export namespace SubscriptionApi {
     ID?: number | string;
   }
 
+  export interface SubscriptionHistoryPage {
+    items: SubscriptionHistory[];
+    total: number;
+    page: number;
+    page_size: number;
+  }
+
   export interface RssAutomationItem {
     id: number;
     name: string;
@@ -212,12 +219,19 @@ export async function getSubscriptionDetailApi(
 
 /** 获取订阅历史 */
 export async function getSubscriptionHistoryApi(
-  type?: 'movie' | 'tv',
+  type?: 'all' | 'movie' | 'tv',
   contentProfile?: string,
+  page = 1,
+  pageSize = 20,
 ) {
-  return requestClient.post<SubscriptionApi.SubscriptionHistory[]>(
+  return requestClient.post<SubscriptionApi.SubscriptionHistoryPage>(
     '/subscription/history',
-    { type, content_profile: contentProfile },
+    {
+      type,
+      content_profile: contentProfile,
+      page,
+      page_size: pageSize,
+    },
   );
 }
 
