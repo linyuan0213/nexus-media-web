@@ -830,23 +830,53 @@ onMounted(() => fetchData(1));
 @media (max-width: 640px) {
   .unknown-actions {
     flex-wrap: nowrap;
-    gap: 0.375rem;
+    gap: 0.125rem;
+    padding: 0.25rem;
+    background: hsl(var(--glass-surface) / 52%);
+    border: 1px solid hsl(var(--glass-card-border) / 34%);
+    border-radius: 12px;
+    box-shadow:
+      inset 0 1px 0 hsl(var(--glass-highlight) / 55%),
+      0 8px 22px -18px hsl(var(--glass-shadow-color) / 35%);
+    backdrop-filter: blur(16px) saturate(125%);
   }
 
   .unknown-search {
     flex: 1 1 auto;
     max-width: none;
+    background: transparent !important;
+  }
+
+  .unknown-search :deep(.n-input__border),
+  .unknown-search :deep(.n-input__state-border) {
+    display: none;
   }
 
   .unknown-action-buttons {
     flex-wrap: nowrap;
-    gap: 0.375rem;
+    gap: 0.125rem;
+    padding-left: 0.125rem;
+    border-left: 1px solid hsl(var(--glass-card-border) / 25%);
   }
 
-  .unknown-action-buttons .n-button {
-    width: 2.25rem;
-    height: 2.25rem;
+  .unknown-action-buttons :deep(.n-button) {
+    width: 2rem;
+    height: 2rem;
     padding-inline: 0;
+    color: hsl(var(--foreground) / 78%);
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 8px;
+  }
+
+  .unknown-action-buttons :deep(.n-button:hover) {
+    color: hsl(var(--primary));
+    background: hsl(var(--primary) / 10%) !important;
+  }
+
+  .unknown-action-buttons :deep(.n-button.n-button--primary-type) {
+    color: hsl(var(--primary-foreground)) !important;
+    background: hsl(var(--primary)) !important;
   }
 
   .unknown-action-label {
