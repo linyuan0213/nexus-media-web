@@ -2659,3 +2659,25 @@ html.theme-glass .file-manager .file-row-selected:hover {
 html.theme-glass .file-manager .file-row-highlighted {
   background: hsl(var(--warning) / 12%) !important;
 }
+
+/* 移动端文件网格卡片 */
+@media (max-width: 640px) {
+  html.theme-glass .file-card {
+    background: hsl(var(--glass-surface) / 52%) !important;
+    border-color: hsl(var(--glass-card-border) / 30%) !important;
+    backdrop-filter: blur(14px) saturate(125%);
+  }
+
+  html.theme-glass .file-card:hover {
+    background: hsl(var(--primary) / 8%) !important;
+  }
+
+  html.theme-glass .file-card-selected {
+    background: hsl(var(--primary) / 14%) !important;
+    border-color: hsl(var(--primary) / 38%) !important;
+  }
+
+  html.theme-glass .file-card-highlighted {
+    background: hsl(var(--warning) / 12%) !important;
+  }
+}
