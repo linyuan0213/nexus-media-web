@@ -1059,6 +1059,7 @@ watch(
 <template>
   <div class="lifecycle-page">
     <PageHeader
+      class="lifecycle-page-header"
       title="媒体流转"
       subtitle="集中追踪识别、下载、转移与入库状态，快速定位需要介入的任务"
     >
@@ -3829,5 +3830,22 @@ watch(
   color: hsl(var(--muted-foreground));
   border: 1px solid hsl(var(--border));
   border-radius: 4px;
+}
+</style>
+
+<style scoped>
+@media (max-width: 640px) {
+  .lifecycle-page-header :deep(.page-header) {
+    position: relative;
+    padding-right: 7rem;
+  }
+
+  .lifecycle-page-header :deep(.page-header-actions) {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: auto;
+    margin-left: 0;
+  }
 }
 </style>

@@ -62,6 +62,7 @@ const hasSubtitle = computed(() => !!props.subtitle);
 
   .page-header-actions {
     width: auto;
+    margin-left: auto;
   }
 
   .page-header-actions > * {

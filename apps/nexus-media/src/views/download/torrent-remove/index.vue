@@ -467,7 +467,7 @@ onMounted(fetchData);
                   @update:value="(v: any) => handleToggleEnabled(task, v)"
                 />
               </div>
-              <div class="card-actions">
+              <div class="remove-task-actions">
                 <NButton
                   size="small"
                   secondary
@@ -477,19 +477,19 @@ onMounted(fetchData);
                   <template #icon>
                     <IconifyIcon icon="lucide:zap" class="size-3.5" />
                   </template>
-                  执行
+                  <span class="remove-action-label">执行</span>
                 </NButton>
                 <NButton size="small" secondary @click="handlePreview(task)">
                   <template #icon>
                     <IconifyIcon icon="lucide:eye" class="size-3.5" />
                   </template>
-                  预览
+                  <span class="remove-action-label">预览</span>
                 </NButton>
                 <NButton size="small" secondary @click="openEdit(task)">
                   <template #icon>
                     <IconifyIcon icon="lucide:pencil" class="size-3.5" />
                   </template>
-                  编辑
+                  <span class="remove-action-label">编辑</span>
                 </NButton>
                 <NPopconfirm @positive-click="doDelete(task)">
                   <template #trigger>
