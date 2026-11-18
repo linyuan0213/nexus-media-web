@@ -86,7 +86,7 @@ catalog:
   '@tiptap/pm': ^3.32.0
   '@tiptap/starter-kit': ^3.32.0
   '@tiptap/vue-3': ^3.32.0
-  '@tsdown/css': ^0.23.1
+  '@tsdown/css': ^0.22.14
   '@types/archiver': ^8.0.0
   '@types/html-minifier-terser': ^7.0.2
   '@types/json-bigint': ^1.0.4
@@ -135,7 +135,7 @@ catalog:
   eslint-plugin-command: ^3.5.3
   eslint-plugin-jsonc: ^3.4.2
   eslint-plugin-n: ^18.2.2
-  eslint-plugin-oxlint: ^1.90.0
+  eslint-plugin-oxlint: ^1.94.0
   eslint-plugin-perfectionist: ^5.10.0
   eslint-plugin-pnpm: ^1.7.0
   eslint-plugin-unused-imports: ^4.4.1

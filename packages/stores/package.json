@@ -26,10 +26,10 @@
     "@vben-core/preferences": "workspace:*",
     "@vben-core/shared": "workspace:*",
     "@vben-core/typings": "workspace:*",
-    "pinia": "catalog:",
+    "pinia": "^4.1.0",
     "pinia-plugin-persistedstate": "catalog:",
     "secure-ls": "catalog:",
-    "vue": "catalog:",
+    "vue": "^3.5.45",
     "vue-router": "catalog:"
   }
 }

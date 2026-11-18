@@ -41,6 +41,7 @@
     "@vben/types": "workspace:*",
     "@vben/utils": "workspace:*",
     "@vueuse/core": "catalog:",
+    "cropperjs": "1.6.2",
     "html-to-image": "catalog:",
     "markdown-it": "catalog:",
     "naive-ui": "catalog:",

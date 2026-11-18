@@ -38,6 +38,6 @@
   "dependencies": {
     "@iconify/vue": "catalog:",
     "@lucide/vue": "catalog:",
-    "vue": "catalog:"
+    "vue": "^3.5.45"
   }
 }

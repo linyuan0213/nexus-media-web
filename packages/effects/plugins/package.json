@@ -65,7 +65,7 @@
     "@vueuse/motion": "catalog:",
     "@vxe-ui/core": "catalog:",
     "echarts": "catalog:",
-    "vue": "catalog:",
+    "vue": "^3.5.45",
     "vxe-pc-ui": "catalog:",
     "vxe-table": "catalog:"
   }
