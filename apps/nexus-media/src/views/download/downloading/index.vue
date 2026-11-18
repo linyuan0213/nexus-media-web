@@ -479,12 +479,38 @@ onUnmounted(() => {
   <div class="p-4">
     <div class="header-row">
       <h1 class="page-title">正在下载</h1>
-      <NButton type="primary" @click="openAddModal">
-        <template #icon>
-          <IconifyIcon icon="lucide:plus" class="size-4" />
-        </template>
-        新增下载
-      </NButton>
+      <div class="header-actions">
+        <div class="view-actions">
+          <NButton
+            text
+            aria-label="网格视图"
+            title="网格视图"
+            :type="viewMode === 'grid' ? 'primary' : 'default'"
+            @click="viewMode = 'grid'"
+          >
+            <template #icon>
+              <IconifyIcon icon="lucide:layout-grid" class="size-4" />
+            </template>
+          </NButton>
+          <NButton
+            text
+            aria-label="列表视图"
+            title="列表视图"
+            :type="viewMode === 'list' ? 'primary' : 'default'"
+            @click="viewMode = 'list'"
+          >
+            <template #icon>
+              <IconifyIcon icon="lucide:list" class="size-4" />
+            </template>
+          </NButton>
+        </div>
+        <NButton type="primary" @click="openAddModal">
+          <template #icon>
+            <IconifyIcon icon="lucide:plus" class="size-4" />
+          </template>
+          新增下载
+        </NButton>
+      </div>
     </div>
 
     <div class="toolbar-row">
@@ -541,26 +567,6 @@ onUnmounted(() => {
               <IconifyIcon icon="lucide:trash-2" class="size-3.5" />
             </template>
             删除
-          </NButton>
-        </div>
-        <div class="view-actions">
-          <NButton
-            text
-            :type="viewMode === 'grid' ? 'primary' : 'default'"
-            @click="viewMode = 'grid'"
-          >
-            <template #icon>
-              <IconifyIcon icon="lucide:layout-grid" class="size-4" />
-            </template>
-          </NButton>
-          <NButton
-            text
-            :type="viewMode === 'list' ? 'primary' : 'default'"
-            @click="viewMode = 'list'"
-          >
-            <template #icon>
-              <IconifyIcon icon="lucide:list" class="size-4" />
-            </template>
           </NButton>
         </div>
       </div>
@@ -1008,9 +1014,17 @@ onUnmounted(() => {
 <style scoped>
 .header-row {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 0.75rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .page-title {
@@ -1032,8 +1046,15 @@ onUnmounted(() => {
 
 .view-actions {
   display: flex;
-  gap: 0.25rem;
+  gap: 0.5rem;
   align-items: center;
+}
+
+.view-actions :deep(.n-button) {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 10px;
 }
 
 .type-tab-group {
