@@ -884,17 +884,6 @@ onUnmounted(() => {
             }}</span>
           </NButton>
           <NButton
-            type="primary"
-            aria-label="新增订阅"
-            title="新增订阅"
-            @click="openAdd"
-          >
-            <template #icon>
-              <IconifyIcon icon="lucide:plus" class="size-4" />
-            </template>
-            <span class="subscription-action-label">新增订阅</span>
-          </NButton>
-          <NButton
             v-if="canEditDefault"
             aria-label="默认设置"
             title="默认设置"
@@ -904,6 +893,17 @@ onUnmounted(() => {
               <IconifyIcon icon="lucide:settings" class="size-4" />
             </template>
             <span class="subscription-action-label">默认设置</span>
+          </NButton>
+          <NButton
+            type="primary"
+            aria-label="新增订阅"
+            title="新增订阅"
+            @click="openAdd"
+          >
+            <template #icon>
+              <IconifyIcon icon="lucide:plus" class="size-4" />
+            </template>
+            <span class="subscription-action-label">新增订阅</span>
           </NButton>
         </div>
       </template>
