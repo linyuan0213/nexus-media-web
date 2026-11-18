@@ -140,8 +140,6 @@
 
   :is(
     .filter-scroll,
-    .discovery-filter .filter-row,
-    .discovery-filter .facet-group,
     .discovery-filter .year-list,
     .type-filter,
     .type-tabs,
@@ -161,8 +159,6 @@
 
   :is(
     .filter-scroll,
-    .discovery-filter .filter-row,
-    .discovery-filter .facet-group,
     .discovery-filter .year-list,
     .type-filter,
     .type-tabs,

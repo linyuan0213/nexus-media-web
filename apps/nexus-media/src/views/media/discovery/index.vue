@@ -828,7 +828,17 @@ onUnmounted(() => {
   <div class="p-4">
     <PageHeader :title="pageTitle" subtitle="按来源浏览榜单、季度新番与新剧">
       <template #actions>
-        <NButton :loading="loading" @click="loadItems(true)">刷新</NButton>
+        <NButton
+          aria-label="刷新"
+          title="刷新"
+          :loading="loading"
+          @click="loadItems(true)"
+        >
+          <template #icon>
+            <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
+          </template>
+          <span>刷新</span>
+        </NButton>
       </template>
     </PageHeader>
 
@@ -1256,7 +1266,9 @@ onUnmounted(() => {
   align-items: center;
   min-width: 0;
   max-width: 100%;
+  padding-inline-end: 0.75rem;
   overflow-x: auto;
+  scroll-padding-inline-end: 0.75rem;
   scrollbar-width: none;
 }
 
@@ -1336,18 +1348,15 @@ onUnmounted(() => {
   align-items: center;
   min-width: 0;
   max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.facet-group::-webkit-scrollbar {
-  display: none;
+  overflow: visible;
 }
 
 .facet {
   display: flex;
+  flex: 1;
   gap: 0.4rem;
   align-items: center;
+  min-width: 0;
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
 }

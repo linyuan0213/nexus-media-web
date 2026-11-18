@@ -1,10 +1,10 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { NButton, NSpin, NTab, NTabs } from 'naive-ui';
+import { NButton, NPagination, NSpin, NTab, NTabs } from 'naive-ui';
 
 import {
   deleteSubscriptionHistoryApi,
@@ -33,16 +33,21 @@ const notification = useAppNotification();
 const loading = ref(false);
 const deleteModalShow = ref(false);
 const deleteTarget = ref<any>(null);
+const currentPage = ref(1);
+const pageSize = 20;
+
+type HistoryType = 'all' | 'movie' | 'tv';
 
 type HistoryTab = {
   key: string;
   label: string;
   profile: string;
-  type: 'movie' | 'tv';
+  type: HistoryType;
 };
 
 const historyTabs = computed<HistoryTab[]>(() => {
   const tabs: HistoryTab[] = [
+    { key: 'all', label: '全部', profile: '', type: 'all' },
     { key: 'movie', label: '电影', profile: 'default', type: 'movie' },
     { key: 'tv', label: '电视剧', profile: 'default', type: 'tv' },
     {
@@ -69,13 +74,13 @@ const requestedTab = String(route.query.t || '').toLowerCase();
 const activeKey = ref(
   historyTabs.value.some((tab) => tab.key === requestedTab)
     ? requestedTab
-    : 'movie',
+    : 'all',
 );
 const FALLBACK_TAB: HistoryTab = {
-  key: 'movie',
-  label: '电影',
-  profile: 'default',
-  type: 'movie',
+  key: 'all',
+  label: '全部',
+  profile: '',
+  type: 'all',
 };
 const activeTab = computed<HistoryTab>(
   () =>
@@ -94,12 +99,14 @@ const backPath = computed(() => {
       return detailPath.replace(/\/detail\/?$/, '') || detailPath;
     }
   }
+  if (filterType.value === 'all') return '/subscription/movie';
   return filterType.value === 'tv' ? '/subscription/tv' : '/subscription/movie';
 });
 
 function handleTypeChange(value: string) {
   if (value === activeKey.value) return;
   activeKey.value = value;
+  currentPage.value = 1;
   fetchData();
 }
 
@@ -125,18 +132,56 @@ const historyList = computed(() => {
     start: (item.START ?? item.start ?? 0) as number,
     desc: (item.DESC ?? item.desc ?? '') as string,
     finishTime: (item.FINISH_TIME ?? item.date ?? '') as string,
-    type: (item.type ?? filterType.value) as 'movie' | 'tv',
+    type: (item._historyType ??
+      item.type ??
+      (filterType.value === 'all' ? 'movie' : filterType.value)) as
+      | 'movie'
+      | 'tv',
+    profile: (item._historyProfile ?? filterProfile.value) as string,
   }));
+});
+
+const pageCount = computed(() =>
+  Math.max(1, Math.ceil(historyList.value.length / pageSize)),
+);
+const pagedHistory = computed(() => {
+  const start = (currentPage.value - 1) * pageSize;
+  return historyList.value.slice(start, start + pageSize);
 });
 
 async function fetchData() {
   loading.value = true;
   try {
-    const res = await getSubscriptionHistoryApi(
-      filterType.value,
-      filterProfile.value,
-    );
-    subscriptionStore.setSubscriptionHistory(res);
+    if (filterType.value === 'all') {
+      const tabs = historyTabs.value.filter((tab) => tab.key !== 'all');
+      const chunks = await Promise.all(
+        tabs.map(async (tab) => {
+          const items = await getSubscriptionHistoryApi(
+            tab.type as 'movie' | 'tv',
+            tab.profile,
+          );
+          return (items || []).map((item: any) => ({
+            ...item,
+            _historyType: tab.type,
+            _historyProfile: tab.profile,
+          }));
+        }),
+      );
+      const seen = new Set<string>();
+      const merged = chunks.flat().filter((item: any) => {
+        const key = String(item.id ?? item.ID ?? '');
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      subscriptionStore.setSubscriptionHistory(merged);
+    } else {
+      const res = await getSubscriptionHistoryApi(
+        filterType.value as 'movie' | 'tv',
+        filterProfile.value,
+      );
+      subscriptionStore.setSubscriptionHistory(res);
+    }
   } finally {
     loading.value = false;
   }
@@ -146,8 +191,8 @@ async function handleReRss(item: any) {
   try {
     await redoSubscriptionHistoryApi(
       item.id,
-      filterType.value,
-      filterProfile.value,
+      item.type === 'tv' ? 'tv' : 'movie',
+      item.profile || filterProfile.value,
     );
     notification.success('重新订阅成功');
     await fetchData();
@@ -174,6 +219,14 @@ async function confirmDelete() {
     deleteTarget.value = null;
   }
 }
+
+watch(
+  () => historyList.value.length,
+  () => {
+    if (currentPage.value > pageCount.value)
+      currentPage.value = pageCount.value;
+  },
+);
 
 onMounted(fetchData);
 </script>
@@ -208,11 +261,20 @@ onMounted(fetchData);
         </div>
         <div class="history-list">
           <HistoryCard
-            v-for="item in historyList"
+            v-for="item in pagedHistory"
             :key="item.id"
             :item="item"
             @re-rss="handleReRss"
             @delete="handleDelete"
+          />
+        </div>
+        <div v-if="historyList.length > pageSize" class="history-pagination">
+          <NPagination
+            v-model:page="currentPage"
+            :page-count="pageCount"
+            :page-size="pageSize"
+            :page-slot="5"
+            size="small"
           />
         </div>
       </div>
@@ -255,6 +317,12 @@ onMounted(fetchData);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.history-pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
 }
 
 @media (max-width: 640px) {
