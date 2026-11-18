@@ -368,7 +368,7 @@ onMounted(() => fetchData(1));
               @click="handleReIdentify"
             >
               <template #icon>
-                <IconifyIcon icon="lucide:activity" class="size-4" />
+                <IconifyIcon icon="lucide:scan-search" class="size-4" />
               </template>
               重新识别
             </NButton>
