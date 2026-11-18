@@ -253,7 +253,7 @@ onMounted(() => {
                 v-if="item.poster_path"
                 :src="getPosterUrl(item.poster_path)"
                 class="blacklist-poster"
-                onerror="this.src = '/static/img/no-image.png';"
+                onerror="this.src = '/static/img/no-image.png'"
               />
               <div
                 v-else

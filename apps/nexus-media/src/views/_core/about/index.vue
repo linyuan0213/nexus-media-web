@@ -81,7 +81,7 @@ onMounted(fetchSystemInfo);
               :src="logoUrl"
               alt="Nexus Media"
               class="size-16 shrink-0 rounded-xl object-contain"
-              onerror="this.style.display = 'none';"
+              onerror="this.style.display = 'none'"
             />
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-3 flex-wrap">
