@@ -43,6 +43,20 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="%VITE_APP_TITLE%" />
     <meta name="theme-color" content="#1c1e22" />
+    <script>
+      try {
+        const theme = new URLSearchParams(window.location.search).get('theme');
+        if (theme === 'glass' || theme === 'tabler') {
+          localStorage.setItem('nexus-theme-style', theme);
+          document.documentElement.classList.toggle(
+            'theme-glass',
+            theme === 'glass',
+          );
+        } else if (localStorage.getItem('nexus-theme-style') === 'glass') {
+          document.documentElement.classList.add('theme-glass');
+        }
+      } catch {}
+    </script>
   </head>
   <body>
     <div id="app"></div>

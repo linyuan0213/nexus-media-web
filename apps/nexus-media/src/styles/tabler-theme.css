@@ -4,29 +4,30 @@
  */
 
 :root {
-  /* 主色 */
-  --tblr-primary: #206bc4;
-  --tblr-primary-rgb: 32, 107, 196;
-  --tblr-primary-light: rgb(32 107 196 / 10%);
+  /* 语义色：跟随 Vben 内置主题与自定义主题色 */
+  --tblr-primary: hsl(var(--primary));
+  --tblr-primary-light: hsl(var(--primary) / 10%);
+  --tblr-success: hsl(var(--success));
+  --tblr-danger: hsl(var(--destructive));
+  --tblr-warning: hsl(var(--warning));
+  --tblr-info: color-mix(in srgb, #4299e1 70%, hsl(var(--primary)));
 
-  /* 状态色 */
-  --tblr-success: #2fb344;
-  --tblr-danger: #d63939;
-  --tblr-warning: #f76707;
-  --tblr-info: #4299e1;
-  --tblr-cyan: #17a2b8;
-  --tblr-teal: #0ca678;
-  --tblr-lime: #74b816;
-  --tblr-orange: #f76707;
-  --tblr-purple: #ae3ec9;
-  --tblr-pink: #d6336c;
+  /* 强调色：保留分类辨识，同时混入主题色，随主题切换产生色相变化 */
+  --tblr-cyan: color-mix(in srgb, #17a2b8 72%, hsl(var(--primary)));
+  --tblr-teal: color-mix(in srgb, #0ca678 72%, hsl(var(--primary)));
+  --tblr-lime: color-mix(in srgb, #74b816 72%, hsl(var(--primary)));
+  --tblr-orange: color-mix(in srgb, #f76707 72%, hsl(var(--warning)));
+  --tblr-purple: color-mix(in srgb, #ae3ec9 72%, hsl(var(--primary)));
+  --tblr-pink: color-mix(in srgb, #d6336c 72%, hsl(var(--destructive)));
+  --tblr-indigo: color-mix(in srgb, #4263eb 72%, hsl(var(--primary)));
+  --tblr-yellow: color-mix(in srgb, #f59f00 72%, hsl(var(--warning)));
 
-  /* 资源标签 - 更鲜明的语义色 */
+  /* 资源标签：语义标签跟随主题，其余编码/格式标签保持稳定辨识 */
   --tag-dolby: 270 60% 55%;
-  --tag-hdr: 45 90% 50%;
-  --tag-lang: 150 60% 42%;
-  --tag-danger: 0 78% 54%;
-  --tag-primary: 215 90% 48%;
+  --tag-hdr: var(--warning);
+  --tag-lang: var(--success);
+  --tag-danger: var(--destructive);
+  --tag-primary: var(--primary);
   --tag-quality: 195 75% 45%;
   --tag-audio: 245 65% 55%;
   --tag-source: 210 14% 42%;
@@ -137,7 +138,7 @@
 .progress-bar-tblr {
   height: 0.375rem;
   overflow: hidden;
-  background-color: rgb(32 107 196 / 10%);
+  background-color: hsl(var(--primary) / 10%);
   border-radius: 9999px;
 }
 
@@ -174,5 +175,184 @@
 }
 
 .status-dot--default {
-  background-color: #9ca3af;
+  background-color: hsl(var(--muted-foreground));
+}
+
+/* 海报角标：深色玻璃胶囊，避免纯色块压住海报 */
+.media-card-badge {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-items: center;
+  padding: 0.15rem 0.4rem;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #fff;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 45%);
+  background: rgb(0 0 0 / 48%);
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 6px;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 14%),
+    0 4px 12px -4px rgb(0 0 0 / 35%);
+  backdrop-filter: blur(6px) saturate(115%);
+}
+
+.media-card-rating {
+  font-variant-numeric: tabular-nums;
+}
+
+.media-card-badge-icon {
+  width: 10px;
+  height: 10px;
+  color: hsl(var(--warning));
+  fill: currentcolor;
+}
+
+/* 暗色下提亮分类色，避免图表和标签发灰 */
+.dark {
+  --tblr-primary-light: hsl(var(--primary) / 18%);
+  --tblr-info: color-mix(in srgb, #74c0fc 70%, hsl(var(--primary)));
+  --tblr-cyan: color-mix(in srgb, #3bc9db 72%, hsl(var(--primary)));
+  --tblr-teal: color-mix(in srgb, #20c997 72%, hsl(var(--primary)));
+  --tblr-lime: color-mix(in srgb, #a9e34b 72%, hsl(var(--primary)));
+  --tblr-orange: color-mix(in srgb, #ff922b 72%, hsl(var(--warning)));
+  --tblr-purple: color-mix(in srgb, #cc5de8 72%, hsl(var(--primary)));
+  --tblr-pink: color-mix(in srgb, #f06595 72%, hsl(var(--destructive)));
+  --tblr-indigo: color-mix(in srgb, #748ffc 72%, hsl(var(--primary)));
+  --tblr-yellow: color-mix(in srgb, #ffd43b 72%, hsl(var(--warning)));
+  --tag-dolby: 270 70% 68%;
+  --tag-quality: 195 80% 60%;
+  --tag-audio: 245 75% 72%;
+  --tag-source: 210 12% 65%;
+  --tag-edition: 28 85% 60%;
+  --tag-default: 215 14% 65%;
+}
+
+/* 卡片底部统一操作按钮 */
+.card-action-bar {
+  gap: 0.5rem !important;
+}
+
+.card-action {
+  width: 2rem;
+  height: 2rem;
+  background: hsl(var(--muted) / 55%) !important;
+  border: 1px solid hsl(var(--border) / 55%);
+  border-radius: 0.5rem;
+}
+
+.card-action:hover {
+  color: hsl(var(--primary)) !important;
+  background: hsl(var(--primary) / 12%) !important;
+  border-color: hsl(var(--primary) / 28%);
+}
+
+.card-action--danger:hover {
+  color: hsl(var(--destructive)) !important;
+  background: hsl(var(--destructive) / 12%) !important;
+  border-color: hsl(var(--destructive) / 28%);
+}
+
+/* 卡片/列表操作组：统一按钮尺寸和间距 */
+:is(
+  .filter-group-actions,
+  .rule-actions,
+  .instance-actions,
+  .site-actions,
+  .card-actions,
+  .group-actions,
+  .word-actions
+) {
+  gap: 0.5rem !important;
+}
+
+:is(
+    .filter-group-actions,
+    .rule-actions,
+    .instance-actions,
+    .site-actions,
+    .card-actions,
+    .group-actions,
+    .word-actions
+  )
+  .n-button {
+  width: 1.875rem;
+  height: 1.875rem;
+  background: hsl(var(--muted) / 55%) !important;
+  border: 1px solid hsl(var(--border) / 55%);
+  border-radius: 0.45rem;
+}
+
+:is(
+    .filter-group-actions,
+    .rule-actions,
+    .instance-actions,
+    .site-actions,
+    .card-actions,
+    .group-actions,
+    .word-actions
+  )
+  .n-button:hover {
+  background: hsl(var(--primary) / 12%) !important;
+  border-color: hsl(var(--primary) / 28%);
+}
+
+:is(
+    .filter-group-actions,
+    .rule-actions,
+    .instance-actions,
+    .site-actions,
+    .card-actions,
+    .group-actions,
+    .word-actions
+  )
+  .n-button.n-button--error-type:hover {
+  background: hsl(var(--destructive) / 12%) !important;
+  border-color: hsl(var(--destructive) / 28%);
+}
+
+/* 个人中心内容卡：独立滚动，避免长列表溢出卡片 */
+.profile-content-card {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.path-row {
+  background-color: hsl(var(--accent));
+  border: 1px solid hsl(var(--border));
+}
+
+.path-row:hover {
+  background-color: hsl(var(--muted));
+  border-color: hsl(var(--border));
+}
+
+/* 消息中心会话侧栏：普通主题也使用独立卡片，而不是贴边深色块 */
+.desktop-sidebar {
+  padding: 0.75rem 0 0.75rem 0.75rem;
+}
+
+.session-sidebar {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 hsl(var(--card-foreground) / 4%);
+}
+
+/* 消息中心输入栏：与侧栏卡片同一套浮动圆角 */
+.composer-bar {
+  margin: 0.75rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 16px;
+  box-shadow:
+    inset 0 1px 0 hsl(var(--card-foreground) / 4%),
+    0 12px 28px -24px hsl(var(--foreground) / 18%);
+}
+
+/* 消息中心顶部栏为全宽栏，不使用卡片圆角 */
+.chat-header {
+  border-radius: 0 !important;
 }

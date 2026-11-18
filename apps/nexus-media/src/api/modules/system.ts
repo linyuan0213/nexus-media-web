@@ -5,6 +5,19 @@
 import { requestClient } from '#/api/request';
 
 export namespace SystemApi {
+  export type AppearanceDevice = 'desktop' | 'mobile';
+
+  export interface AppearanceBackgroundSlot {
+    source: 'upload' | 'url' | null;
+    updated_at: null | string;
+    url: null | string;
+  }
+
+  export interface AppearanceBackground {
+    desktop: AppearanceBackgroundSlot;
+    mobile: AppearanceBackgroundSlot;
+  }
+
   export interface SystemInfo {
     version: string;
     python_version: string;
@@ -72,6 +85,50 @@ export namespace SystemApi {
       tv?: Record<string, boolean>;
     };
   }
+}
+
+export async function getAppBackgroundApi() {
+  return requestClient.get<SystemApi.AppearanceBackground>(
+    '/system/appearance/background',
+  );
+}
+
+export async function saveAppBackgroundApi(
+  url: string,
+  device: SystemApi.AppearanceDevice = 'desktop',
+) {
+  return requestClient.post<SystemApi.AppearanceBackground>(
+    '/system/appearance/background',
+    { device, url },
+  );
+}
+
+export async function uploadAppBackgroundApi(
+  file: File,
+  device: SystemApi.AppearanceDevice = 'desktop',
+  onProgress?: (percentage: number) => void,
+) {
+  return requestClient.upload<SystemApi.AppearanceBackground>(
+    '/system/appearance/background/upload',
+    { device, file },
+    {
+      onUploadProgress: (event: any) => {
+        if (!onProgress) return;
+        const total = event.total || file.size;
+        onProgress(Math.min(100, Math.round((event.loaded / total) * 100)));
+      },
+      timeout: 120_000,
+    },
+  );
+}
+
+export async function clearAppBackgroundApi(
+  device: SystemApi.AppearanceDevice = 'desktop',
+) {
+  return requestClient.delete<SystemApi.AppearanceBackground>(
+    '/system/appearance/background',
+    { params: { device } },
+  );
 }
 
 /** 获取系统基本信息 */
