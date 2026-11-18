@@ -93,13 +93,15 @@ export const useAuthStore = defineStore('auth', () => {
     resetAllStores();
     accessStore.setLoginExpired(false);
 
+    const currentRoute = router.currentRoute.value;
+    const alreadyOnLogin = currentRoute.path === LOGIN_PATH;
+
     await router.replace({
       path: LOGIN_PATH,
-      query: redirect
-        ? {
-            redirect: encodeURIComponent(router.currentRoute.value.fullPath),
-          }
-        : {},
+      query:
+        redirect && !alreadyOnLogin
+          ? { redirect: encodeURIComponent(currentRoute.fullPath) }
+          : {},
     });
   }
 
