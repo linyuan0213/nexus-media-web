@@ -343,15 +343,14 @@ onMounted(() => fetchData(1));
             class="unknown-search"
             clearable
             @keyup.enter="handleSearch"
-          />
+          >
+            <template #prefix>
+              <IconifyIcon icon="lucide:search" class="size-4" />
+            </template>
+          </NInput>
           <div class="unknown-action-buttons">
-            <NButton aria-label="搜索" title="搜索" @click="handleSearch">
-              <template #icon>
-                <IconifyIcon icon="lucide:search" class="size-4" />
-              </template>
-              <span class="unknown-action-label">搜索</span>
-            </NButton>
             <NButton
+              class="unknown-refresh"
               aria-label="刷新"
               title="刷新"
               @click="fetchData(currentPage)"
@@ -359,10 +358,10 @@ onMounted(() => fetchData(1));
               <template #icon>
                 <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
               </template>
-              <span class="unknown-action-label">刷新</span>
+              刷新
             </NButton>
             <NButton
-              type="primary"
+              class="unknown-primary"
               aria-label="重新识别"
               title="重新识别"
               :loading="reIdentifyLoading"
@@ -371,7 +370,7 @@ onMounted(() => fetchData(1));
               <template #icon>
                 <IconifyIcon icon="lucide:activity" class="size-4" />
               </template>
-              <span class="unknown-action-label">重新识别</span>
+              重新识别
             </NButton>
           </div>
         </div>
@@ -808,7 +807,7 @@ onMounted(() => fetchData(1));
 
 .unknown-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.5rem;
   align-items: center;
   justify-content: flex-end;
@@ -816,71 +815,70 @@ onMounted(() => fetchData(1));
 }
 
 .unknown-search {
-  flex: 1 1 200px;
+  flex: 1 1 180px;
   min-width: 0;
   max-width: 320px;
+  height: 36px;
+  background: hsl(var(--glass-surface) / 42%) !important;
+  border-radius: 10px !important;
+  backdrop-filter: blur(14px) saturate(125%);
+}
+
+.unknown-search :deep(.n-input__border),
+.unknown-search :deep(.n-input__state-border) {
+  display: none;
 }
 
 .unknown-action-buttons {
   display: flex;
-  flex-wrap: wrap;
+  flex-shrink: 0;
   gap: 0.5rem;
+}
+
+.unknown-action-buttons :deep(.n-button) {
+  height: 36px;
+  padding-inline: 0.8rem;
+  font-size: 0.8rem;
+  color: hsl(var(--foreground) / 82%);
+  background: transparent !important;
+  border: 1px solid hsl(var(--glass-card-border) / 42%) !important;
+  border-radius: 10px;
+}
+
+.unknown-action-buttons :deep(.unknown-refresh:hover) {
+  color: hsl(var(--foreground));
+  background: hsl(var(--primary) / 8%) !important;
+  border-color: hsl(var(--primary) / 28%) !important;
+}
+
+.unknown-action-buttons :deep(.unknown-primary) {
+  color: hsl(var(--primary)) !important;
+  background: hsl(var(--primary) / 12%) !important;
+  border-color: hsl(var(--primary) / 30%) !important;
+}
+
+.unknown-action-buttons :deep(.unknown-primary:hover) {
+  background: hsl(var(--primary) / 18%) !important;
+  border-color: hsl(var(--primary) / 44%) !important;
 }
 
 @media (max-width: 640px) {
   .unknown-actions {
-    flex-wrap: nowrap;
-    gap: 0.125rem;
-    padding: 0.25rem;
-    background: hsl(var(--glass-surface) / 52%);
-    border: 1px solid hsl(var(--glass-card-border) / 34%);
-    border-radius: 12px;
-    box-shadow:
-      inset 0 1px 0 hsl(var(--glass-highlight) / 55%),
-      0 8px 22px -18px hsl(var(--glass-shadow-color) / 35%);
-    backdrop-filter: blur(16px) saturate(125%);
+    gap: 0.375rem;
   }
 
   .unknown-search {
     flex: 1 1 auto;
     max-width: none;
-    background: transparent !important;
-  }
-
-  .unknown-search :deep(.n-input__border),
-  .unknown-search :deep(.n-input__state-border) {
-    display: none;
   }
 
   .unknown-action-buttons {
-    flex-wrap: nowrap;
-    gap: 0.125rem;
-    padding-left: 0.125rem;
-    border-left: 1px solid hsl(var(--glass-card-border) / 25%);
+    gap: 0.375rem;
   }
 
   .unknown-action-buttons :deep(.n-button) {
-    width: 2rem;
-    height: 2rem;
-    padding-inline: 0;
-    color: hsl(var(--foreground) / 78%);
-    background: transparent !important;
-    border: 0 !important;
-    border-radius: 8px;
-  }
-
-  .unknown-action-buttons :deep(.n-button:hover) {
-    color: hsl(var(--primary));
-    background: hsl(var(--primary) / 10%) !important;
-  }
-
-  .unknown-action-buttons :deep(.n-button.n-button--primary-type) {
-    color: hsl(var(--primary-foreground)) !important;
-    background: hsl(var(--primary)) !important;
-  }
-
-  .unknown-action-label {
-    display: none;
+    padding-inline: 0.55rem;
+    font-size: 0.75rem;
   }
 }
 </style>
