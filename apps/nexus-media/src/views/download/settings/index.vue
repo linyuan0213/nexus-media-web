@@ -385,7 +385,7 @@ onMounted(fetchData);
 
           <!-- 底部操作 -->
           <div
-            class="flex items-center justify-end gap-2 px-5 py-3 border-t"
+            class="card-action-bar flex items-center justify-end gap-2 px-5 py-3 border-t"
             style="border-color: hsl(var(--border))"
           >
             <NTooltip v-if="Number(item.id) >= 0">

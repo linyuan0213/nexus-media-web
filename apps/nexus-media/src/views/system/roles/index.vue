@@ -384,12 +384,17 @@ onMounted(() => {
 
           <!-- 底部操作 -->
           <div
-            class="flex items-center justify-end gap-2 px-5 py-3 border-t"
+            class="card-action-bar flex items-center justify-end gap-2 px-5 py-3 border-t"
             style="border-color: hsl(var(--border))"
           >
             <NTooltip v-if="canAssignSites">
               <template #trigger>
-                <NButton text size="small" @click="openGrantDrawer(item)">
+                <NButton
+                  quaternary
+                  size="small"
+                  class="card-action"
+                  @click="openGrantDrawer(item)"
+                >
                   <template #icon>
                     <IconifyIcon icon="lucide:shield-check" class="size-4" />
                   </template>
@@ -399,7 +404,12 @@ onMounted(() => {
             </NTooltip>
             <NTooltip>
               <template #trigger>
-                <NButton text size="small" @click="handleEdit(item)">
+                <NButton
+                  quaternary
+                  size="small"
+                  class="card-action"
+                  @click="handleEdit(item)"
+                >
                   <template #icon>
                     <IconifyIcon icon="lucide:pencil" class="size-4" />
                   </template>
@@ -410,9 +420,10 @@ onMounted(() => {
             <NTooltip>
               <template #trigger>
                 <NButton
-                  text
+                  quaternary
                   size="small"
                   type="error"
+                  class="card-action card-action--danger"
                   :disabled="item.role_code === 'superadmin'"
                   @click="confirmDelete(item)"
                 >

@@ -23,6 +23,7 @@ import {
   NSpace,
   NSpin,
   NSwitch,
+  NTooltip,
   NTree,
 } from 'naive-ui';
 
@@ -500,35 +501,56 @@ onMounted(fetchData);
                   </code>
                 </div>
               </div>
-              <NSpace>
-                <NButton size="small" @click="handleEdit(selectedMenu)">
-                  <template #icon>
-                    <IconifyIcon icon="lucide:pencil" class="size-3.5" />
+              <div class="card-action-bar flex items-center justify-end">
+                <NTooltip>
+                  <template #trigger>
+                    <NButton
+                      quaternary
+                      size="small"
+                      class="card-action"
+                      aria-label="编辑菜单"
+                      @click="handleEdit(selectedMenu)"
+                    >
+                      <template #icon>
+                        <IconifyIcon icon="lucide:pencil" class="size-4" />
+                      </template>
+                    </NButton>
                   </template>
                   编辑
-                </NButton>
-                <NButton
-                  v-if="!selectedMenu.parent_id"
-                  size="small"
-                  secondary
-                  @click="handleAdd(selectedMenu.id)"
-                >
-                  <template #icon>
-                    <IconifyIcon icon="lucide:plus" class="size-3.5" />
+                </NTooltip>
+                <NTooltip v-if="!selectedMenu.parent_id">
+                  <template #trigger>
+                    <NButton
+                      quaternary
+                      size="small"
+                      class="card-action"
+                      aria-label="新增子项"
+                      @click="handleAdd(selectedMenu.id)"
+                    >
+                      <template #icon>
+                        <IconifyIcon icon="lucide:plus" class="size-4" />
+                      </template>
+                    </NButton>
                   </template>
-                  子项
-                </NButton>
+                  新增子项
+                </NTooltip>
                 <NPopconfirm @positive-click="handleDelete(selectedMenu.id)">
                   <template #trigger>
-                    <NButton size="small" type="error" ghost>
+                    <NButton
+                      quaternary
+                      size="small"
+                      type="error"
+                      class="card-action card-action--danger"
+                      aria-label="删除菜单"
+                    >
                       <template #icon>
-                        <IconifyIcon icon="lucide:trash-2" class="size-3.5" />
+                        <IconifyIcon icon="lucide:trash-2" class="size-4" />
                       </template>
                     </NButton>
                   </template>
                   确定删除「{{ selectedMenu.menu_name }}」吗？
                 </NPopconfirm>
-              </NSpace>
+              </div>
             </div>
 
             <!-- 详情内容 -->

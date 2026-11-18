@@ -303,123 +303,132 @@ onMounted(ensureOutsideListener);
     </div>
 
     <!-- 订阅者面板（桌面 hover / 移动端浮窗） -->
-    <div class="sgc-panel" :class="{ 'sgc-panel--popup': isPopup }">
-      <div class="sgc-panel-body">
-        <h3 class="sgc-title" :title="name">{{ name }}</h3>
-        <div class="sgc-meta">
-          <span v-if="year">{{ year }}</span>
-          <span class="sgc-dot-sep">·</span>
-          <span>{{ typeText }}</span>
-          <template v-if="sourceText">
+    <Teleport to="body" :disabled="!isPopup">
+      <div class="sgc-panel" :class="{ 'sgc-panel--popup': isPopup }">
+        <div class="sgc-panel-body">
+          <h3 class="sgc-title" :title="name">{{ name }}</h3>
+          <div class="sgc-meta">
+            <span v-if="year">{{ year }}</span>
             <span class="sgc-dot-sep">·</span>
-            <span>{{ sourceText }}</span>
-          </template>
-          <template v-if="seasonLabel">
-            <span class="sgc-dot-sep">·</span>
-            <span>{{ seasonLabel }}</span>
-          </template>
-        </div>
-
-        <div class="sgc-section-label">订阅用户（{{ subscriberCount }}）</div>
-        <div class="sgc-sub-rows">
-          <div v-for="item in visibleItems" :key="item.id" class="sgc-sub-row">
-            <div class="sgc-sub-user">
-              <span
-                class="sgc-avatar sgc-avatar--row"
-                :style="{ '--avatar-hue': avatarHue(item) }"
-              >
-                {{ initialOf(item) }}
-              </span>
-              <div class="sgc-sub-user-text">
-                <span class="sgc-username" :title="usernameOf(item)">
-                  {{ usernameOf(item) }}
-                </span>
-                <span
-                  v-if="props.type !== 'movie' && item.season"
-                  class="sgc-season"
-                >
-                  {{ item.season }}
-                </span>
-                <span class="sgc-sub-state">
-                  <span
-                    class="inline-block w-1.5 h-1.5 rounded-full"
-                    :class="stateMeta(item).dot"
-                  ></span>
-                  {{ stateMeta(item).label }}
-                  <template v-if="itemProgress(item)">
-                    · {{ itemProgress(item)!.text }}
-                  </template>
-                </span>
-              </div>
-            </div>
-
-            <div class="sgc-sub-right">
-              <div v-if="itemQuality(item).length > 0" class="sgc-sub-tags">
-                <span
-                  v-for="tag in itemQuality(item)"
-                  :key="tag"
-                  class="sgc-tag"
-                >
-                  {{ tag }}
-                </span>
-              </div>
-              <div class="sgc-sub-actions">
-                <button
-                  type="button"
-                  class="sgc-icon-btn"
-                  title="搜索资源"
-                  @click.stop="emit('search', item)"
-                >
-                  <IconifyIcon icon="lucide:search" class="sgc-btn-icon" />
-                </button>
-                <button
-                  type="button"
-                  class="sgc-icon-btn"
-                  title="编辑"
-                  @click.stop="emit('edit', item)"
-                >
-                  <IconifyIcon icon="lucide:pencil" class="sgc-btn-icon" />
-                </button>
-                <button
-                  type="button"
-                  class="sgc-icon-btn"
-                  title="刷新"
-                  @click.stop="emit('refresh', item)"
-                >
-                  <IconifyIcon icon="lucide:refresh-cw" class="sgc-btn-icon" />
-                </button>
-                <button
-                  type="button"
-                  class="sgc-icon-btn sgc-icon-btn-danger"
-                  title="取消该用户订阅"
-                  @click.stop="emit('delete', item)"
-                >
-                  <IconifyIcon icon="lucide:trash-2" class="sgc-btn-icon" />
-                </button>
-              </div>
-            </div>
-
-            <div
-              v-if="itemProgress(item)"
-              class="sgc-progress-track sgc-sub-progress-bar"
-            >
-              <div
-                class="sgc-progress-fill"
-                :style="{ width: `${itemProgress(item)!.percent}%` }"
-              ></div>
-            </div>
+            <span>{{ typeText }}</span>
+            <template v-if="sourceText">
+              <span class="sgc-dot-sep">·</span>
+              <span>{{ sourceText }}</span>
+            </template>
+            <template v-if="seasonLabel">
+              <span class="sgc-dot-sep">·</span>
+              <span>{{ seasonLabel }}</span>
+            </template>
           </div>
-          <button
-            v-if="rowOverflow > 0 || rowsExpanded"
-            type="button"
-            class="sgc-rows-toggle"
-            @click.stop="rowsExpanded = !rowsExpanded"
-          >
-            {{ rowsExpanded ? '收起' : `展开其余 ${rowOverflow} 人` }}
-          </button>
+
+          <div class="sgc-section-label">订阅用户（{{ subscriberCount }}）</div>
+          <div class="sgc-sub-rows">
+            <div
+              v-for="item in visibleItems"
+              :key="item.id"
+              class="sgc-sub-row"
+            >
+              <div class="sgc-sub-user">
+                <span
+                  class="sgc-avatar sgc-avatar--row"
+                  :style="{ '--avatar-hue': avatarHue(item) }"
+                >
+                  {{ initialOf(item) }}
+                </span>
+                <div class="sgc-sub-user-text">
+                  <span class="sgc-username" :title="usernameOf(item)">
+                    {{ usernameOf(item) }}
+                  </span>
+                  <span
+                    v-if="props.type !== 'movie' && item.season"
+                    class="sgc-season"
+                  >
+                    {{ item.season }}
+                  </span>
+                  <span class="sgc-sub-state">
+                    <span
+                      class="inline-block w-1.5 h-1.5 rounded-full"
+                      :class="stateMeta(item).dot"
+                    ></span>
+                    {{ stateMeta(item).label }}
+                    <template v-if="itemProgress(item)">
+                      · {{ itemProgress(item)!.text }}
+                    </template>
+                  </span>
+                </div>
+              </div>
+
+              <div class="sgc-sub-right">
+                <div v-if="itemQuality(item).length > 0" class="sgc-sub-tags">
+                  <span
+                    v-for="tag in itemQuality(item)"
+                    :key="tag"
+                    class="sgc-tag"
+                  >
+                    {{ tag }}
+                  </span>
+                </div>
+                <div class="sgc-sub-actions">
+                  <button
+                    type="button"
+                    class="sgc-icon-btn"
+                    title="搜索资源"
+                    @click.stop="emit('search', item)"
+                  >
+                    <IconifyIcon icon="lucide:search" class="sgc-btn-icon" />
+                  </button>
+                  <button
+                    type="button"
+                    class="sgc-icon-btn"
+                    title="编辑"
+                    @click.stop="emit('edit', item)"
+                  >
+                    <IconifyIcon icon="lucide:pencil" class="sgc-btn-icon" />
+                  </button>
+                  <button
+                    type="button"
+                    class="sgc-icon-btn"
+                    title="刷新"
+                    @click.stop="emit('refresh', item)"
+                  >
+                    <IconifyIcon
+                      icon="lucide:refresh-cw"
+                      class="sgc-btn-icon"
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    class="sgc-icon-btn sgc-icon-btn-danger"
+                    title="取消该用户订阅"
+                    @click.stop="emit('delete', item)"
+                  >
+                    <IconifyIcon icon="lucide:trash-2" class="sgc-btn-icon" />
+                  </button>
+                </div>
+              </div>
+
+              <div
+                v-if="itemProgress(item)"
+                class="sgc-progress-track sgc-sub-progress-bar"
+              >
+                <div
+                  class="sgc-progress-fill"
+                  :style="{ width: `${itemProgress(item)!.percent}%` }"
+                ></div>
+              </div>
+            </div>
+            <button
+              v-if="rowOverflow > 0 || rowsExpanded"
+              type="button"
+              class="sgc-rows-toggle"
+              @click.stop="rowsExpanded = !rowsExpanded"
+            >
+              {{ rowsExpanded ? '收起' : `展开其余 ${rowOverflow} 人` }}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
