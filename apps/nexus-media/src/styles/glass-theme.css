@@ -2050,9 +2050,14 @@ html.theme-glass .n-tabs.n-tabs--segment-type .n-tabs-tab:hover {
 
 /* 插件日志抽屉：日志条目与抽屉统一玻璃 */
 html.theme-glass .plugin-log-item {
-  background: hsl(var(--glass-surface) / 52%) !important;
-  border-color: hsl(var(--glass-card-border) / 30%) !important;
-  backdrop-filter: blur(14px) saturate(125%);
+  background: hsl(var(--glass-surface) / 74%) !important;
+  border-color: hsl(var(--glass-card-border) / 42%) !important;
+  box-shadow: inset 0 1px 0 hsl(var(--glass-highlight) / 40%);
+  backdrop-filter: blur(16px) saturate(125%);
+}
+
+html.theme-glass .plugin-log-item .text-muted-foreground {
+  color: hsl(var(--foreground) / 68%) !important;
 }
 
 /* 插件优先设置页：运行时注入的 pm-priority-* 表面 */

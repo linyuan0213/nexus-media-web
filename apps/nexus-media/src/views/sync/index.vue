@@ -419,14 +419,14 @@ onMounted(fetch);
                 {{ modeLabel(item.operation) }}
               </span>
               <div
-                class="flex items-center gap-1 flex-shrink-0 ml-auto opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity"
+                class="card-action-bar flex items-center flex-shrink-0 ml-auto opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity"
               >
                 <NTooltip>
                   <template #trigger>
                     <NButton
                       size="small"
                       quaternary
-                      circle
+                      class="card-action"
                       aria-label="立即同步"
                       @click="handleRun(item)"
                     >
@@ -442,7 +442,7 @@ onMounted(fetch);
                     <NButton
                       size="small"
                       quaternary
-                      circle
+                      class="card-action"
                       aria-label="编辑"
                       @click="openEdit(item)"
                     >
@@ -460,6 +460,7 @@ onMounted(fetch);
                       quaternary
                       circle
                       type="error"
+                      class="card-action"
                       aria-label="删除"
                       @click="handleDelete(item)"
                     >

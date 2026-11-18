@@ -114,7 +114,7 @@ watch(
           <div
             v-for="log in logs"
             :key="log.id"
-            class="rounded border p-3 dark:border-border"
+            class="plugin-log-item rounded border p-3 dark:border-border"
           >
             <div class="flex items-center gap-2">
               <span

@@ -426,7 +426,7 @@ onMounted(fetchData);
               </div>
             </div>
 
-            <div class="flex items-center gap-1 flex-shrink-0">
+            <div class="group-actions flex items-center flex-shrink-0">
               <NTooltip>
                 <template #trigger>
                   <NButton text size="tiny" @click.stop="startAdd(group)">
@@ -590,7 +590,7 @@ onMounted(fetchData);
                       @update:value="() => handleToggleWord(word)"
                     />
                   </div>
-                  <div class="flex items-center justify-center gap-1">
+                  <div class="word-actions flex items-center justify-center">
                     <NTooltip>
                       <template #trigger>
                         <NButton text size="tiny" @click="startEdit(word)">
@@ -683,7 +683,7 @@ onMounted(fetchData);
                       :unchecked-value="0"
                     />
                   </div>
-                  <div class="flex items-center justify-center gap-1">
+                  <div class="word-actions flex items-center justify-center">
                     <NButton
                       text
                       size="tiny"
@@ -763,7 +763,7 @@ onMounted(fetchData);
                     :unchecked-value="0"
                   />
                 </div>
-                <div class="flex items-center justify-center gap-1">
+                <div class="word-actions flex items-center justify-center">
                   <NButton
                     text
                     size="tiny"
