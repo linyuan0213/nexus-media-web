@@ -504,11 +504,17 @@ onUnmounted(() => {
             </template>
           </NButton>
         </div>
-        <NButton type="primary" @click="openAddModal">
+        <NButton
+          type="primary"
+          class="downloading-add"
+          aria-label="新增下载"
+          title="新增下载"
+          @click="openAddModal"
+        >
           <template #icon>
             <IconifyIcon icon="lucide:plus" class="size-4" />
           </template>
-          新增下载
+          <span class="downloading-add-label">新增下载</span>
         </NButton>
       </div>
     </div>
@@ -1025,6 +1031,54 @@ onUnmounted(() => {
   display: flex;
   gap: 0.5rem;
   align-items: center;
+}
+
+@media (max-width: 640px) {
+  .header-row {
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: stretch;
+  }
+
+  .header-actions {
+    justify-content: flex-end;
+    width: 100%;
+  }
+
+  .header-actions :deep(.downloading-add) {
+    position: relative;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 10px;
+  }
+
+  .header-actions :deep(.downloading-add .n-button__content) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
+
+  .header-actions :deep(.downloading-add .n-icon-slot) {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin: 0 !important;
+    transform: translate(-50%, -50%);
+  }
+
+  .downloading-add-label {
+    display: none;
+  }
 }
 
 .page-title {
