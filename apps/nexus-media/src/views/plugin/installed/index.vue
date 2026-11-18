@@ -195,7 +195,7 @@ onMounted(fetchPlugins);
 
 <template>
   <div class="p-4">
-    <PageHeader title="已安装插件">
+    <PageHeader class="stacked-mobile-header" title="已安装插件">
       <template #actions>
         <div class="flex items-center gap-3">
           <!-- 状态筛选 -->
