@@ -80,7 +80,6 @@
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
     "playwright": "catalog:",
-    "postcss-html": "catalog:",
     "rimraf": "catalog:",
     "tailwindcss": "catalog:",
     "tsdown": "catalog:",
