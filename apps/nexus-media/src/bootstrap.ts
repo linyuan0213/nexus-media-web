@@ -15,14 +15,18 @@ import { $t, setupI18n } from '#/locales';
 import { initComponentAdapter } from './adapter/component';
 import { initSetupVbenForm } from './adapter/form';
 import App from './app.vue';
+import { initGlassTheme } from './composables/useGlassTheme';
 import { router } from './router';
 
 import './styles/tabler-theme.css';
+import './styles/glass-theme.css';
 
 // 暴露 Vue 到全局，供插件 UMD 使用
 (window as any).Vue = Vue;
 
 async function bootstrap(namespace: string) {
+  initGlassTheme();
+
   // 初始化组件适配器
   await initComponentAdapter();
 

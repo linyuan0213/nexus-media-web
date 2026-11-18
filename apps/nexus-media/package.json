@@ -1,6 +1,6 @@
 {
   "name": "@nexus-media/frontend",
-  "version": "5.13.0",
+  "version": "5.14.0",
   "homepage": "https://github.com/linyuan0213/nexus-media",
   "bugs": "https://github.com/linyuan0213/nexus-media/issues",
   "repository": {
@@ -19,7 +19,7 @@
     "build:analyze": "pnpm vite build --mode analyze",
     "dev": "pnpm vite --mode development",
     "preview": "vite preview",
-    "typecheck": "vue-tsc --noEmit --skipLibCheck"
+    "typecheck": "vue-tsc --noEmit"
   },
   "imports": {
     "#/*": "./src/*"
@@ -41,6 +41,7 @@
     "@vben/types": "workspace:*",
     "@vben/utils": "workspace:*",
     "@vueuse/core": "catalog:",
+    "cropperjs": "1.6.2",
     "html-to-image": "catalog:",
     "markdown-it": "catalog:",
     "naive-ui": "catalog:",

@@ -11,7 +11,8 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "pnpm exec tsdown"
+    "build": "pnpm exec tsdown",
+    "typecheck": "vue-tsc --noEmit"
   },
   "files": [
     "dist"
@@ -41,7 +42,7 @@
     "@vueuse/core": "catalog:",
     "reka-ui": "catalog:",
     "sortablejs": "catalog:",
-    "vue": "catalog:"
+    "vue": "^3.5.45"
   },
   "devDependencies": {
     "@types/sortablejs": "catalog:"

@@ -10,6 +10,9 @@
   },
   "license": "MIT",
   "type": "module",
+  "scripts": {
+    "typecheck": "vue-tsc --noEmit"
+  },
   "sideEffects": [
     "**/*.css"
   ],
@@ -23,7 +26,7 @@
     "@intlify/core-base": "catalog:",
     "@vben-core/composables": "workspace:*",
     "@vben-core/typings": "workspace:*",
-    "vue": "catalog:",
+    "vue": "^3.5.45",
     "vue-i18n": "catalog:"
   }
 }

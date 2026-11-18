@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { NForm, NFormItem, NGrid, NGridItem, NInput } from 'naive-ui';
 
+import AppearanceSettings from './AppearanceSettings.vue';
 import SettingsGroup from './SettingsGroup.vue';
 import SettingsSwitch from './SettingsSwitch.vue';
 
@@ -17,6 +18,8 @@ const emit = defineEmits<{
 
 <template>
   <NForm label-placement="top">
+    <AppearanceSettings />
+
     <SettingsGroup
       title="服务与访问"
       description="Web 服务端口与外网访问地址。"

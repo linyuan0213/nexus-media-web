@@ -1,5 +1,5 @@
-import { DOMWrapper, mount, type VueWrapper } from '@vue/test-utils';
-import { defineComponent, h, markRaw, nextTick } from 'vue';
+import { DOMWrapper, mount } from '@vue/test-utils';
+import { defineComponent, h, markRaw, nextTick, ref } from 'vue';
 
 import {
   afterAll,
@@ -113,17 +113,35 @@ const AntdvNextLikeInput = defineComponent({
   },
 });
 
+// Mimics the web-ele adapter registration:
+//   IconPicker: withDefaultPlaceholder(IconPicker, 'select', {
+//     iconSlot: 'append',
+//     modelValueProp: 'model-value',
+//     inputComponent: ElInput,
+//   })
+const ElementLikeInput = defineComponent({
+  name: 'ElementLikeInput',
+  props: {
+    modelValue: { type: String, default: '' },
+  },
+  emits: ['update:modelValue'],
+  setup(props, { emit, attrs }) {
+    return () =>
+      h('input', {
+        ...attrs,
+        class: ['element-like-input', attrs.class as string],
+        value: props.modelValue,
+        onInput: (event: Event) => {
+          const target = event.target as HTMLInputElement;
+          emit('update:modelValue', target.value);
+        },
+      });
+  },
+});
+
 const STATIC_ICONS = ['home', 'search', 'settings', 'user-profile'];
 
-const wrappers: VueWrapper[] = [];
-
 describe('icon-picker.vue', () => {
-  afterEach(() => {
-    wrappers.forEach((wrapper) => wrapper.unmount());
-    wrappers.length = 0;
-    document.body.innerHTML = '';
-  });
-
   it('filters icons with the search input (static icons)', async () => {
     const wrapper = mount(IconPicker, {
       attachTo: document.body,
@@ -132,7 +150,6 @@ describe('icon-picker.vue', () => {
         prefix: '',
       },
     });
-    wrappers.push(wrapper);
     await openIconPicker(wrapper);
     expect(gridIconCount()).toBe(4);
 
@@ -140,6 +157,8 @@ describe('icon-picker.vue', () => {
     await searchAndExpect('ho', 1);
 
     await searchAndExpect('zzz', 0); // empty result
+
+    wrapper.unmount();
   });
 
   it('filters icons with the search input (prefix + fetched icons)', async () => {
@@ -149,7 +168,6 @@ describe('icon-picker.vue', () => {
         prefix: 'carbon',
       },
     });
-    wrappers.push(wrapper);
     // watchDebounced: immediate + 500ms debounce before fetchIconsData
     await sleep(700);
     await openIconPicker(wrapper);
@@ -157,6 +175,8 @@ describe('icon-picker.vue', () => {
 
     // 'user' matches only 'carbon:user-profile'
     await searchAndExpect('user', 1);
+
+    wrapper.unmount();
   });
 
   it('filters icons through inputComponent using the value/onUpdate:value protocol', async () => {
@@ -169,7 +189,6 @@ describe('icon-picker.vue', () => {
         prefix: '',
       },
     });
-    wrappers.push(wrapper);
     await openIconPicker(wrapper);
     expect(gridIconCount()).toBe(4);
 
@@ -177,27 +196,203 @@ describe('icon-picker.vue', () => {
     await searchAndExpect('se', 3);
 
     await searchAndExpect('zzz', 0);
+
+    wrapper.unmount();
   });
 
-  it('updates the configured model value when selecting an icon', async () => {
-    const onUpdateValue = vi.fn();
+  it('updates the model value when selecting an icon (value input protocol)', async () => {
+    const onUpdateModelValue = vi.fn();
     const wrapper = mount(IconPicker, {
       attachTo: document.body,
       props: {
         icons: STATIC_ICONS,
         inputComponent: markRaw(AntdvNextLikeInput),
         modelValueProp: 'value',
+        modelValue: 'settings',
         prefix: '',
-        'onUpdate:value': onUpdateValue,
+        'onUpdate:modelValue': onUpdateModelValue,
       },
     });
-    wrappers.push(wrapper);
     await openIconPicker(wrapper);
 
     const firstIcon = document.body.querySelector('.grid-cols-6 > button');
     expect(firstIcon).toBeTruthy();
-    await new DOMWrapper(firstIcon as Element).trigger('click');
+    await new DOMWrapper(firstIcon).trigger('click');
 
-    expect(onUpdateValue).toHaveBeenCalledWith('home');
+    expect(onUpdateModelValue).toHaveBeenCalledWith('home');
+    expect(wrapper.find('input').element.value).toBe('home');
+
+    wrapper.unmount();
+  });
+
+  it('round-trips selection through the modelValue protocol with a value-protocol input', async () => {
+    // Mimics the web-antd form binding after mapping IconPicker to
+    // `modelValue` via modelPropNameMap: the form holds the state and feeds
+    // it back through v-model, while the trigger input still speaks the
+    // value/onUpdate:value protocol.
+    const host = mount(
+      defineComponent({
+        name: 'ValueProtocolHost',
+        setup() {
+          const modelValue = ref('settings');
+          return () =>
+            h(IconPicker, {
+              icons: STATIC_ICONS,
+              inputComponent: markRaw(AntdvNextLikeInput),
+              modelValueProp: 'value',
+              modelValue: modelValue.value,
+              prefix: '',
+              'onUpdate:modelValue': (v: string) => {
+                modelValue.value = v;
+              },
+            });
+        },
+      }),
+      { attachTo: document.body },
+    );
+    await nextTick();
+    expect(host.find('input').element.value).toBe('settings');
+
+    await openIconPicker(host);
+    const firstIcon = document.body.querySelector('.grid-cols-6 > button');
+    expect(firstIcon).toBeTruthy();
+    await new DOMWrapper(firstIcon).trigger('click');
+
+    expect(host.find('input').element.value).toBe('home');
+
+    host.unmount();
+  });
+
+  it('ignores stray value attrs in favor of the v-model contract', async () => {
+    // The outer contract is always v-model: a `value` attr leaking in from
+    // a legacy adapter config must not override the trigger input binding.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = mount(IconPicker, {
+      attachTo: document.body,
+      props: {
+        icons: STATIC_ICONS,
+        inputComponent: markRaw(AntdvNextLikeInput),
+        modelValueProp: 'value',
+        modelValue: 'home',
+        prefix: '',
+        value: 'stray',
+      },
+    });
+    await nextTick();
+    expect(wrapper.find('input').element.value).toBe('home');
+
+    // legacy bindings are dropped with a one-time migration warning
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]?.[0]).toContain('modelPropNameMap');
+
+    warn.mockRestore();
+    wrapper.unmount();
+  });
+
+  it('syncs the initial and external modelValue with a kebab-case modelValueProp', async () => {
+    const wrapper = mount(IconPicker, {
+      attachTo: document.body,
+      props: {
+        icons: STATIC_ICONS,
+        inputComponent: markRaw(ElementLikeInput),
+        modelValue: 'home',
+        modelValueProp: 'model-value',
+        prefix: '',
+      },
+    });
+    await nextTick();
+    expect(wrapper.find('input').element.value).toBe('home');
+
+    // external update
+    await wrapper.setProps({ modelValue: 'settings' });
+    await nextTick();
+    expect(wrapper.find('input').element.value).toBe('settings');
+
+    wrapper.unmount();
+  });
+
+  it('keeps manual input with a kebab-case modelValueProp', async () => {
+    // The parent feeds the emitted value back through modelValue, so the
+    // typed text must survive the parent rerender.
+    const onUpdateModelValue = vi.fn();
+    const host = mount(
+      defineComponent({
+        name: 'KebabModelHost',
+        setup() {
+          const modelValue = ref('home');
+          return () =>
+            h(IconPicker, {
+              icons: STATIC_ICONS,
+              inputComponent: markRaw(ElementLikeInput),
+              modelValue: modelValue.value,
+              modelValueProp: 'model-value',
+              prefix: '',
+              'onUpdate:modelValue': (v: string) => {
+                onUpdateModelValue(v);
+                modelValue.value = v;
+              },
+            });
+        },
+      }),
+      { attachTo: document.body },
+    );
+    const input = host.find('input');
+    await input.setValue('search');
+
+    expect(onUpdateModelValue).toHaveBeenCalledWith('search');
+    expect(input.element.value).toBe('search');
+
+    host.unmount();
+  });
+
+  it('updates the model value and trigger input when selecting an icon (kebab-case modelValueProp)', async () => {
+    const onUpdateModelValue = vi.fn();
+    const wrapper = mount(IconPicker, {
+      attachTo: document.body,
+      props: {
+        icons: STATIC_ICONS,
+        inputComponent: markRaw(ElementLikeInput),
+        modelValue: 'settings',
+        modelValueProp: 'model-value',
+        prefix: '',
+        'onUpdate:modelValue': onUpdateModelValue,
+      },
+    });
+    await openIconPicker(wrapper);
+
+    const firstIcon = document.body.querySelector('.grid-cols-6 > button');
+    expect(firstIcon).toBeTruthy();
+    await new DOMWrapper(firstIcon).trigger('click');
+
+    expect(onUpdateModelValue).toHaveBeenCalledWith('home');
+    expect(wrapper.find('input').element.value).toBe('home');
+
+    wrapper.unmount();
+  });
+
+  it('invokes a kebab-case model listener exactly once per selection', async () => {
+    // defineModel's `update:modelValue` emit already reaches kebab-case
+    // listeners through Vue's fallback; nothing may invoke it a second time.
+    const onKebabUpdate = vi.fn();
+    const wrapper = mount(IconPicker, {
+      attachTo: document.body,
+      props: {
+        icons: STATIC_ICONS,
+        inputComponent: markRaw(ElementLikeInput),
+        modelValueProp: 'model-value',
+        prefix: '',
+        'onUpdate:model-value': onKebabUpdate,
+      },
+    });
+    await openIconPicker(wrapper);
+
+    const firstIcon = document.body.querySelector('.grid-cols-6 > button');
+    expect(firstIcon).toBeTruthy();
+    await new DOMWrapper(firstIcon).trigger('click');
+
+    expect(onKebabUpdate).toHaveBeenCalledTimes(1);
+    expect(onKebabUpdate).toHaveBeenCalledWith('home');
+
+    wrapper.unmount();
   });
 });

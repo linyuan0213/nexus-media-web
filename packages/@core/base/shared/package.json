@@ -12,7 +12,8 @@
   "type": "module",
   "scripts": {
     "build": "pnpm exec tsdown",
-    "stub": "pnpm run build"
+    "stub": "pnpm run build",
+    "typecheck": "vue-tsc --noEmit"
   },
   "files": [
     "dist"
@@ -85,10 +86,10 @@
     }
   },
   "dependencies": {
-    "@ctrl/tinycolor": "catalog:",
+    "@ctrl/tinycolor": "^4.3.1",
     "@tanstack/vue-store": "catalog:",
     "@vue/shared": "catalog:",
-    "clsx": "catalog:",
+    "clsx": "^2.1.1",
     "dayjs": "catalog:",
     "defu": "catalog:",
     "es-toolkit": "catalog:",

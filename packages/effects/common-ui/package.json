@@ -10,6 +10,9 @@
   },
   "license": "MIT",
   "type": "module",
+  "scripts": {
+    "typecheck": "vue-tsc --noEmit"
+  },
   "sideEffects": [
     "**/*.css"
   ],
@@ -44,7 +47,7 @@
     "json-bigint": "catalog:",
     "qrcode": "catalog:",
     "tippy.js": "catalog:",
-    "vue": "catalog:",
+    "vue": "^3.5.45",
     "vue-json-pretty": "catalog:",
     "vue-router": "catalog:",
     "vue-tippy": "catalog:"
