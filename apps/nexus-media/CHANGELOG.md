@@ -9,6 +9,7 @@
 
 - 统一表格、抽屉、弹窗、分页和操作按钮样式。
 - 启动时清理旧版本 Pinia 持久化键，避免残留旧 localStorage。
+- 修复 CI：移除残留上游应用测试、补齐 cspell 词表并统一 cropperjs catalog。
 
 ### 维护
 
