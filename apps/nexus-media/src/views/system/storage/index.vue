@@ -362,7 +362,7 @@ onMounted(fetch);
 
           <!-- 底部操作 -->
           <div
-            class="flex items-center justify-end gap-2 px-5 py-3 border-t"
+            class="card-action-bar flex items-center justify-end gap-2 px-5 py-3 border-t"
             style="border-color: hsl(var(--border))"
           >
             <NButton size="small" text @click="openEdit(item)">

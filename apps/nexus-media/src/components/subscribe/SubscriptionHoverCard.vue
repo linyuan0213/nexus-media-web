@@ -341,11 +341,11 @@ function onCardEnter(e: MouseEvent) {
 }
 
 function onPosterClick() {
-  if (!isTouchMode()) {
-    emit('click', props.item);
+  if (isTouchMode()) {
+    activeItem.value = props.item;
     return;
   }
-  activeItem.value = isPopup.value ? null : props.item;
+  emit('click', props.item);
 }
 
 function openTmdb() {
@@ -428,197 +428,206 @@ onMounted(ensureOutsideListener);
     </div>
 
     <!-- 信息面板（桌面 hover / 移动端浮窗，均为同一 DOM） -->
-    <div class="shc-info" :class="{ 'shc-info--popup': isPopup }">
-      <div class="shc-info-body">
-        <!-- 标题 + 基础信息 -->
-        <h3 class="shc-title" :title="item.name" @click="openTmdb">
-          {{ item.name }}
-        </h3>
-        <div class="shc-meta">
-          <span v-if="item.year">{{ item.year }}</span>
-          <span class="shc-dot">·</span>
-          <span>{{ typeLabel }}</span>
-          <span class="shc-dot">·</span>
-          <span>{{ sourceText }}</span>
-          <template v-if="seasonLabel">
+    <Teleport to="body" :disabled="!isPopup">
+      <div
+        class="shc-info"
+        :class="{ 'shc-info--popup': isPopup }"
+        role="dialog"
+        aria-label="订阅详情"
+      >
+        <div class="shc-info-body">
+          <!-- 标题 + 基础信息 -->
+          <h3 class="shc-title" :title="item.name" @click="openTmdb">
+            {{ item.name }}
+          </h3>
+          <div class="shc-meta">
+            <span v-if="item.year">{{ item.year }}</span>
             <span class="shc-dot">·</span>
-            <span>{{ seasonLabel }}</span>
-          </template>
-        </div>
-
-        <!-- 集数进度 -->
-        <div v-if="showProgress" class="shc-progress-row">
-          <span class="shc-progress-num">已下载 {{ progressText }}</span>
-          <div class="shc-progress-track flex-1">
-            <div
-              class="shc-progress-fill"
-              :style="{ width: `${progressPercent}%` }"
-            ></div>
+            <span>{{ typeLabel }}</span>
+            <span class="shc-dot">·</span>
+            <span>{{ sourceText }}</span>
+            <template v-if="seasonLabel">
+              <span class="shc-dot">·</span>
+              <span>{{ seasonLabel }}</span>
+            </template>
           </div>
-        </div>
 
-        <!-- 简介 -->
-        <p v-if="overviewText" class="shc-overview">{{ overviewText }}</p>
-
-        <!-- 关键词 / 过滤设置 -->
-        <div v-if="keyword" class="shc-setting-row">
-          <span class="shc-setting-label">关键词</span>
-          <span class="shc-setting-value" :title="keyword">{{ keyword }}</span>
-        </div>
-
-        <div v-if="aliases.length" class="shc-setting-row">
-          <span class="shc-setting-label">别名</span>
-          <span class="shc-setting-value" :title="aliasesText">
-            {{ aliasesText }}
-          </span>
-        </div>
-
-        <div v-if="hasFilterInfo" class="shc-setting-row">
-          <span class="shc-setting-label">过滤设置</span>
-          <div class="shc-tags">
-            <NTag v-if="ruleLabel" size="tiny" class="tag-rule">
-              {{ ruleLabel }}
-            </NTag>
-            <NTag v-if="overEdition" size="tiny" class="tag-over-edition">
-              洗版
-            </NTag>
-            <NTag v-if="freeOnly" size="tiny" class="tag-free"> 仅免费 </NTag>
-            <NTag
-              v-if="restypeLabel"
-              size="tiny"
-              class="tag-quality"
-              :title="restypeLabel"
-            >
-              {{ restypeLabel }}
-            </NTag>
-            <NTag
-              v-if="pixLabel"
-              size="tiny"
-              class="tag-resolution"
-              :title="pixLabel"
-            >
-              {{ pixLabel }}
-            </NTag>
-            <NTag v-if="item.filter_team" size="tiny" class="tag-team">
-              {{ item.filter_team }}
-            </NTag>
-            <NTag
-              v-if="item.filter_include"
-              size="tiny"
-              class="tag-include"
-              :title="item.filter_include"
-            >
-              包含: {{ item.filter_include }}
-            </NTag>
-            <NTag
-              v-if="item.filter_exclude"
-              size="tiny"
-              class="tag-exclude"
-              :title="item.filter_exclude"
-            >
-              排除: {{ item.filter_exclude }}
-            </NTag>
-            <NTag v-if="downloadLabel" size="tiny" class="tag-download">
-              {{ downloadLabel }}
-            </NTag>
+          <!-- 集数进度 -->
+          <div v-if="showProgress" class="shc-progress-row">
+            <span class="shc-progress-num">已下载 {{ progressText }}</span>
+            <div class="shc-progress-track flex-1">
+              <div
+                class="shc-progress-fill"
+                :style="{ width: `${progressPercent}%` }"
+              ></div>
+            </div>
           </div>
-        </div>
 
-        <!-- 站点：显示名称，过多可折叠 -->
-        <div v-if="hasSites" class="shc-section">
-          <div v-if="rssSites.length > 0" class="shc-setting-row">
-            <span class="shc-setting-label">订阅站点</span>
-            <div class="shc-site-tags">
+          <!-- 简介 -->
+          <p v-if="overviewText" class="shc-overview">{{ overviewText }}</p>
+
+          <!-- 关键词 / 过滤设置 -->
+          <div v-if="keyword" class="shc-setting-row">
+            <span class="shc-setting-label">关键词</span>
+            <span class="shc-setting-value" :title="keyword">{{
+              keyword
+            }}</span>
+          </div>
+
+          <div v-if="aliases.length" class="shc-setting-row">
+            <span class="shc-setting-label">别名</span>
+            <span class="shc-setting-value" :title="aliasesText">
+              {{ aliasesText }}
+            </span>
+          </div>
+
+          <div v-if="hasFilterInfo" class="shc-setting-row">
+            <span class="shc-setting-label">过滤设置</span>
+            <div class="shc-tags">
+              <NTag v-if="ruleLabel" size="tiny" class="tag-rule">
+                {{ ruleLabel }}
+              </NTag>
+              <NTag v-if="overEdition" size="tiny" class="tag-over-edition">
+                洗版
+              </NTag>
+              <NTag v-if="freeOnly" size="tiny" class="tag-free"> 仅免费 </NTag>
               <NTag
-                v-for="s in rssVisible"
-                :key="`rss-${s}`"
+                v-if="restypeLabel"
                 size="tiny"
-                class="tag-rss-site"
+                class="tag-quality"
+                :title="restypeLabel"
               >
-                {{ s }}
+                {{ restypeLabel }}
               </NTag>
               <NTag
-                v-if="rssOverflow > 0"
+                v-if="pixLabel"
                 size="tiny"
-                class="tag-more"
-                :title="rssSites.join('、')"
-                @click.stop="sitesExpanded = true"
+                class="tag-resolution"
+                :title="pixLabel"
               >
-                +{{ rssOverflow }}
+                {{ pixLabel }}
+              </NTag>
+              <NTag v-if="item.filter_team" size="tiny" class="tag-team">
+                {{ item.filter_team }}
+              </NTag>
+              <NTag
+                v-if="item.filter_include"
+                size="tiny"
+                class="tag-include"
+                :title="item.filter_include"
+              >
+                包含: {{ item.filter_include }}
+              </NTag>
+              <NTag
+                v-if="item.filter_exclude"
+                size="tiny"
+                class="tag-exclude"
+                :title="item.filter_exclude"
+              >
+                排除: {{ item.filter_exclude }}
+              </NTag>
+              <NTag v-if="downloadLabel" size="tiny" class="tag-download">
+                {{ downloadLabel }}
               </NTag>
             </div>
           </div>
-          <div v-if="searchSites.length > 0" class="shc-setting-row">
-            <span class="shc-setting-label">搜索站点</span>
-            <div class="shc-site-tags">
-              <NTag
-                v-for="s in searchVisible"
-                :key="`search-${s}`"
-                size="tiny"
-                class="tag-search-site"
-              >
-                {{ s }}
-              </NTag>
-              <NTag
-                v-if="searchOverflow > 0"
-                size="tiny"
-                class="tag-more"
-                :title="searchSites.join('、')"
-                @click.stop="sitesExpanded = true"
-              >
-                +{{ searchOverflow }}
-              </NTag>
-            </div>
-          </div>
-          <button
-            v-if="canFold"
-            type="button"
-            class="shc-site-toggle"
-            @click.stop="sitesExpanded = !sitesExpanded"
-          >
-            {{ sitesExpanded ? '收起' : '展开全部' }}
-          </button>
-        </div>
-      </div>
 
-      <!-- 操作栏 -->
-      <div class="shc-actions">
-        <button
-          type="button"
-          class="shc-btn-primary"
-          @click.stop="emit('search', item)"
-        >
-          <IconifyIcon icon="lucide:search" class="shc-btn-icon" />
-          <span>搜索资源</span>
-        </button>
-        <div class="shc-action-icons">
+          <!-- 站点：显示名称，过多可折叠 -->
+          <div v-if="hasSites" class="shc-section">
+            <div v-if="rssSites.length > 0" class="shc-setting-row">
+              <span class="shc-setting-label">订阅站点</span>
+              <div class="shc-site-tags">
+                <NTag
+                  v-for="s in rssVisible"
+                  :key="`rss-${s}`"
+                  size="tiny"
+                  class="tag-rss-site"
+                >
+                  {{ s }}
+                </NTag>
+                <NTag
+                  v-if="rssOverflow > 0"
+                  size="tiny"
+                  class="tag-more"
+                  :title="rssSites.join('、')"
+                  @click.stop="sitesExpanded = true"
+                >
+                  +{{ rssOverflow }}
+                </NTag>
+              </div>
+            </div>
+            <div v-if="searchSites.length > 0" class="shc-setting-row">
+              <span class="shc-setting-label">搜索站点</span>
+              <div class="shc-site-tags">
+                <NTag
+                  v-for="s in searchVisible"
+                  :key="`search-${s}`"
+                  size="tiny"
+                  class="tag-search-site"
+                >
+                  {{ s }}
+                </NTag>
+                <NTag
+                  v-if="searchOverflow > 0"
+                  size="tiny"
+                  class="tag-more"
+                  :title="searchSites.join('、')"
+                  @click.stop="sitesExpanded = true"
+                >
+                  +{{ searchOverflow }}
+                </NTag>
+              </div>
+            </div>
+            <button
+              v-if="canFold"
+              type="button"
+              class="shc-site-toggle"
+              @click.stop="sitesExpanded = !sitesExpanded"
+            >
+              {{ sitesExpanded ? '收起' : '展开全部' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- 操作栏 -->
+        <div class="shc-actions">
           <button
             type="button"
-            class="shc-icon-btn"
-            title="编辑"
-            @click.stop="emit('edit', item)"
+            class="shc-btn-primary"
+            @click.stop="emit('search', item)"
           >
-            <IconifyIcon icon="lucide:pencil" class="shc-btn-icon" />
+            <IconifyIcon icon="lucide:search" class="shc-btn-icon" />
+            <span>搜索资源</span>
           </button>
-          <button
-            type="button"
-            class="shc-icon-btn"
-            title="刷新"
-            @click.stop="emit('refresh', item)"
-          >
-            <IconifyIcon icon="lucide:refresh-cw" class="shc-btn-icon" />
-          </button>
-          <button
-            type="button"
-            class="shc-icon-btn shc-icon-btn-danger"
-            title="取消订阅"
-            @click.stop="emit('delete', item)"
-          >
-            <IconifyIcon icon="lucide:trash-2" class="shc-btn-icon" />
-          </button>
+          <div class="shc-action-icons">
+            <button
+              type="button"
+              class="shc-icon-btn"
+              title="编辑"
+              @click.stop="emit('edit', item)"
+            >
+              <IconifyIcon icon="lucide:pencil" class="shc-btn-icon" />
+            </button>
+            <button
+              type="button"
+              class="shc-icon-btn"
+              title="刷新"
+              @click.stop="emit('refresh', item)"
+            >
+              <IconifyIcon icon="lucide:refresh-cw" class="shc-btn-icon" />
+            </button>
+            <button
+              type="button"
+              class="shc-icon-btn shc-icon-btn-danger"
+              title="取消订阅"
+              @click.stop="emit('delete', item)"
+            >
+              <IconifyIcon icon="lucide:trash-2" class="shc-btn-icon" />
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 

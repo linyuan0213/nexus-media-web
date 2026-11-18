@@ -356,3 +356,24 @@
 .chat-header {
   border-radius: 0 !important;
 }
+
+.card-action-bar > .n-button,
+.card-action-bar > .n-popover > .n-button {
+  min-height: 2rem;
+  padding-inline: 0.6rem;
+  background: hsl(var(--muted) / 55%) !important;
+  border: 1px solid hsl(var(--border) / 55%);
+  border-radius: 0.5rem;
+}
+
+.card-action-bar > .n-button.card-action,
+.card-action-bar > .n-popover > .n-button.card-action {
+  width: 2rem;
+  padding-inline: 0;
+}
+
+.card-action-bar > .n-button:hover,
+.card-action-bar > .n-popover > .n-button:hover {
+  background: hsl(var(--primary) / 12%) !important;
+  border-color: hsl(var(--primary) / 28%);
+}

@@ -371,32 +371,37 @@ function handleCardClick(item: any) {
       return;
     }
   }
-  const provider = String(item.anchor_provider || '').trim();
-  const externalId = String(item.anchor_external_id || '').trim();
-  if (
-    provider &&
-    provider !== 'tmdb' &&
-    provider !== 'content_id' &&
-    externalId
-  ) {
+  const metadataRef = String(item.metadata_ref || item.mediaid || '').trim();
+  const [refProvider, ...refParts] = metadataRef.split(':');
+  let provider = String(
+    item.anchor_provider || item.provider || refProvider || '',
+  ).trim();
+  let externalId = String(
+    item.anchor_external_id ||
+      (refParts.length > 0 ? refParts.join(':') : '') ||
+      item.tmdbid ||
+      item.tmdb_id ||
+      '',
+  ).trim();
+
+  if (!provider && externalId) provider = 'tmdb';
+  if (provider === 'content_id') {
+    provider = '';
+    externalId = '';
+  }
+
+  if (provider && externalId) {
     router.push({
       name: 'MediaDetail',
       query: {
         provider,
         ref: externalId,
-        type: props.mediaType === 'movie' ? 'movie' : 'tv',
+        type: item.type || (props.mediaType === 'movie' ? 'movie' : 'tv'),
       },
     });
     return;
   }
-  if (!item.tmdbid) return;
-  router.push({
-    name: 'MediaDetail',
-    query: {
-      type: item.type || (props.mediaType === 'movie' ? 'movie' : 'tv'),
-      id: item.tmdbid,
-    },
-  });
+  handleEdit(item);
 }
 
 async function handleCardSearch(item: any) {

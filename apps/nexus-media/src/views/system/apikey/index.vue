@@ -396,10 +396,15 @@ onMounted(() => {
           </div>
 
           <!-- 底部操作 -->
-          <div class="apikey-card-footer">
+          <div class="apikey-card-footer card-action-bar">
             <NTooltip>
               <template #trigger>
-                <NButton text size="tiny" @click="openLogs(item)">
+                <NButton
+                  quaternary
+                  size="small"
+                  class="card-action"
+                  @click="openLogs(item)"
+                >
                   <IconifyIcon icon="lucide:scroll-text" class="size-3.5" />
                 </NButton>
               </template>
@@ -407,7 +412,12 @@ onMounted(() => {
             </NTooltip>
             <NTooltip>
               <template #trigger>
-                <NButton text size="tiny" @click="openEdit(item)">
+                <NButton
+                  quaternary
+                  size="small"
+                  class="card-action"
+                  @click="openEdit(item)"
+                >
                   <IconifyIcon icon="lucide:pencil" class="size-3.5" />
                 </NButton>
               </template>
@@ -416,9 +426,10 @@ onMounted(() => {
             <NTooltip>
               <template #trigger>
                 <NButton
-                  text
-                  size="tiny"
+                  quaternary
+                  size="small"
                   type="error"
+                  class="card-action card-action--danger"
                   @click="confirmDelete(item)"
                 >
                   <IconifyIcon icon="lucide:trash-2" class="size-3.5" />
