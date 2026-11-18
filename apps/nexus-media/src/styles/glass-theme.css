@@ -2623,3 +2623,13 @@ html.theme-glass .lifecycle-mobile-card .mobile-card-arrow {
   border: 1px solid hsl(var(--glass-card-border) / 28%);
   backdrop-filter: blur(10px);
 }
+
+/* 文件管理器工具栏：作为内容面板内部区域，避免双层圆角 */
+html.theme-glass .file-toolbar {
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid hsl(var(--glass-card-border) / 30%) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
