@@ -345,27 +345,33 @@ onMounted(() => fetchData(1));
             @keyup.enter="handleSearch"
           />
           <div class="unknown-action-buttons">
-            <NButton @click="handleSearch">
+            <NButton aria-label="搜索" title="搜索" @click="handleSearch">
               <template #icon>
                 <IconifyIcon icon="lucide:search" class="size-4" />
               </template>
-              搜索
+              <span class="unknown-action-label">搜索</span>
             </NButton>
-            <NButton @click="fetchData(currentPage)">
+            <NButton
+              aria-label="刷新"
+              title="刷新"
+              @click="fetchData(currentPage)"
+            >
               <template #icon>
                 <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
               </template>
-              刷新
+              <span class="unknown-action-label">刷新</span>
             </NButton>
             <NButton
               type="primary"
+              aria-label="重新识别"
+              title="重新识别"
               :loading="reIdentifyLoading"
               @click="handleReIdentify"
             >
               <template #icon>
                 <IconifyIcon icon="lucide:activity" class="size-4" />
               </template>
-              重新识别
+              <span class="unknown-action-label">重新识别</span>
             </NButton>
           </div>
         </div>
@@ -822,14 +828,29 @@ onMounted(() => fetchData(1));
 }
 
 @media (max-width: 640px) {
+  .unknown-actions {
+    flex-wrap: nowrap;
+    gap: 0.375rem;
+  }
+
   .unknown-search {
-    flex: 1 1 100%;
-    max-width: 100%;
+    flex: 1 1 auto;
+    max-width: none;
   }
 
   .unknown-action-buttons {
-    justify-content: flex-end;
-    width: 100%;
+    flex-wrap: nowrap;
+    gap: 0.375rem;
+  }
+
+  .unknown-action-buttons .n-button {
+    width: 2.25rem;
+    height: 2.25rem;
+    padding-inline: 0;
+  }
+
+  .unknown-action-label {
+    display: none;
   }
 }
 </style>
