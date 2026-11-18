@@ -13,7 +13,6 @@ import {
   NPagination,
   NPopconfirm,
   NSelect,
-  NSpace,
   NSpin,
 } from 'naive-ui';
 
@@ -191,46 +190,55 @@ onMounted(() => {
       subtitle="屏蔽不想识别的元数据条目（当前支持 TMDB）"
     >
       <template #actions>
-        <NSpace align="center">
+        <div class="blacklist-actions">
           <NInput
             v-model:value="keyword"
             placeholder="搜索标题或外部 ID..."
-            style="width: 240px"
+            class="blacklist-search"
             clearable
             @keyup.enter="handleSearch"
           >
             <template #prefix>
-              <IconifyIcon
-                icon="lucide:search"
-                class="size-4"
-                style="color: hsl(var(--muted-foreground))"
-              />
+              <IconifyIcon icon="lucide:search" class="size-4" />
             </template>
           </NInput>
-          <NButton @click="fetchData(currentPage)">
-            <template #icon>
-              <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
-            </template>
-          </NButton>
-          <NButton type="primary" @click="openAddModal">
-            <template #icon>
-              <IconifyIcon icon="lucide:plus" class="size-4" />
-            </template>
-            添加
-          </NButton>
-          <NPopconfirm @positive-click="handleClear">
-            <template #trigger>
-              <NButton type="error" ghost>
-                <template #icon>
-                  <IconifyIcon icon="lucide:trash-2" class="size-4" />
-                </template>
-              </NButton>
-            </template>
-            <div class="max-w-[280px]">
-              确定要清空所有识别黑名单记录吗？此操作不可恢复。
-            </div>
-          </NPopconfirm>
-        </NSpace>
+          <div class="blacklist-action-buttons">
+            <NButton
+              class="blacklist-refresh"
+              aria-label="刷新"
+              title="刷新"
+              @click="fetchData(currentPage)"
+            >
+              <template #icon>
+                <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
+              </template>
+            </NButton>
+            <NButton class="blacklist-add" type="primary" @click="openAddModal">
+              <template #icon>
+                <IconifyIcon icon="lucide:plus" class="size-4" />
+              </template>
+              添加
+            </NButton>
+            <NPopconfirm @positive-click="handleClear">
+              <template #trigger>
+                <NButton
+                  class="blacklist-clear"
+                  type="error"
+                  ghost
+                  aria-label="清空黑名单"
+                  title="清空黑名单"
+                >
+                  <template #icon>
+                    <IconifyIcon icon="lucide:trash-2" class="size-4" />
+                  </template>
+                </NButton>
+              </template>
+              <div class="max-w-[280px]">
+                确定要清空所有识别黑名单记录吗？此操作不可恢复。
+              </div>
+            </NPopconfirm>
+          </div>
+        </div>
       </template>
     </PageHeader>
 
@@ -496,6 +504,84 @@ onMounted(() => {
   .blacklist-poster-placeholder {
     width: 3rem;
     height: 4.25rem;
+  }
+}
+
+.blacklist-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.blacklist-search {
+  flex: 1 1 180px;
+  min-width: 0;
+  max-width: 280px;
+  height: 36px;
+  background: hsl(var(--glass-surface) / 42%) !important;
+  border-radius: 10px !important;
+  backdrop-filter: blur(14px) saturate(125%);
+}
+
+.blacklist-search :deep(.n-input__border),
+.blacklist-search :deep(.n-input__state-border) {
+  display: none;
+}
+
+.blacklist-action-buttons {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.5rem;
+}
+
+.blacklist-action-buttons :deep(.n-button) {
+  height: 36px;
+  padding-inline: 0.8rem;
+  font-size: 0.8rem;
+  border-radius: 10px;
+}
+
+.blacklist-action-buttons :deep(.blacklist-refresh) {
+  color: hsl(var(--foreground) / 82%);
+  background: transparent !important;
+  border: 1px solid hsl(var(--glass-card-border) / 42%) !important;
+}
+
+.blacklist-action-buttons :deep(.blacklist-refresh:hover) {
+  color: hsl(var(--foreground));
+  background: hsl(var(--primary) / 8%) !important;
+  border-color: hsl(var(--primary) / 28%) !important;
+}
+
+.blacklist-action-buttons :deep(.blacklist-clear) {
+  border-radius: 10px;
+}
+
+@media (max-width: 640px) {
+  .blacklist-actions {
+    gap: 0.375rem;
+  }
+
+  .blacklist-search {
+    flex: 1 1 auto;
+    max-width: none;
+  }
+
+  .blacklist-action-buttons {
+    gap: 0.375rem;
+  }
+
+  .blacklist-action-buttons :deep(.n-button) {
+    padding-inline: 0.55rem;
+    font-size: 0.75rem;
+  }
+
+  .blacklist-action-buttons :deep(.blacklist-clear) {
+    width: 2.25rem;
+    padding-inline: 0;
   }
 }
 </style>
