@@ -81,6 +81,7 @@ const hasSubtitle = computed(() => !!props.subtitle);
     width: 2.25rem;
     height: 2.25rem;
     padding: 0;
+    border-radius: 10px !important;
   }
 
   .page-header-actions :deep(.n-button:has(.n-icon-slot) .n-button__content) {

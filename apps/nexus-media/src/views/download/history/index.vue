@@ -190,30 +190,38 @@ onMounted(() => fetchData(1));
             <IconifyIcon icon="lucide:search" class="size-4" />
           </template>
         </NInput>
-        <NButton @click="fetchData(currentPage)">
+        <NButton
+          class="toolbar-icon-action"
+          aria-label="刷新"
+          title="刷新"
+          @click="fetchData(currentPage)"
+        >
           <template #icon>
             <IconifyIcon icon="lucide:refresh-cw" class="size-4" />
           </template>
-          刷新
+          <span class="toolbar-action-label">刷新</span>
         </NButton>
         <NPopconfirm @positive-click="handleDeleteAll">
           <template #trigger>
             <NButton
               type="error"
               secondary
+              class="toolbar-icon-action"
               :disabled="history.length === 0"
+              aria-label="清空全部记录"
               title="清空全部记录"
             >
               <template #icon>
                 <IconifyIcon icon="lucide:trash-2" class="size-4" />
               </template>
-              清空全部
+              <span class="toolbar-action-label">清空全部</span>
             </NButton>
           </template>
           确定清空全部下载记录？此操作不可恢复
         </NPopconfirm>
         <NButton
           text
+          class="toolbar-icon-action"
           :type="viewMode === 'grid' ? 'primary' : 'default'"
           @click="viewMode = 'grid'"
         >
@@ -223,6 +231,7 @@ onMounted(() => fetchData(1));
         </NButton>
         <NButton
           text
+          class="toolbar-icon-action"
           :type="viewMode === 'list' ? 'primary' : 'default'"
           @click="viewMode = 'list'"
         >
@@ -671,6 +680,61 @@ onMounted(() => fetchData(1));
 
   .history-list-title {
     font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .header-row {
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: stretch;
+  }
+
+  .toolbar-actions {
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .toolbar-actions :deep(.n-input) {
+    flex: 1 1 140px;
+    width: auto !important;
+    min-width: 0;
+  }
+
+  .toolbar-actions :deep(.toolbar-icon-action) {
+    position: relative;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 10px;
+  }
+
+  .toolbar-actions :deep(.toolbar-icon-action .n-button__content) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
+
+  .toolbar-actions :deep(.toolbar-icon-action .n-icon-slot) {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin: 0 !important;
+    transform: translate(-50%, -50%);
+  }
+
+  .toolbar-action-label {
+    display: none;
   }
 }
 </style>

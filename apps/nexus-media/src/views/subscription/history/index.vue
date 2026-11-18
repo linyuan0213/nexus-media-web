@@ -162,6 +162,13 @@ async function fetchData() {
     loading.value = false;
   }
 }
+function handlePageChange(page: number) {
+  if (page === currentPage.value) return;
+  currentPage.value = page;
+  fetchData();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 async function handleReRss(item: any) {
   try {
     await redoSubscriptionHistoryApi(
@@ -237,11 +244,12 @@ onMounted(fetchData);
         </div>
         <div v-if="total > pageSize" class="history-pagination">
           <NPagination
-            v-model:page="currentPage"
+            :page="currentPage"
             :page-count="pageCount"
             :page-size="pageSize"
             :page-slot="5"
             size="small"
+            @update:page="handlePageChange"
           />
         </div>
       </div>
