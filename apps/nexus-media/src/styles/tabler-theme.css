@@ -66,26 +66,6 @@
   transition: all 0.2s ease;
 }
 
-/* 页面标题栏 */
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-}
-
-.page-header-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--tblr-text-heading);
-}
-
-.page-header-subtitle {
-  margin-top: 0.25rem;
-  font-size: 0.875rem;
-  color: var(--tblr-text-muted);
-}
-
 /* 媒体卡片网格 */
 .grid-media-card {
   display: grid;

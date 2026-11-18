@@ -55,20 +55,25 @@ const hasSubtitle = computed(() => !!props.subtitle);
 
 @media (max-width: 640px) {
   .page-header {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: stretch;
+    justify-content: flex-start;
+    margin-bottom: 1rem;
   }
 
   .page-header > div:first-child {
-    flex: 1 1 0;
+    flex: none;
+    width: 100%;
     min-width: 0;
   }
 
   .page-header-actions {
-    align-self: flex-start;
-    width: auto;
-    margin-left: auto;
+    flex-wrap: wrap;
+    align-self: stretch;
+    justify-content: flex-end;
+    width: 100%;
+    margin-left: 0;
   }
 
   .page-header-actions :deep(.n-button:has(.n-icon-slot)) {
@@ -104,31 +109,6 @@ const hasSubtitle = computed(() => !!props.subtitle);
     flex: 1 1 180px;
     width: auto !important;
     min-width: 0;
-  }
-
-  .page-header:has(.page-header-actions .n-button:only-child),
-  .page-header:has(
-    .page-header-actions .n-button:first-child:nth-child(2):last-child
-  ) {
-    flex-wrap: nowrap;
-    align-items: flex-start;
-  }
-
-  .page-header:has(.page-header-actions .n-button:only-child) > div:first-child,
-  .page-header:has(
-      .page-header-actions .n-button:first-child:nth-child(2):last-child
-    )
-    > div:first-child {
-    min-width: 0;
-  }
-
-  .page-header:has(.page-header-actions .n-button:only-child)
-    .page-header-actions,
-  .page-header:has(
-      .page-header-actions .n-button:first-child:nth-child(2):last-child
-    )
-    .page-header-actions {
-    flex-shrink: 0;
   }
 
   .page-header-actions > * {

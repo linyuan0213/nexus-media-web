@@ -2681,3 +2681,26 @@ html.theme-glass .file-manager .file-row-highlighted {
     background: hsl(var(--warning) / 12%) !important;
   }
 }
+
+html.theme-glass :is(.chat-input-area, .batch-bar-mobile, .mobile-detail-bar) {
+  background: hsl(var(--glass-surface) / var(--glass-shell-opacity)) !important;
+  border-color: hsl(var(--glass-card-border) / 34%) !important;
+  box-shadow:
+    inset 0 1px 0 hsl(var(--glass-highlight) / 36%),
+    0 -12px 32px -24px hsl(var(--glass-shadow-color) / 30%);
+  backdrop-filter: blur(12px) saturate(120%);
+}
+
+html.theme-glass .discovery-filter .feed-toggle-group {
+  background: hsl(var(--glass-surface) / var(--glass-panel-opacity));
+  border: 1px solid hsl(var(--glass-card-border) / 28%);
+  backdrop-filter: blur(12px) saturate(120%);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html.theme-glass :is(.chat-input-area, .batch-bar-mobile, .mobile-detail-bar),
+  html.theme-glass .discovery-filter .feed-toggle-group {
+    background: hsl(var(--card)) !important;
+    backdrop-filter: none;
+  }
+}

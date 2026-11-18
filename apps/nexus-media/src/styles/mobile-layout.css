@@ -1,0 +1,244 @@
+@media (max-width: 640px) {
+  .page-header {
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: stretch;
+    width: 100%;
+    min-width: 0;
+    margin-bottom: 1rem;
+  }
+
+  .page-header > div:first-child {
+    flex: none;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .page-header-title {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 1.25rem;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+
+  .page-header-subtitle {
+    margin-top: 0.25rem;
+    line-height: 1.5;
+    white-space: normal;
+  }
+
+  .page-header-actions {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-self: stretch;
+    justify-content: flex-end;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .page-header-actions > .n-space {
+    flex-wrap: wrap;
+    gap: 0.5rem !important;
+    justify-content: flex-end;
+    max-width: 100%;
+  }
+
+  :is(
+      .page-header-actions,
+      .head-actions,
+      .page-actions,
+      .card-actions,
+      .remove-task-actions,
+      .site-header-actions,
+      .toolbar-actions
+    )
+    .n-button {
+    height: 36px;
+    min-height: 36px;
+    border-radius: 10px;
+  }
+
+  .page-header-actions .n-button:has(.n-icon-slot) {
+    position: relative;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+  }
+
+  .page-header-actions .n-button:has(.n-icon-slot) .n-button__content {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
+
+  .page-header-actions .n-button:has(.n-icon-slot) .n-icon-slot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    height: 1rem;
+    margin: 0 !important;
+    transform: translate(-50%, -50%);
+  }
+
+  .n-button .n-icon-slot,
+  .n-button .n-button__content {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  :is(
+    .card-action,
+    .blacklist-refresh,
+    .blacklist-clear,
+    .history-icon-action,
+    .remove-task-actions .n-button
+  ) {
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 10px;
+  }
+
+  .page-header-actions .n-input,
+  .page-header-actions .n-input-group,
+  .page-header-actions .n-select {
+    flex: 1 1 160px;
+    width: auto !important;
+    min-width: 0;
+  }
+
+  .page-header-actions > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .n-card,
+  .n-card-content,
+  .n-card__content,
+  .n-form,
+  .n-form-item,
+  .n-form-item-label,
+  .n-input,
+  .n-select,
+  .n-base-selection {
+    min-width: 0;
+  }
+
+  :is(
+    .filter-scroll,
+    .discovery-filter .filter-row,
+    .discovery-filter .facet-group,
+    .discovery-filter .year-list,
+    .type-filter,
+    .type-tabs,
+    .type-tab-group,
+    .filter-chips,
+    .source-filter-bar,
+    .tab-buttons,
+    .ffg-row
+  ) {
+    flex-wrap: nowrap !important;
+    gap: 0.5rem;
+    max-width: 100%;
+    overflow: auto hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  :is(
+    .filter-scroll,
+    .discovery-filter .filter-row,
+    .discovery-filter .facet-group,
+    .discovery-filter .year-list,
+    .type-filter,
+    .type-tabs,
+    .type-tab-group,
+    .filter-chips,
+    .source-filter-bar,
+    .tab-buttons,
+    .ffg-row
+  )::-webkit-scrollbar {
+    display: none;
+  }
+
+  :is(
+      .filter-scroll,
+      .discovery-filter .filter-row,
+      .discovery-filter .facet-group,
+      .discovery-filter .year-list,
+      .type-filter,
+      .type-tabs,
+      .type-tab-group,
+      .filter-chips,
+      .source-filter-bar,
+      .tab-buttons,
+      .ffg-row
+    )
+    > * {
+    flex: 0 0 auto;
+  }
+
+  :is(
+    .toolbar,
+    .toolbar-bar,
+    .lifecycle-toolbar,
+    .filter-bar,
+    .market-filter-bar,
+    .market-filter-group,
+    .filter-controls,
+    .head-actions,
+    .page-actions,
+    .card-actions,
+    .remove-task-actions,
+    .site-header-actions,
+    .toolbar-actions
+  ) {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  :is(.n-data-table, .table-card, .job-table, .torrent-table, .season-table) {
+    max-width: 100%;
+  }
+
+  .n-data-table-wrapper,
+  .n-data-table-base-table-header,
+  .n-data-table-base-table-body {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .n-data-table-base-table-header::-webkit-scrollbar,
+  .n-data-table-base-table-body::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .unknown-actions {
+    min-height: 46px;
+  }
+
+  .unknown-action-buttons .n-button {
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .unknown-action-buttons .n-button.n-button--primary-type {
+    border-radius: 50%;
+  }
+}
