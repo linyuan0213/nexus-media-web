@@ -1,5 +1,6 @@
 
 #user  nobody;
+pid /tmp/nginx.pid;
 worker_processes 1;
 
 #error_log  logs/error.log;
