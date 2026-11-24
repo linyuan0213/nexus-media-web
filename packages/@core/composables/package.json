@@ -42,7 +42,7 @@
     "@vueuse/core": "catalog:",
     "reka-ui": "catalog:",
     "sortablejs": "catalog:",
-    "vue": "^3.5.45"
+    "vue": "^3.5.46"
   },
   "devDependencies": {
     "@types/sortablejs": "catalog:"

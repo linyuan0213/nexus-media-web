@@ -29,7 +29,7 @@
     "pinia": "^4.1.0",
     "pinia-plugin-persistedstate": "catalog:",
     "secure-ls": "catalog:",
-    "vue": "^3.5.45",
+    "vue": "^3.5.46",
     "vue-router": "catalog:"
   }
 }
