@@ -49,6 +49,6 @@
     "@vueuse/core": "catalog:",
     "class-variance-authority": "catalog:",
     "reka-ui": "catalog:",
-    "vue": "^3.5.45"
+    "vue": "^3.5.46"
   }
 }
