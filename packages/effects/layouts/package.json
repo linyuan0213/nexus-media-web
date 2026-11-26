@@ -44,7 +44,7 @@
     "@vben/utils": "workspace:*",
     "@vueuse/core": "catalog:",
     "sortablejs": "catalog:",
-    "vue": "^3.5.45",
+    "vue": "^3.5.46",
     "vue-router": "catalog:"
   }
 }
