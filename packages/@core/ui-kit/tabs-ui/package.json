@@ -47,7 +47,7 @@
     "@vben-core/shadcn-ui": "workspace:*",
     "@vben-core/typings": "workspace:*",
     "@vueuse/core": "catalog:",
-    "vue": "^3.5.45"
+    "vue": "^3.5.46"
   },
   "devDependencies": {
     "unplugin-vue": "catalog:"
